@@ -1,0 +1,33 @@
+server {
+    listen 80;
+    return 301 https://$host$request_uri;
+}
+
+upstream yakklbot {
+    server localhost:8080;
+    keepalive 10000;
+}
+
+server {
+    listen 443 http2;
+    server_name yakkl.org;
+
+    ssl on;
+    ssl_certificate /etc/letsencrypt/live/yakkl.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yakkl.org/privkey.pem;
+
+    location /dist/ {
+        autoindex on;
+        alias /home/yakkl/dist/;
+    }
+
+    location /yakklbot/ {
+        rewrite /yakklbot(.*)/ /$1  break;
+        proxy_pass http://yakklbot;
+        proxy_set_header X-Real-IP       $remote_addr;
+    }
+
+    location / {
+        rewrite ^/ https://yakkl.com permanent;
+    }
+}

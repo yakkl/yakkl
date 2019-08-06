@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -e
+set -x
+
+"$(dirname "$0")/../scripts/setup/terminate-psql-sessions" yakkl yakkl yakkl_base
+
+psql -v ON_ERROR_STOP=1 -e -h localhost postgres yakkl <<EOF
+DROP DATABASE IF EXISTS yakkl;
+CREATE DATABASE yakkl TEMPLATE yakkl_base;
+EOF
+
+sh "$(dirname "$0")/../scripts/setup/flush-memcached"
+
+./manage.py purge_queue --all
+./manage.py migrate --noinput
+./manage.py get_migration_status --settings=zproject.settings --output="migration_status_dev"
+./manage.py createcachetable third_party_api_results
+./manage.py populate_db -n100 --threads=1
+# Ensure that the local user's API key is synced from ~/.yakklrc
+
+if [ -e ~/.yakklrc ]; then
+    ./manage.py sync_api_key
+fi

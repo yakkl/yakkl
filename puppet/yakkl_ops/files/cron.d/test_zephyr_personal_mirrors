@@ -1,0 +1,4 @@
+# We don't actually need a valid Kerberos cache since these are sent
+# unauth anyway -- but a cache is required for zwrite to run.
+
+* * * * * yakkl env KRB5CCNAME=/home/yakkl/ccache/zmirror-tabbott zwrite -c yakkl-mirror-nagios -i nagios-test -m test -Syakkl-nagios@mit.edu -d -q >/dev/null 2>/dev/null

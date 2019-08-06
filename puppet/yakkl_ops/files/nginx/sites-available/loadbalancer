@@ -1,0 +1,145 @@
+upstream staging {
+    server staging0.yakkl.net:443;
+
+    keepalive 10000;
+}
+
+upstream prod {
+    server prod0.yakkl.net:443;
+
+    keepalive 10000;
+}
+
+server {
+    listen 80;
+    location / {
+        return 301 https://$host$request_uri;
+    }
+
+    include /etc/nginx/yakkl-include/certbot;
+}
+
+server {
+    # The listen needs to be `www.yakklstaging.com` since bare yakklstaging.com
+    # is not a CNAME and thus has the public IP inside EC2
+    listen www.yakklstaging.com:443 http2;
+    server_name yakklstaging.com *.yakklstaging.com;
+
+    ssl on;
+    ssl_certificate /etc/letsencrypt/live/yakkl.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yakkl.com/privkey.pem;
+
+    location / {
+        proxy_pass https://staging/;
+        include /etc/nginx/yakkl-include/proxy;
+    }
+
+    location /sockjs {
+        proxy_pass https://staging;
+        include /etc/nginx/yakkl-include/location-sockjs;
+    }
+
+    # We don't need /api/v1/events/internal, because that doesn't go through the loadbalancer.
+    location ~ /json/events|/api/v1/events {
+        proxy_pass https://staging;
+        include /etc/nginx/yakkl-include/proxy_longpolling;
+    }
+
+    include /etc/nginx/yakkl-include/certbot;
+}
+
+server {
+    # The listen needs to be `www.yakkl.com` since bare yakkl.com
+    # is not a CNAME and thus has the public IP inside EC2
+    listen www.yakkl.com:443 default_server http2;
+    server_name yakkl.com *.yakkl.com;
+
+    ssl on;
+    ssl_certificate /etc/letsencrypt/live/yakkl.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yakkl.com/privkey.pem;
+
+    location / {
+        proxy_pass https://prod;
+        include /etc/nginx/yakkl-include/proxy;
+    }
+
+    location /sockjs {
+        proxy_pass https://prod;
+        include /etc/nginx/yakkl-include/location-sockjs;
+    }
+
+    location ~ /json/events|/api/v1/events {
+        proxy_pass https://prod;
+        include /etc/nginx/yakkl-include/proxy_longpolling;
+    }
+
+    include /etc/nginx/yakkl-include/certbot;
+}
+
+server {
+    # The listen needs to be `www.yakkl.com` since bare yakkl.com
+    # is not a CNAME and thus has the public IP inside EC2
+    listen www.yakkl.com:443 http2;
+    server_name yakkl.com *.yakkl.com;
+
+    ssl on;
+    ssl_certificate /etc/letsencrypt/live/yakkl.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yakkl.com/privkey.pem;
+
+    location / {
+        proxy_pass https://prod;
+        include /etc/nginx/yakkl-include/proxy;
+    }
+
+    location /sockjs {
+        proxy_pass https://prod;
+        include /etc/nginx/yakkl-include/location-sockjs;
+    }
+
+    location ~ /json/events|/api/v1/events {
+        proxy_pass https://prod;
+        include /etc/nginx/yakkl-include/proxy_longpolling;
+    }
+
+    include /etc/nginx/yakkl-include/certbot;
+}
+
+server {
+    listen chat.hl7.org:443 http2;
+    server_name chat.hl7.org;
+    ssl_certificate /etc/letsencrypt/live/chat.hl7.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/chat.hl7.org/privkey.pem;
+
+    location / {
+        proxy_pass https://prod;
+        include /etc/nginx/yakkl-include/proxy;
+    }
+
+    location /sockjs {
+        proxy_pass https://prod;
+        include /etc/nginx/yakkl-include/location-sockjs;
+    }
+
+    location ~ /json/events|/api/v1/events {
+        proxy_pass https://prod;
+        include /etc/nginx/yakkl-include/proxy_longpolling;
+    }
+
+    include /etc/nginx/yakkl-include/certbot;
+}
+
+server {
+    listen uploads.yakklusercontent.net:443 http2;
+    server_name uploads.yakklusercontent.net;
+
+    ssl on;
+    ssl_certificate /etc/letsencrypt/live/uploads.yakklusercontent.net/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/uploads.yakklusercontent.net/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:9292;
+        include /etc/nginx/yakkl-include/proxy;
+    }
+
+    include /etc/nginx/yakkl-include/certbot;
+}

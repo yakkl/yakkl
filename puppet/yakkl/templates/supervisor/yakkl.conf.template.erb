@@ -1,0 +1,162 @@
+; Supervisor config file.
+; on Debian squeeze, place me in /etc/supervisor/conf.d/yakkl.conf
+;
+; For more information on the config file, please see:
+; http://supervisord.org/configuration.html
+;
+; Note: shell expansion ("~" or "$HOME") is not supported.  Environment
+; variables can be expanded using this syntax: "%(ENV_HOME)s".
+
+[program:yakkl-django]
+command=/home/yakkl/deployments/current/yakkl-current-venv/bin/uwsgi --ini /etc/yakkl/uwsgi.ini
+priority=100                   ; the relative start priority (default 999)
+autostart=true                 ; start at supervisord start (default: true)
+autorestart=true               ; whether/when to restart (default: unexpected)
+stopsignal=INT                 ; signal used to kill process (default TERM)
+stopwaitsecs=30                ; max num secs to wait b4 SIGKILL (default 10)
+user=yakkl                    ; setuid to this UNIX account to run the program
+redirect_stderr=true           ; redirect proc stderr to stdout (default false)
+stdout_logfile=/var/log/yakkl/django.log        ; stdout log path, NONE for none; default AUTO
+stdout_logfile_maxbytes=100MB   ; max # logfile bytes b4 rotation (default 50MB)
+stdout_logfile_backups=10     ; # of stdout logfile backups (default 10)
+stopasgroup=true              ; Without this, we leak processes every restart
+killasgroup=true              ; Without this, we leak processes every restart
+directory=/home/yakkl/deployments/current/
+
+<% if @tornado_multiprocess -%>
+[program:yakkl-tornado]
+command=env PYTHONUNBUFFERED=1 /home/yakkl/deployments/current/manage.py runtornado 127.0.0.1:98%(process_num)02d
+process_name=port-98%(process_num)02d
+priority=200                   ; the relative start priority (default 999)
+autostart=true                 ; start at supervisord start (default: true)
+autorestart=true               ; whether/when to restart (default: unexpected)
+stopsignal=TERM                 ; signal used to kill process (default TERM)
+stopwaitsecs=30                ; max num secs to wait b4 SIGKILL (default 10)
+user=yakkl                    ; setuid to this UNIX account to run the program
+redirect_stderr=true           ; redirect proc stderr to stdout (default false)
+stdout_logfile=/var/log/yakkl/tornado.log         ; stdout log path, NONE for none; default AUTO
+stdout_logfile_maxbytes=100MB   ; max # logfile bytes b4 rotation (default 50MB)
+stdout_logfile_backups=10     ; # of stdout logfile backups (default 10)
+directory=/home/yakkl/deployments/current/
+numprocs=<%= @tornado_processes %>
+<% else -%>
+[program:yakkl-tornado]
+command=env PYTHONUNBUFFERED=1 /home/yakkl/deployments/current/manage.py runtornado 127.0.0.1:9993
+priority=200                   ; the relative start priority (default 999)
+autostart=true                 ; start at supervisord start (default: true)
+autorestart=true               ; whether/when to restart (default: unexpected)
+stopsignal=TERM                 ; signal used to kill process (default TERM)
+stopwaitsecs=30                ; max num secs to wait b4 SIGKILL (default 10)
+user=yakkl                    ; setuid to this UNIX account to run the program
+redirect_stderr=true           ; redirect proc stderr to stdout (default false)
+stdout_logfile=/var/log/yakkl/tornado.log         ; stdout log path, NONE for none; default AUTO
+stdout_logfile_maxbytes=100MB   ; max # logfile bytes b4 rotation (default 50MB)
+stdout_logfile_backups=10     ; # of stdout logfile backups (default 10)
+directory=/home/yakkl/deployments/current/
+<% end -%>
+
+<% if @queues_multiprocess %>
+<% @queues.each do |queue| -%>
+[program:yakkl_events_<%= queue %>]
+command=/home/yakkl/deployments/current/manage.py process_queue --queue_name=<%= queue %>
+priority=300                   ; the relative start priority (default 999)
+autostart=true                 ; start at supervisord start (default: true)
+autorestart=true               ; whether/when to restart (default: unexpected)
+stopsignal=TERM                 ; signal used to kill process (default TERM)
+stopwaitsecs=30                ; max num secs to wait b4 SIGKILL (default 10)
+user=yakkl                    ; setuid to this UNIX account to run the program
+redirect_stderr=true           ; redirect proc stderr to stdout (default false)
+stdout_logfile=/var/log/yakkl/events_<%= queue %>.log         ; stdout log path, NONE for none; default AUTO
+stdout_logfile_maxbytes=20MB   ; max # logfile bytes b4 rotation (default 50MB)
+stdout_logfile_backups=3     ; # of stdout logfile backups (default 10)
+directory=/home/yakkl/deployments/current/
+<% end -%>
+<% else %>
+[program:yakkl_events]
+command=/home/yakkl/deployments/current/manage.py process_queue --multi_threaded <%= @queues.join(' ') %>
+priority=300                   ; the relative start priority (default 999)
+autostart=true                 ; start at supervisord start (default: true)
+autorestart=true               ; whether/when to restart (default: unexpected)
+stopsignal=TERM                 ; signal used to kill process (default TERM)
+stopwaitsecs=30                ; max num secs to wait b4 SIGKILL (default 10)
+user=yakkl                    ; setuid to this UNIX account to run the program
+redirect_stderr=true           ; redirect proc stderr to stdout (default false)
+stdout_logfile=/var/log/yakkl/events.log         ; stdout log path, NONE for none; default AUTO
+stdout_logfile_maxbytes=20MB   ; max # logfile bytes b4 rotation (default 50MB)
+stdout_logfile_backups=3     ; # of stdout logfile backups (default 10)
+directory=/home/yakkl/deployments/current/
+stopasgroup=true              ; Without this, we leak processes every restart
+killasgroup=true              ; Without this, we leak processes every restart
+<% end %>
+
+[program:yakkl_deliver_enqueued_emails]
+command=/home/yakkl/deployments/current/manage.py deliver_email
+priority=350                   ; the relative start priority (default 999)
+autostart=true                 ; start at supervisord start (default: true)
+autorestart=true               ; whether/when to restart (default: unexpected)
+stopsignal=TERM                ; signal used to kill process (default TERM)
+topwaitsecs=30                ; max num secs to wait b4 SIGKILL (default 10)
+user=yakkl                    ; setuid to this UNIX account to run the program
+redirect_stderr=true           ; redirect proc stderr to stdout (default false)
+stdout_logfile=/var/log/yakkl/events_deliver_enqueued_emails.log         ; stdout log path, NONE for none; default AUTO
+stdout_logfile_maxbytes=20MB   ; max # logfile bytes b4 rotation (default 50MB)
+stdout_logfile_backups=3     ; # of stdout logfile backups (default 10)
+directory=/home/yakkl/deployments/current/
+
+[program:yakkl_deliver_scheduled_messages]
+command=/home/yakkl/deployments/current/manage.py deliver_scheduled_messages
+priority=350                   ; the relative start priority (default 999)
+autostart=true                 ; start at supervisord start (default: true)
+autorestart=true               ; whether/when to restart (default: unexpected)
+stopsignal=TERM                ; signal used to kill process (default TERM)
+topwaitsecs=30                ; max num secs to wait b4 SIGKILL (default 10)
+user=yakkl                    ; setuid to this UNIX account to run the program
+redirect_stderr=true           ; redirect proc stderr to stdout (default false)
+stdout_logfile=/var/log/yakkl/events_scheduled_message_deliverer.log         ; stdout log path, NONE for none; default AUTO
+stdout_logfile_maxbytes=20MB   ; max # logfile bytes b4 rotation (default 50MB)
+stdout_logfile_backups=3     ; # of stdout logfile backups (default 10)
+directory=/home/yakkl/deployments/current/
+
+[program:yakkl_events_message_sender]
+command=/home/yakkl/deployments/current/manage.py process_queue --queue_name=message_sender --worker_num=%(process_num)s
+process_name=%(program_name)s-%(process_num)s
+priority=350                   ; the relative start priority (default 999)
+autostart=true                 ; start at supervisord start (default: true)
+autorestart=true               ; whether/when to restart (default: unexpected)
+stopsignal=TERM                ; signal used to kill process (default TERM)
+stopwaitsecs=30                ; max num secs to wait b4 SIGKILL (default 10)
+user=yakkl                    ; setuid to this UNIX account to run the program
+redirect_stderr=true           ; redirect proc stderr to stdout (default false)
+stdout_logfile=/var/log/yakkl/events_message_sender.log         ; stdout log path, NONE for none; default AUTO
+stdout_logfile_maxbytes=20MB   ; max # logfile bytes b4 rotation (default 50MB)
+stdout_logfile_backups=5     ; # of stdout logfile backups (default 10)
+directory=/home/yakkl/deployments/current/
+numprocs=<%= @message_sender_processes %>
+
+; The below sample group section shows all possible group values,
+; create one or more 'real' group: sections to create "heterogeneous"
+; process groups.
+
+[group:yakkl-workers]
+<% if @queues_multiprocess %>
+; each refers to 'x' in [program:x] definitions
+programs=yakkl_deliver_enqueued_emails, yakkl_deliver_scheduled_messages, <% @queues.each_with_index do |queue, i| -%>yakkl_events_<%= queue %><%= ',' if i < (@queues.size - 1) %> <% end -%>
+<% else %>
+programs=yakkl_deliver_enqueued_emails, yakkl_events, yakkl_deliver_scheduled_messages
+<% end %>
+
+[group:yakkl-senders]
+programs=yakkl_events_message_sender
+
+; The [include] section can just contain the "files" setting.  This
+; setting can list multiple files (separated by whitespace or
+; newlines).  It can also contain wildcards.  The filenames are
+; interpreted as relative to this file.  Included files *cannot*
+; include files themselves.
+
+;[include]
+;files = relative/directory/*.ini
+
+;enable server restarts without requiring superuser access. This assumes that this is the only service being controlled by supervisord on this machine.
+[unix_http_server]
+chown=yakkl:yakkl

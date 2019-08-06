@@ -1,0 +1,3 @@
+MAILTO=root
+
+* * * * *   yakkl cd /home/yakkl/deployments/current && ./manage.py email_mirror

@@ -1,0 +1,7 @@
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+USER=yakkl
+STATE_FILE=/var/lib/nagios_state/check_send_receive_state
+
+* * * * * yakkl /usr/lib/nagios/plugins/yakkl_app_frontend/check_send_receive_time --nagios --site=https://$(/home/yakkl/deployments/current/scripts/get-django-setting NAGIOS_BOT_HOST) >/dev/null
+* * * * * yakkl /usr/lib/nagios/plugins/yakkl_app_frontend/check_send_receive_time --nagios --websocket --site=https://$(/home/yakkl/deployments/current/scripts/get-django-setting NAGIOS_BOT_HOST) >/dev/null

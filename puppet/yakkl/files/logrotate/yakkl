@@ -1,0 +1,19 @@
+/var/log/yakkl/workers.log /var/log/yakkl/manage.log /var/log/yakkl/errors.log /var/log/yakkl/analytics.log /var/log/yakkl/digest.log /var/log/yakkl/send_email.log {
+    missingok
+    rotate 3
+    size 25M
+    compress
+    delaycompress
+    notifempty
+    create 644 yakkl yakkl
+}
+
+/var/log/yakkl/server.log {
+    missingok
+    rotate 10
+    size 500M
+    compress
+    delaycompress
+    notifempty
+    create 644 yakkl yakkl
+}

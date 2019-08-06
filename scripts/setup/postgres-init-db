@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -e
+
+if [ "$EUID" -ne 0 ]; then
+    echo "Error: This script must be run as root" >&2
+    exit 1
+fi
+set -x
+
+# What user should we use for connecting to the database
+POSTGRES_USER="${POSTGRES_USER:-postgres}"
+
+# We pipe this output through cat to ensure we always get return code 0
+# We have to do this because on production database yakkl may not exist, so psql
+# will fail with return code 2. Because set -e is on, this will cause the script
+# to bail.
+records=$(su "$POSTGRES_USER" -c "psql -v ON_ERROR_STOP=1 -Atc 'SELECT COUNT(*) FROM yakkl.zerver_message;' yakkl" | cat)
+
+if [[ $records -gt 200 ]]
+then
+    set +x
+    echo "WARNING: This will delete your Yakkl database which currently contains $records messages."
+    read -p "Do you want to proceed? " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]
+    then
+        exit 1
+    fi
+    set -x
+fi
+
+# Shut down all services to ensure a quiescent state.
+if [ -e "/var/run/supervisor.sock" ]; then
+    supervisorctl stop all
+fi
+
+# Drop any open connections to any old database.  Hackishly call using
+# `source`, because postgres user may not be able to read this directory
+# if unpacked by root.
+# shellcheck source=/dev/null
+source "$(dirname "$0")/terminate-psql-sessions" postgres yakkl yakkl_base
+
+(
+# Make sure the current working directory is readable by postgres
+cd /
+
+su "$POSTGRES_USER" -c 'psql -v ON_ERROR_STOP=1 -e' <<EOF
+DROP DATABASE IF EXISTS yakkl;
+EOF
+
+su "$POSTGRES_USER" -c 'psql -v ON_ERROR_STOP=1 -e' < "$(dirname "$0")/create-db.sql"
+)
+
+# Clear memcached to avoid contamination from previous database state
+"$(dirname "$0")/flush-memcached"
+
+echo "Database created"

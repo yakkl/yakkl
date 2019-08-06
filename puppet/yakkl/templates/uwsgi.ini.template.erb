@@ -1,0 +1,15 @@
+[uwsgi]
+socket=/home/yakkl/deployments/uwsgi-socket
+module=zproject.wsgi:application
+chdir=/home/yakkl/deployments/current/
+master=true
+chmod-socket=700
+chown-socket=yakkl:yakkl
+processes=<%= @uwsgi_processes %>
+harakiri=20
+buffer-size=<%= @uwsgi_buffer_size %>
+listen=<%= @uwsgi_listen_backlog_limit %>
+post-buffering=4096
+env= LANG=en_US.UTF-8
+uid=yakkl
+gid=yakkl

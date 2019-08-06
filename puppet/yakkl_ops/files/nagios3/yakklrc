@@ -1,0 +1,7 @@
+# Yakkl, Inc's internal nagios plugin configuration.
+# The plugin and example config are under api/integrations/
+
+[api]
+email = nagios-bot@yakkl.com
+key = xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+site = https://staging.yakkl.com

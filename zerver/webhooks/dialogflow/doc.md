@@ -1,0 +1,28 @@
+Get personal message notifications in Yakkl for the results of your Dialogflow queries!
+
+1. {!create-stream.md!}
+
+1. Next, on your {{ settings_html|safe }}, [create a bot](/help/add-a-bot-or-integration) for
+   {{ integration_display_name }}. Make sure that you select
+   **Incoming webhook** as the **Bot type**.
+
+    The API key for an incoming webhook bot cannot be used to read messages out
+    of Yakkl. Thus, using an incoming webhook bot lowers the security risk of
+    exposing the bot's API key to a third-party service.
+
+    Construct the URL for the Dialogflow bot using the bot's API key and your Yakkl email.
+    The webhook URL should look like:
+
+    `{{api_url}}?api_key=BOT'S_API_KEY&email=foo@example.com`
+
+    Modify the parameters of the URL above where `api_key` is the API key of your Yakkl bot
+    and `email` is your Yakkl email.
+
+1. Go to the **Fulfillment** settings of your Dialogflow app and enable **Webhooks**.
+   Set **URL** to the URL constructed above.
+   Go to **Intents** and at the bottom, check the box **Use webhook**
+   under **Fulfillment**.
+
+{!congrats.md!}
+
+![](/static/images/integrations/dialogflow/001.png)

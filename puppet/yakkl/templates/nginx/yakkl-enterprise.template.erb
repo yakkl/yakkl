@@ -1,0 +1,40 @@
+<% if @nginx_http_only != '' -%>
+<% else -%>
+server {
+    listen 80;
+    listen [::]:80;
+    return 301 https://$host$request_uri;
+}
+<% end -%>
+
+include /etc/nginx/yakkl-include/upstreams;
+
+server {
+<% if @nginx_http_only != '' -%>
+    listen 80;
+    listen [::]:80;
+<% else -%>
+    listen <%= @nginx_listen_port %>;
+    listen [::]:<%= @nginx_listen_port %>;
+
+    ssl on;
+    ssl_certificate <%= @ssl_dir %>/certs/yakkl.combined-chain.crt;
+    ssl_certificate_key <%= @ssl_dir %>/private/yakkl.key;
+<% end -%>
+
+<% if @no_serve_uploads == '' -%>
+    location /user_avatars {
+        add_header X-Content-Type-Options nosniff;
+        add_header Content-Security-Policy "default-src 'none' img-src 'self'";
+        include /etc/nginx/yakkl-include/uploads.types;
+        alias /home/yakkl/uploads/avatars;
+    }
+<% end -%>
+
+    location /local-static {
+        alias /home/yakkl/local-static;
+    }
+
+    include /etc/nginx/yakkl-include/certbot;
+    include /etc/nginx/yakkl-include/app;
+}

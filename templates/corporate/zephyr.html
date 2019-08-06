@@ -1,0 +1,70 @@
+{% extends "zerver/portico.html" %}
+
+{% block title %}
+<title>Yakkl zephyr</title>
+{% endblock %}
+
+{% block customhead %}
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+{{ render_bundle('landing-page') }}
+{% endblock %}
+
+{% block portico_content %}
+
+{% include 'zerver/landing_nav.html' %}
+<div class="portico-landing why-page">
+    <div class="hero small-hero">
+        <h1 class="center">Yakkl for MIT Zephyr</h1>
+    </div>
+    <div class="main">
+        <div class="padded-content">
+            <div class="inner-content markdown">
+                <p>If you have an MIT Athena account, you can start using Yakkl for Zephyr in a couple of minutes.</p>
+
+                <h2>First time setup</h2>
+                <ol>
+                    <li><p>Activate your account here: <a href="https://zephyr.yakkl.com/register/">https://zephyr.yakkl.com/register/</a></p></li>
+                    <li><p>Log in to Yakkl here: <a href="https://zephyr.yakkl.com">https://zephyr.yakkl.com</a></p></li>
+                    <li><p>Follow the on-screen instructions for linking Yakkl with Webathena</p></li>
+                    <li><p>(Optional) Get the Yakkl desktop and/or mobile apps here: <a href="https://zephyr.yakkl.com/apps">https://zephyr.yakkl.com/apps</a></p></li>
+                </ol>
+
+                <h2>You're done!</h2>
+                <p>If you have any questions, please contact us using the "Send feedback" button in Yakkl or e-mail us at
+                <a href="mailto:{{ support_email }}">{{ support_email }}</a></p>
+
+                <h2>If you want to automatically transfer your existing Zephyr subscriptions</h2>
+
+                <ol>
+                    <li><p>Get your Yakkl API key from the Yakkl "Settings" panel and put it in a file in your
+                      Athena home directory called <code>~/Private/.yakkl-api-key</code>.</p></li>
+
+                    <li><p>Run the following command to copy over all of your subscriptions:<br />
+                        <code>/mit/tabbott/yakkl/zephyr_mirror.py --sync-subscriptions</code></p>
+
+                        <p> <strong>NOTE</strong>: Yakkl supports several ways to control what messages you want to read
+                            right now, but Yakkl does not yet have a direct equivalent to Barnowl filters.
+                            If you have more subscriptions than you generally read, we recommend that you use
+                            Yakkl's "Mute" option to hide those subscriptions from your
+                            home view that you less commonly read.  You can still easily access those streams
+                            from Yakkl when you want to read them.  You can control your subscriptions
+                            and what's in your home view by clicking the gear in the upper right-hand corner
+                            and then selecting "Streams".
+                        </p>
+                    </li>
+                </ol>
+
+                <h2>If you subscribe to any encrypted Zephyr classes</h2>
+
+                <p>You can get set up to participate on an encrypted Zephyr class using Yakkl by either:
+                    <ol>
+                        <li><p>E-mailing us at <a href="mailto:{{ support_email }}">{{ support_email }}</a> to get set up, or</p></li>
+                        <li><p>Someone who is already set up to participate on that encrypted Zephyr class using Yakkl can use Yakkl to invite you</p></li>
+                    </ol>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

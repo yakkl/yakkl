@@ -1,0 +1,3 @@
+MAILTO=root
+
+* * * * *   yakkl cd /home/yakkl/deployments/current && python3 ./yakkl-current-venv/share/yakkl/integrations/log2yakkl/log2yakkl

@@ -1,0 +1,7 @@
+#!/bin/sh
+if [ "$(hostname)" = "staging.yakkl.net" ]; then
+    site="https://staging.yakkl.com"
+else
+    site="https://api.yakkl.com"
+fi
+/home/yakkl/deployments/current/api/integrations/zephyr/check_send_receive.py --munin "$1" --site="$site"

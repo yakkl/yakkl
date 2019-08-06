@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+set -e
+set -x
+
+./manage.py makemessages --locale=en
+tx push -s -r yakkl.djangopo,yakkl.translationsjson

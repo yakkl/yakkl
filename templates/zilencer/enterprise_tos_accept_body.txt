@@ -1,0 +1,12 @@
+{#
+Mail sent to us when a company accepts the ToS for Yakkl Enterprise
+edition.
+#}
+
+Hello,
+
+{{ name }} just accepted the Yakkl Enterprise Terms of Service for {{ company }}.
+
+Cheers,
+
+Yakkl Legal Bot

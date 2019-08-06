@@ -1,0 +1,5 @@
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+USER=yakkl
+
+0 7 * * * yakkl /home/yakkl/deployments/current/manage.py calculate_first_visible_message_id --lookback-hours 30

@@ -1,0 +1,34 @@
+[main]
+host = https://www.transifex.com
+lang_map = zh-Hans: zh_Hans, zh-Hant: zh_Hant
+
+[yakkl.djangopo]
+file_filter = locale/<lang>/LC_MESSAGES/django.po
+source_file = locale/en/LC_MESSAGES/django.po
+source_lang = en
+type = PO
+
+[yakkl.translationsjson]
+file_filter = locale/<lang>/translations.json
+source_file = locale/en/translations.json
+source_lang = en
+type = KEYVALUEJSON
+
+[yakkl.mobile]
+file_filter = locale/<lang>/mobile.json
+source_file = locale/en/mobile.json
+source_lang = en
+type = KEYVALUEJSON
+
+[yakkl-test.djangopo]
+file_filter = locale/<lang>/LC_MESSAGES/django.po
+source_file = locale/en/LC_MESSAGES/django.po
+source_lang = en
+type = PO
+
+[yakkl-test.translationsjson]
+file_filter = locale/<lang>/translations.json
+source_file = locale/en/translations.json
+source_lang = en
+type = KEYVALUEJSON
+

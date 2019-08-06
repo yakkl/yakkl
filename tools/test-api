@@ -1,0 +1,74 @@
+#!/usr/bin/env python3
+import argparse
+import os
+import sys
+
+# check for the venv
+from lib import sanity_check
+sanity_check.check_venv(__file__)
+
+import django
+YAKKL_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, YAKKL_PATH)
+os.chdir(YAKKL_PATH)
+
+from yakkl import Client
+
+from tools.lib.test_script import assert_provisioning_status_ok
+from tools.lib.test_server import test_server_running
+from zerver.lib.api_test_helpers import test_the_api, test_invalid_api_key
+
+os.environ['DJANGO_SETTINGS_MODULE'] = 'zproject.test_settings'
+django.setup()
+from zerver.lib.actions import do_create_user
+from zerver.lib.users import get_api_key
+from zerver.models import get_user, get_realm
+
+usage = """test-api [options]"""
+parser = argparse.ArgumentParser(usage)
+parser.add_argument('--force', dest='force',
+                    action="store_true",
+                    default=False, help='Run tests despite possible provisioning problems.')
+options = parser.parse_args()
+
+assert_provisioning_status_ok(options.force)
+
+with test_server_running(force=options.force, external_host='yakkldev.com:9981'):
+    print("Running API tests...")
+
+    # Prepare the admin client
+    email = 'iago@yakkl.com'  # Iago is an admin
+    realm = get_realm("yakkl")
+    user = get_user(email, realm)
+    api_key = get_api_key(user)
+    site = 'http://yakkl.yakkldev.com:9981'
+
+    client = Client(
+        email=email,
+        api_key=api_key,
+        site=site
+    )
+
+    # Prepare the admin client
+    email = 'guest@yakkl.com'  # guest is not an admin
+    guest_user = do_create_user('guest@yakkl.com', 'secret',
+                                get_realm('yakkl'), 'Mr. Guest', 'guest')
+    api_key = get_api_key(guest_user)
+    nonadmin_client = Client(
+        email=email,
+        api_key=api_key,
+        site=site
+    )
+
+    test_the_api(client, nonadmin_client)
+
+    # Test error payloads
+    client = Client(
+        email=email,
+        api_key='abcedrsdfd',
+        site=site
+    )
+    test_invalid_api_key(client)
+
+
+print("API tests passed!")

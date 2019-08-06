@@ -1,0 +1,9 @@
+# Yakkl custom redis configuration
+
+# Disable saving to disk to optimize performance
+save ""
+
+<% if @redis_password != '' -%>
+# Set a Redis password based on yakkl-secrets.conf
+requirepass '<%= @redis_password %>'
+<% end -%>

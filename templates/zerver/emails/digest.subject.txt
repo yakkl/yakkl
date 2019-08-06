@@ -1,0 +1,1 @@
+Yakkl digest for {{ realm_name }}

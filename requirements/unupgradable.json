@@ -1,0 +1,29 @@
+{
+    "CommonMark": {
+        "issue": "https://github.com/yakkl/yakkl/issues/10800"
+    },
+    "tornado": {
+        "issue": "https://github.com/yakkl/yakkl/issues/8913"
+    },
+    "Django": {
+        "issue": "https://github.com/yakkl/yakkl/pull/8231"
+    },
+    "ipython": {
+        "issue": "https://github.com/yakkl/yakkl/issues/10801"
+    },
+    "transifex-client": {
+        "issue": "https://github.com/yakkl/yakkl/issues/8914"
+    },
+    "pip-tools": {
+        "issue": "https://github.com/yakkl/yakkl/issues/10802"
+    },
+    "defusedxml": {
+        "issue": "https://github.com/yakkl/yakkl/issues/12191"
+    },
+    "Markdown": {
+        "issue": "https://github.com/yakkl/yakkl/issues/12192"
+    },
+    "Pillow": {
+        "issue": "https://github.com/yakkl/yakkl/issues/12193"
+    }
+}
