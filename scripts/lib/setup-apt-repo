@@ -8,6 +8,7 @@ mkdir -p /var/lib/yakkl
 SOURCES_FILE=/etc/apt/sources.list.d/yakkl.list
 STAMP_FILE=/etc/apt/sources.list.d/yakkl.list.apt-update-in-progress
 
+PPA="zulip"
 YAKKL_SCRIPTS="$(dirname "$(dirname "$0")")"
 DEPENDENCIES_HASH=$(sha1sum "$YAKKL_SCRIPTS/setup/"*.asc "$0")
 DEPENDENCIES_HASH_FILE="/var/lib/yakkl/setup-repositories-state"
@@ -41,9 +42,9 @@ if [ "$release" = "xenial" ] || [ "$release" = "bionic" ]; then
     apt-key add "$SCRIPTS_PATH"/setup/yakkl-ppa.asc
     cat >$SOURCES_FILE <<EOF
 deb http://ppa.launchpad.net/groonga/ppa/ubuntu $release main
-deb http://ppa.launchpad.net/tabbott/yakkl/ubuntu $release main
+deb http://ppa.launchpad.net/tabbott/${PPA}/ubuntu $release main
 deb-src http://ppa.launchpad.net/groonga/ppa/ubuntu $release main
-deb-src http://ppa.launchpad.net/tabbott/yakkl/ubuntu $release main
+deb-src http://ppa.launchpad.net/tabbott/${PPA}/ubuntu $release main
 EOF
 elif [ "$release" = "cosmic" ] || [ "$release" = "disco" ]; then
     # This case will eventually merge with the above, if/when we add

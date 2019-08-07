@@ -49,7 +49,8 @@ python-gcm==0.4
 # Needed for the email mirror
 html2text==2018.1.9
 httplib2==0.13.0
--e git+https://github.com/yakkl/talon.git@7d8bdc4dbcfcc5a73298747293b99fe53da55315#egg=talon==1.2.10.yakkl1
+#-e git+https://github.com/yakkl/talon.git@7d8bdc4dbcfcc5a73298747293b99fe53da55315#egg=talon==1.2.10.yakkl1
+-e git+https://github.com/yakkl/talon.git#egg=talon==1.2.10.yakkl1
 
 # Needed for hipchat import
 hypchat==0.21
@@ -104,7 +105,8 @@ sourcemap==0.2.1
 tornado==4.5.3
 
 # Fast JSON parser
--e git+https://github.com/yakkl/ultrajson@70ac02bec#egg=ujson==1.35+git
+#-e git+https://github.com/yakkl/ultrajson@70ac02bec#egg=ujson==1.35+git
+-e git+https://github.com/yakkl/ultrajson#egg=ujson==1.35+git
 
 # Django extension for serving webpack modules
 django-webpack-loader==0.6.0
@@ -132,8 +134,10 @@ python-magic==0.4.15
 # these tightly, including fetching content not included in the normal
 # release tarballs (which is a bug).  So we need to pin it makes sense
 # to pin a version from Git rather than a release.
--e "git+https://github.com/yakkl/python-yakkl-api.git@0.6.1#egg=yakkl==0.6.1_git&subdirectory=yakkl"
--e "git+https://github.com/yakkl/python-yakkl-api.git@0.6.1#egg=yakkl_bots==0.6.1+git&subdirectory=yakkl_bots"
+#-e "git+https://github.com/yakkl/python-yakkl-api.git@0.6.1#egg=yakkl==0.6.1_git&subdirectory=yakkl"
+#-e "git+https://github.com/yakkl/python-yakkl-api.git@0.6.1#egg=yakkl_bots==0.6.1+git&subdirectory=yakkl_bots"
+-e "git+https://github.com/yakkl/python-yakkl-api.git#egg=yakkl==0.6.1_git&subdirectory=yakkl"
+-e "git+https://github.com/yakkl/python-yakkl-api.git#egg=yakkl_bots==0.6.1+git&subdirectory=yakkl_bots"
 
 # Used for Hesiod lookups, etc.
 py3dns==3.2.0
