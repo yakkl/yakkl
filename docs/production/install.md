@@ -15,17 +15,17 @@ you can create a test organization at <https://yakkl.com/new>.
 ## Step 1: Download the latest release
 
 Download and unpack [the latest built server
-tarball](https://www.yakkl.org/dist/releases/yakkl-server-latest.tar.gz)
+tarball](https://www.yakkl.com/dist/releases/yakkl-server-latest.tar.gz)
 with the following commands:
 
 ```
 cd $(mktemp -d)
-wget https://www.yakkl.org/dist/releases/yakkl-server-latest.tar.gz
+wget https://www.yakkl.com/dist/releases/yakkl-server-latest.tar.gz
 tar -xf yakkl-server-latest.tar.gz
 ```
 
 * If you'd like to verify the download, we
-[publish the sha256sums of our release tarballs](https://www.yakkl.org/dist/releases/SHA256SUMS.txt).
+[publish the sha256sums of our release tarballs](https://www.yakkl.com/dist/releases/SHA256SUMS.txt).
 * You can also
 [install a pre-release version of Yakkl](../production/deployment.html#installing-yakkl-from-git)
 using code from our [repository on GitHub](https://github.com/yakkl/yakkl/).

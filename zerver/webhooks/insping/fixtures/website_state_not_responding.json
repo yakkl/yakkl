@@ -14,7 +14,7 @@
 		"recently_started_check_http_status_code": null,
 		"application_name": "test",
 		"recently_started_check_response_time": null,
-		"request_url": "http://privisus.yakkldev.org:9991",
+		"request_url": "https://devtest.yakkl.dev:9991",
 		"response_time": 942
 	},
 	"webhook_id": 290,

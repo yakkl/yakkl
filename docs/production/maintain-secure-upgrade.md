@@ -21,7 +21,7 @@ You may also want to read this related content:
 upgrade.**
 
 To upgrade to a new version of the yakkl server, download the appropriate
-release tarball from <https://www.yakkl.org/dist/releases/>.
+release tarball from <https://www.yakkl.com/dist/releases/>.
 
 You also have the option of creating your own release tarballs from a
 copy of the [yakkl.git repository](https://github.com/yakkl/yakkl)

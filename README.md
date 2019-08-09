@@ -28,7 +28,7 @@ You might be interested in:
 
 * **Using Yakkl without setting up a server**. <https://yakkl.com> offers free and commercial hosting.
 
-You may also be interested in reading our [blog](http://blog.yakkl.org/) or following us on [twitter](https://twitter.com/yakklofficial).
+You may also be interested in reading our [blog](https://blog.yakkl.com/) or following us on [twitter](https://twitter.com/yakklofficial).
 Yakkl is distributed under the [Apache 2.0](https://github.com/yakkl/yakkl/blob/master/LICENSE) license.
 
 [beginner-friendly]: https://github.com/yakkl/yakkl/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22

@@ -1,7 +1,7 @@
 {
     "csp-report": {
         "document-uri": "http://localhost:9991/",
-        "referrer": "http://yakkldev.com:9991/devlogin/",
+        "referrer": "http://yakkl.dev:9991/devlogin/",
         "violated-directive": "script-src",
         "effective-directive": "script-src",
         "original-policy": "default-src 'self'; report-uri /report/csp_violations",

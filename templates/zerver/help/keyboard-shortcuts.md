@@ -113,7 +113,7 @@ below, and add more to your repertoire as needed.
 
 * **Insert italic text**: `*italic*` or `Ctrl + I`
 * **Insert bold text**: `**bold**` or `Ctrl + B`
-* **Insert link**: `[Yakkl website](https://yakkl.org)` or `Ctrl + Shift + L`
+* **Insert link**: `[Yakkl website](https://yakkl.com)` or `Ctrl + Shift + L`
 
 * **Cancel compose**: `Esc` or `Ctrl + [` — Close the compose box and save
   the unsent message as a draft.

@@ -1,7 +1,7 @@
 {
     "changes":{
         "website":{
-            "new":"http://yakkl.com",
+            "new":"https://yakkl.com",
             "old":""
         },
         "name":{
@@ -52,7 +52,7 @@
     },
     "repository":{
         "scm":"git",
-        "website":"http://yakkl.com",
+        "website":"https://yakkl.com",
         "name":"new-name",
         "links":{
             "self":{

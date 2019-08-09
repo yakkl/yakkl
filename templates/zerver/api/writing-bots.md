@@ -465,7 +465,7 @@ fixtures:
 ```
 {
   "request": {
-    "api_url": "http://api.example.com/",
+    "api_url": "https://api.example.com/",
     "params": {
     }
   },

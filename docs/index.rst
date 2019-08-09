@@ -21,8 +21,8 @@ Welcome! Yakkl's documentation is split into four parts:
 Yakkl has well over 150,000 words of documentation. If you can't find
 what you're looking for, please `let us know
 <contributing/chat-yakkl-org.html>`__!  Further information on the
-Yakkl project and its features can be found at `https://www.yakkl.org
-<https://www.yakkl.org>`__.
+Yakkl project and its features can be found at `https://www.yakkl.com
+<https://www.yakkl.com>`__.
 
 This site contains our installation and contributor documentation. If
 this is your first time here, you may want to start with `Production

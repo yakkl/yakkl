@@ -89,7 +89,7 @@ def exit_if_droplet_exists(my_token: str, username: str, recreate: bool) -> None
     manager = digitalocean.Manager(token=my_token)
     my_droplets = manager.get_all_droplets()
     for droplet in my_droplets:
-        if droplet.name == "{0}.yakkldev.org".format(username):
+        if droplet.name == "{0}.yakkl.dev".format(username):
             if not recreate:
                 print("Droplet for user {0} already exists. Pass --recreate if you "
                       "need to recreate the droplet.".format(username))
@@ -141,7 +141,7 @@ def create_droplet(my_token, template_id, username, tags, user_data):
     # type: (str, str, str, List[str], str) -> str
     droplet = digitalocean.Droplet(
         token=my_token,
-        name='{0}.yakkldev.org'.format(username),
+        name='{0}.yakkl.dev'.format(username),
         region='nyc3',
         image=template_id,
         size_slug='2gb',
@@ -171,15 +171,15 @@ def create_droplet(my_token, template_id, username, tags, user_data):
 def delete_existing_records(records: List[digitalocean.Record], record_name: str) -> None:
     count = 0
     for record in records:
-        if record.name == record_name and record.domain == 'yakkldev.org' and record.type == 'A':
+        if record.name == record_name and record.domain == 'yakkl.dev' and record.type == 'A':
             record.destroy()
             count = count + 1
     if count:
-        print("Deleted {0} existing A records for {1}.yakkldev.org.".format(count, record_name))
+        print("Deleted {0} existing A records for {1}.yakkl.dev.".format(count, record_name))
 
 def create_dns_record(my_token, username, ip_address):
     # type: (str, str, str) -> None
-    domain = digitalocean.Domain(token=my_token, name='yakkldev.org')
+    domain = digitalocean.Domain(token=my_token, name='yakkl.dev')
     domain.load()
     records = domain.get_records()
 
@@ -187,15 +187,15 @@ def create_dns_record(my_token, username, ip_address):
     wildcard_name = "*." + username
     delete_existing_records(records, wildcard_name)
 
-    print("Creating new A record for {0}.yakkldev.org that points to {1}.".format(username, ip_address))
+    print("Creating new A record for {0}.yakkl.dev that points to {1}.".format(username, ip_address))
     domain.create_new_domain_record(type='A', name=username, data=ip_address)
-    print("Creating new A record for *.{0}.yakkldev.org that points to {1}.".format(username, ip_address))
+    print("Creating new A record for *.{0}.yakkl.dev that points to {1}.".format(username, ip_address))
     domain.create_new_domain_record(type='A', name=wildcard_name, data=ip_address)
 
 def print_completion(username):
     # type: (str) -> None
     print("""
-COMPLETE! Droplet for GitHub user {0} is available at {0}.yakkldev.org.
+COMPLETE! Droplet for GitHub user {0} is available at {0}.yakkl.dev.
 
 Instructions for use are below. (copy and paste to the user)
 
@@ -203,13 +203,13 @@ Instructions for use are below. (copy and paste to the user)
 Your remote Yakkl dev server has been created!
 
 - Connect to your server by running
-  `ssh yakkldev@{0}.yakkldev.org` on the command line
+  `ssh yakkldev@{0}.yakkl.dev` on the command line
   (Terminal for macOS and Linux, Bash for Git on Windows).
 - There is no password; your account is configured to use your ssh keys.
 - Once you log in, you should see `(yakkl-py3-venv) ~$`.
 - To start the dev server, `cd yakkl` and then run `./tools/run-dev.py`.
 - While the dev server is running, you can see the Yakkl server in your browser at
-  http://{0}.yakkldev.org:9991.
+  https://{0}.yakkl.dev:9991.
 """.format(username))
 
     print("See [Developing remotely](https://yakkl.readthedocs.io/en/latest/development/remote.html) "
@@ -226,7 +226,7 @@ if __name__ == '__main__':
     # You can get this with something like the following. You may need to try other pages.
     # Broken in two to satisfy linter (line too long)
     # curl -X GET -H "Content-Type: application/json" -u <API_KEY>: "https://api.digitaloc
-    # ean.com/v2/images?page=5" | grep --color=always base.yakkldev.org
+    # ean.com/v2/images?page=5" | grep --color=always base.yakkl.dev
     template_id = "48106286"
 
     # get command line arguments

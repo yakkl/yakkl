@@ -33,7 +33,7 @@ options = parser.parse_args()
 
 assert_provisioning_status_ok(options.force)
 
-with test_server_running(force=options.force, external_host='yakkldev.com:9981'):
+with test_server_running(force=options.force, external_host='yakkl.dev:9981'):
     print("Running API tests...")
 
     # Prepare the admin client
@@ -41,7 +41,7 @@ with test_server_running(force=options.force, external_host='yakkldev.com:9981')
     realm = get_realm("yakkl")
     user = get_user(email, realm)
     api_key = get_api_key(user)
-    site = 'http://yakkl.yakkldev.com:9981'
+    site = 'https://yakkl.yakkl.dev:9981'
 
     client = Client(
         email=email,

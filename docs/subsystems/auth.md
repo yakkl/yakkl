@@ -38,7 +38,7 @@ Here are the full procedures for dev:
 * Return to "Credentials", and select "Create credentials".  Choose
   "OAuth client ID", and follow prompts to create a consent screen, etc.
   For "Authorized redirect URIs", fill in
-  `http://yakkldev.com:9991/complete/google/` .
+  `https://yakkl.dev:9991/complete/google/` .
 
 * You should get a client ID and a client secret. Copy them. In
   `dev-secrets.conf`, set `social_auth_google_key` to the client ID
@@ -49,7 +49,7 @@ Here are the full procedures for dev:
 * Register an OAuth2 application with GitHub at one of
   https://github.com/settings/developers or
   https://github.com/organizations/ORGNAME/settings/developers.
-  Specify `http://yakkldev.com:9991/complete/github/` as the callback URL.
+  Specify `https://yakkl.dev:9991/complete/github/` as the callback URL.
 
 * You should get a page with settings for your new application,
   showing a client ID and a client secret.  In `dev-secrets.conf`, set

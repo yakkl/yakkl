@@ -89,13 +89,7 @@ accessible from any IP address (in contrast with the much more secure
 default of only being accessible from localhost, which is great for
 developing on your laptop).
 
-To properly secure your remote development environment, you can
-[port forward](https://help.ubuntu.com/community/SSH/OpenSSH/PortForwarding)
-using ssh instead of running the development environment on an exposed
-interface.  For example, if you're running Yakkl on a remote server
-such as a DigitalOcean Droplet or an AWS EC2 instance, you can setup
-port-forwarding to access Yakkl by running the following command in
-your terminal:
+To properly secure your remote development environment, you can [port forward](https://help.ubuntu.com/community/SSH/OpenSSH/PortForwarding) using ssh instead of running the development environment on an exposed interface.  For example, if you're running Yakkl on a remote server such as an AWS EC2 instance, you can setup port-forwarding to access Yakkl by running the following command in your terminal:
 
 ```
 ssh -L 3000:127.0.0.1:9991 <username>@<remote_server_ip> -N
@@ -294,7 +288,7 @@ different.
 
     ```
     apt install -y nginx-full
-    cp -a /home/yakkldev/yakkl/tools/droplets/yakkldev /etc/nginx/sites-available/
+    cp -a /home/yakkldev/yakkl/tools/yakkldev /etc/nginx/sites-available/
     ln -nsf /etc/nginx/sites-available/yakkldev /etc/nginx/sites-enabled/
     nginx -t  # Verifies your nginx configuration
     service nginx reload  # Actually enabled your nginx configuration

@@ -1650,7 +1650,7 @@ msgid ""
 "#46aa8f; text-decoration:underline\">Twitter</a>, star us on <a href="
 "\"https://github.com/yakkl/yakkl\" style=\"color:#46aa8f; text-decoration:"
 "underline\">GitHub</a>, or chat with us live on the <a href=\"https://chat."
-"yakkl.org\" style=\"color:#46aa8f; text-decoration:underline\">Yakkl "
+"yakkl.com\" style=\"color:#46aa8f; text-decoration:underline\">Yakkl "
 "community server</a>!"
 msgstr ""
 

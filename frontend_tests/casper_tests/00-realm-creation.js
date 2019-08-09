@@ -3,10 +3,10 @@ var common = require('../casper_lib/common.js').common;
 var email = 'alice@test.example.com';
 var subdomain = 'testsubdomain';
 var organization_name = 'Awesome Organization';
-var host = "yakkldev.com:9981";
+var host = "yakkl.dev:9981";
 var realm_host = "testsubdomain" + '.' + host;
 
-casper.start('http://' + host + '/new/');
+casper.start('https://' + host + '/new/');
 
 casper.then(function () {
     // Submit the email for realm creation
@@ -17,18 +17,18 @@ casper.then(function () {
     });
     // Make sure confirmation email is send
     this.waitWhileVisible('form[name="email_form"]', function () {
-        var regex = new RegExp('^http://[^/]+/accounts/new/send_confirm/' + email);
+        var regex = new RegExp('^https://[^/]+/accounts/new/send_confirm/' + email);
         this.test.assertUrlMatch(regex, 'Confirmation mail send');
     });
 });
 
 // Special endpoint enabled only during tests for extracting confirmation key
-casper.thenOpen('http://' + host + '/confirmation_key/');
+casper.thenOpen('https://' + host + '/confirmation_key/');
 
 // Open the confirmation URL
 casper.then(function () {
     var confirmation_key = JSON.parse(this.getPageContent()).confirmation_key;
-    var confirmation_url = 'http://' + host + '/accounts/do_confirm/' + confirmation_key;
+    var confirmation_url = 'https://' + host + '/accounts/do_confirm/' + confirmation_key;
     this.thenOpen(confirmation_url);
 });
 

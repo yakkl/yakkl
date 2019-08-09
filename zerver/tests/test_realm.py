@@ -596,7 +596,7 @@ class RealmAPITest(YakklTestCase):
                     video_chat_provider=ujson.dumps(Realm.VIDEO_CHAT_PROVIDERS['jitsi_meet']['id']),
                 )
             ],
-            google_hangouts_domain=[u'yakkl.com', u'yakkl.org'],
+            google_hangouts_domain=[u'yakkl.com', u'yakkl.com'],
             zoom_api_secret=[u"abc", u"xyz"],
             zoom_api_key=[u"abc", u"xyz"],
             zoom_user_id=[u"example@example.com", u"example@example.org"]

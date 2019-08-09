@@ -303,7 +303,7 @@ CSS](https://github.com/yakkl/yakkl/).
   system and advertising it.  Expert: Steve Howell.
 
 - Visual design work on Yakkl's logged-out pages, including /help,
-  /apps, /integrations, /api, /login, /register, the yakkl.org
+  /apps, /integrations, /api, /login, /register, the yakkl.com
   website, etc.  We'd love to make these look nicer both through
   polish and potentially through adding fun illustrations to make the product
   more friendly.  A project could include work on Yakkl's logged-in UI
@@ -438,7 +438,7 @@ Expert: Tommy Ip, Tim Abbott.
   A possible specific larger project in this space is working on
   adding [mypy](../testing/mypy.html) stubs
   for Django in mypy to make our type checking more powerful.  Read
-  [our mypy blog post](https://blog.yakkl.org/2016/10/13/static-types-in-python-oh-mypy/)
+  [our mypy blog post](https://blog.yakkl.com/2016/10/13/static-types-in-python-oh-mypy/)
   for details on how mypy works and is integrated into yakkl.  This
   specific project is ideal for a strong contributor interested in
   type systems.

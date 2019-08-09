@@ -13,7 +13,7 @@ zrequire('markdown');
 
 global.patch_builtin('window', {
     location: {
-        origin: 'http://yakkl.yakkldev.com',
+        origin: 'https://yakkl.yakkl.dev',
     },
 });
 

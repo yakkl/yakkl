@@ -37,7 +37,7 @@ preparing a new release.
 * Update `version` and/or `release` in `docs/conf.py` (ReadTheDocs meta tags).
   Leave "+git" off.
 * Use `build-release-tarball` to generate a final release tarball.
-* Post the release tarball on https://www.yakkl.org/dist/releases/ :
+* Post the release tarball on https://www.yakkl.com/dist/releases/ :
   add the file, update the `yakkl-server-latest.tar.gz` symlink, and
   add to SHA256SUMS.txt.
 * Create a Git tag and push the tag.

@@ -6,7 +6,7 @@ set_global("page_params", {
         {name: "foobot", config: {bar: "baz", qux: "quux"}},
     ],
     realm_bots: [{api_key: 'QadL788EkiottHmukyhHgePUFHREiu8b',
-                  email: 'error-bot@yakkl.org',
+                  email: 'error-bot@yakkl.com',
                   full_name: 'Error bot',
                   user_id: 1},
     ],
@@ -32,7 +32,7 @@ bot_data.initialize();
 run_test('generate_yakklrc_uri', () => {
     var uri = settings_bots.generate_yakklrc_uri(1);
     var expected = "data:application/octet-stream;charset=utf-8," + encodeURIComponent(
-        "[api]\nemail=error-bot@yakkl.org\n" +
+        "[api]\nemail=error-bot@yakkl.com\n" +
         "key=QadL788EkiottHmukyhHgePUFHREiu8b\n" +
         "site=https://chat.example.com\n"
     );

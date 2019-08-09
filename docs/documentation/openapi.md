@@ -44,7 +44,7 @@ info:
   title: Yakkl REST API
   description: Powerful open source group chat
   contact:
-    url: https://yakkl.org/
+    url: https://yakkl.com/
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html

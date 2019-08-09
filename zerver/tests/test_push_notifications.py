@@ -239,7 +239,7 @@ class PushBouncerNotificationTest(BouncerTestCase):
             result = self.api_post(self.server_uuid, endpoint, payload)
             self.assert_json_error(result, 'Invalid APNS token')
 
-    @override_settings(PUSH_NOTIFICATION_BOUNCER_URL='https://push.yakkl.org.example.com')
+    @override_settings(PUSH_NOTIFICATION_BOUNCER_URL='https://push.yakkl.com.example.com')
     @mock.patch('zerver.lib.push_notifications.requests.request')
     def test_push_bouncer_api(self, mock_request: Any) -> None:
         """This is a variant of the below test_push_api, but using the full
@@ -310,7 +310,7 @@ class PushBouncerNotificationTest(BouncerTestCase):
 class AnalyticsBouncerTest(BouncerTestCase):
     TIME_ZERO = datetime.datetime(1988, 3, 14).replace(tzinfo=timezone_utc)
 
-    @override_settings(PUSH_NOTIFICATION_BOUNCER_URL='https://push.yakkl.org.example.com')
+    @override_settings(PUSH_NOTIFICATION_BOUNCER_URL='https://push.yakkl.com.example.com')
     @mock.patch('zerver.lib.push_notifications.requests.request')
     def test_analytics_api(self, mock_request: Any) -> None:
         """This is a variant of the below test_push_api, but using the full
@@ -386,7 +386,7 @@ class AnalyticsBouncerTest(BouncerTestCase):
                     subdomain="")
             self.assert_json_error(result, "Invalid data.")
 
-    @override_settings(PUSH_NOTIFICATION_BOUNCER_URL='https://push.yakkl.org.example.com')
+    @override_settings(PUSH_NOTIFICATION_BOUNCER_URL='https://push.yakkl.com.example.com')
     @mock.patch('zerver.lib.push_notifications.requests.request')
     def test_analytics_api_invalid(self, mock_request: Any) -> None:
         """This is a variant of the below test_push_api, but using the full

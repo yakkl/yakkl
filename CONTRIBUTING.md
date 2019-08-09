@@ -47,7 +47,7 @@ don't require touching the codebase at all. We list a few of them below:
 * [Translating](https://yakkl.readthedocs.io/en/latest/translating/translating.html)
   Yakkl.
 * [Outreach](#yakkl-outreach): Star us on GitHub, upvote us
-  on product comparison sites, or write for [the Yakkl blog](http://blog.yakkl.org/).
+  on product comparison sites, or write for [the Yakkl blog](https://blog.yakkl.com/).
 
 ## Your first (codebase) contribution
 
@@ -344,7 +344,7 @@ have been using Yakkl for a while and want to contribute more.
 about a technical aspect of Yakkl can be a great way to spread the word
 about Yakkl.
 
-We also occasionally [publish](http://blog.yakkl.org/) longer form
+We also occasionally [publish](https://blog.yakkl.com/) longer form
 articles related to Yakkl. Our posts typically get tens of thousands
 of views, and we always have good ideas for blog posts that we can
 outline but don't have time to write. If you are an experienced writer

@@ -205,14 +205,14 @@ proxy in the environment as follows:
 
 - On Ubuntu, set the proxy environment variables using:
  ```
- export https_proxy=http://proxy_host:port
+ export https_proxy=https://proxy_host:port
  export http_proxy=http://proxy_host:port
  ```
 
 - And set the yarn proxy and https-proxy using:
  ```
  yarn config set proxy http://proxy_host:port
- yarn config set https-proxy http://proxy_host:port
+ yarn config set https-proxy https://proxy_host:port
  ```
 
 ## Installing on cloud9

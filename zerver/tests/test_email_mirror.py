@@ -83,15 +83,15 @@ class TestEncodeDecode(YakklTestCase):
         self._assert_options(options, show_sender=True, include_footer=True, include_quotes=True)
         self.assertEqual(token, stream.email_token)
 
-        email_address = email_address.replace('@testserver', '@yakkl.org')
-        email_address_all_options = email_address_all_options.replace('@testserver', '@yakkl.org')
+        email_address = email_address.replace('@testserver', '@yakkl.com')
+        email_address_all_options = email_address_all_options.replace('@testserver', '@yakkl.com')
         with self.assertRaises(YakklEmailForwardError):
             decode_email_address(email_address)
 
         with self.assertRaises(YakklEmailForwardError):
             decode_email_address(email_address_all_options)
 
-        with self.settings(EMAIL_GATEWAY_EXTRA_PATTERN_HACK='@yakkl.org'):
+        with self.settings(EMAIL_GATEWAY_EXTRA_PATTERN_HACK='@yakkl.com'):
             token, options = decode_email_address(email_address)
             self._assert_options(options)
             self.assertEqual(token, stream.email_token)
@@ -1089,9 +1089,9 @@ class TestEmailMirrorLogAndReport(YakklTestCase):
         self.assertEqual(redacted_message, expected_message)
 
         # Test with EMAIL_GATEWAY_EXTRA_PATTERN_HACK:
-        with self.settings(EMAIL_GATEWAY_EXTRA_PATTERN_HACK='@yakkl.org'):
-            stream_to_address = stream_to_address.replace('@testserver', '@yakkl.org')
-            scrubbed_stream_address = scrubbed_stream_address.replace('@testserver', '@yakkl.org')
+        with self.settings(EMAIL_GATEWAY_EXTRA_PATTERN_HACK='@yakkl.com'):
+            stream_to_address = stream_to_address.replace('@testserver', '@yakkl.com')
+            scrubbed_stream_address = scrubbed_stream_address.replace('@testserver', '@yakkl.com')
             error_message = "test message {}"
             error_message = error_message.format(stream_to_address)
             expected_message = "test message {} <Address to stream id: {}>"

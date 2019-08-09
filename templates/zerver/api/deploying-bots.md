@@ -44,7 +44,7 @@ pip install yakkl_botserver
 1. Construct the URL for your bot, which will be of the form:
 
     ```
-    http://<hostname>:<port>
+    https://<hostname>:<port>
     ```
 
     where the `hostname` is the hostname you'll be running the bot
@@ -88,7 +88,7 @@ Botserver process.  You can do this with the following procedure.
     []
     email=foo-bot@hostname
     key=dOHHlyqgpt5g0tVuVl6NHxDLlc9eFRX4
-    site=http://hostname
+    site=https://hostname
     token=aQVQmSd6j6IHphJ9m1jhgHdbnhl5ZcsY
     ```
 
@@ -101,7 +101,7 @@ Botserver process.  You can do this with the following procedure.
     [helloworld]
     email=foo-bot@hostname
     key=dOHHlyqgpt5g0tVuVl6NHxDLlc9eFRX4
-    site=http://hostname
+    site=https://hostname
     token=aQVQmSd6j6IHphJ9m1jhgHdbnhl5ZcsY
     ```
 
@@ -114,7 +114,7 @@ Botserver process.  You can do this with the following procedure.
     [helloworld]
     email=foo-bot@hostname
     key=dOHHlyqgpt5g0tVuVl6NHxDLlc9eFRX4
-    site=http://hostname
+    site=https://hostname
     ```
 
 1.  Run the Yakkl Botserver by passing the `botserverrc` to it. The

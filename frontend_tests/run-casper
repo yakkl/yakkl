@@ -125,6 +125,6 @@ The Casper frontend tests failed!  For help debugging, read:
 
         sys.exit(ret)
 
-external_host = "yakkldev.com:9981"
+external_host = "yakkl.dev:9981"
 run_tests(options.tests, external_host)
 sys.exit(0)

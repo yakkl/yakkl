@@ -1587,7 +1587,7 @@ class EventsRegisterTest(YakklTestCase):
                 Realm.VIDEO_CHAT_PROVIDERS['jitsi_meet']['id'],
                 Realm.VIDEO_CHAT_PROVIDERS['google_hangouts']['id']
             ],
-            google_hangouts_domain=[u"yakkl.com", u"yakkl.org"],
+            google_hangouts_domain=[u"yakkl.com", u"yakkl.com"],
             zoom_api_secret=[u"abc", u"xyz"],
             zoom_api_key=[u"abc", u"xyz"],
             zoom_user_id=[u"example@example.com", u"example@example.org"]
@@ -2002,7 +2002,7 @@ class EventsRegisterTest(YakklTestCase):
             ])),
         ])
         events = self.do_test(lambda: do_add_realm_domain(
-            self.user_profile.realm, 'yakkl.org', False))
+            self.user_profile.realm, 'yakkl.com', False))
         error = schema_checker('events[0]', events[0])
         self.assert_on_error(error)
 
@@ -2010,12 +2010,12 @@ class EventsRegisterTest(YakklTestCase):
             ('type', equals('realm_domains')),
             ('op', equals('change')),
             ('realm_domain', check_dict_only([
-                ('domain', equals('yakkl.org')),
+                ('domain', equals('yakkl.com')),
                 ('allow_subdomains', equals(True)),
             ])),
         ])
         test_domain = RealmDomain.objects.get(realm=self.user_profile.realm,
-                                              domain='yakkl.org')
+                                              domain='yakkl.com')
         events = self.do_test(lambda: do_change_realm_domain(test_domain, True))
         error = schema_checker('events[0]', events[0])
         self.assert_on_error(error)
@@ -2023,7 +2023,7 @@ class EventsRegisterTest(YakklTestCase):
         schema_checker = self.check_events_dict([
             ('type', equals('realm_domains')),
             ('op', equals('remove')),
-            ('domain', equals('yakkl.org')),
+            ('domain', equals('yakkl.com')),
         ])
         events = self.do_test(lambda: do_remove_realm_domain(test_domain))
         error = schema_checker('events[0]', events[0])

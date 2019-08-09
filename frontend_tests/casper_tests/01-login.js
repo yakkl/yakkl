@@ -1,5 +1,5 @@
 var common = require('../casper_lib/common.js').common;
-var realm_url = "http://yakkl.yakkldev.com:9981/";
+var realm_url = "https://yakkl.yakkl.dev:9981/";
 
 // Start of test script.
 common.init_viewport();

@@ -114,7 +114,7 @@ var matches = [
         is_bot: true,
         user_id: 1,
     }, {
-        email: "a_user@yakkl.org",
+        email: "a_user@yakkl.com",
         full_name: "A yakkl user",
         is_admin: false,
         is_bot: false,
@@ -175,14 +175,14 @@ run_test('sort_recipients', () => {
         'b_user_2@yakkl.net',
         'b_user_3@yakkl.net',
         'b_bot@example.com',
-        'a_user@yakkl.org',
+        'a_user@yakkl.com',
         'zman@test.net',
         'a_bot@yakkl.com',
     ]);
 
     // Typeahead for private message [query, "", ""]
     assert.deepEqual(get_typeahead_result("a", "", ""), [
-        'a_user@yakkl.org',
+        'a_user@yakkl.com',
         'a_bot@yakkl.com',
         'b_user_1@yakkl.net',
         'b_user_2@yakkl.net',
@@ -236,7 +236,7 @@ run_test('sort_recipients', () => {
         subscriber_email_1,
         'b_user_1@yakkl.net',
         'zman@test.net',
-        'a_user@yakkl.org',
+        'a_user@yakkl.com',
         'a_bot@yakkl.com',
     ]);
 
@@ -257,7 +257,7 @@ run_test('sort_recipients', () => {
     assert.deepEqual(get_typeahead_result("h", "Linux", "Linux Topic"), [
         'zman@test.net',
         'b_user_3@yakkl.net',
-        'a_user@yakkl.org',
+        'a_user@yakkl.com',
         'b_bot@example.com',
         'a_bot@yakkl.com',
         'b_user_1@yakkl.net',
@@ -276,7 +276,7 @@ run_test('sort_recipients', () => {
 
     assert.deepEqual(get_typeahead_result("a", "Linux", "Linux Topic"), [
         'all',
-        'a_user@yakkl.org',
+        'a_user@yakkl.com',
         'a_bot@yakkl.com',
         'zman@test.net',
         'b_user_3@yakkl.net',
@@ -301,7 +301,7 @@ run_test('sort_recipients', () => {
         'b_user_1@yakkl.net',
         'b_user_2@yakkl.net',
         'zman@test.net',
-        'a_user@yakkl.org',
+        'a_user@yakkl.com',
         'a_bot@yakkl.com',
     ]);
 
@@ -317,7 +317,7 @@ run_test('sort_recipients', () => {
         'b_user_3@yakkl.net',
         'b_user_2@yakkl.net',
         'b_user_1@yakkl.net',
-        'a_user@yakkl.org',
+        'a_user@yakkl.com',
         'zman@test.net',
         'a_bot@yakkl.com',
         'a_bot@yakkl.com',
@@ -636,7 +636,7 @@ run_test('sort_recipientbox_typeahead', () => {
         return person.email;
     });
     assert.deepEqual(recipients_email, [
-        'a_user@yakkl.org', // matches "a"
+        'a_user@yakkl.com', // matches "a"
         'a_bot@yakkl.com', // matches "a"
         'b_bot@example.com',
         'b_user_3@yakkl.net',
@@ -654,7 +654,7 @@ run_test('sort_recipientbox_typeahead', () => {
         'b_user_3@yakkl.net',
         'b_user_2@yakkl.net',
         'b_user_1@yakkl.net',
-        'a_user@yakkl.org',
+        'a_user@yakkl.com',
         'zman@test.net',
         'a_bot@yakkl.com',
     ]);

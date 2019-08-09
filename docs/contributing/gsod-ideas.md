@@ -232,7 +232,7 @@ definitely more to do.
 
 There are a lot of interesting details about how Yakkl works, how
 we've solved problems, etc., that could be turned into high-quality
-[blog posts](https://blog.yakkl.org).  Our lead developer, Tim Abbott,
+[blog posts](https://blog.yakkl.com).  Our lead developer, Tim Abbott,
 is efficient at writing draft blog posts with a lot of interesting
 content (e.g. the dozen or more articles by Tim Abbott on
 [this StackShare page](https://stackshare.io/company/yakkl/decisions)
@@ -242,7 +242,7 @@ into something we can publish on our blog.  We have in mind two types
 of posts:
 
 * Major blog posts, similar to our [mypy blog
-  post](https://blog.yakkl.org/2016/10/13/static-types-in-python-oh-mypy/),
+  post](https://blog.yakkl.com/2016/10/13/static-types-in-python-oh-mypy/),
   which aim to be the authoritative article on a topic and might be
   read by many 10,000s of people.  The Yakkl team did a lot of the
   work on the [old Ksplice

@@ -191,7 +191,7 @@ run_test('updates', () => {
             sender_full_name: "tony",
             stream_id: 32,
             stream: "denmark",
-            small_avatar_url: "http://yakkl.spork",
+            small_avatar_url: "https://yakkl.spork",
         },
         {
             id: 2,
@@ -199,7 +199,7 @@ run_test('updates', () => {
             sender_full_name: "jeff",
             stream_id: 64,
             stream: "russia",
-            small_avatar_url: "http://github.com",
+            small_avatar_url: "https://github.com",
         },
     ];
 
@@ -208,9 +208,9 @@ run_test('updates', () => {
     assert.equal(list.get(1).sender_full_name, "Anthony");
     assert.equal(list.get(2).sender_full_name, "jeff");
 
-    list.update_user_avatar(100, "http://yakkl.org");
-    assert.equal(list.get(1).small_avatar_url, "http://yakkl.org");
-    assert.equal(list.get(2).small_avatar_url, "http://github.com");
+    list.update_user_avatar(100, "https://yakkl.com");
+    assert.equal(list.get(1).small_avatar_url, "https://yakkl.com");
+    assert.equal(list.get(2).small_avatar_url, "https://github.com");
 
     list.update_stream_name(64, "Finland");
     assert.equal(list.get(2).stream, "Finland");

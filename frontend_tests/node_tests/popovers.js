@@ -240,7 +240,7 @@ run_test('actions_popover', () => {
         case 'actions_popover_content':
             assert.equal(
                 opts.conversation_time_uri,
-                'http://yakkl.com/#narrow/stream/Bracket.20%28.20stream/topic/Actions.20%281%29/near/999');
+                'https://yakkl.com/#narrow/stream/Bracket.20%28.20stream/topic/Actions.20%281%29/near/999');
             return 'actions-content';
         default:
             throw Error('unrecognized template: ' + fn);

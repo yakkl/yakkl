@@ -94,13 +94,13 @@ Once the droplet is created, you will see something similar to this message:
 Your remote Yakkl dev server has been created!
 
 - Connect to your server by running
-  `ssh yakkldev@<username>.yakkldev.org` on the command line
+  `ssh yakkldev@<username>.yakkl.dev` on the command line
   (Terminal for macOS and Linux, Bash for Git on Windows).
 - There is no password; your account is configured to use your ssh keys.
 - Once you log in, you should see `(yakkl-py3-venv) ~$`.
 - To start the dev server, `cd yakkl` and then run `./tools/run-dev.py`.
 - While the dev server is running, you can see the Yakkl server in your browser
-  at http://<username>.yakkldev.org:9991.
+  at https://<username>.yakkl.dev:9991.
 
 See [Developing
 remotely](https://yakkl.readthedocs.io/en/latest/development/remote.html) for tips on
@@ -122,17 +122,17 @@ so they are notified.
 
 Rough steps:
 
-1. Get the `ssh` key for `base.yakkldev.org` from Christie or Rishi.
-1. Power up the `base.yakkldev.org` droplet from the digitalocean UI. You
+1. Get the `ssh` key for `base.yakkl.dev` from Christie or Rishi.
+1. Power up the `base.yakkl.dev` droplet from the digitalocean UI. You
    probably have to be logged in in the Yakkl organization view, rather than
    via your personal account.
-1. `ssh yakkldev@base.yakkldev.org`
+1. `ssh yakkldev@base.yakkl.dev`
 1. `git pull upstream master`
 1. `tools/provision`
 1. `git clean -f`, in case things were added/removed from `.gitignore`.
 1. `tools/run-dev.py`, let it run to completion, and then Ctrl-C (to clear
    out anything in the Rabbit MQ queue, load messages, etc).
-1. `tools/run-dev.py`, and check that `base.yakkldev.org:9991` is up and running.
+1. `tools/run-dev.py`, and check that `base.yakkl.dev:9991` is up and running.
 1. `> ~/.bash_history && history -c && sudo shutdown -h now` to clear any command
    line history (To reduce chance of confusing new contributors in case you made a typo)
    and shutdown the droplet.
@@ -141,7 +141,7 @@ Rough steps:
 1. Make sure to add the appropriate regions via More -> "Add to region" in
    the Snapshots section.
 1. Do something like `curl -X GET -H "Content-Type: application/json"
-   -u <API_KEY>: "https://api.digitalocean.com/v2/images?page=5" | grep --color=always base.yakkldev.org`
+   -u <API_KEY>: "https://api.digitalocean.com/v2/images?page=5" | grep --color=always base.yakkl.dev`
    (maybe with a different page number, and replace your API_KEY).
 1. Replace `template_id` in `create.py` in this directory with the
    appropriate `id`, and region with the appropriate region.
@@ -161,7 +161,7 @@ $ python3 ~/yakkl/tools/droplets/add_mentor.py <your username>
 You should now be able to connect to it using:
 
 ```
-$ ssh yakkldev@<their username>.yakkldev.org
+$ ssh yakkldev@<their username>.yakkl.dev
 ```
 
 They can remove your SSH keys by running:

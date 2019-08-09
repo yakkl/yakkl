@@ -118,14 +118,14 @@ casper.then(function create_bot() {
         bot_name: 'Bot 1',
         bot_short_name: '1',
         bot_type: OUTGOING_WEBHOOK_BOT_TYPE,
-        payload_url: 'http://hostname.example.com/bots/followup',
+        payload_url: 'https://hostname.example.com/bots/followup',
     });
 
     casper.test.info('Submitting the create bot form');
     casper.click('#create_bot_button');
 });
 
-var bot_email = '1-bot@yakkl.yakkldev.com';
+var bot_email = '1-bot@yakkl.yakkl.dev';
 var button_sel = '.download_bot_yakklrc[data-email="' + bot_email + '"]';
 
 casper.then(function () {
@@ -156,7 +156,7 @@ casper.then(function create_bot() {
     casper.click('#create_bot_button');
 });
 
-var second_bot_email = '2-bot@yakkl.yakkldev.com';
+var second_bot_email = '2-bot@yakkl.yakkl.dev';
 var second_button_sel = '.download_bot_yakklrc[data-email="' + second_bot_email + '"]';
 
 casper.then(function () {
@@ -312,7 +312,7 @@ casper.then(function () {
     });
 });
 
-var settings_url = 'http://yakkl.yakkldev.com:9981/de/#settings';
+var settings_url = 'https://yakkl.yakkl.dev:9981/de/#settings';
 
 casper.thenOpen(settings_url);
 
@@ -360,7 +360,7 @@ casper.then(function () {
     casper.test.assertVisible("#notification_sound:disabled", "Notification sound selector is disabled");
 });
 
-casper.thenOpen("http://yakkl.yakkldev.com:9981/");
+casper.thenOpen("https://yakkl.yakkl.dev:9981/");
 
 // TODO: test the "Declare Yakkl Bankruptcy option"
 

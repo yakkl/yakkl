@@ -57,13 +57,13 @@ will be contacted when it is complete and available.
 Once your remote dev instance is ready:
 
 - Connect to your server by running
-  `ssh yakkldev@<username>.yakkldev.org` on the command line
+  `ssh yakkldev@<username>.yakkl.dev` on the command line
   (Terminal for macOS and Linux, Bash for Git on Windows).
 - There is no password; your account is configured to use your SSH keys.
 - Once you log in, you should see `(yakkl-py3-venv) ~$`.
 - To start the dev server, `cd yakkl` and then run `./tools/run-dev.py`.
 - While the dev server is running, you can see the Yakkl server in your browser
-  at http://username.yakkldev.org:9991.
+  at http://username.yakkl.dev:9991.
 
 Once you've confirmed you can connect to your remote server, take a look at:
 

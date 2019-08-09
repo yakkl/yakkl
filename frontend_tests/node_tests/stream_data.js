@@ -204,7 +204,7 @@ run_test('subscribers', () => {
     sub = stream_data.get_sub('Rome');
     stream_data.update_subscribers_count(sub);
     assert.equal(sub.subscriber_count, 1);
-    var sub_email = "Rome:214125235@yakkldev.com:9991";
+    var sub_email = "Rome:214125235@yakkl.dev:9991";
     stream_data.update_stream_email_address(sub, sub_email);
     assert.equal(sub.email_address, sub_email);
 

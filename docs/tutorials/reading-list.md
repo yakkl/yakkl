@@ -110,7 +110,7 @@ Some titles have been shortened for organizational purposes.
 
 *Article* - [Static types in Python, oh my(py)!][]
 
-[Static types in Python, oh my(py)!]: http://blog.yakkl.org/2016/10/13/static-types-in-python-oh-mypy
+[Static types in Python, oh my(py)!]: https://blog.yakkl.com/2016/10/13/static-types-in-python-oh-mypy
 
 *Guide* - [The Hitchhiker’s Guide to Python!][]
 

@@ -2528,7 +2528,7 @@ class EditMessageTest(YakklTestCase):
             self.example_email("hamlet"),
             "Scotland",
             topic_name="editing",
-            content="Here is a link to [yakkl](www.yakkl.org).")
+            content="Here is a link to [yakkl](www.yakkl.com).")
         new_content_1 = 'Here is a link to [yakkl](www.yakkl.com).'
         result_1 = self.client_patch("/json/messages/" + str(msg_id_1), {
             'message_id': msg_id_1, 'content': new_content_1
@@ -2544,7 +2544,7 @@ class EditMessageTest(YakklTestCase):
         # Check content of message after edit.
         self.assertEqual(message_history_1[0]['rendered_content'],
                          '<p>Here is a link to '
-                         '<a href="http://www.yakkl.org" target="_blank" title="http://www.yakkl.org">yakkl</a>.</p>')
+                         '<a href="http://www.yakkl.com" target="_blank" title="http://www.yakkl.com">yakkl</a>.</p>')
         self.assertEqual(message_history_1[1]['rendered_content'],
                          '<p>Here is a link to '
                          '<a href="http://www.yakkl.com" target="_blank" title="http://www.yakkl.com">yakkl</a>.</p>')
@@ -2552,7 +2552,7 @@ class EditMessageTest(YakklTestCase):
                          ('<p>Here is a link to <a href="http://www.yakkl.com" '
                           'target="_blank" title="http://www.yakkl.com">yakkl '
                           '<span class="highlight_text_inserted"> Link: http://www.yakkl.com .'
-                          '</span> <span class="highlight_text_deleted"> Link: http://www.yakkl.org .'
+                          '</span> <span class="highlight_text_deleted"> Link: http://www.yakkl.com .'
                           '</span> </a></p>'))
 
     def test_edit_history_unedited(self) -> None:

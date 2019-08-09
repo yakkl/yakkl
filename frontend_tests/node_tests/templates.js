@@ -74,7 +74,7 @@ run_test('admin_realm_domains_list', () => {
     var html = "<table>";
     var args = {
         realm_domain: {
-            domain: 'yakkl.org',
+            domain: 'yakkl.com',
             allow_subdomains: true,
         },
     };
@@ -88,7 +88,7 @@ run_test('admin_realm_domains_list', () => {
 
     assert.equal(button.text().trim(), "translated: Remove");
     assert(button.hasClass("delete_realm_domain"));
-    assert.equal(domain.text(), "yakkl.org");
+    assert.equal(domain.text(), "yakkl.com");
 
     assert.equal(subdomains_checkbox.prop('checked'), true);
 });
@@ -1421,7 +1421,7 @@ run_test('typeahead_list_item', () => {
     var args = {
         primary: 'primary-text',
         secondary: 'secondary-text',
-        img_src: 'https://yakkl.org',
+        img_src: 'https://yakkl.com',
         is_emoji: true,
         has_image: true,
         has_secondary: true,
@@ -1429,7 +1429,7 @@ run_test('typeahead_list_item', () => {
 
     var html = '<div>' + render('typeahead_list_item', args) + '</div>';
 
-    assert.equal($(html).find('.emoji').attr('src'), 'https://yakkl.org');
+    assert.equal($(html).find('.emoji').attr('src'), 'https://yakkl.com');
     assert.equal($(html).find('strong').text().trim(), 'primary-text');
     assert.equal($(html).find('small').text().trim(), 'secondary-text');
 });

@@ -23,8 +23,8 @@ if external_host_env is None:
         EXTERNAL_HOST = os.uname()[1].lower() + ":9991"
     else:
         # For local development environments, we use localhost by
-        # default, via the "yakkldev.com" hostname.
-        EXTERNAL_HOST = 'yakkldev.com:9991'
+        # default, via the "yakkl.dev" hostname.
+        EXTERNAL_HOST = 'yakkl.dev:9991'
         # Serve the main dev realm at the literal name "localhost",
         # so it works out of the box even when not on the Internet.
         REALM_HOSTS = {

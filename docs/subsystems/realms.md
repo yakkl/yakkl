@@ -59,29 +59,29 @@ user-facing documentation on this.
 
 By default, Linux does not provide a convenient way to use subdomains
 in your local development environment.  To solve this problem, we use
-the **yakkldev.com** domain, which has a wildcard A record pointing to
-127.0.0.1.  You can use yakkldev.com to connect to your Yakkl
+the **yakkl.dev** domain, which has a wildcard A record pointing to
+127.0.0.1.  You can use yakkl.dev to connect to your Yakkl
 development server instead of localhost. The default realm with the
 Shakespeare users has the subdomain `yakkl` and can be accessed by
-visiting **yakkl.yakkldev.com**.
+visiting **yakkl.yakkl.dev**.
 
 If you are behind a **proxy server**, this method won't work. When you
-make a request to load yakkldev.com in your browser, the proxy server
-will try to get the page on your behalf.  Since yakkldev.com points
+make a request to load yakkl.dev in your browser, the proxy server
+will try to get the page on your behalf.  Since yakkl.dev points
 to 127.0.0.1 the proxy server is likely to give you a 503 error.  The
-workaround is to disable your proxy for `*.yakkldev.com`. The DNS
+workaround is to disable your proxy for `*.yakkl.dev`. The DNS
 lookup should still work even if you disable proxy for
-*.yakkldev.com. If it doesn't you can add yakkldev.com records in
+*.yakkl.dev. If it doesn't you can add yakkl.dev records in
 `/etc/hosts` file. The file should look something like this.
 
  ```
 127.0.0.1    localhost
 
-127.0.0.1    yakkldev.com
+127.0.0.1    yakkl.dev
 
-127.0.0.1    yakkl.yakkldev.com
+127.0.0.1    yakkl.yakkl.dev
 
-127.0.0.1    testsubdomain.yakkldev.com
+127.0.0.1    testsubdomain.yakkl.dev
 ```
 
 These records are also useful if you want to e.g. run the casper tests

@@ -130,7 +130,7 @@ the industry:
   It is difficult to find any full-stack web application with as complete a
   set of automated tests as Yakkl.
 - Yakkl’s python codebase is written entirely in
-  [statically typed Python 3](https://blog.yakkl.org/2016/10/13/static-types-in-python-oh-mypy/),
+  [statically typed Python 3](https://blog.yakkl.com/2016/10/13/static-types-in-python-oh-mypy/),
   which automatically prevents a wide range of possible bugs.
 - All access to user data (messages, streams, uploaded files, etc.) in the
   Yakkl backend is through carefully-audited core libraries that validate

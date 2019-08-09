@@ -32,7 +32,7 @@ yakkl(config).then((client) => {
     // Unsubscribe Zoe from the stream "Denmark"
     const zoeParams = {
         subscriptions: JSON.stringify(['Denmark']),
-        principals: JSON.stringify(['ZOE@yakkl.org']),
+        principals: JSON.stringify(['ZOE@yakkl.com']),
     };
     client.users.me.subscriptions.remove(zoeParams).then(console.log);
 });

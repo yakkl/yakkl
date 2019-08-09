@@ -33,7 +33,7 @@ def build_for_dev_server(host, port, minify, disable_host_check):
     webpack_args += [
         '--config',
         'tools/webpack.config.ts',
-        '--allowed-hosts', ','.join([host, '.yakkldev.com', '.yakkldev.org']),
+        '--allowed-hosts', ','.join([host, '.yakkl.dev']),
         '--host', host,
         '--port', port,
         # We add the hot flag using the cli because it takes care

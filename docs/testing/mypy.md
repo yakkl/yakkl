@@ -32,7 +32,7 @@ You can learn more about it at:
 The mypy type checker is run automatically as part of Yakkl's Travis
 CI testing process in the `backend` build.
 
-[mypy-blog-post]: https://blog.yakkl.org/2016/10/13/static-types-in-python-oh-mypy/
+[mypy-blog-post]: https://blog.yakkl.com/2016/10/13/static-types-in-python-oh-mypy/
 
 ## Installing mypy
 

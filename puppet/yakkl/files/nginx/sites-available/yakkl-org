@@ -10,11 +10,11 @@ upstream yakklbot {
 
 server {
     listen 443 http2;
-    server_name yakkl.org;
+    server_name yakkl.com;
 
     ssl on;
-    ssl_certificate /etc/letsencrypt/live/yakkl.org/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/yakkl.org/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/yakkl.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yakkl.com/privkey.pem;
 
     location /dist/ {
         autoindex on;

@@ -55,7 +55,7 @@ our custom backend, `EmailLogBackEnd`.  It does the following:
 
 * Logs any sent emails to `var/log/email_content.log`. This log is
   displayed by the `/emails` endpoint
-  (e.g. http://yakkl.yakkldev.com:9991/emails).
+  (e.g. https://yakkl.yakkl.dev:9991/emails).
 * Print a friendly message on console advertising `/emails` to make
   this nice and discoverable.
 

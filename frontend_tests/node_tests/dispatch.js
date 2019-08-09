@@ -479,7 +479,7 @@ var event_fixtures = {
                 name: 'devel',
                 stream_id: 42,
                 subscribers: ['alice@example.com', 'bob@example.com'],
-                email_address: 'devel+0138515295f4@yakkldev.com:9991',
+                email_address: 'devel+0138515295f4@yakkl.dev:9991',
                 // etc.
             },
         ],

@@ -97,7 +97,7 @@ From image editing program:
             '<a><img class="twitter-avatar" '
             'src="https://pbs.twimg.com/profile_images/424495004/GuidoAvatar_bigger.jpg"></a>'
             '<p>Great blog post about Yakkl\'s use of mypy: '
-            '<a>http://blog.yakkl.com/2016/10/13/static-types-in-python-oh-mypy/</a></p>'
+            '<a>https://blog.yakkl.com/2016/10/13/static-types-in-python-oh-mypy/</a></p>'
             '<span>- Guido van Rossum (@gvanrossum)</span></div></div>')
         twitter_message.save(update_fields=['rendered_content'])
 

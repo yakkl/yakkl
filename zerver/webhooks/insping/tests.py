@@ -12,7 +12,7 @@ class InspingHookTests(WebhookTestCase):
         expected_topic = u"insping"
         expected_message = """
 State changed to **Available**:
-* **URL**: http://privisus.yakkldev.org:9991
+* **URL**: https://devtest.yakkl.dev:9991
 * **Response time**: 223 ms
 * **Timestamp**: Fri Dec 29 17:23:46 2017
 """.strip()
@@ -25,7 +25,7 @@ State changed to **Available**:
         expected_topic = u"insping"
         expected_message = """
 State changed to **Not Responding**:
-* **URL**: http://privisus.yakkldev.org:9991
+* **URL**: https://devtest.yakkl.dev:9991
 * **Response time**: 942 ms
 * **Timestamp**: Fri Dec 29 17:13:46 2017
 """.strip()

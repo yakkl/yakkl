@@ -68,7 +68,7 @@ AVATAR_SALT = get_secret("avatar_salt")
 # restarted for triggering browser clients to reload.
 SERVER_GENERATION = int(time.time())
 
-# Key to authenticate this server to yakkl.org for push notifications, etc.
+# Key to authenticate this server to yakkl.com for push notifications, etc.
 YAKKL_ORG_KEY = get_secret("yakkl_org_key")
 YAKKL_ORG_ID = get_secret("yakkl_org_id")
 
