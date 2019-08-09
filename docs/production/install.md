@@ -125,7 +125,7 @@ Learning more:
 [Yakkl announcements email list](https://groups.google.com/forum/#!forum/yakkl-announce)
 for server administrators.  This extremely low-traffic list is for
 important announcements, including new releases and security issues.
-* Follow [Yakkl on Twitter](https://twitter.com/yakkl).
+* Follow [Yakkl on Twitter](https://twitter.com/yakklofficial).
 * Learn how to [configure your Yakkl server settings](settings.html).
 * Learn about [maintaining a production Yakkl server](maintain-secure-upgrade.html).
 

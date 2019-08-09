@@ -1659,13 +1659,13 @@ msgstr "das Yakkl Team"
 
 #: templates/zerver/emails/compiled/followup_day1.html:53
 msgid ""
-"PS: Follow us on <a href=\"https://twitter.com/yakkl\" "
+"PS: Follow us on <a href=\"https://twitter.com/yakklofficial\" "
 "style=\"color:#46aa8f; text-decoration:underline\">Twitter</a>, star us on "
 "<a href=\"https://github.com/yakkl/yakkl\" style=\"color:#46aa8f; text-"
 "decoration:underline\">GitHub</a>, or chat with us live on the <a "
 "href=\"https://yakkl.com\" style=\"color:#46aa8f; text-"
 "decoration:underline\">Yakkl community server</a>!"
-msgstr "PS: Folge uns auf <a href=\"https://twitter.com/yakkl\" style=\"color:#46aa8f; text-decoration:underline\">Twitter</a>,\n    gib uns einen Stern auf <a href=\"https://github.com/yakkl/yakkl\" style=\"color:#46aa8f; text-decoration:underline\">GitHub</a>, oder\n    chatte mit uns live auf dem\n    <a href=\"https://yakkl.com\" style=\"color:#46aa8f; text-decoration:underline\">Yakkl Community Server</a>!"
+msgstr "PS: Folge uns auf <a href=\"https://twitter.com/yakklofficial\" style=\"color:#46aa8f; text-decoration:underline\">Twitter</a>,\n    gib uns einen Stern auf <a href=\"https://github.com/yakkl/yakkl\" style=\"color:#46aa8f; text-decoration:underline\">GitHub</a>, oder\n    chatte mit uns live auf dem\n    <a href=\"https://yakkl.com\" style=\"color:#46aa8f; text-decoration:underline\">Yakkl Community Server</a>!"
 
 #: templates/zerver/emails/compiled/followup_day2.html:4
 #: templates/zerver/emails/followup_day2.source.html:4
@@ -2070,7 +2070,7 @@ msgstr "<a href=\"%(getting_started_link)s\">Erfahre mehr</a> über Yakkl, werde
 
 #: templates/zerver/emails/followup_day1.source.html:47
 msgid ""
-"PS: Follow us on <a href=\"https://twitter.com/yakkl\">Twitter</a>, star us "
+"PS: Follow us on <a href=\"https://twitter.com/yakklofficial\">Twitter</a>, star us "
 "on <a href=\"https://github.com/yakkl/yakkl\">GitHub</a>, or chat with us "
 "live on the <a href=\"https://yakkl.com\">Yakkl community server</a>!"
 msgstr "PS: Folge uns auf gib uns einen Stern auf <a href=\"https://github.com/yakkl/yakkl\">GitHub</a>, chatte mit uns live auf <a href=\"https://yakkl.com\">Yakkl Community Server</a>!"

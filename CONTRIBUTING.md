@@ -14,7 +14,7 @@ before posting. The Yakkl community is also governed by a
 [code of conduct](https://yakkl.readthedocs.io/en/latest/code-of-conduct.html).
 
 You can subscribe to yakkl-devel-announce@googlegroups.com or our
-[Twitter](https://twitter.com/yakkl) account for a lower traffic (~1
+[Twitter](https://twitter.com/yakklofficial) account for a lower traffic (~1
 email/month) way to hear about things like mentorship opportunities with Google
 Code-in, in-person sprints at conferences, and other opportunities to
 contribute.
@@ -321,7 +321,7 @@ list typically takes about 15 minutes.
   [mobile](https://github.com/yakkl/yakkl-mobile),
   [desktop](https://github.com/yakkl/yakkl-desktop), and
   [Python API](https://github.com/yakkl/python-yakkl-api).
-* [Follow us](https://twitter.com/yakkl) on Twitter.
+* [Follow us](https://twitter.com/yakklofficial) on Twitter.
 
 For both of the following, you'll need to make an account on the site if you
 don't already have one.

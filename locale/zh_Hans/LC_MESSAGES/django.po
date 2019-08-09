@@ -1645,13 +1645,13 @@ msgstr "Yakkl团队"
 
 #: templates/zerver/emails/compiled/followup_day1.html:53
 msgid ""
-"PS: Follow us on <a href=\"https://twitter.com/yakkl\" "
+"PS: Follow us on <a href=\"https://twitter.com/yakklofficial\" "
 "style=\"color:#46aa8f; text-decoration:underline\">Twitter</a>, star us on "
 "<a href=\"https://github.com/yakkl/yakkl\" style=\"color:#46aa8f; text-"
 "decoration:underline\">GitHub</a>, or chat with us live on the <a "
 "href=\"https://yakkl.com\" style=\"color:#46aa8f; text-"
 "decoration:underline\">Yakkl community server</a>!"
-msgstr "例如：关注我们的<a href=\"https://twitter.com/yakkl\" style=\"color:#46aa8f; text-decoration:underline\">Twitter</a>，给我们的<a href=\"https://github.com/yakkl/yakkl\" style=\"color:#46aa8f; text-decoration:underline\">Github</a>加星，或者在<a href=\"https://yakkl.com\" style=\"color:#46aa8f; text-decoration:underline\">Yakkl社区服务器</a>与我们交流"
+msgstr "例如：关注我们的<a href=\"https://twitter.com/yakklofficial\" style=\"color:#46aa8f; text-decoration:underline\">Twitter</a>，给我们的<a href=\"https://github.com/yakkl/yakkl\" style=\"color:#46aa8f; text-decoration:underline\">Github</a>加星，或者在<a href=\"https://yakkl.com\" style=\"color:#46aa8f; text-decoration:underline\">Yakkl社区服务器</a>与我们交流"
 
 #: templates/zerver/emails/compiled/followup_day2.html:4
 #: templates/zerver/emails/followup_day2.source.html:4
@@ -2056,10 +2056,10 @@ msgstr "<a href=\"%(getting_started_link)s\">了解更多</a>关于Yakkl的操�
 
 #: templates/zerver/emails/followup_day1.source.html:47
 msgid ""
-"PS: Follow us on <a href=\"https://twitter.com/yakkl\">Twitter</a>, star us "
+"PS: Follow us on <a href=\"https://twitter.com/yakklofficial\">Twitter</a>, star us "
 "on <a href=\"https://github.com/yakkl/yakkl\">GitHub</a>, or chat with us "
 "live on the <a href=\"https://yakkl.com\">Yakkl community server</a>!"
-msgstr "例如：关注我们的<a href=\"https://twitter.com/yakkl\">Twitter</a>，给我们的<a href=\"https://github.com/yakkl/yakkl\">GitHub</a>加星，或者在<a href=\"https://yakkl.com\">Yakkl 社区服务器</a>和我们在线交流"
+msgstr "例如：关注我们的<a href=\"https://twitter.com/yakklofficial\">Twitter</a>，给我们的<a href=\"https://github.com/yakkl/yakkl\">GitHub</a>加星，或者在<a href=\"https://yakkl.com\">Yakkl 社区服务器</a>和我们在线交流"
 
 #: templates/zerver/emails/followup_day1.subject.txt:2
 #, python-format

@@ -1643,13 +1643,13 @@ msgstr "Vývojáři Yakklu"
 
 #: templates/zerver/emails/compiled/followup_day1.html:53
 msgid ""
-"PS: Follow us on <a href=\"https://twitter.com/yakkl\" "
+"PS: Follow us on <a href=\"https://twitter.com/yakklofficial\" "
 "style=\"color:#46aa8f; text-decoration:underline\">Twitter</a>, star us on "
 "<a href=\"https://github.com/yakkl/yakkl\" style=\"color:#46aa8f; text-"
 "decoration:underline\">GitHub</a>, or chat with us live on the <a "
 "href=\"https://yakkl.com\" style=\"color:#46aa8f; text-"
 "decoration:underline\">Yakkl community server</a>!"
-msgstr "PS: Sledujte nás na <a href=\"https://twitter.com/yakkl\" style=\"color:#46aa8f; text-decoration:underline\">Twitteru</a>, dejte nám hvězdičku na <a href=\"https://github.com/yakkl/yakkl\" style=\"color:#46aa8f; text-decoration:underline\">GitHubu</a>, nebo s námi pokláboste živě na <a href=\"https://yakkl.com\" style=\"color:#46aa8f; text-decoration:underline\">komunitním serveru Yakklu</a>!"
+msgstr "PS: Sledujte nás na <a href=\"https://twitter.com/yakklofficial\" style=\"color:#46aa8f; text-decoration:underline\">Twitteru</a>, dejte nám hvězdičku na <a href=\"https://github.com/yakkl/yakkl\" style=\"color:#46aa8f; text-decoration:underline\">GitHubu</a>, nebo s námi pokláboste živě na <a href=\"https://yakkl.com\" style=\"color:#46aa8f; text-decoration:underline\">komunitním serveru Yakklu</a>!"
 
 #: templates/zerver/emails/compiled/followup_day2.html:4
 #: templates/zerver/emails/followup_day2.source.html:4
@@ -2054,10 +2054,10 @@ msgstr "<a href=\"%(getting_started_link)s\">Zjistěte více</a> o Yakklu a sta�
 
 #: templates/zerver/emails/followup_day1.source.html:47
 msgid ""
-"PS: Follow us on <a href=\"https://twitter.com/yakkl\">Twitter</a>, star us "
+"PS: Follow us on <a href=\"https://twitter.com/yakklofficial\">Twitter</a>, star us "
 "on <a href=\"https://github.com/yakkl/yakkl\">GitHub</a>, or chat with us "
 "live on the <a href=\"https://yakkl.com\">Yakkl community server</a>!"
-msgstr "PS: Sledujte nás na <a href=\"https://twitter.com/yakkl\">Twitteru</a>, dejte nám hvězdičku na <a href=\"https://github.com/yakkl/yakkl\">GitHubu</a>, nebo s námi pokláboste živě na <a href=\"https://yakkl.com\">komunitním serveru Yakklu</a>!   "
+msgstr "PS: Sledujte nás na <a href=\"https://twitter.com/yakklofficial\">Twitteru</a>, dejte nám hvězdičku na <a href=\"https://github.com/yakkl/yakkl\">GitHubu</a>, nebo s námi pokláboste živě na <a href=\"https://yakkl.com\">komunitním serveru Yakklu</a>!   "
 
 #: templates/zerver/emails/followup_day1.subject.txt:2
 #, python-format

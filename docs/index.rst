@@ -1,5 +1,5 @@
 .. yakkl documentation master file, created by
-   sphinx-quickstart on Mon Aug 17 16:24:04 2015.
+   sphinx-quickstart on Mon Aug 8 12:00:00 2019.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 

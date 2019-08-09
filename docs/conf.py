@@ -42,7 +42,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'Yakkl'
-copyright = '2015-2018, The Yakkl Team'
+copyright = '2019, The Yakkl Team'
 author = 'The Yakkl Team'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -50,9 +50,9 @@ author = 'The Yakkl Team'
 # built documents.
 #
 # The short X.Y version.
-version = '2.0+git'
+version = '0.1.0+git'
 # The full version, including alpha/beta/rc tags.
-release = '2.0.4+git'
+release = '0.1.0.4+git'
 
 # This allows us to insert a warning that appears only on an unreleased
 # version, e.g. to say that something is likely to have changed.

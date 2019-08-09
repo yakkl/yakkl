@@ -1642,13 +1642,13 @@ msgstr "Yakkl Takımı"
 
 #: templates/zerver/emails/compiled/followup_day1.html:53
 msgid ""
-"PS: Follow us on <a href=\"https://twitter.com/yakkl\" "
+"PS: Follow us on <a href=\"https://twitter.com/yakklofficial\" "
 "style=\"color:#46aa8f; text-decoration:underline\">Twitter</a>, star us on "
 "<a href=\"https://github.com/yakkl/yakkl\" style=\"color:#46aa8f; text-"
 "decoration:underline\">GitHub</a>, or chat with us live on the <a "
 "href=\"https://yakkl.com\" style=\"color:#46aa8f; text-"
 "decoration:underline\">Yakkl community server</a>!"
-msgstr "Not: Bizi <a href=\"https://twitter.com/yakkl\" style=\"color:#46aa8f; text-decoration:underline\">Twitter</a>üzerinden takip edin, <a href=\"https://github.com/yakkl/yakkl\" style=\"color:#46aa8f; text-decoration:underline\">GitHub</a> yıldız verin, veya <a href=\"https://yakkl.com\" style=\"color:#46aa8f; text-decoration:underline\">Yakkl topluluğu sunucusu</a>üzerinden bizimle sohbet edin!"
+msgstr "Not: Bizi <a href=\"https://twitter.com/yakklofficial\" style=\"color:#46aa8f; text-decoration:underline\">Twitter</a>üzerinden takip edin, <a href=\"https://github.com/yakkl/yakkl\" style=\"color:#46aa8f; text-decoration:underline\">GitHub</a> yıldız verin, veya <a href=\"https://yakkl.com\" style=\"color:#46aa8f; text-decoration:underline\">Yakkl topluluğu sunucusu</a>üzerinden bizimle sohbet edin!"
 
 #: templates/zerver/emails/compiled/followup_day2.html:4
 #: templates/zerver/emails/followup_day2.source.html:4
@@ -2053,10 +2053,10 @@ msgstr "Yakkl hakkında <a href=\"%(getting_started_link)s\">daha fazlasını ö
 
 #: templates/zerver/emails/followup_day1.source.html:47
 msgid ""
-"PS: Follow us on <a href=\"https://twitter.com/yakkl\">Twitter</a>, star us "
+"PS: Follow us on <a href=\"https://twitter.com/yakklofficial\">Twitter</a>, star us "
 "on <a href=\"https://github.com/yakkl/yakkl\">GitHub</a>, or chat with us "
 "live on the <a href=\"https://yakkl.com\">Yakkl community server</a>!"
-msgstr "Not: Bizi <a href=\"https://twitter.com/yakkl\">Twitter</a>üzerinden takip edin, <a href=\"https://github.com/yakkl/yakkl\">GitHub</a> yıldız verin, veya <a href=\"https://yakkl.com\">Yakkl topluluğu sunucusu</a>üzerinden bizimle sohbet edin!"
+msgstr "Not: Bizi <a href=\"https://twitter.com/yakklofficial\">Twitter</a>üzerinden takip edin, <a href=\"https://github.com/yakkl/yakkl\">GitHub</a> yıldız verin, veya <a href=\"https://yakkl.com\">Yakkl topluluğu sunucusu</a>üzerinden bizimle sohbet edin!"
 
 #: templates/zerver/emails/followup_day1.subject.txt:2
 #, python-format

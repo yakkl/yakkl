@@ -184,7 +184,7 @@ class ParserTest(unittest.TestCase):
 
         # Even this is fine.
         my_html = '''
-            <a class="twitter-timeline" href="https://twitter.com/yakkl"
+            <a class="twitter-timeline" href="https://twitter.com/yakklofficial"
                 data-widget-id="443457763394334720"
                 data-screen-name="yakkl"
                 >@yakkl on Twitter</a>.

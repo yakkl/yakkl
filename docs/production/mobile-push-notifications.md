@@ -96,7 +96,7 @@ forwarding service).
 ## Security and privacy
 
 Use of the push notification bouncer is subject to the
-[Yakklchat Terms of Service](https://yakkl.com/terms/). By using
+[yakklofficial Terms of Service](https://yakkl.com/terms/). By using
 push notifications, you agree to those terms.
 
 We've designed this push notification bouncer service with security
@@ -174,7 +174,7 @@ notifications, for Yakkl 1.8 and older.
    of any issues (we hope to have a nice web flow available for this soon).
 
 2. We'll enable push notifications for your server on our end. Look for a
-   reply from Yakklchat support within 24 hours.
+   reply from yakklofficial support within 24 hours.
 
 ## Sending push notifications directly from your server
 
