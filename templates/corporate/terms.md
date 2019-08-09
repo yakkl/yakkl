@@ -3,8 +3,7 @@
 ### Welcome to Yakkl!
 
 Thanks for using our products and services ("Services"). The Services are
-provided by Yakkl, Inc. ("Yakkl"), located at 552 Massachusetts Ave Suite 203,
-Cambridge, MA 02139, United States.
+provided by LambdaStack ("Yakkl").
 
 By using our Services, you are agreeing to these terms. Please read them
 carefully.
@@ -68,10 +67,8 @@ Digital Millennium Copyright Act.
 Our designated agent for notice of alleged copyright infringement on the
 Services is:
 
-> Copyright Agent  
-> Yakkl, Inc.  
-> 552 Massachusetts Ave Suite 203  
-> Cambridge, MA 02139  
+> Copyright Agent
+> LambdaStack
 > [copyright@yakkl.com](mailto:copyright@yakkl.com)
 
 ### Your Content in our Services
@@ -116,7 +113,6 @@ You can find more information about how Yakkl uses and stores content in
 the privacy policy. If you submit feedback or suggestions about our Services,
 we may use your feedback or suggestions without obligation to you.
 
-
 ### About Software in our Services
 
 When a Service requires or includes downloadable software, this software may
@@ -136,7 +132,6 @@ Some software used in our Services may be offered under an open source
 license that we will make available to you.  There may be provisions in the
 open source license that expressly override some of these terms.
 
-
 ### Modifying and Terminating our Services
 
 We are constantly changing and improving our Services. We may add or remove
@@ -151,7 +146,6 @@ We believe that you own your data and preserving your access to such data is
 important. If we discontinue a Service, we will, if it is practical in our sole
 discretion, give you reasonable advance notice and a chance to get information
 out of that Service.
-
 
 ### Our Warranties and Disclaimers
 
@@ -184,7 +178,6 @@ QUESTION.
 IN ALL CASES, YAKKL, AND ITS SUPPLIERS AND DISTRIBUTORS, WILL NOT BE LIABLE
 FOR ANY LOSS OR DAMAGE THAT IS NOT REASONABLY FORESEEABLE.
 
-
 ### Business uses of our Services
 
 If you are using our Services on behalf of a business, that business accepts
@@ -210,7 +203,6 @@ sublicensed, assigned, or otherwise transferred. Further, we certify that we
 will not transfer or export any product, process, or service that is the direct
 product of the beta test software."
 
-
 ### About these Terms
 
 If it turns out that a particular term is not enforceable, this will not
@@ -223,11 +215,11 @@ taking action in the future).
 These terms control the relationship between Yakkl and you. They do not
 create any third party beneficiary rights.
 
-The laws of Massachusetts, U.S.A., excluding Massachusetts's conflict of
+The laws of Georgia, U.S.A., excluding Georgia's conflict of
 laws rules, will apply to any disputes arising out of or relating to these
 terms or the Services. All claims arising out of or relating to these terms or
 the Services will be litigated exclusively in the applicable federal or state
-courts of Massachusetts, and you and Yakkl consent to personal jurisdiction in
+courts of Georgia, and you and Yakkl consent to personal jurisdiction in
 those courts.
 
 Yakkl reserves the right to amend or modify these terms at any time and in
@@ -241,4 +233,4 @@ These terms constitute the whole legal agreement between you and Yakkl, and
 completely replace any prior agreements between you and Yakkl in relation to
 the Services.
 
-Last modified: October 4, 2013
+Last modified: August 9, 2019

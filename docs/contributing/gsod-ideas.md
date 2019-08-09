@@ -11,15 +11,6 @@ application. Yakkl has a web app, a cross-platform mobile app for iOS
 and Android, a cross-platform desktop app, and over 100 native
 integrations, all open source.
 
-Yakkl has gained a considerable amount of traction since it was
-[released as open source software][oss-release] in late 2015, with
-code contributions from [over 500 people](https://yakkl.com/team)
-from all around the world.  Thousands of people use Yakkl every single
-day, and your work on Yakkl will have impact on the daily experiences
-of a large and rapidly growing number of people.
-
-[oss-release]: https://blogs.dropbox.com/tech/2015/09/open-sourcing-yakkl-a-dropbox-hack-week-project/
-
 As an organization, we value high-quality, responsive mentorship and
 making sure our product quality is extremely high -- you can expect to
 experience disciplined code reviews by highly experienced
@@ -29,23 +20,6 @@ with the Yakkl project will be highly interactive.
 As part of that commitment, Yakkl has over 150,000 words of
 [documentation for developers](../), much of it designed to explain
 not just how Yakkl works, but why Yakkl works the way that it does.
-
-### Our history with Google Open Source Programs
-
-Yakkl has been a GSoC mentoring organization since 2016, and we
-generally have 10-15 GSoC students each summer.  We have some of the highest
-standards of any GSoC organization; successful applications generally
-have dozens of commits integrated into Yakkl or other open source
-projects by the time we review their application.  See
-[our contributing guide](../overview/contributing.html) for details on
-getting involved with GSoC.
-
-Yakkl participated in GSoC 2016 and mentored three successful students
-officially (plus 4 more who did their proposed projects unofficially).
-We had 14 (+3) students in 2017 and we had 10 (+3) students in 2018.
-We've also mentored five Outreachy interns and hundreds of Google
-Code-In participants (several of who are major contributors to the
-project today).
 
 ### Expectations for technical writers
 
