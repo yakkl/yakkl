@@ -8,13 +8,13 @@
 # For details, see requirements/README.md .
 #
 argparse==1.4.0           # via thumbor
-backports-abc==0.5
-backports.ssl-match-hostname==3.5.0.1
+backports-abc==0.5        # via -r thumbor.in
+backports.ssl-match-hostname==3.5.0.1  # via -r thumbor.in
 botocore==1.12.183        # via tornado-botocore
-certifi==2019.6.16
+certifi==2019.6.16        # via -r thumbor.in
 derpconf==0.8.3           # via thumbor
-django-auth-ldap==1.7.0
-django==1.11.14
+django-auth-ldap==1.7.0   # via -r thumbor.in
+django==1.11.29           # via -r thumbor.in, django-auth-ldap
 docutils==0.14            # via botocore
 futures==3.1.1            # via thumbor
 jmespath==0.9.4           # via botocore
@@ -28,14 +28,14 @@ pycurl==7.43.0.3          # via thumbor
 python-dateutil==2.8.0    # via botocore, tc-aws
 python-ldap==3.2.0        # via django-auth-ldap
 pytz==2019.1              # via django, thumbor
-singledispatch==3.4.0.3
+singledispatch==3.4.0.3   # via -r thumbor.in
 six==1.12.0               # via derpconf, libthumbor, python-dateutil, singledispatch, thumbor, webcolors
 statsd==3.3.0             # via thumbor
-tc-aws==6.2.10
-thumbor==6.5.1
+tc-aws==6.2.10            # via -r thumbor.in
+thumbor==6.5.1            # via -r thumbor.in, tc-aws
 tornado-botocore==1.5.0   # via tc-aws
 tornado==5.1.1            # via thumbor, tornado-botocore
-typing==3.6.6
+typing==3.6.6             # via -r thumbor.in
 urllib3==1.25.3           # via botocore
-virtualenv-clone==0.5.1
+virtualenv-clone==0.5.1   # via -r thumbor.in
 webcolors==1.9.1          # via thumbor
