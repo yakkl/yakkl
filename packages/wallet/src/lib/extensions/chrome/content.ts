@@ -1,28 +1,25 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable no-debugger */
-// Content script referenced in the manifest.json file. This gets loaded automatically within the context of every web page.
-// It injects a '<script>' tag with the 'src' being the '/js/inpage.js'. The inpage.js reference we be at the top of every web page.
-
+// content.ts
 import { Duplex } from 'readable-stream';
 import { YAKKL_EXTERNAL, YAKKL_PROVIDER_EIP6963, YAKKL_PROVIDER_ETHEREUM } from '$lib/common/constants';
-
 import type { Runtime } from 'webextension-polyfill';
-import { getBrowserExt } from '$lib/browser-polyfill-wrapper';
 import { getIcon } from '$lib/common/icon';
 import { extractFQDN } from '$lib/common/misc';
 import type { MetaDataParams } from '$lib/common/interfaces';
 import { log } from '$lib/plugins/Logger';
-// import { PortManager } from './ports';
+import browser from 'webextension-polyfill';
 
-// EIP-6963
+type RuntimePort = Runtime.Port;
+
+// We only want to receive events from the inpage (injected) script
+const windowOrigin = window.location.origin;
+let portExternal: RuntimePort | undefined = undefined;
+let portEIP6963: RuntimePort | undefined = undefined;
 
 class PortDuplexStream extends Duplex {
   private port: RuntimePort;
 
   constructor(port: RuntimePort) {
     super({ objectMode: true });
-
-    // log.error('PortDuplexStream constructor', port);
     this.port = port;
     this.port.onMessage.addListener(this._onMessage.bind(this));
     this.port.onDisconnect.addListener(() => this.destroy());
@@ -33,177 +30,259 @@ class PortDuplexStream extends Duplex {
   }
 
   _write(message: any, _encoding: string, callback: () => void) {
-    this.port.postMessage(message);
-    callback();
+    try {
+      log.debug('Writing to port', false, message);
+      this.port.postMessage(message);
+      callback();
+    } catch (error) {
+      log.error('Failed to write to port', false, error);
+      callback();
+    }
   }
 
   _onMessage(message: any) {
-    this.push(message);
+    try {
+      this.push(message);
+    } catch (error) {
+      log.error('Error in _onMessage', false, error);
+    }
   }
 
   _destroy(err: Error | null, callback: (error: Error | null) => void) {
-    this.port.disconnect();
-    callback(err);
+    try {
+      this.port.disconnect();
+      callback(err);
+    } catch (error: unknown) {
+      log.error('Error in _destroy', false, error);
+      if (error instanceof Error) {
+        callback(error);
+      } else {
+        callback(new Error('Failed to destroy port'));
+      }
+    }
   }
 }
 
-const browser_ext = getBrowserExt();
-
-// NOTE: log.error output will only show up in the dApp console. Background.js only shows up in the YAKKL® Smart Wallet console!
-type RuntimePort = Runtime.Port;
-
-// We only want to recieve events from the inpage (injected) script
-const windowOrigin = window.location.origin;
-let portExternal: RuntimePort | undefined = undefined;
-
-// Usage: (WIP)
-// const portManager = new PortManager("YAKKL_EXTERNAL");
-// portManager.createPort();
-
-function createPort( name: string ) {
+function createLegacyPort(name: string) {
   try {
     // Should only be one. All frames use the same port OR there should only be an injection into the top frame (one content script per tab)
-    if (portExternal || !browser_ext) {
+    if (portExternal || !browser) {
       return;
     }
-    portExternal = browser_ext.runtime.connect({
+    portExternal = browser.runtime.connect({
       name: name
     });
-    if ( portExternal ) {
-      portExternal.onMessage.addListener( onMessageListener );
-      portExternal.onDisconnect.addListener( onDisconnectListener );
+    if (portExternal) {
+      portExternal.onMessage.addListener(onMessageListener());
+      portExternal.onDisconnect.addListener(onDisconnectListener);
     }
-  } catch ( error ) {
-    log.error( 'Content: createPort:', false, error );
+  } catch (error) {
+    log.error('Content: createLegacyPort:', false, error);
   }
 }
 
-function onMessageListener () {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  //@ts-ignore
-  return function(response) {
+function onMessageListener() {
+  return function(response: any) {
     try {
       if (response.type === 'YAKKL_RESPONSE') {
         window.postMessage(response, windowOrigin); // This is the response back to the dApp!
       }
     } catch (error) {
-      log.error('onMessageListener:', false, error); // General error handling
+      log.error('onMessageListener:', false, error);
       window.postMessage({id: response.id, method: response.method, error: error, type: 'YAKKL_RESPONSE'}, windowOrigin);
     }
   };
-};
+}
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-//@ts-ignore
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function onDisconnectListener( event ) {
+function onDisconnectListener() {
   try {
-    if ( !browser_ext && browser_ext.runtime.lastError ) {
-      log.warn( 'onDisconnectListener - lastError:', false, browser_ext.runtime.lastError );
+    if (!browser) return;
+
+    if (browser.runtime?.lastError) {
+      log.warn('onDisconnectListener - lastError:', false, browser.runtime.lastError);
     }
-    if ( portExternal ) {
-      if ( portExternal.onMessage ) {
-        portExternal.onMessage.removeListener( onMessageListener );
+    if (portExternal) {
+      if (portExternal.onMessage) {
+        portExternal.onMessage.removeListener(onMessageListener());
       }
-      if ( portExternal.onDisconnect ) {
-        portExternal.onDisconnect.removeListener( onDisconnectListener ); // Not sure of this one???????/
-      }
+      portExternal = undefined;
     }
-    portExternal = undefined;
-    createPort(YAKKL_EXTERNAL); // May want to reload the port here. This is here due to manifest v3+ will disconnect the background after the browser shuts down the running background code
-    // This is here due to manifest v3+ will disconnect the background after the browser shuts down the running background code
+
+    // Reconnect the port
+    createLegacyPort(YAKKL_EXTERNAL);
   } catch (error) {
-    log.error(error);
+    log.error('Error in onDisconnectListener', false, error);
+  }
+}
+
+// Setup EIP-6963 connection with proper error handling
+function setupEIP6963Connection() {
+  try {
+    if (!browser) {
+      log.error('Browser extension API not available');
+      return null;
+    }
+
+    // Create a port for EIP-6963 communication
+    portEIP6963 = browser.runtime.connect({ name: YAKKL_PROVIDER_EIP6963 });
+    const contentStream = new PortDuplexStream(portEIP6963);
+
+    // Setup port disconnect handler for EIP-6963
+    portEIP6963.onDisconnect.addListener(() => {
+      log.debug('EIP-6963 port disconnected, attempting to reconnect');
+      if (browser.runtime?.lastError) {
+        log.warn('EIP-6963 port disconnect error:', false, browser.runtime.lastError);
+      }
+      portEIP6963 = undefined;
+
+      // Try to reconnect immediately
+      setTimeout(() => {
+        if (!portEIP6963) {
+          try {
+            setupEIP6963Connection();
+          } catch (e) {
+            log.error('Failed to reconnect EIP-6963 port', false, e);
+          }
+        }
+      }, 1000);
+    });
+
+    // Listen for messages from inpage script to forward to background
+    window.addEventListener('message', (event: MessageEvent) => {
+      try {
+        if (event.source !== window) return;
+        if (event.data && event.data.type === 'YAKKL_REQUEST:EIP6963') {
+          log.debug('Content script received EIP-6963 request', false, event.data);
+          contentStream.write(event.data);
+        }
+      } catch (error) {
+        log.error('Error processing EIP-6963 message from inpage', false, error);
+      }
+    });
+
+    // Forward responses and events from background to inpage script
+    contentStream.on('data', (data) => {
+      try {
+        log.debug('Content script received response from background', false, data);
+        window.postMessage(data, windowOrigin);
+      } catch (error) {
+        log.error('Error forwarding EIP-6963 response to inpage', false, error);
+      }
+    });
+
+    // Add error handling for the stream
+    contentStream.on('error', (error) => {
+      log.error('EIP-6963 content stream error', false, error);
+
+      // Try to reconnect on error
+      setTimeout(() => {
+        if (!portEIP6963) {
+          try {
+            setupEIP6963Connection();
+          } catch (e) {
+            log.error('Failed to reconnect EIP-6963 port after error', false, e);
+          }
+        }
+      }, 2000);
+    });
+
+    log.debug('EIP-6963 connection established');
+    return contentStream;
+  } catch (error) {
+    log.error('Failed to setup EIP-6963 connection', false, error);
+    return null;
+  }
+}
+
+function requestListener(event: any) {
+  try {
+    if (event?.source !== window) return;
+
+    if (event?.data && event?.data?.type === 'YAKKL_REQUEST' && event?.origin === windowOrigin) {
+      const data = event.data;
+      data.external = true;
+
+      createLegacyPort(YAKKL_EXTERNAL); // This will return an already created port otherwise create a new one
+
+      if (data.params === undefined) {
+        data.params = [];
+      }
+
+      const faviconUrl = getIcon();
+      const title = window.document?.title ?? '';
+      const domain = extractFQDN(event?.origin);
+      const context = data.method;
+      const message = (data.method === 'eth_requestAccounts' || data.method === 'wallet_requestPermissions') ? 'Wanting you to approve one or more accounts the dApp can work with!' : 'Wanting you to approve the transaction or sign message. Be mindful of the request!';
+
+      if (domain === null) {
+        throw 'Domain name is not valid. This can be due to malformed URL Address of the dApp.';
+      }
+
+      const metaDataParams: MetaDataParams = { title: title, icon: faviconUrl, domain: domain, context: context, message: message };
+
+      switch (data.method) {
+        case 'wallet_switchEthereumChain':
+        case 'wallet_addEthereumChain':
+        case 'eth_sendTransaction':
+        case 'eth_signTypedData_v3':
+        case 'eth_signTypedData_v4':
+        case 'eth_estimategas':
+        case 'personal_sign':
+          data.metaDataParams = metaDataParams.transaction = data.params;
+          break;
+        default:
+          data.metaDataParams = metaDataParams;
+          break;
+      }
+
+      if (data.method && portExternal) {
+        portExternal.postMessage(data);
+      }
+    }
+  } catch (e) {
+    log.error('Error in requestListener', false, e);
+    window.postMessage({ id: event.id, method: event.method, error: e, type: 'YAKKL_RESPONSE' }, windowOrigin);
   }
 }
 
 // This is the main entry point for the content script
 try {
-  if ( document.contentType === "text/html" ) {
-    const container = document.head || document.documentElement;
-    const script = document.createElement( "script" );
-    script.setAttribute( "async", "false" );
-    script.src = browser_ext.runtime.getURL( "/ext/inpage.js" );  // May want to pull in inpage.js during build instead of runtime to make sure it's registered quickly and first
-    script.id = YAKKL_PROVIDER_ETHEREUM;
-    script.onload = () => {
-      script.remove();
-    };
-    container.prepend( script );
-  }
+  if (browser) {
+    // Inject the inpage script
+    if (document.contentType === "text/html") {
+      const container = document.head || document.documentElement;
+      const script = document.createElement("script");
+      script.setAttribute("async", "false");
+      script.src = browser.runtime.getURL("/ext/inpage.js");
+      script.id = YAKKL_PROVIDER_ETHEREUM;
+      script.onload = () => {
+        script.remove();
+      };
+      container.prepend(script);
+    }
 
-  createPort(YAKKL_EXTERNAL);
+    // Create legacy provider connection
+    createLegacyPort(YAKKL_EXTERNAL);
 
-  // View all of the message data that was sent with the global window.postMessage({data}, URI)
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  //@ts-ignore
-  function requestListener( event ) {
-    try {
-      if (event?.source !== window) return;
+    // Listen for legacy provider messages
+    window.addEventListener('message', requestListener);
 
-      if (event?.data && event?.data?.type === 'YAKKL_REQUEST' && event?.origin === windowOrigin) {
-        const data = event.data;
-        data.external = true;
+    // Setup EIP-6963 connection
+    setupEIP6963Connection();
 
-        createPort(YAKKL_EXTERNAL); // This will return an already created port otherwise create a new one
-
-        if ( data.params === undefined ) {
-          data.params = [];
-        }
-
-        const faviconUrl = getIcon();
-        const title = window.document?.title ?? '';
-        const domain = extractFQDN(event?.origin);
-        const context = data.method;
-        const message = (data.method === 'eth_requestAccounts' || data.method === 'wallet_requestPermissions') ? 'Wanting you to approve one or more accounts the dApp can work with!' : 'Wanting you to approve the transaction or sign message. Be mindful of the request!';
-
-        if (domain === null) {
-          throw 'Domain name is not valid. This can be due to malformed URL Address of the dApp.';
-        }
-
-        const metaDataParams: MetaDataParams = { title: title, icon: faviconUrl, domain: domain, context: context, message: message};
-
-        switch (data.method) {
-          case 'wallet_switchEthereumChain':
-          case 'wallet_addEthereumChain':
-          case 'eth_sendTransaction':
-          case 'eth_signTypedData_v3':
-          case 'eth_signTypedData_v4':
-          case 'eth_estimategas':
-          case 'personal_sign':
-            data.metaDataParams = metaDataParams.transaction = data.params;
-            break;
-          default:
-            data.metaDataParams = metaDataParams
-            break;
-        }
-
-        if (data.method && portExternal) {
-          portExternal.postMessage( data );
-        }
+    // Set up a periodic check to make sure connections are still alive
+    setInterval(() => {
+      if (!portExternal) {
+        log.debug('Legacy port disconnected, reconnecting');
+        createLegacyPort(YAKKL_EXTERNAL);
       }
-    } catch (e) {
-      log.error(e);
-      window.postMessage({id: event.id, method: event.method, error: e, type: 'YAKKL_RESPONSE'}, windowOrigin); // General error handling
-    }
+
+      if (!portEIP6963) {
+        log.debug('EIP-6963 port disconnected, reconnecting');
+        setupEIP6963Connection();
+      }
+    }, 30000); // Check every 30 seconds
   }
-
-  window.addEventListener( 'message', requestListener);
-
-  // may want to not attempt to create if !browser_ext
-  const port = browser_ext.runtime.connect({ name: YAKKL_PROVIDER_EIP6963 });
-  const contentStream = new PortDuplexStream(port);
-
-  window.addEventListener('message', (event: MessageEvent) => {
-    if (event.source === window && event.data && event.data.type === 'YAKKL_REQUEST:EIP6963') {
-      contentStream.write(event.data);
-    }
-  });
-
-  contentStream.on('data', (data) => {
-    window.postMessage(data, window.location.origin);
-  });
-
-} catch ( e ) {
-  log.error( 'content - YAKKL: Provider injection failed. This web page will not be able to connect to YAKKL.', false, e );
+} catch (e) {
+  log.error('content - YAKKL: Provider injection failed. This web page will not be able to connect to YAKKL.', false, e);
 }
-

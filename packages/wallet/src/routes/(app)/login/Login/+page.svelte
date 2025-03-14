@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { createForm } from "svelte-forms-lib";
-  import { setProfileStorage, yakklDappConnectRequestStore, yakklCurrentlySelectedStore, yakklSettingsStore, yakklPreferencesStore, yakklPrimaryAccountsStore, syncStorageToStore, yakklMiscStore, getMiscStore, yakklCombinedTokenStore, yakklTokenDataCustomStore } from '$lib/common/stores';
+  import { setProfileStorage, yakklDappConnectRequestStore, yakklCurrentlySelectedStore, yakklSettingsStore, yakklPreferencesStore, yakklPrimaryAccountsStore, syncStorageToStore, yakklMiscStore, getMiscStore, yakklCombinedTokenStore } from '$lib/common/stores';
   import { yakklVersionStore, yakklUserNameStore } from '$lib/common/stores';
   import { goto } from '$app/navigation';
   import { Popover } from 'flowbite-svelte';
@@ -20,8 +20,8 @@
 	import { setLocks } from '$lib/common/locks';
   import { log } from '$plugins/Logger';
 	import { sendNotificationStartLockIconTimer } from '$lib/common/notifications';
-	import { updateTokenPrices } from '$lib/common/tokenPriceManager';
-	import { resetTokenDataStoreValues } from '$lib/common/resetTokenDataStoreValues';
+	// import { updateTokenPrices } from '$lib/common/tokenPriceManager';
+	// import { resetTokenDataStoreValues } from '$lib/common/resetTokenDataStoreValues';
 
 	// import { updateTokenDataCustomBalances } from '$lib/common/tokens';
 	// import RegistrationOptionModal from '$lib/components/RegistrationOptionModal.svelte';
@@ -186,7 +186,7 @@
 
           if (redirect !== PATH_WELCOME) {
 
-            log.debug('Login: Redirecting dapp to:', redirect);
+            log.debug('Login: Redirecting dapp to:', false, redirect);
 
             // Must be a dapp - now doing load in +page.ts
             if (requestId) { // Don't want to truely unlock with dapps

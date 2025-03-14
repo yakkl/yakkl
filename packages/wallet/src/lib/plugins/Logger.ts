@@ -182,31 +182,31 @@ class Logger {
 
   private persistLogLocalStorage(log: LogEntry): void {
     try {
-      const logs = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      if (typeof localStorage !== 'undefined') {
+        const logs = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
 
-      // Ensure args are serializable
-      if (log.args) {
-        log.args = log.args.map(arg => {
-          try {
-            // Test if the arg can be properly serialized
-            JSON.parse(JSON.stringify(arg));
-            return arg;
-          } catch {
-            // If not serializable, convert to string representation
-            return String(arg);
-          }
-        });
+        // Ensure args are serializable
+        if (log.args) {
+          log.args = log.args.map(arg => {
+            try {
+              // Test if the arg can be properly serialized
+              JSON.parse(JSON.stringify(arg));
+              return arg;
+            } catch {
+              // If not serializable, convert to string representation
+              return String(arg);
+            }
+          });
+        }
+
+        logs.push(log);
+        while (logs.length > MAX_STORED_LOGS) {
+          logs.shift();
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
       }
-
-      logs.push(log);
-      while (logs.length > MAX_STORED_LOGS) {
-        logs.shift();
-      }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
-
-      this.debug('Persisted log to localStorage:', false, log);
     } catch (error: any) {
-      console.error('Failed to persist to localStorage:', error);
+      this.error('Failed to persist to localStorage:', error);
     }
   }
 
@@ -297,7 +297,9 @@ class Logger {
   }
 
   private persistLogBackground(log: LogEntry): void {
-    browser_ext.runtime.sendMessage({ type: "LOG_MESSAGE", key: STORAGE_KEY, maxStored: MAX_STORED_LOGS, log: log });
+    // if (!browser_ext) return;
+
+    // browser_ext.runtime.sendMessage({ type: "LOG_MESSAGE", key: STORAGE_KEY, maxStored: MAX_STORED_LOGS, log: log });
   }
 
   // Add utility methods for persistent logs
@@ -321,7 +323,8 @@ class Logger {
       //   });
         break;
       case "background":
-        browser_ext.runtime.sendMessage({ type: "CLEAR_LOGS", key: STORAGE_KEY });
+        // if (!browser_ext) return;
+        // browser_ext.runtime.sendMessage({ type: "CLEAR_LOGS", key: STORAGE_KEY });
         break;
 
       case "localStorage":
@@ -437,7 +440,6 @@ class Logger {
       case "background":
       case "localStorage":
         if (persist === true) {
-          console.log('Persisting log:', logEntry);
           this.persistLog(logEntry);
         } // Fall through to console always
       case "console":

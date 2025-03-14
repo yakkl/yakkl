@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { browserSvelte } from '$lib/utilities/browserSvelte';
+  import { browser_ext, browserSvelte } from '$lib/common/environment';
   import { page } from '$app/state';
 
   import { getYakklCurrentlySelected, getYakklAccounts, getMiscStore, getDappConnectRequestStore, setDappConnectRequestStore } from '$lib/common/stores';
@@ -15,12 +15,8 @@
 
   let wallet: Wallet;
 
-  import type { Browser, Runtime } from 'webextension-polyfill';
-  import { getBrowserExt } from '$lib/browser-polyfill-wrapper';
+  import type { Runtime } from 'webextension-polyfill';
 	import { verify } from '$lib/common/security';
-
-  let browser_ext: Browser;
-  if (browserSvelte) browser_ext = getBrowserExt();
 
   type RuntimePort = Runtime.Port;
 
@@ -35,14 +31,14 @@
   let errorValue = $state('No domain/site name was found. Access to YAKKL® is denied.');
   let port: RuntimePort | undefined;
 
-  let domain: string = $state();
-  let domainLogo: string = $state();
-  let domainTitle: string = $state();
+  let domain: string = $state('');
+  let domainLogo: string = $state('');
+  let domainTitle: string = $state('');
   let requestData: any;
   let method: string;
   let requestId: string | null;
-  let userName: string = $state();
-  let password: string = $state();
+  let userName: string = $state('');
+  let password: string = $state('');
   let message;  // This gets passed letting the user know what the intent is
   let context: any;
   let addressToCheck: string;
@@ -274,7 +270,6 @@ async function handleSignTypedData(account: YakklAccount) {
   });
 }
 
-
 async function handleClose() {
   try {
     if (port) {
@@ -297,13 +292,11 @@ async function handleClose() {
   }
 }
 
-
 async function close() {
   await wait(1000);
   showSpinner = false;
   window.close();
 }
-
 
 function handleConfirm() {
   showConfirm = true;

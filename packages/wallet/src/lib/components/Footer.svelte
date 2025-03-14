@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { PATH_WELCOME, PATH_LOGIN, YEAR, VERSION, PATH_ETHEREUM_TRANSACTIONS_SEND, RegistrationType, type Settings, type SwapPriceProvider } from "$lib/common";
-  import { getYakklCurrentlySelected } from '$lib/common/stores';
+  import { activeTabUIStore, getYakklCurrentlySelected } from '$lib/common/stores';
   import ChatbotModal from './ChatbotModal.svelte';
 	import Buy from "$lib/components/Buy.svelte";
 	import { onMount } from 'svelte';
@@ -15,7 +15,10 @@
 	import WalletManager from "$lib/plugins/WalletManager";
 	import { getYakklCurrentlySelectedAccountKey } from "$lib/common/security";
 	import { log } from "$lib/plugins/Logger";
-	import { browserSvelte } from "$lib/common/environment";
+	// import { browserSvelte, browser_ext } from "$lib/common/environment";
+	// import { isTabValid } from "$lib/common/tabs";
+	import { get } from "svelte/store";
+	// import { getActiveTab } from "$lib/extensions/chrome/background";
 
 
   interface Props {
@@ -120,19 +123,26 @@
   // Used for testing side panel version
   async function handleAI() {
     try {
-      // Get the current active tab
-      log.debug("Opening side panel...");
-      if (typeof chrome !== "undefined") {
-        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-
-        log.debug("Tabs:", tabs);
-
-        if (tabs[0]) {
-          await chrome.sidePanel.open({ tabId: tabs[0].id }); // Open side panel on active tab
-          log.debug("Side panel opened!");
-        }
+      if (!activeTabUIStore) {
+        log.error('No active tab found!');
+        return;
       }
-      log.debug("Side panel opened - I hope!");
+      const activeTab = get(activeTabUIStore);
+      log.debug('Active tab:', false, activeTabUIStore, activeTab);
+      if (!activeTab) {
+        log.error('No active tab found!');
+        return;
+      }
+
+      // Get the current active tab
+      // if (typeof chrome !== "undefined") {
+      //   await chrome.sidePanel.open({ tabId: activeTab.tabId }); //tabs[0].id }); // Open side panel on active tab
+      //   await chrome.sidePanel.setOptions({
+      //     tabId: activeTab.tabId,
+      //     path: 'sidepanel.html',
+      //     enabled: true
+      //   });
+      // }
     } catch (error) {
       log.error("Error opening side panel:", false, error);
     }
@@ -206,8 +216,8 @@
       <div class="relative bg-gray-300/75 rounded-full m-1 h-[39px] drop-shadow-lg hover:drop-shadow-xl">
         <!-- fill-indigo-700 hover:fill-indigo-400 text-purple-900 hover:text-purple-700 -->
         <!-- svelte-ignore a11y_interactive_supports_focus -->
-        <!-- <div role="button" onclick={handleAI} -->
-        <div role="button" onclick={() => {showChat=true}}
+        <!-- <div role="button" onclick={() => {showChat=true}} -->
+        <div role="button" onclick={handleAI}
           class="relative m-1 w-[40px] h-[40px] fill-primary hover:fill-primary/50 text-primary hover:text-primary/50"
           data-bs-toggle="tooltip" data-bs-placement="top" title="Ring for Help" aria-label="help">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-8 h-8 mt-0.5 -ml-[.05rem]">

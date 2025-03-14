@@ -642,7 +642,7 @@ export function autoscroll(node: HTMLElement) {
  */
 export function checkForError(): Error | undefined {
   if (browserSvelte) {
-    const { lastError } = browser_ext.runtime;
+    const { lastError } = browser_ext && browser_ext.runtime ? browser_ext.runtime: null;
     if (!lastError) {
       return undefined;
     }

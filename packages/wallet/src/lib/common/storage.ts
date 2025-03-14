@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { getBrowserExt } from '$lib/browser-polyfill-wrapper';
 import { log } from '$lib/plugins/Logger';
+import { browser_ext } from './environment';
 
-const browser_ext = getBrowserExt();
 
 export const clearObjectsFromLocalStorage = async (): Promise<void> => {
+  if (!browser_ext) return;
+
   try {
     await browser_ext.storage.local.clear();
   } catch (error) {
@@ -57,6 +58,8 @@ export const getObjectFromLocalStorage = async <T>(key: string, timeoutMs = 2000
 };
 
 export const setObjectInLocalStorage = async <T extends Record<string, any>>(key: string, obj: T | string): Promise<void> => {
+  if (!browser_ext) return;
+
   try {
     await browser_ext.storage.local.set({ [key]: obj });
   } catch (error) {
@@ -66,6 +69,8 @@ export const setObjectInLocalStorage = async <T extends Record<string, any>>(key
 };
 
 export const removeObjectFromLocalStorage = async (keys: string): Promise<void> => {
+  if (!browser_ext) return;
+
   try {
     await browser_ext.storage.local.remove(keys);
   } catch (error) {

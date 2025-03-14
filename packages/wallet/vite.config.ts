@@ -6,6 +6,7 @@ import fs from 'fs';
 import { isoImport } from 'vite-plugin-iso-import';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
+import mockBrowserPolyfill from './vite-plugin-mock-browser-polyfill';
 
 const htmlContent = fs.readFileSync( path.resolve( 'static/snippet-terms.html' ), 'utf-8' );
 
@@ -15,6 +16,7 @@ export default defineConfig( {
       '___HTML_SNIPPET___': htmlContent,
       preventAssignment: true,
     } ),
+    mockBrowserPolyfill(),
     sveltekit(),
     isoImport(),
     nodePolyfills({
@@ -38,7 +40,8 @@ export default defineConfig( {
       $components: path.resolve( './src/lib/components' ),
       $routes: path.resolve( './src/routes' ),
       $plugins: path.resolve( './src/lib/plugins' ),
-      'webextension-polyfill': path.resolve( __dirname, 'node_modules/webextension-polyfill/dist/browser-polyfill.js' ),
+      // 'webextension-polyfill': path.resolve( __dirname, 'node_modules/webextension-polyfill/dist/browser-polyfill.js' ),
+      'webextension-polyfill': path.resolve( __dirname, 'static/ext/browser-polyfill.js' ), // We are using a local copy of the browser-polyfill.js file
       stream: 'stream-browserify',
       ethersv6: path.resolve( 'node_modules/ethers-v6' ),
       ethers: path.resolve( 'node_modules/ethers' ),
@@ -68,7 +71,7 @@ export default defineConfig( {
     },
   },
   ssr: {
-    noExternal: [ 'webextension-polyfill', '@walletconnect/web3wallet', '@walletconnect/core' ],
+    noExternal: [ 'webextension-polyfill', '@walletconnect/web3wallet', '@walletconnect/core' ]
   },
   build: {
     sourcemap: true,

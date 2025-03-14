@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { browserSvelte } from '$lib/utilities/browserSvelte';
+  import { browserSvelte } from "$lib/common/environment";
   import { goto } from "$app/navigation";
   import { PATH_LOGIN, PATH_REGISTER } from "$lib/common/constants";
   import Back from "$lib/components/Back.svelte";
@@ -11,12 +11,7 @@
 	import ButtonGrid from "$lib/components/ButtonGrid.svelte";
 	import { getSettings } from "$lib/common/stores";
 
-  import { getBrowserExt } from '$lib/browser-polyfill-wrapper';
-	import type { Browser } from 'webextension-polyfill';
 	import EmergencyKitModal from "$lib/components/EmergencyKitModal.svelte";
-
-  let browser_ext: Browser;
-  if (browserSvelte) browser_ext = getBrowserExt();
 
   let error = $state(false);
   let errorValue: any = $state();

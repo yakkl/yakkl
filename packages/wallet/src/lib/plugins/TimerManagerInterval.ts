@@ -53,16 +53,16 @@ export class TimerManager {
    */
   addTimer(id: string, callback: TimerCallback, duration: number): void {
     if (this.timers.has(id)) {
-      log.info(`Timer "${id}" already exists.`);
+      // log.info(`Timer "${id}" already exists.`);
       return;
     }
     this.timers.set(id, { id, callback, duration, handleIntervalID: null });
-    log.info(`Timer "${id}" added.`);
+    // log.info(`Timer "${id}" added.`);
   }
 
   hasTimer(id: string) {
     if (this.timers.has(id)) {
-      log.info(`Timer "${id}" exists.`);
+      // log.info(`Timer "${id}" exists.`);
       return true;
     }
     return false;
@@ -82,7 +82,7 @@ export class TimerManager {
     if (timer.handleIntervalID) return log.warn(`Timer "${id}" is already running.`);
 
     timer.handleIntervalID = setInterval(timer.callback, timer.duration);
-    log.info(`Started timer "${id}" (${timer.duration}ms).`);
+    // log.info(`Started timer "${id}" (${timer.duration}ms).`);
   }
 
   startTimerImmediate(id: string): void {
@@ -91,7 +91,7 @@ export class TimerManager {
     if (timer.handleIntervalID) return log.warn(`Timer "${id}" is already running.`);
 
     timer.handleIntervalID = setInterval(timer.callback, timer.duration);
-    log.info(`Started timer "${id}" (${timer.duration}ms).`);
+    // log.info(`Started timer "${id}" (${timer.duration}ms).`);
   }
 
   /**
@@ -104,7 +104,7 @@ export class TimerManager {
 
     clearInterval(timer.handleIntervalID);
     timer.handleIntervalID = null;
-    log.info(`Stopped timer "${id}".`);
+    // log.info(`Stopped timer "${id}".`);
   }
 
   /**
@@ -139,7 +139,7 @@ export class TimerManager {
   removeAll(): void {
     this.stopAll();
     this.timers.clear();
-    log.info(`Removed all timers.`);
+    // log.info(`Removed all timers.`);
   }
 
   /**

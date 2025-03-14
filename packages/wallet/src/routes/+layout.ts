@@ -1,16 +1,23 @@
-export const prerender = true;
+// Top-level +layout.ts
+export const prerender = true; // Must be here to create files. Do NOT use ssr = false because this will keep routes from working well
 
-import { browserSvelte, browser_ext } from '$lib/common/environment';
 import { YAKKL_INTERNAL } from '$lib/common/constants';
-import { wait } from '$lib/common/utils';
+import { isServerSide, wait } from '$lib/common/utils';
 import type { Runtime } from 'webextension-polyfill';
 import { handleLockDown } from '$lib/common/handlers';
 import { log } from '$plugins/Logger';
+import { initializeBrowserAPI } from '$lib/browser-polyfill-wrapper';
+// Import but don't use at module level
+import { browser_ext, isClient } from '$lib/common/environment';
 
 let port: Runtime.Port | undefined;
 
+// Function to connect port - will only run in browser context during load
 async function connectPort(): Promise<boolean> {
-  if (!browser_ext) return false;
+  if (!browser_ext) {
+    log.warn("Browser extension is not available.");
+    return false;
+  }
 
   try {
     port = browser_ext.runtime.connect({ name: YAKKL_INTERNAL });
@@ -20,7 +27,7 @@ async function connectPort(): Promise<boolean> {
         handleLockDown();
         port = undefined;
         if (event?.error) {
-          log.error('Port disconnect:', false, event.error?.message);
+          log.error("Port disconnect:", false, event.error?.message);
         }
       });
       return true;
@@ -31,28 +38,41 @@ async function connectPort(): Promise<boolean> {
   return false;
 }
 
+// This function will only be called during load, not during SSR
 async function initializeExtension() {
-  if (!browserSvelte) return;
-
   try {
     let connected = await connectPort();
 
-    log.info('ROOT: (route) +layout.ts - Port connected:', connected);
+    log.info('ROOT: (route) +layout.ts - Port connected:', false, connected);
 
     if (!connected) {
       log.info('Port connection failed, retrying in 1 second...');
       await wait(1000);
       connected = await connectPort();
     }
-
-    if (!connected) {
-      log.info('Internal port was unable to connect, reloading...');
-      browser_ext?.runtime.reload();
-    }
   } catch (error) {
     log.error('Extension initialization failed:', false, error);
   }
 }
 
-initializeExtension();
+// Move the initialization to the load function to prevent SSR issues
+export const load = async () => {
+  // Skip extension initialization during SSR
+  if (isServerSide()) {
+    return {};
+  }
+
+try {
+    // Initialize the browser API
+    const browser = initializeBrowserAPI();
+
+    // Only proceed with extension initialization if we have a browser API
+    if (browser) {
+      await initializeExtension();
+    }
+  } catch (error) {
+    log.error("Error initializing extension:", false, error);
+  }
+  return {};
+};
 

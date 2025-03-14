@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { browserSvelte } from '$lib/utilities/browserSvelte';
+  import { browser_ext, browserSvelte } from '$lib/common/environment';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { yakklConnectedDomainsStore, getSettings, yakklDappConnectRequestStore } from '$lib/common/stores';
@@ -10,11 +10,7 @@
 	import Failed from '$lib/components/Failed.svelte';
   import { log } from '$plugins/Logger';
 
-  import type { Browser, Runtime } from 'webextension-polyfill';
-  import { getBrowserExt } from '$lib/browser-polyfill-wrapper';
-  let browser_ext: Browser;
-  if (browserSvelte) browser_ext = getBrowserExt();
-
+  import type { Runtime } from 'webextension-polyfill';
 
   type RuntimePort = Runtime.Port | undefined;
 
@@ -23,9 +19,9 @@
   let showFailure = $state(false);
   let errorValue = $state('No domain/site name was found. Access to YAKKL® is denied.');
   let port: RuntimePort;
-  let domain: string = $state();
-  let domainLogo: string = $state();
-  let domainTitle: string = $state();
+  let domain: string = $state('');
+  let domainLogo: string = $state('');
+  let domainTitle: string = $state('');
   // let requestData: any;
   // let method: string;
   let requestId: string | null = null;
@@ -37,7 +33,7 @@
       requestId = page.url.searchParams.get('requestId');
       $yakklDappConnectRequestStore = requestId;
     } catch(e) {
-      console.log(e);
+      log.error(e);
     }
   }
 
@@ -59,7 +55,6 @@
       showFailure = true;
     }
   }
-
 
   async function onMessageListener(event: any) {
     try {
@@ -109,7 +104,6 @@
     }
   }
 
-
   onMount(() => {
     try {
       if (browserSvelte) {
@@ -131,7 +125,6 @@
     }
   });
 
-
   onDestroy(async () => {
     try {
       if (browserSvelte) {
@@ -145,7 +138,6 @@
       log.error(e);
     }
   });
-
 
   // data must represent ProviderRpcError format
   async function handleReject() {
@@ -230,7 +222,6 @@
 </div> -->
 
 <div class="text-center justify-center m-2 flex flex-col absolute top-[250px]">
-  <!-- <Beta /> -->
   <div class="text-primary-content text-2xl font-bold flex flex-col">
     {domainTitle ?? ''}
     <br>

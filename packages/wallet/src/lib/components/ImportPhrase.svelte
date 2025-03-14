@@ -1,7 +1,6 @@
 <!-- ImportPhrase.svelte -->
 <script lang="ts">
   import { browserSvelte } from '$lib/utilities/browserSvelte';
-  // import { browser as browserSvelte } from '$app/environment';
   import { ethers as ethersv6 } from 'ethers-v6';
   import { createForm } from 'svelte-forms-lib';
   import * as yup from 'yup';

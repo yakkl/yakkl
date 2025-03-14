@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { browserSvelte } from '$lib/utilities/browserSvelte';
+  import { browserSvelte } from "$lib/common/environment";
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
   import { PATH_ACCOUNTS_ETHEREUM_CREATE_DERIVED, PATH_ACCOUNTS_ETHEREUM_CREATE_PRIMARY, YAKKL_ZERO_ADDRESS } from "$lib/common/constants";
@@ -8,21 +8,14 @@
   import Back from "$lib/components/Back.svelte";
 	import ButtonGrid from "$lib/components/ButtonGrid.svelte";
   import ButtonGridItem from "$lib/components/ButtonGridItem.svelte";
-
-  import { getBrowserExt } from '$lib/browser-polyfill-wrapper';
-	import type { Browser } from 'webextension-polyfill';
-	// import { routeCheckWithSettings } from '$lib/common/routes';
 	import type { YakklAccount, YakklCurrentlySelected, YakklWatch } from '$lib/common';
 	import ImportWatchAccount from '$lib/components/ImportWatchAccount.svelte';
 	import ImportPrivateKey from '$lib/components/ImportPrivateKey.svelte';
-	// import type { Yakkl } from '$lib/plugins/providers';
 	import ExportPrivateKey from '$lib/components/ExportPrivateKey.svelte';
 	import Accounts from '$lib/components/Accounts.svelte';
-  let browser_ext: Browser;
-  if (browserSvelte) browser_ext = getBrowserExt();
 
   let error = $state(false);
-  let errorValue: string = $state();
+  let errorValue: string = $state('');
   let isPortfolioModalOpen = $state(false);
   let isSubPortfolioModalOpen = $state(false);
   let showImportWatch = $state(false);
@@ -41,8 +34,6 @@
       console.log(e);
     }
   });
-
-  // routeCheckWithSettings();
 
   function handleAccounts(e: any) {
     if (browserSvelte) {

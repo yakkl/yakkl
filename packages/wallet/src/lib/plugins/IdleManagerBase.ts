@@ -23,6 +23,8 @@ export abstract class IdleManagerBase {
   }
 
   protected async handleStateChanged(state: IdleState): Promise<void> {
+    if (!browser_ext) return;
+
     if (state === this.previousState) return;
 
     log.info(`${this.stateWidth} idle state changing from ${this.previousState} to ${state}`);
@@ -54,7 +56,6 @@ export abstract class IdleManagerBase {
               // Send a notication that lockdown is imminent
               try {
                 log.warn(`${state} detected, sending imminent lockdown notification`);
-
                 // Used the notication sending directly from here due to UI context.
                 await NotificationService.sendSecurityAlert(
                   'YAKKL will be locked soon due to inactivity.',
@@ -114,7 +115,5 @@ export abstract class IdleManagerBase {
 
     // Restart with new width
     this.start();
-
-    log.info(`Idle detection width changed to: ${width}`);
   }
 }

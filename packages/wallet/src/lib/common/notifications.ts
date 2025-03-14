@@ -1,6 +1,6 @@
 import type { BasicNotificationOptions, CreateNotificationOptions, ImageNotificationOptions, ListNotificationOptions, NotificationOptions, ProgressNotificationOptions } from './types';
 import { startLockIconTimer, stopLockIconTimer } from '$lib/extensions/chrome/iconTimer';
-import { isBrowserEnv, browser_ext } from './environment';
+import { browser_ext } from './environment';
 import { log } from '$plugins/Logger';
 
 const DEFAULT_ICON = '/images/logoBullLock48x48.png';
@@ -16,6 +16,8 @@ export class NotificationService {
     options: NotificationOptions,
     id?: string
   ): Promise<void> {
+    if (!browser_ext) return;
+
     try {
       const notificationOptions: CreateNotificationOptions = {
         ...options,
@@ -117,22 +119,12 @@ export class NotificationService {
 // Functions to send notifications to the browser extension
 
 /**
- * Utility function to validate the `browser_ext` object.
- * @throws Error if `browser_ext` is not initialized.
- */
-function checkBrowserExt(): void {
-  if ( !isBrowserEnv() ) {
-    log.error('Browser extension API is not available.');
-    throw new Error('Browser extension API is not initialized. Ensure this code is running in a browser extension environment.');
-  }
-}
-
-/**
  * Sends a ping notification to the runtime.
  */
 export async function sendNotificationPing() {
   try {
-    checkBrowserExt();
+    if (!browser_ext) return;
+
     const response = await browser_ext.runtime.sendMessage({
       type: 'ping',
     });
@@ -154,7 +146,7 @@ export async function sendNotificationPing() {
  */
 export async function sendNotificationMessage(title: string, messageText: string) {
   try {
-    checkBrowserExt();
+    if (!browser_ext) return;
 
     await browser_ext.notifications.create(
       'yakkl-notification',
@@ -176,7 +168,7 @@ export async function sendNotificationMessage(title: string, messageText: string
  */
 export async function sendNotificationStartLockIconTimer() {
   try {
-    checkBrowserExt();
+    if (!browser_ext) return;
     startLockIconTimer();
   } catch (error) {
     log.error('Error starting lock icon timer:', false, error);
@@ -188,7 +180,7 @@ export async function sendNotificationStartLockIconTimer() {
  */
 export async function sendNotificationStopLockIconTimer() {
   try {
-    checkBrowserExt();
+    if (!browser_ext) return;
     stopLockIconTimer();
   } catch (error) {
     log.error('Error stopping lock icon timer:', false, error);

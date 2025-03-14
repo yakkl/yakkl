@@ -1,4 +1,4 @@
-import type { IdleConfig, IdleWidth } from '$lib/common/idle/types';
+import type { IdleConfig } from '$lib/common/idle/types';
 import { SystemWideIdleManager } from './IdleManagerSystemWide';
 import { AppWideIdleManager } from './IdleManagerAppWide';
 import type { IdleManagerBase } from './IdleManagerBase';

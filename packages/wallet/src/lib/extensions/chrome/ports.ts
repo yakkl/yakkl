@@ -1,8 +1,11 @@
-import type { Browser, Runtime } from 'webextension-polyfill';
-import { getBrowserExt } from '$lib/browser-polyfill-wrapper';
+import type { Runtime } from 'webextension-polyfill';
+import browser from 'webextension-polyfill';
 import { log } from '$plugins/Logger';
+// import { getBrowserExt } from '$lib/browser-polyfill-wrapper';
+// import { browser_ext } from '$lib/common/environment';
 
 type RuntimePort = Runtime.Port;
+const browser_ext = browser;
 
 // Port collections
 const portsDapp: RuntimePort[] = [];
@@ -13,18 +16,16 @@ let mainPort: RuntimePort | undefined;
 export class PortManager {
   private port: Runtime.Port | undefined;
   private name: string;
-  private browser_ext: Browser = getBrowserExt();
 
   constructor(name: string) {
     this.name = name;
   }
 
-  createPort() {
+  async createPort() {
     if (this.port) return true;
-    if (!this.browser_ext) return false;
 
     try {
-      this.port = this.browser_ext.runtime.connect({ name: this.name });
+      this.port = browser_ext.runtime.connect({ name: this.name });
       this.port.onMessage.addListener(this.onMessageListener);
       this.port.onDisconnect.addListener(this.onDisconnectListener.bind(this));
       return true;
@@ -48,14 +49,16 @@ export class PortManager {
     }
   }
 
-  private onDisconnectListener() {
+  private async onDisconnectListener() {
     log.info("Port disconnected.");
     if (this.port) {
       this.port.onMessage.removeListener(this.onMessageListener);
       this.port.onDisconnect.removeListener(this.onDisconnectListener.bind(this));
       this.port = undefined;
     }
-    this.createPort(); // Attempt to reconnect
+
+    // Attempt to reconnect
+    await this.createPort();
   }
 
   public getPort() {
@@ -65,8 +68,8 @@ export class PortManager {
   public getName() {
     return this.name;
   }
-
 }
+
 
 // Lifecycle Handlers
 export function onConnect(port: RuntimePort) {

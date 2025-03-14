@@ -1,7 +1,7 @@
 import type { IdleConfig, IdleState } from '$lib/common/idle/types';
 import { IdleManagerBase } from './IdleManagerBase';
 import { browser_ext } from '$lib/common/environment';
-import { log } from './Logger';
+// import { log } from './Logger';
 
 export class SystemWideIdleManager extends IdleManagerBase {
   constructor(config: IdleConfig) {
@@ -10,19 +10,15 @@ export class SystemWideIdleManager extends IdleManagerBase {
   }
 
   start(): void {
+    if (!browser_ext) return;
+    
     try {
-      log.info('Starting system-wide idle manager...');
-
       const detectionIntervalSeconds = Math.floor(this.threshold / 1000);
-
-      log.info(`Setting idle detection interval to ${detectionIntervalSeconds} seconds`);
-      log.info(`Lockdown will occur ${this.lockDelay/1000} seconds after idle state`);
 
       browser_ext.idle.setDetectionInterval(detectionIntervalSeconds);
 
       if (!browser_ext.idle.onStateChanged.hasListener(this.handleStateChanged)) {
         browser_ext.idle.onStateChanged.addListener(this.handleStateChanged);
-        log.info('System-wide idle listener registered');
       }
 
       this.checkCurrentState().catch(error =>
@@ -34,13 +30,14 @@ export class SystemWideIdleManager extends IdleManagerBase {
   }
 
   stop(): void {
+    if (!browser_ext) return;
     if (browser_ext.idle.onStateChanged.hasListener(this.handleStateChanged)) {
       browser_ext.idle.onStateChanged.removeListener(this.handleStateChanged);
-      log.info('System-wide idle manager stopped');
     }
   }
 
   async checkCurrentState(): Promise<void> {
+    if (!browser_ext) return;
     try {
       const detectionIntervalSeconds = Math.floor(this.threshold / 1000);
       const state = await browser_ext.idle.queryState(detectionIntervalSeconds);

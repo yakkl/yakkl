@@ -1,9 +1,9 @@
-import type { Browser } from 'webextension-polyfill';
+// import type { Browser } from 'webextension-polyfill';
 
-declare global {
-  interface Window {
-    browser?: Browser;
-  }
-}
+// declare global {
+//   interface Window {
+//     browser?: Browser;
+//   }
+// }
 
-export {};
+// export { type Browser };

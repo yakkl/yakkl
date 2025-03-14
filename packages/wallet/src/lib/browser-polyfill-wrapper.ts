@@ -1,41 +1,54 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+// $lib/browser-polyfill-wrapper.ts
 import type { Browser } from 'webextension-polyfill';
-import { log } from '$plugins/Logger';
+import { log } from "$plugins/Logger";
 
-let browser_ext: Browser;
+let browser_ext: Browser | null = null;
+let initialized = false;
 
-function isBrowserExtensionEnvironment(): boolean {
-  try {
-    return typeof globalThis !== 'undefined' &&
-           (('browser' in globalThis && 'runtime' in (globalThis as any).browser) ||
-            ('chrome' in globalThis && 'runtime' in (globalThis as any).chrome));
-  } catch (error) {
-    log.error('Checking browser extension environment:', false, error);
-    return false;
-  }
+// Helper function to safely check the environment
+function isServerSide(): boolean {
+  return typeof window === 'undefined' || typeof document === 'undefined';
 }
 
 export function getBrowserExt(): Browser | null {
-  try {
-    if (!browser_ext) {
-      if (isBrowserExtensionEnvironment()) {
-        if (typeof (globalThis as any).browser !== 'undefined') {
-          browser_ext = (globalThis as any).browser as Browser;
-        } else if (typeof (globalThis as any).chrome !== 'undefined') {
-          browser_ext = (globalThis as any).chrome as unknown as Browser;
-        } else {
-          throw new Error('Unable to find browser extension API');
-        }
-      } else {
-        log.info('Not in a browser extension environment');
-        return null;
-      }
-    }
-    return browser_ext as Browser;
-  } catch (error) {
-    log.error('Getting browser extension:', false, error);
+  // Don't attempt to use outside a browser
+  if (isServerSide()) {
     return null;
   }
+
+  if (!initialized) {
+    initializeBrowserAPI();
+  }
+
+  return browser_ext;
 }
 
-export { browser_ext };
+export function initializeBrowserAPI(): Browser | null {
+  if (initialized) return browser_ext;
+
+  // Skip for SSR
+  if (isServerSide()) {
+    return null;
+  }
+
+  try {
+    // Access the global browser object
+    if (window && (window as any).browser) {
+      browser_ext = (window as any).browser as Browser;
+      initialized = true;
+      log.info("Browser extension API initialized successfully");
+    } else {
+      log.warn("Browser extension API not found in global scope");
+    }
+  } catch (error: unknown) {
+    log.error("Failed to initialize browser extension API:", false, error);
+  }
+
+  return browser_ext;
+}
+
+// For asynchronous access
+export async function getBrowserExtAsync(): Promise<Browser | null> {
+  if (isServerSide()) return null;
+  return getBrowserExt();
+}

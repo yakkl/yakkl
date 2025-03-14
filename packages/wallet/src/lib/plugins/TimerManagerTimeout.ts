@@ -50,11 +50,11 @@ export class TimerManager {
    */
   addTimer(id: string, callback: TimerCallback, duration: number): void {
     if (this.timers.has(id)) {
-      log.info(`Timer "${id}" already exists.`);
+      // log.info(`Timer "${id}" already exists.`);
       return;
     }
     this.timers.set(id, { id, callback, duration, handleTimeoutID: null });
-    log.info(`Timer "${id}" added.`);
+    // log.info(`Timer "${id}" added.`);
   }
 
   hasTimer(id: string): boolean {
@@ -74,7 +74,7 @@ export class TimerManager {
       this.runTimer(id); // Recursively re-run
     }, timer.duration);
 
-    log.info(`Scheduled next execution for timer "${id}" (${timer.duration}ms).`);
+    // log.info(`Scheduled next execution for timer "${id}" (${timer.duration}ms).`);
   }
 
   /**
@@ -114,7 +114,7 @@ export class TimerManager {
 
     clearTimeout(timer.handleTimeoutID);
     timer.handleTimeoutID = null;
-    log.info(`Stopped timer "${id}".`);
+    // log.info(`Stopped timer "${id}".`);
   }
 
   /**
@@ -149,7 +149,7 @@ export class TimerManager {
   removeAll(): void {
     this.stopAll();
     this.timers.clear();
-    log.info("Removed all timers.");
+    // log.info("Removed all timers.");
   }
 
   /**

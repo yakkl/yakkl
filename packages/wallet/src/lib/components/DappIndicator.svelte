@@ -1,12 +1,9 @@
 <script lang="ts">
 	import { log } from '$lib/plugins/Logger';
-  import { browserSvelte } from '$lib/utilities/browserSvelte';
-  // import { browser as browserSvelte } from '$app/environment';
+  import { browserSvelte, browser_ext } from '$lib/common/environment';
 	import { onDestroy, onMount } from 'svelte';
-  import browser from 'webextension-polyfill';
 
   interface Props {
-    // // import browser from 'webextension-polyfill';
     show?: boolean;
     badgeColor?: string;
     defaultClass?: string;
@@ -20,8 +17,7 @@
 
   onMount(async () => {
 		try {
-      if (browserSvelte)
-				browser_ext.runtime.onMessage.addListener(handleOnMessage);
+      if (browserSvelte) browser_ext.runtime.onMessage.addListener(handleOnMessage);
     } catch(e) {
       log.error(e);
     }
@@ -29,8 +25,7 @@
 
   onDestroy(() => {
 		try {
-			if (browserSvelte)
-				browser_ext.runtime.onMessage.removeListener(handleOnMessage);
+			if (browserSvelte) browser_ext.runtime.onMessage.removeListener(handleOnMessage);
       show = false;
       dapp = '';
     } catch(e) {
@@ -40,7 +35,7 @@
 
   export function handleOnMessage(
     request: any,
-    sender: browser.Runtime.MessageSender
+    sender: any, //browser.Runtime.MessageSender
   ): true | Promise<unknown> {
     try {
       if (request?.method === 'yak_dappsite') {
@@ -51,7 +46,7 @@
       }
       return Promise.resolve(); // Correct TypeScript return type
     } catch (e) {
-      log.error('Error handling message:', e);
+      log.error('Error handling message:', false, e);
       return Promise.resolve(); // Ensure a valid return type
     }
   }

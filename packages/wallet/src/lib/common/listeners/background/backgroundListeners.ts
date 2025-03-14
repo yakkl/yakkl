@@ -1,6 +1,6 @@
 // listeners/backgroundListeners.ts
 import { ListenerManager } from '$lib/plugins/ListenerManager';
-import { browser_ext, browserSvelte } from '$lib/common/environment';
+import browser from 'webextension-polyfill';
 import type { Runtime } from 'webextension-polyfill';
 import { openPopups, openWindows } from '$lib/common/reload';
 import { initializeDatabase } from '$lib/extensions/chrome/database';
@@ -11,9 +11,11 @@ import { loadDefaultTokens } from '$lib/plugins/tokens/loadDefaultTokens';
 import { VERSION } from '$lib/common/constants';
 import { onRuntimeMessageListener } from './runtimeListeners';
 import { onPortConnectListener, onPortDisconnectListener } from './portListeners';
-import { onTabRemovedListener, onTabUpdatedListener } from './tabListeners';
+import { onTabActivatedListener, onTabRemovedListener, onTabUpdatedListener, onWindowsFocusChangedListener } from './tabListeners';
 import { globalListenerManager } from '$lib/plugins/GlobalListenerManager';
 import { log } from '$lib/plugins/Logger';
+
+const browser_ext = browser;
 
 type RuntimePlatformInfo = Runtime.PlatformInfo;
 
@@ -21,38 +23,38 @@ export const backgroundListenerManager = new ListenerManager();
 
 export async function onInstalledUpdatedListener( details: Runtime.OnInstalledDetailsType ): Promise<void> {
   try {
-    if (browserSvelte) {
-      const platform: RuntimePlatformInfo = await browser_ext.runtime.getPlatformInfo();
+    if (!browser_ext) return;
 
-      openWindows.clear();
-      openPopups.clear();
+    const platform: RuntimePlatformInfo = await browser_ext.runtime.getPlatformInfo();
 
-      if ( details && details.reason === "install") {
-        await initializeDatabase(false);
+    openWindows.clear();
+    openPopups.clear();
 
-        // This only happens on initial install to set the defaults
-        yakklStoredObjects.forEach(async (element) => {
-          try {
-            await setObjectInLocalStorage(element.key, element.value);
-          } catch (error) {
-            log.error(`Error setting default for ${element.key}:`, false, error);
-          }
-        });
+    if ( details && details.reason === "install") {
+      await initializeDatabase(false);
 
-        await browser_ext.runtime.setUninstallURL(encodeURI("https://yakkl.com?userName=&utm_source=yakkl&utm_medium=extension&utm_campaign=uninstall&utm_content=" + `${VERSION}` + "&utm_term=extension"));
-        await setLocalObjectStorage(platform, false);
-      }
-
-      if (details && details.reason === "update") {
-        if (details.previousVersion !== browser_ext.runtime.getManifest().version) {
-          await initializeDatabase(true); // This will clear the db and then import again
-          await setLocalObjectStorage(platform, false); // After 1.0.0, upgrades will be handled.
+      // This only happens on initial install to set the defaults
+      yakklStoredObjects.forEach(async (element) => {
+        try {
+          await setObjectInLocalStorage(element.key, element.value);
+        } catch (error) {
+          log.error(`Error setting default for ${element.key}:`, false, error);
         }
-      }
+      });
 
-      // Add default tokens
-      loadDefaultTokens();
+      await browser_ext.runtime.setUninstallURL(encodeURI("https://yakkl.com?userName=&utm_source=yakkl&utm_medium=extension&utm_campaign=uninstall&utm_content=" + `${VERSION}` + "&utm_term=extension"));
+      await setLocalObjectStorage(platform, false);
     }
+
+    if (details && details.reason === "update") {
+      if (details.previousVersion !== browser_ext.runtime.getManifest().version) {
+        await initializeDatabase(true); // This will clear the db and then import again
+        await setLocalObjectStorage(platform, false); // After 1.0.0, upgrades will be handled.
+      }
+    }
+
+    // Add default tokens
+    loadDefaultTokens();
   } catch (e) {
     log.error(e);
   }
@@ -71,12 +73,18 @@ globalListenerManager.registerContext('background', backgroundListenerManager);
 
 // TODO: Review these against background.ts
 export function addBackgroundListeners() {
+  if (!browser_ext) return;
+
+  // These check to see if already added and if so, remove and re-add
   backgroundListenerManager.add(browser_ext.runtime.onMessage, onRuntimeMessageListener);
   backgroundListenerManager.add(browser_ext.runtime.onInstalled, onInstalledUpdatedListener);
   backgroundListenerManager.add(browser_ext.runtime.onConnect, onPortConnectListener);
   backgroundListenerManager.add(browser_ext.runtime.onConnect, onPortDisconnectListener);
+
+  backgroundListenerManager.add(browser_ext.tabs.onActivated, onTabActivatedListener);
   backgroundListenerManager.add(browser_ext.tabs.onUpdated, onTabUpdatedListener);
   backgroundListenerManager.add(browser_ext.tabs.onRemoved, onTabRemovedListener);
+  backgroundListenerManager.add(browser_ext.windows.onFocusChanged, onWindowsFocusChangedListener);
 
   // These are now handled in the UI due to the new architecture
   // backgroundListenerManager.add(browser_ext.alarms.onAlarm, onAlarmListener);

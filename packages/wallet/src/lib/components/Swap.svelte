@@ -211,8 +211,8 @@
       // Add and start timer
       timerManager.addTimer("swap_fetchPrices", fetchPrices, TIMER_SWAP_FETCH_PRICES_TIME);
       timerManager.startTimer("swap_fetchPrices");
-    } catch (err) {
-      log.error('Error initializing swap:', err);
+    } catch (error) {
+      log.error('Error initializing swap:', false, error);
       $swapStateStore.error = 'Failed to initialize swap. Please try again.';
     }
   });
@@ -352,7 +352,7 @@
     lastModifiedPanel = 'sell';
 
     if (amount !== '.' && isNaN(parseFloat(amount))) {
-      log.info('Swap - Invalid sell amount:', amount);
+      log.info('Swap - Invalid sell amount:', false, amount);
 
       $swapStateStore.fromAmount = '';
       updateSwapPriceData({
@@ -370,8 +370,8 @@
       if ($swapStateStore.tokenIn && $swapStateStore.tokenOut) {
         await getQuote(true);
       }
-    } catch (err) {
-      log.error('Error handling sell amount change:', err);
+    } catch (error) {
+      log.error('Error handling sell amount change:', false, error);
       $swapStateStore.error = 'Failed to process sell amount';
     }
   }
@@ -395,8 +395,8 @@
         amountOut: parsedAmount
       });
       if ($swapStateStore.tokenIn && $swapStateStore.tokenOut) await getQuote(false);
-    } catch (err) {
-      log.error('Error handling buy amount change:', err);
+    } catch (error) {
+      log.error('Error handling buy amount change:', false, error);
       $swapStateStore.error = 'Failed to process buy amount';
     }
   }
@@ -484,9 +484,9 @@
         insufficientBalanceStore.set(isInsufficient);
 
         return isInsufficient;
-    } catch (err) {
+    } catch (error) {
         insufficientBalanceStore.set(false);
-        log.error('Error checking balance:', err);
+        log.error('Error checking balance:', false, error);
         return false;
     }
   }
@@ -545,8 +545,8 @@
         }
       }
       return true;
-    } catch (err) {
-      log.error('Error validating balance:', err);
+    } catch (error) {
+      log.error('Error validating balance:', false, error);
       $swapStateStore.error = 'Failed to validate balance. Please try again.';
       return false;
     }
@@ -617,9 +617,9 @@
         $swapStateStore.fromAmount = ethersv6.formatUnits(toBigInt(amountIn), $swapStateStore.tokenIn.decimals);
       }
       updateSwapPriceData(quote);
-    } catch (err) {
-      log.error('Quote Error:', err);
-      $swapStateStore.error = `Failed to get quote: ${err}`;
+    } catch (error) {
+      log.error('Quote Error:', false, error);
+      $swapStateStore.error = `Failed to get quote: ${error}`;
       $swapStateStore.toAmount = '';
     } finally {
       $uiStateStore.isLoading = false;
@@ -663,7 +663,7 @@
 
     if (results.error) {
       $swapStateStore.error = results.error;
-      log.error('Validation error:', $swapStateStore.error);
+      log.error('Validation error:', false, $swapStateStore.error);
       return returnCode;
     }
 

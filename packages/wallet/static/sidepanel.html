@@ -1,27 +1,161 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
 
 <head>
-  <link rel="stylesheet" type="text/css" href="css/sidepanel.css" />
+  <title>EIP-6963 Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+
+    button {
+      margin: 5px;
+      padding: 8px;
+    }
+
+    pre {
+      background: #f5f5f5;
+      padding: 10px;
+      border-radius: 4px;
+      overflow: auto;
+    }
+  </style>
 </head>
 
 <body>
-  <textarea id="input-prompt" placeholder='Type something, e.g. "Write a haiku about Chrome Extensions"' cols="30"
-    rows="5"></textarea>
+  <h1>EIP-6963 Wallet Test</h1>
+
+  <h2>Available Wallets</h2>
+  <div id="wallets"></div>
+
+  <h2>Actions</h2>
   <div>
-    <input type="range" id="temperature" name="temperature" min="0" max="2" step="0.01" />
-    <label for="temperature">Temperature: <span id="label-temperature"></span></label>
+    <button id="requestProviders">Request Providers</button>
+    <button id="getAccounts">Get Accounts</button>
+    <button id="getChainId">Get Chain ID</button>
+    <button id="requestAccounts">Request Accounts</button>
   </div>
-  <div>
-    <input type="range" id="top-k" name="top-k" min="1" max="8" step="1" />
-    <label for="top-k">Top-k: <span id="label-top-k"></span></label>
-  </div>
-  <button id="button-prompt" class="primary" disabled>Run</button>
-  <button id="button-reset" class="secondary" disabled>Reset</button>
-  <div id="response" class="text" hidden></div>
-  <div id="loading" class="text" hidden><span class="blink">...</span></div>
-  <div id="error" class="text" hidden></div>
-  <script src="js/sidepanel.js" type="module"></script>
+
+  <h2>Results</h2>
+  <pre id="results">No results yet</pre>
+
+  <script>
+    const walletsDiv = document.getElementById('wallets');
+    const resultsDiv = document.getElementById('results');
+    let selectedProvider = null;
+    const providers = [];
+
+    function updateResults(text) {
+      resultsDiv.textContent = text;
+    }
+
+    function updateWallets() {
+      walletsDiv.innerHTML = '';
+      providers.forEach(provider => {
+        const walletDiv = document.createElement('div');
+        walletDiv.style.margin = '10px';
+        walletDiv.style.padding = '10px';
+        walletDiv.style.border = '1px solid #ccc';
+        walletDiv.style.borderRadius = '4px';
+        walletDiv.style.display = 'flex';
+        walletDiv.style.alignItems = 'center';
+
+        const img = document.createElement('img');
+        img.src = provider.info.icon;
+        img.width = 32;
+        img.height = 32;
+        img.style.marginRight = '10px';
+
+        const infoDiv = document.createElement('div');
+        infoDiv.innerHTML = `
+          <div><strong>${provider.info.name}</strong></div>
+          <div>ID: ${provider.info.uuid}</div>
+        `;
+
+        const selectBtn = document.createElement('button');
+        selectBtn.textContent = 'Select';
+        selectBtn.style.marginLeft = 'auto';
+        selectBtn.onclick = () => {
+          selectedProvider = provider.provider;
+          updateResults(`Selected provider: ${provider.info.name}`);
+        };
+
+        walletDiv.appendChild(img);
+        walletDiv.appendChild(infoDiv);
+        walletDiv.appendChild(selectBtn);
+        walletsDiv.appendChild(walletDiv);
+      });
+    }
+
+    // Listen for wallet announcements
+    window.addEventListener('eip6963:announceProvider', event => {
+      console.log('Provider announced:', event.detail);
+
+      // Add to providers array if not already present
+      const existingIndex = providers.findIndex(p => p.info.uuid === event.detail.info.uuid);
+      if (existingIndex >= 0) {
+        providers[existingIndex] = event.detail;
+      } else {
+        providers.push(event.detail);
+      }
+
+      updateWallets();
+    });
+
+    // Request providers button
+    document.getElementById('requestProviders').addEventListener('click', () => {
+      window.dispatchEvent(new Event('eip6963:requestProvider'));
+    });
+
+    // Get accounts button
+    document.getElementById('getAccounts').addEventListener('click', async () => {
+      if (!selectedProvider) {
+        updateResults('No provider selected');
+        return;
+      }
+
+      try {
+        const accounts = await selectedProvider.request({ method: 'eth_accounts' });
+        updateResults(JSON.stringify(accounts, null, 2));
+      } catch (error) {
+        updateResults(`Error: ${error.message}`);
+      }
+    });
+
+    // Get chain ID button
+    document.getElementById('getChainId').addEventListener('click', async () => {
+      if (!selectedProvider) {
+        updateResults('No provider selected');
+        return;
+      }
+
+      try {
+        const chainId = await selectedProvider.request({ method: 'eth_chainId' });
+        updateResults(chainId);
+      } catch (error) {
+        updateResults(`Error: ${error.message}`);
+      }
+    });
+
+    // Request accounts button
+    document.getElementById('requestAccounts').addEventListener('click', async () => {
+      if (!selectedProvider) {
+        updateResults('No provider selected');
+        return;
+      }
+
+      try {
+        const accounts = await selectedProvider.request({ method: 'eth_requestAccounts' });
+        updateResults(JSON.stringify(accounts, null, 2));
+      } catch (error) {
+        updateResults(`Error: ${error.message}`);
+      }
+    });
+
+    // Request providers initially
+    window.dispatchEvent(new Event('eip6963:requestProvider'));
+  </script>
 </body>
 
 </html>

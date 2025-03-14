@@ -1,5 +1,6 @@
 import type { IdleConfig, IdleState } from '$lib/common/idle/types';
 import { IdleManagerBase } from './IdleManagerBase';
+import { browser_ext } from '$lib/common/environment';
 import { log } from './Logger';
 
 // In AppWideIdleManager class
@@ -20,6 +21,8 @@ export class AppWideIdleManager extends IdleManagerBase {
   }
 
   private resetTimer(): void {
+    if (!browser_ext) return;
+
     try {
       const now = Date.now();
       this.lastActivity = now;
@@ -68,8 +71,6 @@ export class AppWideIdleManager extends IdleManagerBase {
 
   start(): void {
     try {
-      log.info('Starting app-wide idle manager...');
-
       // Clear any existing interval first
       if (this.idleCheckInterval) {
         this.stop();
@@ -79,7 +80,6 @@ export class AppWideIdleManager extends IdleManagerBase {
       this.events.forEach(event => {
         try {
           window.addEventListener(event, this.boundResetTimer, { passive: true });
-          log.debug(`Added listener for ${event}`);
         } catch (error) {
           this.handleError(error as Error, `Error adding listener for ${event}`);
         }
@@ -106,8 +106,6 @@ export class AppWideIdleManager extends IdleManagerBase {
         this.checkInterval
       );
 
-      log.info('App-wide idle manager started successfully');
-
       // Perform initial state check
       this.checkCurrentState().catch(error =>
         this.handleError(error as Error, 'Error checking initial state')
@@ -121,26 +119,20 @@ export class AppWideIdleManager extends IdleManagerBase {
 
   stop(): void {
     try {
-      log.info('Stopping app-wide idle manager...');
-
       // Clear interval
       if (this.idleCheckInterval) {
         clearInterval(this.idleCheckInterval);
         this.idleCheckInterval = null;
-        log.debug('Cleared idle check interval');
       }
 
       // Remove event listeners
       this.events.forEach(event => {
         try {
           window.removeEventListener(event, this.boundResetTimer);
-          log.debug(`Removed listener for ${event}`);
         } catch (error) {
           this.handleError(error as Error, `Error removing listener for ${event}`);
         }
       });
-
-      log.info('App-wide idle manager stopped successfully');
     } catch (error) {
       this.handleError(error as Error, 'Error stopping app-wide idle manager');
     }
@@ -151,7 +143,6 @@ export class AppWideIdleManager extends IdleManagerBase {
       const timeSinceLastActivity = Date.now() - this.lastActivity;
       const state: IdleState = timeSinceLastActivity >= this.threshold ? 'idle' : 'active';
       await this.handleStateChanged(state);
-      log.debug(`Current state checked: ${state}`);
     } catch (error) {
       this.handleError(error as Error, 'Error checking current state');
     }

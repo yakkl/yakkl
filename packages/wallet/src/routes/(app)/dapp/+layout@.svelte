@@ -1,14 +1,7 @@
 <script lang="ts">
   import { blockContextMenu, blockWindowResize } from "$lib/utilities";
   import { DEFAULT_POPUP_WIDTH, DEFAULT_POPUP_HEIGHT } from "$lib/common";
-  // import { onMount } from 'svelte';
-
-  import { getBrowserExt } from '$lib/browser-polyfill-wrapper';
-  import type { Browser } from 'webextension-polyfill';
-	import { browserSvelte } from '$lib/utilities/browserSvelte';
-
-  let browser_ext: Browser;
-  if (browserSvelte) browser_ext = getBrowserExt();
+	import { browserSvelte } from "$lib/common/environment";
 
   interface Props {
     children?: import('svelte').Snippet;
@@ -26,7 +19,6 @@
       blockWindowResize(DEFAULT_POPUP_WIDTH, DEFAULT_POPUP_HEIGHT);
     }
   }
-
 
 </script>
 

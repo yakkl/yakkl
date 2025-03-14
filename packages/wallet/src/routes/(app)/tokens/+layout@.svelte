@@ -1,9 +1,4 @@
 <script lang="ts">
-  // import { getBrowserExt } from '$lib/browser-polyfill-wrapper';
-  // import type { Browser } from 'webextension-polyfill';
-	// import { browserSvelte } from '$lib/utilities/browserSvelte';
-  // let browser_ext: Browser;
-  // if (browserSvelte) browser_ext = getBrowserExt();
 
   interface Props {
     children?: import('svelte').Snippet;

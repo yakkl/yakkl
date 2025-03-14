@@ -22,10 +22,15 @@
     "background",
     "idle",
     "alarms",
-    "tabs"
+    "tabs",
+    "activeTab",
+    "sidePanel"
   ],
   "sandbox": {
     "pages": ["sandbox.html"]
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
   },
   "action": {
     "default_icon": {
@@ -79,7 +84,7 @@
       }
     ],
     "default_title": "YAKKL® Smart Wallet",
-    "default_popup": "popup.html"
+    "default_popup": "/popup/popup.html"
   },
   "background": {
     "service_worker": "/js/background-wrapper.js",
@@ -98,6 +103,7 @@
   ],
   "web_accessible_resources": [{
     "resources": [
+      "/ext/browser-polyfill.js",
       "/sidepanel.html",
       "/sandbox.thml",
       "background.js",

@@ -7,11 +7,11 @@
 	import type { Settings, YakklCurrentlySelected } from '$lib/common/interfaces';
 	import { setIconLock } from '$lib/utilities';
 	import { setLocks } from '$lib/common/locks';
-	import { removeTimers } from '$lib/common/timers';
-	import { removeListeners } from '$lib/common/listeners';
-	import { timerManager } from '$lib/plugins/TimerManager';
+	// import { removeTimers } from '$lib/common/timers';
+	// import { removeListeners } from '$lib/common/listeners';
+	// import { timerManager } from '$lib/plugins/TimerManager';
   import { log } from '$plugins/Logger';
-	import { resetTokenDataStoreValues } from '$lib/common/resetTokenDataStoreValues';
+	// import { resetTokenDataStoreValues } from '$lib/common/resetTokenDataStoreValues';
 
   // Reactive State
   let yakklCurrentlySelected: YakklCurrentlySelected | null = $state(null);
@@ -52,8 +52,8 @@
       if (browserSvelte) {
         try {
           goto(PATH_LOGOUT);
-        } catch (err) {
-          log.error('Navigation to logout failed:', err);
+        } catch (error) {
+          log.error('Navigation to logout failed:', false, error);
         }
       }
     } finally {

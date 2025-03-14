@@ -37,10 +37,12 @@
       setYakklTokenDataCustomStorage($yakklTokenDataCustomStore); // Zero out values in custom token storage
       resetStores();
 
-      // Reload the browser extension
-      browser_ext.runtime.reload();
-    } catch (e) {
-      log.error('Logout failed:', e);
+      if (browser_ext) {
+        // Reload the browser extension
+        browser_ext.runtime.reload();
+      }
+    } catch (error) {
+      log.error('Logout failed:', false, error);
       alert('Logout encountered an error. Please try again or refresh the extension manually.');
     } finally {
       isUpdating = false;

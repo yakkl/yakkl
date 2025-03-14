@@ -1,22 +1,13 @@
 <script lang="ts">
-  import { sessionInitialized, yakklSettingsStore } from "$lib/common/stores";
+	import { onMount } from "svelte";
+  import { sessionInitialized } from "$lib/common/stores";
   import { DEFAULT_POPUP_HEIGHT, DEFAULT_TITLE, DEFAULT_POPUP_WIDTH, PATH_LOGIN, PATH_REGISTER, PATH_LEGAL, PATH_LOCK, PATH_LOGOUT } from '$lib/common';
   import Header from '$components/Header.svelte';
   import Footer from '$components/Footer.svelte';
   import { blockContextMenu, blockWindowResize } from '$lib/utilities';
   import ErrorNoAction from '$lib/components/ErrorNoAction.svelte';
   import { browserSvelte } from "$lib/common/environment";
-  import { page } from '$app/state';
   import { log } from '$plugins/Logger';
-	import { onMount } from "svelte";
-	import { ErrorHandler } from "$lib/plugins/ErrorHandler";
-	import { afterNavigate, beforeNavigate } from "$app/navigation";
-
-  // import type { Preferences, Settings, TokenData, YakklCurrentlySelected } from '$lib/common';
-	// import type { Wallet } from '$lib/plugins/Wallet';
-	// import type { Blockchain, Provider } from '$lib/plugins';
-	// import type { TokenService } from '$lib/plugins/blockchains/evm/TokenService';
-	// import { goto } from '$app/navigation';
 
   interface Props {
     children?: import('svelte').Snippet;
@@ -36,26 +27,6 @@
   let errorValue: string = $state('');
   let maxHeightClass: string = $state('max-h-[448px]');
 
-  // Effect: Sync Store Values
-  // $effect(() => { yakklCurrentlySelected = $yakklCurrentlySelectedStore; });
-  // $effect(() => { yakklMisc = $yakklMiscStore; });
-  // $effect(() => { yakklSettings = $yakklSettingsStore; });
-  // $effect(() => { yakklPreferences = $yakklPreferencesStore; });
-  // $effect(() => { yakklTokenData = $yakklTokenDataStore; });
-  // $effect(() => { yakklInstances = $yakklInstancesStore; });
-  // $effect(() => { yakklPrimaryAccounts = $yakklPrimaryAccountsStore; });
-
-  // Effect: Check Lock Status & Redirect - This should be the first thing that runs on every page. It will need to be put into any layout that is used.
-  // $effect(() => {
-  //   if (!browserSvelte) return; // Ensure this only runs on the client
-  //   // Use store OR localStorage to check if locked
-  //   const isLocked = $yakklSettingsStore?.isLocked ?? JSON.parse(localStorage.getItem('settings') || '{}')?.isLocked;
-  //   if (isLocked && !EXCLUDED_PATHS.includes(page.url.pathname)) {
-  //     log.info('Locked: Redirecting to login...from', page.url.pathname);
-  //     goto(PATH_LOGIN);
-  //   }
-  // });
-
   // Effect: Handle Internet Connection Status
   $effect(() => {
     if (browserSvelte && !navigator.onLine) {
@@ -73,29 +44,14 @@
       contextMenu = true;
       resize = true;
     }
+
     if (!contextMenu) blockContextMenu();
     if (!resize) blockWindowResize(popupWidth, popupHeight);
   });
 
-  onMount(() => {
+  onMount(async () => {
     // Reset session initialization state when app first loads
     sessionInitialized.set(false);
-  });
-
-  beforeNavigate(({ from, to, cancel }) => {
-    log.info('Navigation attempted', true, {
-      from: from?.url.pathname,
-      to: to?.url.pathname,
-      time: Date.now()
-    });
-  });
-
-  afterNavigate(({ from, to }) => {
-    log.info('Navigation completed', true, {
-      from: from?.url.pathname,
-      to: to?.url.pathname,
-      time: Date.now()
-    });
   });
 
 </script>

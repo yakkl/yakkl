@@ -1,3 +1,4 @@
+// inpage.ts
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-debugger */
 // Inject this into any given webpage or iFrame so that it may communicate with the extension.
@@ -12,6 +13,7 @@ import { ProviderRpcError } from '$lib/common';
 
 import { getEIP6963ProviderDetail } from '$lib/plugins/providers/network/ethereum_provider/EthereumProvider';
 import type { EIP6963ProviderDetail } from '$lib/plugins/providers/network/ethereum_provider/EthereumProviderTypes';
+
 import { log } from "$lib/plugins/Logger";
 
 const windowOrigin = window.location.origin;
@@ -45,7 +47,6 @@ class RateLimiter {
     return true; // within rate limit
   }
 }
-
 
 class EthereumProviderManager {
   providers: Map<any, any>;
@@ -157,7 +158,7 @@ class EthereumProviderManager {
       //@ts-ignore
       if (window.ethereum) window.ethereum = null;
     } catch (e) {
-      log.error(e);
+      log.error('Inpage - _removeProxy', true, e);
     }
     this._replaceProvider(provider);
   }
@@ -172,9 +173,6 @@ export class YakklWalletProvider extends EventEmitter {
     this.selectedAddresses = [];
     this.setMaxListeners(100);
     this.request = this.request.bind(this);
-    // this.enable = this.enable.bind(this);
-    // this.send = this.send.bind(this);
-    // this.sendAsync = this.sendAsync.bind(this);
     this.providers = [this];
 
     // Event propagation causes the listener to be called multiple times for the same event. So, we need to use a flag to make sure our handlers are only called once. This happens with the handlers check.
@@ -193,7 +191,7 @@ export class YakklWalletProvider extends EventEmitter {
             }
           }
         } catch (e) {
-          log.error(e);
+          log.error('Inpage - YakklWalletProvider', true, e);
         }
       }
     });
@@ -255,7 +253,7 @@ export class YakklWalletProvider extends EventEmitter {
 
       return this.handleRequest(request);
     } catch(e) {
-      log.error(e);
+      log.error('Inpage - request', true, e);
       this.disconnect();
       return Promise.reject(e); // Must be in a ProviderRpcError format
     }
@@ -285,7 +283,7 @@ export class YakklWalletProvider extends EventEmitter {
 
       return promise;
     } catch (e) {
-      log.error(e);
+      log.error('Inpage - sendRequest', true, e);
       if (rejectType === 1) {
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         //@ts-ignore
@@ -352,51 +350,10 @@ export class YakklWalletProvider extends EventEmitter {
           throw new ProviderRpcError(4200, `The requested method ${method} is not supported by this Ethereum provider.`);
       }
     } catch (e) {
-      log.error(e);
+      log.error('Inpage - handleRequest', true, e);
       throw e;
     }
   }
-
-  // Review these methods to see if they need to be implemented
-  //   case "eth_blockNumber":
-  //   case "eth_call":
-  //   case "eth_estimateGas":
-  //   case "eth_feeHistory":
-  //   case "eth_gasPrice":
-  //   case "eth_getBalance":
-  //   case "eth_getBlockByHash":
-  //   case "eth_getBlockByNumber":
-  //   case "eth_getBlockTransactionCountByHash":
-  //   case "eth_getBlockTransactionCountByNumber":
-  //   case "eth_getCode":
-  //   case "eth_getFilterChanges":
-  //   case "eth_getFilterLogs":
-  //   case "eth_getLogs":
-  //   case "eth_getProof":
-  //   case "eth_getStorageAt":
-  //   case "eth_getTransactionByBlockHashAndIndex":
-  //   case "eth_getTransactionByBlockNumberAndIndex":
-  //   case "eth_getTransactionByHash":
-  //   case "eth_getTransactionCount":
-  //   case "eth_getTransactionReceipt":
-  //   case "eth_getUncleByBlockHashAndIndex":
-  //   case "eth_getUncleByBlockNumberAndIndex":
-  //   case "eth_getUncleCountByBlockHash":
-  //   case "eth_getUncleCountByBlockNumber":
-  //   case "eth_maxPriorityFeePerGas":
-  //   case "eth_newBlockFilter":
-  //   case "eth_newFilter":
-  //   case "eth_newPendingTransactionFilter":
-  //   case "eth_protocolVersion":
-  //   case "eth_sendRawTransaction":
-  //   case "eth_subscribe":
-  //   case "eth_syncing":
-  //   case "eth_uninstallFilter":
-  //   case "eth_unsubscribe":
-  //   case "net_listening":
-  //   case "net_version":
-  //   case "web3_clientVersion":
-  //   case "web3_sha3":
 
   // All of these methods do not flow through to the background.js service
   private handleChainId(): number {
@@ -404,7 +361,7 @@ export class YakklWalletProvider extends EventEmitter {
       this.handleChainIdChange(this.chainId);
       return this.chainId;
     } catch (e) {
-      log.error(e);
+      log.error('Inpage - handleChainId', true, e);
       return 0;
     }
   }
@@ -503,7 +460,7 @@ export class YakklWalletProvider extends EventEmitter {
       }
       return result;
     } catch (e) {
-        log.error(e); // Must be in a ProviderRpcError format
+        log.error('Inpage - validation', true, e); // Must be in a ProviderRpcError format
         if (!(e as ProviderRpcError)?.code) {
           throw new ProviderRpcError(-32603, (e as string)); // Assume a string if not a ProviderRpcError
       } else {
@@ -562,7 +519,7 @@ export class YakklWalletProvider extends EventEmitter {
       this.emit("chainChanged", chainId);
       this.emit("networkChanged", chainId);
     } catch (e) {
-      log.error(e);
+      log.error('Inpage - handleChainIdChange', true, e);
     }
   }
 
@@ -573,7 +530,7 @@ export class YakklWalletProvider extends EventEmitter {
         this.emit("accountsChanged", addresses);
       }
     } catch (e) {
-      log.error(e);
+      log.error('Inpage - handleAddressChange', true, e);
     }
   }
 }
@@ -590,7 +547,8 @@ declare global {
     yakklLegacy: YakklWalletProvider,
     ethereumProviderManager?: EthereumProviderManager,
     ethereum?: LegacyWindowEthereum,  // Set this so that we can remove a provider that is not playing well because writable and configurable are set to true so no modifications!
-    web3?: YakklWalletProvider
+    web3?: YakklWalletProvider,
+    yakkl?: EIP6963ProviderDetail
   }
 }
 
@@ -657,7 +615,7 @@ function setGlobalProvider(windowProvider: PropertyDescriptor & ThisType<any>) {
             window.ethereum.providers = [...window.ethereumProviderManager.providers.values()] ?? [];
             // window.ethereumProviderManager?.reload(); // This will check for certain sites that require a reload to work properly
           } catch (e) {
-            log.error(e); // Nothing else
+            log.error('Inpage - addProvider', true, e); // Nothing else
           }
         },
         configurable: false, // true
@@ -665,25 +623,64 @@ function setGlobalProvider(windowProvider: PropertyDescriptor & ThisType<any>) {
     }
     window.dispatchEvent(new Event('ethereum#initialized'));
   } catch (e) {
-    log.error(e);
+    log.error('Inpage - unable to setGlobalProvider', true, e);
   }
 }
 
-// EIP6963 Provider. Above is the legacy provider which will be removed in the future.
-const eip6963ProviderDetail: EIP6963ProviderDetail = getEIP6963ProviderDetail();
-eip6963ProviderDetail.provider.announce(); // Made 'announce' a public method part of EIP1193
+// Set up legacy provider
+setGlobalProvider(windowProvider);
 
+// EIP-6963 Provider
+const eip6963ProviderDetail = getEIP6963ProviderDetail();
 window.yakkl = eip6963ProviderDetail;
 
+// Announce provider on load
 window.addEventListener('DOMContentLoaded', () => {
   try {
-    // Legacy - EIP-1193 provider
-    setGlobalProvider(windowProvider);
-    // EIP-6963 provider
-    eip6963ProviderDetail.provider.announce();
-    // Dispatch an event to signal Ethereum provider initialization
-    window.dispatchEvent(new Event('ethereum#initialized'));
-    } catch (e) {
-    log.error('YAKKL: Provider injection failed. This web page will not be able to connect to YAKKL.', false, e);
+    if (eip6963ProviderDetail?.provider) {
+      log.debug('Announcing EIP-6963 provider on DOMContentLoaded');
+      eip6963ProviderDetail.provider.announce();
+    }
+  } catch (e) {
+    log.error('Error announcing EIP-6963 provider on DOMContentLoaded', true, e);
+  }
+});
+
+// Also listen for explicit requests
+window.addEventListener('eip6963:requestProvider', () => {
+  try {
+    log.debug('Received eip6963:requestProvider event');
+    if (eip6963ProviderDetail?.provider) {
+      eip6963ProviderDetail.provider.announce();
+    }
+  } catch (e) {
+    log.error('Error handling eip6963:requestProvider event', true, e);
+  }
+});
+
+// Listen for EIP-6963 event forwarding from content script
+window.addEventListener('message', (event) => {
+  try {
+    if (event.source !== window) return;
+
+    const { data } = event;
+    if (!data || data.type !== 'YAKKL_EVENT:EIP6963') return;
+
+    const { event: eventName, data: eventData } = data;
+
+    // Forward events to the EIP-6963 provider
+    if (window.yakkl?.provider) {
+      if (eventName === 'accountsChanged') {
+        window.yakkl.provider.emit('accountsChanged', eventData);
+      } else if (eventName === 'chainChanged') {
+        window.yakkl.provider.emit('chainChanged', eventData);
+      } else if (eventName === 'connect') {
+        window.yakkl.provider.emit('connect', eventData);
+      } else if (eventName === 'disconnect') {
+        window.yakkl.provider.emit('disconnect', eventData);
+      }
+    }
+  } catch (e) {
+    log.error('Error forwarding EIP-6963 event', true, e);
   }
 });

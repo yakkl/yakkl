@@ -1,5 +1,5 @@
 
-import { browser_ext, browserSvelte } from '../../environment';
+import { browser_ext, browserSvelte } from '../../environment'; // UI context
 import { handleLockDown } from '$lib/common/handlers';
 import { handleOnMessageForExtension } from './uiListeners';
 
@@ -20,6 +20,27 @@ export function onMessageUnloadRemove() {
       browser_ext.runtime.onMessage.removeListener(handleOnMessageForExtension);
     }
     removeWindowListeners();
+  }
+}
+
+// browser_ext.windows.onRemoved.addListener((windowId) => {
+//   log.info(`Window ${windowId} was closed.`);
+// });
+
+export function onRemoveWindowListener() {
+  if (browserSvelte) {
+    if (browser_ext.windows.onRemoved.hasListener(handleOnRemoveWindow)) {
+      browser_ext.windows.onRemoved.removeListener(handleOnRemoveWindow);
+    }
+  }
+}
+
+export function handleOnRemoveWindow(windowId: number) {
+  if (browserSvelte) {
+    // log.info(`Window ${windowId} was closed.`); // Add whatever is needed here...
+    // if (windowId === browser_ext.windows.WINDOW_ID_CURRENT) {
+    //   handleLockDown();
+    // }
   }
 }
 

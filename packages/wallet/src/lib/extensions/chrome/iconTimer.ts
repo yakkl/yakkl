@@ -7,6 +7,8 @@ import { yakklCurrentlySelectedStore } from "$lib/common/stores";
 import { timerManager } from "$lib/plugins/TimerManager";
 import { log } from "$plugins/Logger";
 
+// NOTE: This is used on extension UI side as well which could be a problem
+
 export function startLockIconTimer() {
   try {
     timerManager.addTimer('iconTimer_lockIcon', async () => {
@@ -22,7 +24,9 @@ export function startLockIconTimer() {
         }
         if (yakklSettings.isLocked) {
           await setIconLock();
-          await browser_ext.runtime.sendMessage({ type: 'lockdown' });
+          if ( browser_ext) {
+            await browser_ext.runtime.sendMessage({ type: 'lockdown' });
+          }
         } else {
           await setIconUnlock();
         }
@@ -42,8 +46,11 @@ export async function stopLockIconTimer() {
     const yakklSettings = await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS) as Settings;
     if (yakklSettings) {
       timerManager.removeTimer('iconTimer_lockIcon'); // Stops and clears the timer
-      await browser_ext.runtime.sendMessage({type: 'lockdown',});
+      if (browser_ext) {
+        await browser_ext.runtime.sendMessage({type: 'lockdown',});
+      }
     }
+
   } catch (error: any) {
     log.error('Error stopping lock icon timer:', false, error, error?.stack);
   }

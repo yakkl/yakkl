@@ -14,6 +14,8 @@ const labelTopK = document.body.querySelector('#label-top-k');
 
 let session;
 
+// This is test code for the AI Origin Trial API. The long-term goal is to move crypto-related AI to sidepanels.
+
 async function runPrompt(prompt, params) {
   try {
     if (!session) {

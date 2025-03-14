@@ -1,6 +1,5 @@
 import { writable, type Writable } from "svelte/store";
-// import { browser } from "$app/environment";
-import { browserSvelte } from '$lib/utilities/browserSvelte';
+import { browserSvelte } from '$lib/common/environment';
 
 export let theme: Writable<string | null>;
 

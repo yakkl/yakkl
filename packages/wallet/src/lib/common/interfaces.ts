@@ -1,6 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// Interface definitions
-
 import type { AccessList, Log, Transaction } from '$lib/common/evm';
 import type { AccountTypeCategory, BytesLike, NetworkType, RegistrationType, SystemTheme, URL } from '$lib/common/types';
 import type { BigNumberish } from '$lib/common/bignumber';
@@ -24,6 +22,20 @@ export interface User {
   name: string;
   username?: string;
   authProvider: 'password' | 'google' | 'apple' | 'passkey';
+}
+
+export interface ActiveTab {
+  tabId?: number;
+  windowId?: number;
+  windowType?: string; //'normal' | 'popup' | 'panel' | 'app' | 'devtools' | 'incognito';
+  url?: string;
+  title?: string;
+  favIconUrl?: string;
+}
+
+export interface GetActiveTabResponse {
+  success: boolean;
+  activeTab: ActiveTab | null;
 }
 
 // EmergencyKit data for each address. SubPortfolio will be empty if it's a primary account. Every SubPortfolio will have a Portfolio address and name.

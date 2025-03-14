@@ -1,7 +1,6 @@
 <!-- ImportPrivateKey.svelte -->
 <script lang="ts">
   import { browserSvelte } from '$lib/utilities/browserSvelte';
-  // import { browser as browserSvelte } from '$app/environment';
   import { setYakklAccountsStorage, setYakklCurrentlySelectedStorage, setProfileStorage, getYakklAccounts, getProfile, getYakklCurrentlySelected, getMiscStore } from '$lib/common/stores';
   import { yakklAccount as yakklAccountDefault } from '$lib/models/dataModels';
   import { getWallet } from '$lib/utilities/ethereum';
@@ -11,7 +10,7 @@
   import { createForm } from 'svelte-forms-lib';
   import * as yup from 'yup';
   // import { Confetti } from 'svelte-confetti';
-  import { confetti } from '@neoconfetti/svelte';
+  // import { confetti } from '@neoconfetti/svelte';
   import { AccountTypeCategory, isEncryptedData, NetworkType, type AccountData, type CurrentlySelectedData, type Profile, type ProfileData, type YakklAccount, type YakklCurrentlySelected } from '$lib/common';
   import WalletManager from '$lib/plugins/WalletManager';
   import type { Wallet } from '$lib/plugins/Wallet';
@@ -244,10 +243,10 @@
   }
 </script>
 
-{#if showConfetti}
+<!-- {#if showConfetti} -->
   <!-- <Confetti /> -->
-  <div use:confetti></div>
-{/if}
+  <!-- <div use:confetti></div> -->
+<!-- {/if} -->
 
 <div class="relative {className}">
   <Modal bind:show={show} title="Import Account" onClose={closeModal} onCancel={onCancel} className={className}>

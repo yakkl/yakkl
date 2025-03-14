@@ -1,10 +1,6 @@
 <script lang="ts">
-  import { browserSvelte } from '$lib/utilities/browserSvelte';
+  import { browserSvelte } from '$lib/common/environment';
   import { page } from '$app/stores';
-  import { getBrowserExt } from '$lib/browser-polyfill-wrapper';
-
-  let browser_ext;
-  if (browserSvelte) browser_ext = getBrowserExt();
 
   // Initialize state
   let flaggedSite = $state("https://yakkl.com");  // Default

@@ -1,19 +1,14 @@
 <script lang="ts">
-  import { browserSvelte } from '$lib/utilities/browserSvelte';
+  import { browserSvelte, browser_ext } from '$lib/common/environment';
   import { page } from '$app/state';
   import { YAKKL_DAPP } from '$lib/common/constants';
   import { onMount, onDestroy } from 'svelte';
   import { log } from '$plugins/Logger';
 
-  import type { Browser, Runtime } from 'webextension-polyfill';
-  import { getBrowserExt } from '$lib/browser-polyfill-wrapper';
-  let browser_ext: Browser;
-  if (browserSvelte) browser_ext = getBrowserExt();
-
+  import type { Runtime } from 'webextension-polyfill';
 
   type RuntimePort = Runtime.Port | undefined;
 
-  let errorValue = 'No domain/site name was found. Access to YAKKL® is denied.';
   let message: string = $state();
   let method: string;
   let port: RuntimePort;

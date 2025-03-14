@@ -62,6 +62,7 @@ import type {
 	ContractData,
   TokenData,
   MarketPriceData,
+  ActiveTab,
 } from '$lib/common/interfaces';
 
 import { walletStore, type Wallet } from '$plugins/Wallet';
@@ -181,6 +182,10 @@ export const yakklDappConnectRequestStore = writable<string | null>(undefined);
 
 export const priceStore = writable<MarketPriceData | null>(null); // This is for the trading pairs that change every so often
 export const sessionInitialized = writable(false);
+
+export const activeTabBackgroundStore = writable<ActiveTab | null>(null);
+export const activeTabUIStore = writable<ActiveTab | null>(null);
+export const backgroundUIConnectedStore = writable(false);
 
 export const wallet = writable<Wallet | null>(null);
 export const yakklContractStore = writable<ContractData>({

@@ -1,4 +1,4 @@
-import { browserSvelte } from "./environment";
+import { browserSvelte, browser_ext } from "./environment";
 import { log } from "$plugins/Logger";
 
 export const openWindows = new Map();

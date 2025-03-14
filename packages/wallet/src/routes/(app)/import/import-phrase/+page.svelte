@@ -12,7 +12,7 @@
   // import { getTransactionCount, setProvider } from '$lib/plugins/networks/ethereum/providers';
   import { deepCopy, getSymbol } from '$lib/utilities';
   // import { Confetti } from "svelte-confetti";
-  import { confetti } from '@neoconfetti/svelte';
+  // import { confetti } from '@neoconfetti/svelte';
   import { setSettingsStorage, getSettings, yakklMiscStore, setProfileStorage, setYakklCurrentlySelectedStorage, setYakklPrimaryAccountsStorage, getYakklPrimaryAccounts, getYakklAccounts,  setYakklAccountsStorage, getProfile } from '$lib/common/stores';
   import { encryptData, decryptData } from '$lib/common/encryption';
   import { DEFAULT_DERIVED_PATH_ETH, PATH_WELCOME, PATH_ACCOUNTS_ETHEREUM_CREATE_PRIMARY, YAKKL_ZERO_ADDRESS } from '$lib/common/constants';
@@ -671,10 +671,10 @@
 
 </script>
 
-{#if showConfetti}
+<!-- {#if showConfetti} -->
 <!-- <Confetti /> -->
-<div use:confetti></div>
-{/if}
+<!-- <div use:confetti></div> -->
+<!-- {/if} -->
 
 <ErrorNoAction bind:show={error} value={errorValue} />
 

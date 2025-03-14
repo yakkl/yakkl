@@ -1,6 +1,6 @@
 // listeners/uiListeners.ts
 import { ListenerManager } from '$lib/plugins/ListenerManager';
-import { browser_ext, isBrowserEnv } from '$lib/common/environment';
+import { browser_ext, isBrowserEnv } from '$lib/common/environment'; // UI context only
 import type { Runtime } from 'webextension-polyfill';  // Correct Type Import
 import { goto } from '$app/navigation';
 import { startCheckPrices, stopCheckPrices } from '$lib/tokens/prices';
@@ -8,12 +8,39 @@ import { PATH_LOGOUT } from '$lib/common/constants';
 import { handleLockDown } from '$lib/common/handlers';
 import { globalListenerManager } from '$lib/plugins/GlobalListenerManager';
 import { log } from '$plugins/Logger';
-import { NotificationService, sendNotificationMessage } from '$lib/common/notifications';
+import { NotificationService } from '$lib/common/notifications';
+import { activeTabUIStore } from '$lib/common/stores';
 
 export const uiListenerManager = new ListenerManager();
 
 // Register uiListenerManager globally
 globalListenerManager.registerContext('ui', uiListenerManager);
+
+export async function handleOnActiveTabUIChanged(
+  message: any,
+  sender: Runtime.MessageSender,
+  sendResponse: (response?: any) => void
+): Promise<boolean | void>  {
+  try {
+    switch(message.type) {
+      case 'setActiveTab': {
+        try {
+          activeTabUIStore.set(message.activeTab);
+          // log.debug('Active tabs UI:', false, message.activeTab);
+          sendResponse({ success: true }); // GetActiveTabResponse format
+        } catch (error) {
+          log.error('Error on active tab change:', true, error);
+          sendResponse({ success: false, error: error });
+        }
+        return true; // Keep this line to signal async sendResponse
+      }
+    }
+  } catch (error: any) {
+    log.error('Error handling setActiveTab message:', true, error);
+    if (isBrowserEnv()) sendResponse({ success: false, error: error?.message || 'Unknown error occurred.' });
+    return true; // Indicate asynchronous response
+  }
+}
 
 // Centralized message handler function - This is only a fallback from the old way of doing things but will continue to work
 export async function handleOnMessageForExtension(
@@ -22,7 +49,7 @@ export async function handleOnMessageForExtension(
   sendResponse: (response?: any) => void
 ): Promise<boolean | void>  {
   try {
-    log.debug('Message received:', message, sender);
+    if (!browser_ext) return true;
 
     switch(message.type) {
       case 'lockdown': {
@@ -30,19 +57,15 @@ export async function handleOnMessageForExtension(
         await handleLockDown();  // Correct function call
         sendResponse({ success: true, message: 'Lockdown initiated.' });
         await NotificationService.sendSecurityAlert('YAKKL Wallet locked due to inactivity. \nTo prevent unauthorized transactions, your wallet has been locked and logged out.', {contextMessage: 'Click extension icon to relaunch'});
-        log.warn('User inactive, locking down wallet for maximum security.');
         goto(PATH_LOGOUT);
         return true;  // return type - asynchronous
       }
       case 'lockdownImminent': {
-        log.info('Sending imminent lockdown notification...');
         sendResponse({ success: true, message: 'Imminent lockdown notification sent.' });
         await NotificationService.sendSecurityAlert('YAKKL Lockdown Imminent. \nFor your protection, YAKKL will be locked soon.', {contextMessage: 'Use YAKKL before timeout to stop lockdown'});
-        log.warn('User inactive, sending imminent lockdown notification.');
         return true;  // return type - asynchronous
       }
       default: {
-        log.warn('Unknown message type:', message.type);
         sendResponse({ success: false, message: 'Unhandled message type' });
         return true;
       }
@@ -61,6 +84,7 @@ export async function handleOnMessageForPricing(
   sender: Runtime.MessageSender,
   sendResponse: (response?: any) => void
 ): Promise<boolean | void>  {
+  if (!browser_ext) return true;
   try {
     switch(message.type) {
       case 'startPricingChecks': {
@@ -90,12 +114,12 @@ export async function handleOnMessageForPricing(
 // }
 
 export function addUIListeners() {
-  // log.debug('Adding UI listeners...');
+  if (!browser_ext) return;
+  uiListenerManager.add(browser_ext.runtime.onMessage, handleOnActiveTabUIChanged);
   uiListenerManager.add(browser_ext.runtime.onMessage, handleOnMessageForExtension);
   uiListenerManager.add(browser_ext.runtime.onMessage, handleOnMessageForPricing);
 }
 
 export function removeUIListeners() {
-  // log.debug('Removing UI listeners...');
   uiListenerManager.removeAll();
 }

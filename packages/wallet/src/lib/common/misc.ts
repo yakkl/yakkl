@@ -1,7 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { memoize } from 'lodash-es';
 import {
-  ENVIRONMENT_TYPES,
   PLATFORM_TYPES,
   makeError,
   type BytesLike,
@@ -17,7 +15,6 @@ import {
 } from '.';
 import { BigNumber, type BigNumberish } from '$lib/common/bignumber';
 import { log } from "$plugins/Logger";
-// import { getYakklPrimaryAccounts } from '$lib/common/stores';  // TODO: This generates an error from webpack due to not finding dataModels.ts?????????????????????????
 
 // export function toBigInt( value: BigNumberish, decimals: number = 18 ): bigint {
 //   return BigNumber.toBigInt( value, decimals ) ?? 0n;
@@ -34,7 +31,6 @@ export async function getPrimaryAccountByAddress(address: string): Promise<Yakkl
 
   return primaryAccount || null; // Return null if no account is found
 }
-
 
 export function encodeJSON<T>(obj: T): string {
   const jsonString = JSON.stringify(obj, (_, value) => {
@@ -178,7 +174,6 @@ export function toHex(value: BigNumberish): string {
   return hex.length % 2 === 0 ? hex : '0x0' + hex.slice(2);
 }
 
-
 // Function to recursively traverse and convert numeric values to hex strings
 export function convertToHexStrings<T>(obj: T, skipProperties: string[] = []): T {
   const skipSet = new Set(skipProperties);
@@ -213,9 +208,6 @@ export function convertToHexStrings<T>(obj: T, skipProperties: string[] = []): T
 
   return convert(obj);
 }
-
-
-
 
 export function parseJsonOrObject<T>(value: any): T | null {
   if (value === null || value === undefined) {
@@ -468,17 +460,17 @@ export function dataSlice(data: BytesLike, start?: number, end?: number): string
 /**
  * @see {@link getEnvironmentType}
  */
-export const getEnvironmentTypeMemo = memoize((url: string): string => {
-  const parsedUrl = new URL(url);
-  if (parsedUrl.pathname === '/popup.html') {
-    return ENVIRONMENT_TYPES.POPUP;
-  } else if (['/index.html'].includes(parsedUrl.pathname)) {
-    return ENVIRONMENT_TYPES.BROWSER;
-  } else if (parsedUrl.pathname === '/notification.html') {
-    return ENVIRONMENT_TYPES.NOTIFICATION;
-  }
-  return ENVIRONMENT_TYPES.BACKGROUND;
-});
+// export const getEnvironmentTypeMemo = memoize((url: string): string => {
+//   const parsedUrl = new URL(url);
+//   if (parsedUrl.pathname === '/popup.html') {
+//     return ENVIRONMENT_TYPES.POPUP;
+//   } else if (['/index.html'].includes(parsedUrl.pathname)) {
+//     return ENVIRONMENT_TYPES.BROWSER;
+//   } else if (parsedUrl.pathname === '/notification.html') {
+//     return ENVIRONMENT_TYPES.NOTIFICATION;
+//   }
+//   return ENVIRONMENT_TYPES.BACKGROUND;
+// });
 
 /**
  * Returns the window type for the application
@@ -493,8 +485,8 @@ export const getEnvironmentTypeMemo = memoize((url: string): string => {
  * @param {string} [url] - the URL of the window
  * @returns {string} the environment ENUM
  */
-export const getEnvironmentType = (url: string = window.location.href): string =>
-  getEnvironmentTypeMemo(url);
+// export const getEnvironmentType = (url: string = window.location.href): string =>
+//   getEnvironmentTypeMemo(url);
 
 /**
  * Returns the platform (browser) where the extension is running.

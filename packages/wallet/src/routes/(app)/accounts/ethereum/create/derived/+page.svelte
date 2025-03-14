@@ -1,7 +1,6 @@
 <script lang="ts">
   // For Derived Accounts
-  import { browserSvelte } from '$lib/utilities/browserSvelte';
-  // import { browser as browserSvelte } from '$app/environment';
+  import { browserSvelte } from '$lib/common/environment';
   import { Button, Modal, Spinner } from 'flowbite-svelte';
   import { getProfile, getYakklCurrentlySelected, getSettings, getMiscStore } from '$lib/common/stores';
   import { decryptData, type Profile, isEncryptedData, type ProfileData, type YakklRegisteredData, type CurrentlySelectedData, type AccountData, type PrimaryAccountData, type YakklPrimaryAccount, type YakklAccount, type EmergencyKitAccountData, type YakklCurrentlySelected, type Settings } from '$lib/common';
@@ -12,7 +11,6 @@
 	import { EmergencyKitManager } from '$plugins/EmergencyKitManager';
 	import { onMount } from 'svelte';
 	import { dateString } from '$lib/common/datetime';
-	// import { sendNotificationMessage } from '$lib/extensions/chrome/background';
 	import { sendNotificationMessage } from '$lib/common/notifications';
   // import { jsPDF } from "jspdf";
 
@@ -28,19 +26,19 @@
   let accountName: string = $state('');
   let address: string = $state('');
   let addressDerived: string = $state('');
-  let blockchain: string = $state();
+  let blockchain: string = $state('');
   let privateKey: string = $state('');
   let profile: Profile | null = null;
-  let wordCount: number = $state();
-  let mnemonic: string = $state();
+  let wordCount: number = $state(0);
+  let mnemonic: string = $state('');
   let displayDate: Date = $state();
   let derivedPath = $state(DEFAULT_DERIVED_PATH_ETH); //Index at end is dynamically created
   let successDialog = $state(false);
   let createDate: string;
   let updateDate: string;
-  let registeredType: string = $state();
+  let registeredType: string = $state('');
   let error = $state(false);
-  let errorValue: string = $state();
+  let errorValue: string = $state('');
 
 
   onMount(async () => {

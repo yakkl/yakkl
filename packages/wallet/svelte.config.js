@@ -3,8 +3,6 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
-	// extensions: [ '.svelte' ],
-
 	preprocess: vitePreprocess( { script: true } ),
 
 	onwarn: ( warning, handler ) => {
@@ -27,7 +25,12 @@ const config = {
 			'@yakkl/uniswap-alpha-router-service': '../uniswap-alpha-router-service/src',
 		},
 
+    serviceWorker: {
+      register: false
+    },
+
     prerender: {
+      handleMissingId: 'ignore',
       handleHttpError: ({ status, path, referrer, referenceType }) => {
         console.warn(`Prerendering error: ${status} on ${path}`);
         if (status === 500 && path === '/accounts') {

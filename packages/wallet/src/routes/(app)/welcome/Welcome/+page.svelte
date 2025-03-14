@@ -15,17 +15,6 @@
   let errorValue: any = $state(null);
   let showImportOption = $state(false);
 
-  // onMount(async () => {
-  //   try {
-  //     if (browserSvelte) {
-  //       // Been able to reduce onMount to this - empty
-  //       log.info('Welcome page: onMount');
-  //     }
-  //   } catch (e) {
-  //     log.error(e);
-  //   }
-  // });
-
   onDestroy(() => {
     try {
       if (browserSvelte) {

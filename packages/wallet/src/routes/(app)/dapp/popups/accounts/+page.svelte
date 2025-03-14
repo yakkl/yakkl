@@ -1,22 +1,19 @@
 <script lang="ts">
-  import { browserSvelte } from '$lib/utilities/browserSvelte';
+  import { browser_ext, browserSvelte } from '$lib/common/environment';
   import { goto } from '$app/navigation';
   import { Checkbox, TableBody, TableBodyCell, TableBodyRow, TableHead, TableHeadCell, TableSearch } from 'flowbite-svelte';
   import { getYakklAccounts, setYakklConnectedDomainsStorage, setYakklAccountsStorage, yakklDappConnectRequestStore, getYakklCurrentlySelected, getYakklConnectedDomains } from '$lib/common/stores';
   import { deepCopy, truncate } from "$lib/utilities/utilities";
   import { PATH_LOGIN, YAKKL_DAPP, DEFAULT_TITLE } from '$lib/common/constants';
   import { onMount, onDestroy } from 'svelte';
-  import { navigating, page } from '$app/stores'; // NOTE: address
+  import { navigating, page } from '$app/state'; // NOTE: address
   import { wait } from '$lib/common/utils';
 	import ProgressWaiting from '$lib/components/ProgressWaiting.svelte';
 	import type { AccountAddress, ConnectedDomainAddress, YakklAccount, YakklConnectedDomain, YakklCurrentlySelected } from '$lib/common';
 
-  import type { Browser, Runtime } from 'webextension-polyfill';
-  import { getBrowserExt } from '$lib/browser-polyfill-wrapper';
+  import type { Runtime } from '';
 	import { dateString } from '$lib/common/datetime';
 	import { log } from '$lib/plugins/Logger';
-  let browser_ext: Browser;
-  if (browserSvelte) browser_ext = getBrowserExt();
 
   type RuntimePort = Runtime.Port | undefined;
 
@@ -38,8 +35,8 @@
   let warningValue = $state('No accounts were selected. Access to YAKKL® is denied.');
   let errorValue = $state('No domain/site name was found. Access to YAKKL® is denied.');
   let port: RuntimePort;
-  let domain: string = $state();
-  let domainLogo: string = $state();
+  let domain: string = $state('');
+  let domainLogo: string = $state('');
   let domainTitle: string;
   let requestId: string | null;
   let requestData: any;
@@ -48,13 +45,13 @@
 
   if (browserSvelte) {
     try {
-      requestId = $page.url.searchParams.get('requestId');
+      requestId = page.url.searchParams.get('requestId');
       $yakklDappConnectRequestStore = requestId as string;
 
-      if ($navigating) {
-        if ($navigating?.from?.url?.pathname) {
-          if ($navigating.from.url.pathname.includes('dapp/popups/approve') ||
-            $navigating.from.url.pathname.includes('login/Login')) {
+      if (navigating) {
+        if (navigating?.from?.url?.pathname) {
+          if (navigating.from.url.pathname.includes('dapp/popups/approve') ||
+            navigating.from.url.pathname.includes('login/Login')) {
             pass = true;
           }
         }
@@ -73,21 +70,6 @@
       log.error(e);
     }
   }
-
-  // if (!requestId) requestId = '';
-
-  // if (browserSvelte) {
-  //   async function checkCurrentlySelected() {
-  //     try {
-  //       if (!currentlySelected?.shortcuts?.accountName) {
-  //         currentlySelected = await getYakklCurrentlySelected();
-  //       }
-  //     } catch(e) {
-  //       console.log(e);
-  //     }
-  //   }
-  //   checkCurrentlySelected().then();
-  // }
 
   async function getAccounts() {
     try {
@@ -458,9 +440,9 @@
 
       await close();
 
-    } catch (e) {
-      log.error('Dapp - accounts process error:', e);
-      errorValue = e as string;
+    } catch (error: any) {
+      log.error('Dapp - accounts process error:', true, error);
+      errorValue = error as string;
       resetValuesExcept('showFailure');
     }
   }
@@ -518,7 +500,7 @@ async function close() {
   <div class="modal-box relative">
 
     <h3 class="text-lg font-bold">Connect to {domain}</h3>
-    <p class="py-4">This will connect <span class="font-bold">{domain}</span> to {accountsPicked}  of your addresses! Do you wish to continue?</p>
+    <p class="py-4">This will connect <span class="font-bold">{domain}</span> to {accountsPicked} of your addresses! Do you wish to continue?</p>
     <div class="modal-action">
       <button class="btn" onclick={()=>showConfirm = false}>Cancel</button>
       <button class="btn" onclick={handleProcess}>Yes</button>

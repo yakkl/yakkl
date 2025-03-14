@@ -12,14 +12,14 @@ import { onPortInternalListener } from "$lib/common/listeners/ui/portListeners";
 import { onEthereumListener } from "$lib/common/listeners/background/backgroundListeners";
 import { onEIP6963Listener } from "$lib/extensions/chrome/eip-6963";
 import { onDappListener } from "$lib/extensions/chrome/dapp";
-import { browser_ext } from "$lib/common/environment";
+import browser from "webextension-polyfill";
 import { log } from "$lib/plugins/Logger";
 
 export let requestsExternal = new Map< string, { data: unknown; } >();
 
+const browser_ext = browser;
+
 type RuntimePort = Runtime.Port;
-// type RuntimeSender = Runtime.MessageSender;
-// type RuntimePlatformInfo = Runtime.PlatformInfo;
 
 const portsExternal = new Map();
 let portsDapp: RuntimePort[] = [];
@@ -33,6 +33,7 @@ export async function onPortConnectListener(port: RuntimePort) {
     if (!port) {
       throw "Port was undefined for onConnect.";
     }
+
     if (port.sender && port.sender.tab && port.name === YAKKL_EXTERNAL) {
       portsExternal.set(port.sender.tab.id, port);
     }
@@ -45,8 +46,6 @@ export async function onPortConnectListener(port: RuntimePort) {
         portsInternal.push(port);
       }
     }
-
-    // debug_log('portListeners - onPortConnectListener', portsExternal, portsDapp, portsInternal, port);
 
     // TBD - NOTE: May want to move to .sendMessage for sending popup launch messages!!!!!!!
     // May want to revist this and simplify
@@ -103,7 +102,8 @@ export async function onPortConnectListener(port: RuntimePort) {
         }
       break;
       default:
-        throw `Message ${port.name} is not supported`;
+        log.info(`Message ${port.name} is not recognized.`);
+        break;
     }
   } catch(error) {
     log.error("onPortConnectListener:", false, error);
@@ -111,10 +111,10 @@ export async function onPortConnectListener(port: RuntimePort) {
 }
 
 export async function onPortDisconnectListener(port: RuntimePort): Promise<void> {
-  try {
-    // debug_log('background - onDisconnectListener', port);
+  if (!browser_ext) return;
 
-    if (browser_ext.runtime.lastError) {
+  try {
+    if (browser_ext.runtime?.lastError) {
       log.error('Background - portListeners - lastError', false, browser_ext.runtime.lastError);
     }
     if (port) {
@@ -146,7 +146,7 @@ export async function onPortDisconnectListener(port: RuntimePort): Promise<void>
 //@ts-ignore
 export async function onPortExternalListener(event, sender): Promise<void> {
   try {
-    // debug_log('yakkl - background - onPortExternalListener', event, sender);
+    if (!browser_ext) return;
 
     if (event.method) {
       let yakklCurrentlySelected;
@@ -289,6 +289,8 @@ export async function onPortExternalListener(event, sender): Promise<void> {
 // Has to check the method here too since this function gets called from different places
 export async function onPopupLaunchListener(m: { popup: string; }, p: { postMessage: ( arg0: { popup: string; } ) => void; }) {
   try {
+    if (!browser_ext) return;
+
     // try/catch should catch if m or p are undefined
     if (m.popup && m.popup === "YAKKL: Splash") {
       // @ts-ignore

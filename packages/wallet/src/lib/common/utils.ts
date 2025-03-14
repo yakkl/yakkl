@@ -7,6 +7,12 @@ import { ethers as ethersv6 } from 'ethers-v6';
 import { get } from 'svelte/store';
 import { log } from "$lib/plugins/Logger";
 
+// For ssr checks during compiling
+export function isServerSide(): boolean {
+  return typeof window === 'undefined' ||
+         typeof document === 'undefined';
+}
+
 // This should represent the .id property of given objects for uniqueness
 export function getUserId(): string {
   let userId = localStorage.getItem('anonymous_user_id');

@@ -7,6 +7,7 @@
 
   onMount(async () => {
     try {
+      log.debug('+page.svelte (app level) - onMount');
       // Redirect based on settings
       const yakklSettings = await getSettings();
       if (!yakklSettings.legal.termsAgreed) {

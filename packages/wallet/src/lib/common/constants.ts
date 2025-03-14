@@ -1,7 +1,7 @@
 // IMPORTANT NOTE: Edit 'constants.mustache' since it is the template for 'constants.ts'
 
 // Global shared constants. Network specifics are in the network/<whatever>/contants.js file
-export const VERSION = "1.4.0";
+export const VERSION = "1.4.1";
 
 export const YEAR = "2024"; // Instead of computing year since user can change date on system - use a constant
 
@@ -25,6 +25,9 @@ export const TIMER_IDLE_THRESHOLD = 120000; //milliseconds (2 minutes)
 export const TIMER_IDLE_LOCK_DELAY = 60000; //milliseconds (1 minute)
 export const TIMER_IDLE_CHECK_INTERVAL = 15000; //milliseconds (15 seconds)
 export const TIMER_IDLE_CHECK_INTERVAL_APP_WIDE = 15000; //milliseconds (15 seconds)
+export const TIMER_GAS_PRICE_CHECK = 'gas_checkGasPrices';
+
+
 export const TIMEOUT_COPY_TO_CLIPBOARD = 20000; //milliseconds - redacts the clipboard after this time
 
 // Retry and backoff constants
@@ -92,6 +95,7 @@ export const STORAGE_YAKKL_CONNECTED_DOMAINS = "yakklConnectedDomains";
 
 export const STORAGE_YAKKL_WALLET_PROVIDERS = "yakklWalletProviders";
 export const STORAGE_YAKKL_WALLET_BLOCKCHAINS = "yakklWalletBlockchains";
+export const STORAGE_YAKKL_WALLET_ACTIVE_TAB = "yakklWalletActiveTab";
 
 export const STORAGE_YAKKL_MEMPOOL = "yakklMemPool";
 

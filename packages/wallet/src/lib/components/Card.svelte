@@ -1,18 +1,15 @@
 <script lang="ts">
-  // Import statements
   import { goto } from '$app/navigation';
   import { SpeedDial, SpeedDialButton } from 'flowbite-svelte';
   import { yakklPricingStore, setYakklCurrentlySelectedStorage, getYakklCurrentlySelected, getMiscStore, yakklCurrentlySelectedStore, yakklAccountsStore, yakklCombinedTokenStore } from '$lib/common/stores';
   import { PATH_LOGOUT } from '$lib/common/constants';
   import { onDestroy, onMount } from 'svelte';
-  import { truncate, timeoutClipboard } from "$lib/utilities/utilities";
+  import { truncate } from "$lib/utilities/utilities";
   import { encryptData, decryptData } from '$lib/common/encryption';
   import { checkPricesCallback, startPricingChecks, stopCheckPrices } from '$lib/tokens/prices';
   import ErrorNoAction from '$lib/components/ErrorNoAction.svelte';
   import { NetworkType, getInstances, isEncryptedData, type CurrentlySelectedData, type Network, type TokenData, type YakklAccount } from '$lib/common';
   import type { BigNumberish } from '$lib/common/bignumber';
-  import { Toast } from 'flowbite-svelte';
-  import { slide } from 'svelte/transition';
   import { Wallet } from '$lib/plugins/Wallet';
   import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
 	import Accounts from './Accounts.svelte';
@@ -30,13 +27,7 @@
 	import { handleOnMessageForPricing } from '$lib/common/listeners/ui/uiListeners';
   import { log } from "$plugins/Logger";
 	import Copy from './Copy.svelte';
-
-  // import { PriceManager } from '$lib/plugins/PriceManager';
-	// import { createPriceUpdater } from '$lib/common/createPriceUpdater';
-	// import { tokenManager } from '$lib/common/stores/tokenManager';
-	// import { get } from 'svelte/store';
-	// import { isEqual } from 'lodash-es';
-	// import type { Runtime } from 'webextension-polyfill';
+  // import { broadcastToEIP6963Ports } from '$lib/extensions/chrome/eip-6963'; // Test
 
   interface Props {
     id?: string;
@@ -109,28 +100,7 @@
   let formattedEtherValue: string = $state('');
   let isDropdownOpen = $state(false);
 
-  // let priceUpdater = createPriceUpdater(new PriceManager(), 30000);
   let tokens: TokenData[] = [];
-  // let effectTimeout: NodeJS.Timeout;
-
-  //////// Toast
-  // let toastStatus = $state(false);
-  // let toastCounter = 3;
-  // let toastMessage = $state('Success');
-  // let toastType = 'success';
-
-  // function toastTrigger(count = 3, msg = 'Success') {
-  //   toastStatus = true;
-  //   toastCounter = count;
-  //   toastMessage = msg;
-  //   timeout();
-  // }
-  //////// Toast
-
-  // function timeout(): NodeJS.Timeout | void {
-  //   if (--toastCounter > 0) return setTimeout(timeout, 1000);
-  //   toastStatus = false;
-  // }
 
   $effect(() => {
     (async () => {
@@ -141,7 +111,7 @@
         }
         price = $yakklPricingStore.price ?? 0;
         const prevPrice = $yakklPricingStore.prevPrice ?? 0;
-        log.info('Price changed:', price, prevPrice);
+        log.info('Price changed:', false, price, prevPrice);
         if (price) {
           if (price !== prevPrice) { // Only update if the value changes - updateValuePriceFiat (balance update can cause a loop here so be mindful). This will be changing!
             await updateValuePriceFiat();
@@ -197,7 +167,7 @@
             browser_ext.runtime.onMessage.addListener(handleOnMessageForPricing);
           }
         } catch (error) {
-          log.error('Card - onMount - onMessage error. Continuing',error);
+          log.error('Card - onMount - onMessage error. Continuing', false, error);
         }
 
         startPricingChecks();
@@ -274,7 +244,7 @@
   async function updateValuePriceFiat(): Promise<void> {
     try {
       if (!$yakklCurrentlySelectedStore) {
-        log.info("No currently selected account.");
+        log.warn("No currently selected account.");
         resetPriceData();
         return;
       }
@@ -296,16 +266,15 @@
       const price = EthereumBigNumber.from($yakklPricingStore?.price ?? 0);
       if ($yakklCurrentlySelectedStore.shortcuts.value !== price) {
         const etherValue = parseFloat(formatEther($yakklCurrentlySelectedStore.shortcuts.value ?? 0n));
+
         if (!isNaN(etherValue) && $yakklPricingStore?.price) {
           const fiatValue = etherValue * $yakklPricingStore.price;
           const etherValueString = etherValue.toFixed(5);
-
           if (formattedEtherValue !== etherValueString) {
             formattedEtherValue = etherValueString;
           }
 
           const newFiatValue = currency ? currency.format(fiatValue) : "0.00";
-
           if (valueFiat !== newFiatValue) {
             valueFiat = newFiatValue;
           }
@@ -389,12 +358,11 @@
         ),
       };
 
-      // if (isEqual(updatedCurrentlySelected, $yakklCurrentlySelectedStore)) {
-      //   debug_log("[INFO]: Currently selected count has not changed.");
-      //   return;
-      // }
-
       await setYakklCurrentlySelectedStorage(updatedCurrentlySelected); // This will force a reactive update due to store update in function
+
+      // Update account change for EIP-6963 providers
+      // Test
+      // broadcastToEIP6963Ports('accountsChanged', [account.address]);
 
       // Update price and UI
       await updateWithCurrentlySelected();
@@ -496,11 +464,6 @@
     }
   }
 
-  // function handleCopy(e: any) {
-  //   toastTrigger(3, 'Copied to clipboard');
-  //   timeoutClipboard(20);
-  // }
-
   function formatEther(value: BigNumberish): string {
     try {
       const val = EthereumBigNumber.from(value);
@@ -512,6 +475,7 @@
     }
   }
 
+  // NOTE: Move the related following functions and the Modal to Upgrade.svelte components
   // const { form, errors, states, isValid, handleChange, handleSubmit } = createForm({
   //   initialValues: { email: "" },
   //   validationSchema: yup.object().shape({
@@ -608,6 +572,7 @@
 <Receive bind:show={showRecv} address={address} />
 <ImportPrivateKey bind:show={showAccountImportModal} onComplete={handleImport} className="text-gray-600 z-[999]"/>
 
+<!-- Move to Upgrade.svelte -->
 <!-- <Modal title="Upgrade to Pro" bind:open={upgrade} size="xs" class="xs" color="purple">
   <div class="text-center m-2">
     {#if !step1}
@@ -671,17 +636,6 @@
 </Modal> -->
 {/if}
 {/await}
-
-<!-- <Toast color="green" transition={slide} bind:toastStatus>
-
-      {#if toastType === 'success'}
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-      {/if}
-
-  {toastMessage}
-</Toast> -->
 
 <div class="visible print:hidden relative top-0 mx-2">
   <div style="z-index: 4; background-image: url('/images/{card}'); " class="visible print:hidden relative m-2 ml-0 mr-0 h-[261px] rounded-xl">

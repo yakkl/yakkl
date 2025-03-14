@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { browserSvelte } from '$lib/utilities/browserSvelte';
+  import { browser_ext, browserSvelte } from '$lib/common/environment';
   import { getYakklCurrentlySelected, yakklMiscStore, yakklDappConnectRequestStore, getYakklConnectedDomains, getYakklAccounts } from '$lib/common/stores';
   import { YAKKL_DAPP, ETH_BASE_SCA_GAS_UNITS, ETH_BASE_EOA_GAS_UNITS } from '$lib/common/constants';
   import { onMount, onDestroy } from 'svelte';
@@ -14,13 +14,9 @@
 
   let wallet: Wallet;
 
-  import type { Browser, Runtime } from 'webextension-polyfill';
-  import { getBrowserExt } from '$lib/browser-polyfill-wrapper';
-	import { verify } from '$lib/common/security';
+  import type { Runtime } from 'webextension-polyfill';
+  import { verify } from '$lib/common/security';
 	import { page } from '$app/state';
-
-  let browser_ext: Browser;
-  if (browserSvelte) browser_ext = getBrowserExt();
 
   type RuntimePort = Runtime.Port | undefined;
 
@@ -33,14 +29,14 @@
   let errorValue = $state('No domain/site name was found. Access to YAKKL® is denied.');
   let port: RuntimePort;
   let chainId: number;
-  let domain: string = $state();
-  let domainLogo: string = $state();
-  let domainTitle: string = $state();
+  let domain: string = $state('');
+  let domainLogo: string = $state('');
+  let domainTitle: string = $state('');
   let requestData: any;
   let method: string;
   let requestId = $yakklDappConnectRequestStore;
-  let userName: string = $state();
-  let password: string = $state();
+  let userName: string = $state('');
+  let password: string = $state('');
   let message;  // This gets passed letting the user know what the intent is
   let context;
   let smartContract = false;
@@ -144,7 +140,6 @@
     }
   });
 
-
   onDestroy( () => {
     if (browserSvelte) {
       if (port) {
@@ -156,157 +151,154 @@
     }
   });
 
-
-async function handleReject() {
-  try {
-    showConfirm = false;
-    showFailure = false;
-    showSuccess = false;
-  } catch(e) {
-    log.error(e);
-  } finally {
-    await bail();
-  }
-}
-
-
-async function bail() {
-  try {
-    if (port)
-      port.postMessage({method: method, response: {type: 'YAKKL_RESPONSE', data: {name: 'ProviderRPCError', code: 4001, message: 'User rejected the request.'}}, requestData: requestData});
-  } catch(e) {
-    log.error(e);
-  } finally {
-    if (browserSvelte) {
-      await close();
+  async function handleReject() {
+    try {
+      showConfirm = false;
+      showFailure = false;
+      showSuccess = false;
+    } catch(e) {
+      log.error(e);
+    } finally {
+      await bail();
     }
   }
-}
 
-async function close() {
-  await wait(1000);
-  if (port) {
-    port.disconnect();
-    // port.onMessage.removeListener();
-    port = undefined;
-  }
-  showSpinner = false;
-  window.close();
-}
-
-async function handleApprove() {
-  try {
-    showConfirm = false;
-    if (!userName || !password || !userName.trim() || !password.trim()) bail();
-
-    let profile = await verify(userName.toLowerCase().trim().replace('.nfs.id', '')+'.nfs.id'+password);
-    if (!profile) bail();
-
-    showSpinner = true;
-
-    let accountFrom = transaction.from;
-    let accounts = [];
-    accounts = await getYakklAccounts();
-    if (!accounts) bail();
-
-    const accountFound = accounts.find(element => { element.address === accountFrom});
-    if (!accountFound) bail();
-
-    const account = accountFound as YakklAccount;
-    if (isEncryptedData(account.data)) {
-      await decryptData(account.data, $yakklMiscStore).then(result => {
-        account.data = result as AccountData;
-      });
+  async function bail() {
+    try {
+      if (port)
+        port.postMessage({method: method, response: {type: 'YAKKL_RESPONSE', data: {name: 'ProviderRPCError', code: 4001, message: 'User rejected the request.'}}, requestData: requestData});
+    } catch(e) {
+      log.error(e);
+    } finally {
+      if (browserSvelte) {
+        await close();
+      }
     }
+  }
 
-    if (!(account.data as AccountData).privateKey) bail();
+  async function close() {
+    await wait(1000);
+    if (port) {
+      port.disconnect();
+      // port.onMessage.removeListener();
+      port = undefined;
+    }
+    showSpinner = false;
+    window.close();
+  }
 
-    // const privateKey = (account.data as AccountData).privateKey;
+  async function handleApprove() {
+    try {
+      showConfirm = false;
+      if (!userName || !password || !userName.trim() || !password.trim()) bail();
 
-    const blockchain = wallet.getBlockchain();
-				if (blockchain.isSmartContractSupported()) { // TODO: Look into adding an additional block check for other blockchains that support smart contracts
-					smartContract = await blockchain.isSmartContract(transaction.to as string) ?? false;
-				} else {
-					smartContract = false;
-				}
+      let profile = await verify(userName.toLowerCase().trim().replace('.nfs.id', '')+'.nfs.id'+password);
+      if (!profile) bail();
 
-    // Ethereum specific
-    gasLimit = smartContract === true ? ETH_BASE_SCA_GAS_UNITS : ETH_BASE_EOA_GAS_UNITS;
+      showSpinner = true;
 
-    if (transaction.data) {
-      handleIncreaseGasLimit(transaction.data.length * 68); // 68 may need to be more dynamic in the future. This is for EOA transactions that have hex data
-    } else {
+      let accountFrom = transaction.from;
+      let accounts = [];
+      accounts = await getYakklAccounts();
+      if (!accounts) bail();
+
+      const accountFound = accounts.find(element => { element.address === accountFrom});
+      if (!accountFound) bail();
+
+      const account = accountFound as YakklAccount;
+      if (isEncryptedData(account.data)) {
+        await decryptData(account.data, $yakklMiscStore).then(result => {
+          account.data = result as AccountData;
+        });
+      }
+
+      if (!(account.data as AccountData).privateKey) bail();
+
+      // const privateKey = (account.data as AccountData).privateKey;
+
+      const blockchain = wallet.getBlockchain();
+          if (blockchain.isSmartContractSupported()) { // TODO: Look into adding an additional block check for other blockchains that support smart contracts
+            smartContract = await blockchain.isSmartContract(transaction.to as string) ?? false;
+          } else {
+            smartContract = false;
+          }
+
+      // Ethereum specific
       gasLimit = smartContract === true ? ETH_BASE_SCA_GAS_UNITS : ETH_BASE_EOA_GAS_UNITS;
-      txGasLimitIncrease = 0;
+
+      if (transaction.data) {
+        handleIncreaseGasLimit(transaction.data.length * 68); // 68 may need to be more dynamic in the future. This is for EOA transactions that have hex data
+      } else {
+        gasLimit = smartContract === true ? ETH_BASE_SCA_GAS_UNITS : ETH_BASE_EOA_GAS_UNITS;
+        txGasLimitIncrease = 0;
+      }
+
+      if (currentlySelected?.shortcuts?.gasLimit)
+        gasLimit = currentlySelected?.shortcuts?.gasLimit;
+      // May want to do the same as we did in send transaction on increasing gasLimit if the data field contains data OR should we let the dApp specify the gasLimit?
+
+      transaction.gasLimit = gasLimit; // 21000 - EOA gasLimit and not SCA
+      transaction.nonce = -1;
+      transaction.type = 2; // EIP-1559
+
+      // TODO: Check the transaction object to see if it has the correct fields and values
+
+      tx = await wallet.sendTransaction(transaction);
+      if (tx) {
+        tx.wait().then(async () => {
+          await handleClose();
+        }).catch((e: any) => {
+          errorValue = `${e}`;
+          showFailure = true;
+          showSpinner = false;
+        });
+      } else {
+        throw 'No transaction was returned. Something went wrong.';
+      }
+    } catch(e) {
+      log.error(e);
+      errorValue = e as string;
+      showFailure = true;
     }
+  }
 
-    if (currentlySelected?.shortcuts?.gasLimit)
-      gasLimit = currentlySelected?.shortcuts?.gasLimit;
-    // May want to do the same as we did in send transaction on increasing gasLimit if the data field contains data OR should we let the dApp specify the gasLimit?
+  function handleIncreaseGasLimit(increase: number) {
+    try {
+      if (increase > 0) {
+        txGasLimitIncrease = increase;
+        gasLimit = gasLimit as bigint + BigInt(txGasLimitIncrease);
+      }
+    } catch(e) {
+      log.error(e);
+    }
+  }
 
-    transaction.gasLimit = gasLimit; // 21000 - EOA gasLimit and not SCA
-    transaction.nonce = -1;
-    transaction.type = 2; // EIP-1559
-
-    // TODO: Check the transaction object to see if it has the correct fields and values
-
-    tx = await wallet.sendTransaction(transaction);
-    if (tx) {
-      tx.wait().then(async () => {
-        await handleClose();
-      }).catch((e: any) => {
-        errorValue = `${e}`;
-        showFailure = true;
+  async function handleClose() {
+    try {
+      if (tx?.hash) {
+        if (port) {
+          port.postMessage({id: requestId, method: 'eth_sendTransaction', type: 'YAKKL_RESPONSE', result: tx.hash});
+        }
+      }
+      showSuccess = false;
+      if (browserSvelte) {
+        await wait(1000);
+        if (port) {
+          port.disconnect();
+          // port.onMessage.removeListener();
+          port = undefined;
+        }
         showSpinner = false;
-			});
-		} else {
-      throw 'No transaction was returned. Something went wrong.';
-    }
-  } catch(e) {
-    log.error(e);
-    errorValue = e as string;
-    showFailure = true;
-  }
-}
-
-function handleIncreaseGasLimit(increase: number) {
-  try {
-    if (increase > 0) {
-      txGasLimitIncrease = increase;
-      gasLimit = gasLimit as bigint + BigInt(txGasLimitIncrease);
-    }
-  } catch(e) {
-    log.error(e);
-  }
-}
-
-async function handleClose() {
-  try {
-    if (tx?.hash) {
-      if (port) {
-        port.postMessage({id: requestId, method: 'eth_sendTransaction', type: 'YAKKL_RESPONSE', result: tx.hash});
+        window.close();
       }
+    } catch(e) {
+      log.error(e);
     }
-    showSuccess = false;
-    if (browserSvelte) {
-      await wait(1000);
-      if (port) {
-        port.disconnect();
-        // port.onMessage.removeListener();
-        port = undefined;
-      }
-      showSpinner = false;
-      window.close();
-    }
-  } catch(e) {
-    log.error(e);
   }
-}
 
-
-function handleConfirm() {
-  showConfirm = true;
-}
+  function handleConfirm() {
+    showConfirm = true;
+  }
 
 </script>
 
@@ -386,7 +378,6 @@ function handleConfirm() {
 </div>
 {:then _}
 <div class="w-[96%] text-center justify-center m-2 flex flex-col absolute top-[225px]">
-  <!-- <Beta /> -->
   <div class="text-primary-content text-2xl font-bold flex flex-col">
     {domainTitle ?? ''}
     <br>

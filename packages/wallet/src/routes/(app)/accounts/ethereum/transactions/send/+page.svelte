@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { browserSvelte } from '$lib/utilities/browserSvelte';
+  import { browserSvelte } from '$lib/common/environment';
 	import { goto } from "$app/navigation";
 	import { yakklGasTransStore, yakklPricingStore, yakklContactsStore, getYakklContacts, yakklConnectionStore, getProfile, getSettings, getMiscStore, yakklCurrentlySelectedStore, getYakklCurrentlySelected } from '$lib/common/stores';
 	import { decryptData } from '$lib/common/encryption';

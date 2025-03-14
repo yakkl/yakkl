@@ -28,6 +28,8 @@ packages/wallet/*.tmp
 packages/wallet/*.wip
 packages/wallet/src/lib/plugins/swaps/uniswap/UniswapHelper.ts
 packages/wallet/src/lib/0tmp/
+packages/wallet/src/lib/new_format/ 
+#TODO: remove licensing later
 
 # Specific files and directories
 packages/wallet/package

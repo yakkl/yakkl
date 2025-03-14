@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { EventFilter, Addressable, YakklAccount, YakklChat, YakklConnectedDomain, YakklPrimaryAccount, YakklContact, Network, BigNumberish, TokenData } from '$lib/common';
+import type { EventFilter, Addressable, YakklAccount, YakklChat, YakklConnectedDomain, YakklPrimaryAccount, YakklContact, Network, BigNumberish, TokenData, ActiveTab } from '$lib/common';
 
 export type NotificationType = 'basic' | 'image' | 'list' | 'progress';
 
@@ -232,4 +232,34 @@ export interface LayoutData {
   yakklPreferences: Preferences | null;
   instances: [Wallet | null, Provider | null, Blockchain | null, TokenService<any> | null];
   yakklTokenDataStore: TokenData[];
+}
+
+// Used by the BackgroundManager to store messages in local storage
+export interface BaseMessage<T = unknown> {
+  type: string;
+  data: T;
+}
+
+// alias for the active tab data
+export interface TabChangeData extends ActiveTab {
+}
+
+export interface WindowFocusData {
+  windowId: number;
+  type?: string;
+}
+
+// Define all possible message types
+export type MessageTypes =
+  | BaseMessage<TabChangeData>
+  | BaseMessage<WindowFocusData>
+  // Add other message types here
+
+// Create an enum for message type strings
+export enum MessageType {
+  ACTIVE_TAB_CHANGED = 'ACTIVE_TAB_CHANGED',
+  TAB_UPDATED = 'TAB_UPDATED',
+  TAB_REMOVED = 'TAB_REMOVED',
+  WINDOW_FOCUSED = 'WINDOW_FOCUSED',
+  // ... other message types
 }

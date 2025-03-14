@@ -4,7 +4,7 @@ import { yakklGasTransStore, yakklConnectionStore } from "$lib/common/stores";
 import type { GasFeeTrend, BlocknativeResponse, GasTransStore, EstimatedPrice } from '$lib/common/interfaces';
 import { timerManager } from "$lib/plugins/TimerManager";
 import { log } from "$plugins/Logger";
-import { TIMER_CHECK_GAS_PRICE_INTERVAL_TIME } from "$lib/common";
+import { TIMER_CHECK_GAS_PRICE_INTERVAL_TIME, TIMER_GAS_PRICE_CHECK } from "$lib/common";
 
 const now = () => +Date.now() / 1000;
 
@@ -13,13 +13,11 @@ const gasFeeTrend: GasFeeTrend[] = [];
 
 async function checkGasPricesCB() {
   try {
-    if (timerManager.isRunning('gas_checkGasPrices')) {
+    if (timerManager.isRunning(TIMER_GAS_PRICE_CHECK)) {
       if (get(yakklConnectionStore) === true) {
         const results = await fetchBlocknativeData();
-
-        log.debug('gas.ts - checkGasPricesCB', false, results);
-
-        yakklGasTransStore.set({ provider: providerGasCB, id: timerManager.getTimeoutID('gas_checkGasPrices'), results });
+        // log.debug('gas.ts - checkGasPricesCB', false, results);
+        yakklGasTransStore.set({ provider: providerGasCB, id: timerManager.getTimeoutID(TIMER_GAS_PRICE_CHECK), results });
       }
     }
   } catch (error) {
@@ -33,7 +31,7 @@ function setGasCBProvider(provider: string | null) {
 
 export function stopCheckGasPrices() {
   try {
-    timerManager.stopTimer('gas_checkGasPrices');
+    timerManager.stopTimer(TIMER_GAS_PRICE_CHECK);
     setGasCBProvider(null);
   } catch (error) {
     log.error(error);
@@ -43,19 +41,19 @@ export function stopCheckGasPrices() {
 export function startCheckGasPrices(provider = 'blocknative', ms = TIMER_CHECK_GAS_PRICE_INTERVAL_TIME) {
   try {
     if (ms > 0) {
-      if (timerManager.isRunning('gas_checkGasPrices')) {
+      if (timerManager.isRunning(TIMER_GAS_PRICE_CHECK)) {
         return; // Already running
       }
 
       setGasCBProvider(provider);
-      if (!timerManager.isRunning('gas_checkGasPrices')) {
-        timerManager.addTimer('gas_checkGasPrices', checkGasPricesCB, ms);
-        timerManager.startTimer('gas_checkGasPrices');
+      if (!timerManager.isRunning(TIMER_GAS_PRICE_CHECK)) {
+        timerManager.addTimer(TIMER_GAS_PRICE_CHECK, checkGasPricesCB, ms);
+        timerManager.startTimer(TIMER_GAS_PRICE_CHECK);
       }
     }
   } catch (error) {
     log.error(error);
-    timerManager.stopTimer('gas_checkGasPrices');
+    timerManager.stopTimer(TIMER_GAS_PRICE_CHECK);
   }
 }
 
@@ -89,7 +87,7 @@ const debounce = <T>(fn: () => Promise<T>): () => Promise<T> => {
 const getBlocknativeData = memoizeAsync<BlocknativeResponse>(async () =>
   (
     await fetch(
-      "https://api.blocknative.com/gasprices/blockprices?confidenceLevels=99&confidenceLevels=95&confidenceLevels=90&confidenceLevels=80&confidenceLevels=70"
+      import.meta.env.VITE_GAS_BLOCKNATIVE_ENDPOINT
     )
   ).json()
 );
@@ -97,7 +95,7 @@ const getBlocknativeData = memoizeAsync<BlocknativeResponse>(async () =>
 const getEtherscanData = memoizeAsync(async () =>
   (
     await fetch(
-      "https://api.etherscan.io/api?module=gastracker&action=gasoracle"
+      import.meta.env.VITE_GAS_ETHERSCAN_ENDPOINT
     )
   ).json()
 );
@@ -105,7 +103,7 @@ const getEtherscanData = memoizeAsync(async () =>
 const getEGSData = memoizeAsync(async () =>
   (
     await fetch(
-      `https://ethgasstation.info/api/ethgasAPI.json?api-key=3923e07fd996632e1fbc897c859aa90a1f604bab3a2c22efa2780109db6f`
+      import.meta.env.VITE_GAS_ETHGASSTATION_ENDPOINT
     )
   ).json()
 );
