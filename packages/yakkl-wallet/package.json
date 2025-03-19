@@ -1,6 +1,6 @@
 {
 	"name": "wallet",
-	"version": "1.4.1",
+	"version": "1.5.1",
 	"version_sub": "",
 	"types": "index.d.ts",
 	"scripts": {
@@ -173,6 +173,7 @@
 		"svelte-confetti": "^2.2.0",
 		"url": "^0.11.4",
 		"uuid": "^10.0.0",
-		"vite-plugin-node-polyfills": "^0.22.0"
+		"vite-plugin-node-polyfills": "^0.22.0",
+		"@yakkl/security": "workspace:*"
 	}
 }

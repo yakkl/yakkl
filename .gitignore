@@ -4,76 +4,73 @@
 # Node modules
 node_modules/
 
+# Closed-source packages (completely ignored)
+packages/yakkl-security/
+packages/yakkl-backend/
+
 # Wallet build artifacts
-packages/wallet/.svelte-kit/
-packages/wallet/build/
-packages/wallet/node_modules/
+packages/yakkl-wallet/.svelte-kit/
+packages/yakkl-wallet/build/
+packages/yakkl-wallet/node_modules/
 
 # Contracts build artifacts
-packages/contracts/lib/
-packages/contracts/out/
-packages/contracts/cache/
-packages/contracts/node_modules/
-packages/contracts/code/anvil-test-data.txt
-packages/contracts/code/deployed_*_contracts.json
-packages/contracts/code/deployed_contracts.json
-packages/contracts/code/anvil-config.json
-packages/contracts/code/helper/
-packages/contracts/code/*.old
+packages/yakkl-contracts/lib/
+packages/yakkl-contracts/out/
+packages/yakkl-contracts/cache/
+packages/yakkl-contracts/node_modules/
+packages/yakkl-contracts/code/anvil-test-data.txt
+packages/yakkl-contracts/code/deployed_*_contracts.json
+packages/yakkl-contracts/code/deployed_contracts.json
+packages/yakkl-contracts/code/anvil-config.json
+packages/yakkl-contracts/code/helper/
+packages/yakkl-contracts/code/*.old
 **/4337/
 **/forge-tests.txt
 
+# Router service
+packages/yakkl-uniswap-alpha-router-service/dist/
+packages/yakkl-uniswap-alpha-router-service/coverage/
+
 # General patterns
-packages/wallet/*.tmp
-packages/wallet/*.wip
-packages/wallet/agents
-packages/wallet/src/lib/plugins/swaps/uniswap/UniswapHelper.ts
-packages/wallet/src/lib/0tmp/
-packages/wallet/src/lib/new_format/ 
-#TODO: remove licensing later
+packages/yakkl-wallet/*.tmp
+packages/yakkl-wallet/*.wip
+packages/yakkl-wallet/agents
+packages/yakkl-wallet/src/lib/plugins/swaps/uniswap/UniswapHelper.ts
+packages/yakkl-wallet/src/lib/0tmp/
+packages/yakkl-wallet/src/lib/new_format/ 
 
 # Specific files and directories
-packages/wallet/package
-packages/wallet/deadcode
-packages/wallet/research
-packages/wallet/*.http
-packages/wallet/.env
-packages/wallet/.env.*
-!packages/wallet/.env.example
+packages/yakkl-wallet/package
+packages/yakkl-wallet/deadcode
+packages/yakkl-wallet/research
+packages/yakkl-wallet/*.http
+packages/yakkl-wallet/.env
+packages/yakkl-wallet/.env.*
+!packages/yakkl-wallet/.env.example
 packages/**/.env
-packages/wallet/test-data-keyring.json
-packages/wallet/wip-colors
-packages/wallet/background.js.LICENSE.txt
-packages/wallet/background-no-edit.ts
-packages/wallet/*.pem
-packages/wallet/*.crx
-packages/wallet/*.zip
-packages/wallet/providers.json
-packages/wallet/test*.json
-packages/wallet/src/routes/(app)/ai/
-packages/wallet/src/routes/(app)/activities/
-packages/wallet/src/routes/(app)/components/
-packages/wallet/src/routes/(app)/dashboard/
-packages/wallet/src/routes/(app)/import/import-emergencykit/
-packages/wallet/src/routes/(app)/markets/
-packages/wallet/src/routes/(app)/nfts/
-packages/wallet/src/routes/(app)/security/**/*.tmp
-packages/wallet/src/routes/(app)/settings/
-packages/wallet/src/routes/(app)/smartContracts/
-packages/wallet/src/routes/(app)/university/
+packages/yakkl-wallet/test-data-keyring.json
+packages/yakkl-wallet/wip-colors
+packages/yakkl-wallet/background.js.LICENSE.txt
+packages/yakkl-wallet/background-no-edit.ts
+packages/yakkl-wallet/*.pem
+packages/yakkl-wallet/*.crx
+packages/yakkl-wallet/*.zip
+packages/yakkl-wallet/providers.json
+packages/yakkl-wallet/test*.json
 
 # Static files
-packages/wallet/static/manifest.json
-packages/wallet/static/ext/
+packages/yakkl-wallet/static/manifest.json
+packages/yakkl-wallet/static/ext/
 
 # Specific file patterns in subdirectories
-packages/wallet/src/lib/**/*.tmp
+packages/yakkl-wallet/src/lib/**/*.tmp
 
-# Optional: Specific patterns to match nested directories (alternative approach)
+# Optional: Specific patterns to match nested directories
 **/*.old
 **/*.tmp
 **/*.wip
 **/anvil-state
 
+# Lock files
 pnpm-lock.yaml
 package-lock.json
