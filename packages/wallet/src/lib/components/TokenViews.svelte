@@ -81,7 +81,7 @@
     {/if}
 
     {#if currentView === 'grid'}
-      <TokenGridView tokens={sortedTokens} onTokenClick={(token) => log.info('Clicked:', token)} /> <!-- default onTokenClick for future -->
+      <TokenGridView tokens={sortedTokens} onTokenClick={(token) => log.info('Clicked:', false, token)} /> <!-- default onTokenClick for future -->
     {:else if currentView === 'chart'}
       <TokenChartsView />
     {:else if currentView === 'news'}

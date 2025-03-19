@@ -34,6 +34,8 @@ export async function onPortConnectListener(port: RuntimePort) {
       throw "Port was undefined for onConnect.";
     }
 
+    log.info('onPortConnectListener - port', false, port);
+
     if (port.sender && port.sender.tab && port.name === YAKKL_EXTERNAL) {
       portsExternal.set(port.sender.tab.id, port);
     }
@@ -96,6 +98,7 @@ export async function onPortConnectListener(port: RuntimePort) {
       break;
       case YAKKL_PROVIDER_EIP6963:
         //@ts-ignore
+        log.info('onPortConnectListener - YAKKL_PROVIDER_EIP6963', false, port);
         if (!port.onMessage.hasListener(onEIP6963Listener)) {
           //@ts-ignore
           port.onMessage.addListener(onEIP6963Listener);
@@ -261,6 +264,9 @@ export async function onPortExternalListener(event, sender): Promise<void> {
         // These next two here in the event that the methods get through the content.ts and inpage.js
         case 'eth_chainId':
           yakklCurrentlySelected = await getObjectFromLocalStorage("yakklCurrentlySelected") as YakklCurrentlySelected;
+
+          log.info('eth_chainId - 6963 (portListener):', false, yakklCurrentlySelected.shortcuts.chainId);
+
           if (yakklCurrentlySelected?.shortcuts?.chainId) {
             const value = yakklCurrentlySelected.shortcuts.chainId;
             sender.postMessage({id: event.id, method: event.method, type: 'YAKKL_RESPONSE', result: value});
@@ -270,6 +276,8 @@ export async function onPortExternalListener(event, sender): Promise<void> {
           break;
         case 'net_version':
           yakklCurrentlySelected = await getObjectFromLocalStorage("yakklCurrentlySelected") as YakklCurrentlySelected;
+          log.info('net_version - 6963 (portListener):', false, yakklCurrentlySelected.shortcuts.chainId);
+
           if (yakklCurrentlySelected?.shortcuts?.chainId) {
             const value = yakklCurrentlySelected.shortcuts.chainId.toString();
             sender.postMessage({id: event.id, method: event.method, type: 'YAKKL_RESPONSE', result: value});

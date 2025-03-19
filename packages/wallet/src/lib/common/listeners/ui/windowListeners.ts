@@ -45,10 +45,10 @@ export function handleOnRemoveWindow(windowId: number) {
 }
 
 export function addWindowListeners() {
-   window.removeEventListener('unload', handleLockDown);
-   window.addEventListener('unload', handleLockDown);
+   window.removeEventListener('beforeunload', handleLockDown);
+   window.addEventListener('beforeunload', handleLockDown);
 }
 
 export function removeWindowListeners() {
-  window.removeEventListener('unload', handleLockDown);
+  window.removeEventListener('beforeunload', handleLockDown);
 }

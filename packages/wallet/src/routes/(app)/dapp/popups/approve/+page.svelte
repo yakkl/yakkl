@@ -198,78 +198,92 @@
   content={errorValue}
   handleReject={handleReject}/>
 
-<div class="modal" class:modal-open={showConfirm}>
-  <div class="modal-box relative">
-
-    <h3 class="text-lg font-bold">Connect to {domain}</h3>
-    <p class="py-4">This will connect <span class="font-bold">{domain}</span> to YAKKL®! Do you wish to continue?</p>
-    <div class="modal-action">
-      <button class="btn" onclick={handleReject}>Reject</button>
-      <button class="btn" onclick={handleIsLocked}>Yes, Approved</button>
+{#if showConfirm}
+<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+  <div class="bg-base-100 rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl">
+    <h3 class="text-lg font-bold mb-4">Connect to {domain}</h3>
+    <p class="mb-6">This will connect <span class="font-bold text-primary">{domain}</span> to YAKKL®. Do you wish to continue?</p>
+    <div class="flex justify-end gap-4">
+      <button class="btn btn-outline" onclick={handleReject}>Reject</button>
+      <button class="btn btn-primary" onclick={handleIsLocked}>Approve</button>
     </div>
   </div>
 </div>
+{/if}
 
-<!-- <div class="modal" class:modal-open={showFailure}>
-  <div class="modal-box relative">
-
-    <h3 class="text-lg font-bold">Failed!</h3>
-    <p class="py-4">{errorValue}</p>
-    <div class="modal-action">
-      <button class="btn" on:click={handleReject}>Close</button>
-    </div>
-  </div>
-</div> -->
-
-<div class="text-center justify-center m-2 flex flex-col absolute top-[250px]">
-  <div class="text-primary-content text-2xl font-bold flex flex-col">
-    {domainTitle ?? ''}
-    <br>
-    <div class="text-primary-content text-2xl font-bold flex flex-col mt-4">Wants to connect to:</div>
-  </div>
-  <div class="text-primary-content text-2xl font-bold flex flex-col mt-3">
-    Connect with YAKKL®
-  </div>
-  <div class="justify-center mt-5">
-    <div class="rounded-badge inline-flex w-fit p-2 bg-secondary text-base-content font-semibold">
-      <div class="flex flex-row w-10 h-10">
-        <img id="dappImageId" crossorigin="anonymous" src={domainLogo} alt="Dapp logo" />
+<div class="flex flex-col h-full">
+  <!-- Header -->
+  <div class="p-4 border-b border-base-300">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <img id="dappImageId" crossorigin="anonymous" src={domainLogo} alt="Dapp logo" class="w-8 h-8 rounded-full" />
+        <span class="font-semibold">{domainTitle || domain}</span>
       </div>
-      <div class="animate-pulse flex flex-row">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-8 h-8 fill-gray-100">
-          <path fill-rule="evenodd" d="M15.97 2.47a.75.75 0 011.06 0l4.5 4.5a.75.75 0 010 1.06l-4.5 4.5a.75.75 0 11-1.06-1.06l3.22-3.22H7.5a.75.75 0 010-1.5h11.69l-3.22-3.22a.75.75 0 010-1.06zm-7.94 9a.75.75 0 010 1.06l-3.22 3.22H16.5a.75.75 0 010 1.5H4.81l3.22 3.22a.75.75 0 11-1.06 1.06l-4.5-4.5a.75.75 0 010-1.06l4.5-4.5a.75.75 0 011.06 0z" clip-rule="evenodd" />
-        </svg>
-      </div>
-      <div class="flex flex-row w-10 h-10">
-        <img src="/images/logoBullFav48x48.png" alt="yakkl logo" />
-      </div>
-    </div>
-  </div>
-
-  <div class="text-center flex flex-col m-4 broder border-gray-500 bg-black">
-    <p class="text-base-content font-bold">Next steps may be (a) user verification, (b) selection of accounts, or (c) approval for signing the requested transaction for the selected account(s). You can reject at any step.</p>
-  </div>
-
-  <div class="my-4">
-    <div class="flex space-x-2 justify-center">
       <button
         onclick={handleReject}
-        class="btn-sm btn-accent uppercase rounded-full"
-        aria-label="Cancel">
+        class="btn btn-ghost btn-sm"
+        aria-label="Close">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="flex-1 p-6">
+    <div class="text-center mb-8">
+      <h2 class="text-xl font-bold mb-2">Connection Request</h2>
+      <p class="text-base-content/80">This site would like to:</p>
+    </div>
+
+    <div class="space-y-4 mb-8">
+      <div class="flex items-center gap-3 p-3 bg-base-200 rounded-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+        <span>View your wallet address</span>
+      </div>
+
+      <div class="flex items-center gap-3 p-3 bg-base-200 rounded-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>Request approval for transactions</span>
+      </div>
+    </div>
+
+    <div class="bg-base-200 rounded-lg p-4 mb-8">
+      <p class="text-sm text-base-content/70">
+        By connecting, you agree to allow this site to view your public address. This does not give permission to move funds.
+      </p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="p-4 border-t border-base-300">
+    <div class="flex gap-4 justify-end">
+      <button onclick={handleReject} class="btn btn-outline">
         Reject
       </button>
-
-      <button
-        type="submit"
-        id="recover"
-        onclick={handleApprove}
-        class="btn-sm btn-primary uppercase rounded-full ml-2"
-        aria-label="Confirm">
-        Approve
+      <button onclick={handleApprove} class="btn btn-primary">
+        Connect
       </button>
     </div>
   </div>
 </div>
+
+<style>
+  /* Add smooth transitions */
+  .btn {
+    transition: all 0.2s ease;
+  }
+
+  /* Improve hover states */
+  .btn:hover {
+    transform: translateY(-1px);
+  }
+</style>
 
 <Copyright />
 

@@ -2,14 +2,19 @@
 
 import { log } from "$lib/plugins/Logger";
 import type { Runtime } from "webextension-polyfill";
-import { getObjectFromLocalStorage, setObjectInLocalStorage } from "$lib/common/storage";
-import type { YakklCurrentlySelected } from "$lib/common/interfaces";
-import { ProviderRpcError, STORAGE_YAKKL_CURRENTLY_SELECTED } from "$lib/common";
+import { ProviderRpcError } from "$lib/common";
 import { showDappPopup } from "$lib/extensions/chrome/ui";
-import type { EIP6963Event, EIP6963Request, EIP6963Response } from "$lib/plugins/providers/network/ethereum_provider/EthereumProviderTypes";
+import type { EIP6963Request, EIP6963Response, EIP6963YakklEvent } from '$lib/plugins/providers/network/ethereum_provider/eip-types';
 import browser from "webextension-polyfill";
-import { handleAccountsRequest, isPermissionValid } from "$lib/permissions/handlers";
+import { isPermissionValid } from "$lib/permissions/handlers";
 import { initializePermissions } from "$lib/permissions";
+import { getBlock } from './legacy';
+import type { Block, BlockTag } from 'alchemy-sdk';
+import type { YakklCurrentlySelected } from '../../common/interfaces';
+import { STORAGE_YAKKL_CURRENTLY_SELECTED, YAKKL_PROVIDER_EIP6963 } from '$lib/common/constants';
+
+// Import estimateGas from legacy.ts
+// const { estimateGas } = await import('./legacy');
 
 type RuntimePort = Runtime.Port;
 
@@ -37,6 +42,29 @@ interface EIP6963Message {
     message: string;
   };
 }
+
+// Add before the handleEIP6963Request function
+type PermissionlessMethod = () => Promise<unknown> | unknown;
+type PermissionRequiredMethod = () => Promise<unknown>;
+
+interface PermissionlessMethods {
+  [key: string]: PermissionlessMethod;
+}
+
+interface PermissionRequiredMethods {
+  [key: string]: PermissionRequiredMethod;
+}
+
+// Add before handleEIP6963Request
+const EIP1193_ERRORS = {
+  USER_REJECTED: { code: 4001, message: 'User rejected the request' },
+  UNAUTHORIZED: { code: 4100, message: 'Unauthorized' },
+  UNSUPPORTED_METHOD: { code: 4200, message: 'Method not supported' },
+  DISCONNECTED: { code: 4900, message: 'Disconnected' },
+  CHAIN_DISCONNECTED: { code: 4901, message: 'Chain disconnected' },
+  INVALID_PARAMS: { code: -32602, message: 'Invalid parameters' },
+  INTERNAL_ERROR: { code: -32603, message: 'Internal error' }
+};
 
 /**
  * Get the origin from a request
@@ -81,6 +109,10 @@ function setupMessageListener() {
     sendResponse: (response?: any) => void
   ): true | Promise<unknown> => {
     try {
+      log.warn('Received message', false, message);
+      log.warn('Sender', false, sender);
+      log.warn('Send response', false, sendResponse);
+
       // Type guard to check if message has the expected structure
       const isEIP6963Message = (msg: any): msg is EIP6963Message => {
         return msg &&
@@ -136,65 +168,20 @@ export function initializeEIP6963() {
     // Initialize the permissions system
     initializePermissions();
 
-    browser.runtime.onConnect.addListener((port: RuntimePort) => {
-      if (port.name !== 'YAKKL_PROVIDER_EIP6963') return;
+    log.info('initializeEIP6963 - browser.runtime.onConnect', false);
 
-      const portId = `eip6963_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    browser.runtime.onConnect.addListener((port: RuntimePort) => {
+      if (port.name !== YAKKL_PROVIDER_EIP6963) return;
+
+      const portId = `eip6963_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
       eip6963Ports.set(portId, port);
 
-      log.debug('EIP-6963 port connected', false, { portId });
+      log.warn('EIP-6963 port connected', false, { portId });
 
-      port.onMessage.addListener((message: unknown) => {
-        const typedMessage = message as EIP6963Request;
-        if (!typedMessage || typeof typedMessage !== 'object' || typedMessage.type !== 'YAKKL_REQUEST:EIP6963') {
-          log.error('Invalid message format', false, message);
-          return;
-        }
-
-        const { id, method, params } = typedMessage;
-
-        log.debug('Processing EIP-6963 request', false, { id, method, params });
-
-        // Store the request details and timestamp
-        const requestId = id;
-
-        // Process the request
-        handleEIP6963Request(method, params)
-          .then((result) => {
-            log.debug('EIP-6963 request succeeded', false, { id, method, result });
-
-            // Send the response back
-            const response: EIP6963Response = {
-              id,
-              result,
-              method,
-              type: 'YAKKL_RESPONSE:EIP6963'
-            };
-
-            // Check if port is still connected
-            if (port.sender) {
-              port.postMessage(response);
-            } else {
-              log.warn('Port disconnected, cannot send response', false, { id, method });
-            }
-          })
-          .catch((error) => {
-            log.error('EIP-6963 request error', false, { id, method, error });
-
-            // Format the error appropriately
-            let errorMessage = error instanceof Error ? error.message : String(error);
-            let errorCode = error instanceof ProviderRpcError ? error.code : -32603; // Internal error by default
-
-            port.postMessage({
-              id,
-              error: {
-                code: errorCode,
-                message: errorMessage
-              },
-              method,
-              type: 'YAKKL_RESPONSE:EIP6963'
-            } as unknown as EIP6963Response);
-          });
+      // Use the exported onEIP6963Listener directly
+      port.onMessage.addListener(async (message: unknown) => {
+        log.debug('Received message in EIP-6963 port', false, { message, portId });
+        await onEIP6963Listener(message, port);
       });
 
       port.onDisconnect.addListener(() => {
@@ -225,180 +212,173 @@ export function initializeEIP6963() {
   }
 }
 
+// Helper function to handle getBlock
+async function handleGetBlock(chainId: number, block: BlockTag | Promise<BlockTag>): Promise<Block | undefined> {
+  return await getBlock(chainId, block, undefined);
+}
+
+// Helper function to handle estimateGas
+async function handleEstimateGas(chainId: number, params: any[]): Promise<unknown | undefined> {
+  return await estimateGas(params, undefined);
+}
+
+// Core EIP-1193 read methods
+const readMethods: Record<string, (params: any[], chainId?: number) => Promise<unknown>> = {
+  'eth_chainId': async () => {
+    // ... existing code ...
+  },
+  'eth_getBlockByNumber': async (params: any[], chainId?: number) => {
+    if (!chainId) {
+      throw new ProviderRpcError(4100, 'Chain ID not available');
+    }
+    try {
+      return await getBlock(chainId, params[0], undefined);
+    } catch (error) {
+      log.error('Error in eth_getBlockByNumber', false, error);
+      throw new ProviderRpcError(4200, error instanceof Error ? error.message : 'Failed to fetch block');
+    }
+  },
+  // ... existing code ...
+};
+
+// List of methods that don't require approval
+const noApprovalMethods = [
+  'eth_chainId',
+  'net_version',
+  'eth_accounts',
+  'eth_getBlockByNumber',
+  'eth_blockNumber',
+  'eth_call',
+  'eth_estimateGas',
+  'eth_gasPrice',
+  'eth_getBalance',
+  'eth_getCode',
+  'eth_getTransactionCount',
+  'eth_getTransactionReceipt',
+  'eth_getStorageAt',
+  'eth_getTransactionByHash',
+  'eth_getLogs'
+];
+
+// Modify handleEIP6963Request to handle read-only methods directly
 async function handleEIP6963Request(method: string, params: any[], requestContext?: any): Promise<any> {
   try {
-    // Default chain ID (mainnet)
-    const defaultChainId = 1;
+    log.warn('Handling EIP6963 request', false, { method, params });
 
-    log.debug('EIP-6963 request', false, { method, params });
-
-    // Get origin from the request context
-    const origin = getRequestOrigin(requestContext);
-
-    // Handle account-related methods using the permission system
-  if (method === 'eth_accounts' || method === 'eth_requestAccounts') {
-    return await handleAccountsRequest(method, origin);
-  }
     // Get current wallet state
-    const currentlySelected = await getObjectFromLocalStorage<YakklCurrentlySelected>(STORAGE_YAKKL_CURRENTLY_SELECTED);
+    const result = await browser.storage.local.get(STORAGE_YAKKL_CURRENTLY_SELECTED);
+    const yakklCurrentlySelected = result[STORAGE_YAKKL_CURRENTLY_SELECTED] as YakklCurrentlySelected;
 
-    log.debug('currentlyselected', false, currentlySelected);
+    if (!yakklCurrentlySelected) {
+      throw new ProviderRpcError(4100, 'Wallet not initialized');
+    }
 
-    const chainId = currentlySelected.shortcuts.chainId || defaultChainId;
-    const account = currentlySelected.shortcuts.address;
+    // Handle methods that don't require approval
+    if (noApprovalMethods.includes(method)) {
+      switch (method) {
+        case 'eth_chainId':
+          return `0x${yakklCurrentlySelected.shortcuts.chainId.toString(16)}`;
+        case 'net_version':
+          return yakklCurrentlySelected.shortcuts.chainId.toString();
+        case 'eth_accounts':
+          return yakklCurrentlySelected.shortcuts.address ? [yakklCurrentlySelected.shortcuts.address] : [];
+        case 'eth_getBlockByNumber':
+          try {
+            // Call getBlock without API key - it will be handled in the background
+            return await getBlock(yakklCurrentlySelected.shortcuts.chainId, params[0], undefined);
+          } catch (error) {
+            log.error('Error in eth_getBlockByNumber', false, error);
+            throw new ProviderRpcError(4200, error instanceof Error ? error.message : 'Failed to fetch block');
+          }
+        default:
+          // For other no-approval methods, still show popup for now
+          return await showEIP6963Popup(method, params);
+      }
+    }
 
-    log.debug('Current wallet state', false, {
-      hasCurrentlySelected: !!currentlySelected,
-      hasAddress: !!(currentlySelected?.shortcuts?.address),
-      chainId: currentlySelected?.shortcuts?.chainId
+    // For methods requiring approval, show popup
+    return await showEIP6963Popup(method, params);
+
+  } catch (error) {
+    log.error('Error in handleEIP6963Request', false, {
+      error,
+      method,
+      params,
+      errorMessage: error instanceof Error ? error.message : String(error)
     });
 
-    // Check if wallet is locked or not initialized
-    if (!currentlySelected || !currentlySelected.shortcuts?.address) {
-      if (method === 'eth_chainId') {
-        // Default to mainnet if no active wallet
-        return `0x${defaultChainId.toString(16)}`;
-      }
-
-      if (method === 'eth_accounts') {
-        // Return empty array if no account selected
-        return [];
-      }
-
-      if (method === 'eth_requestAccounts') {
-        // For requestAccounts, show the popup to allow user to unlock/select account
-        return await showEIP6963Approval(method, params);
-      }
-
-      throw new ProviderRpcError(4100, 'Wallet is locked or not initialized. Please open the wallet extension.');
+    if (error instanceof ProviderRpcError) {
+      throw error;
     }
 
-    // For other methods that require permission, check if the origin has valid permission
-    if (['eth_sendTransaction', 'eth_signTypedData_v3', 'eth_signTypedData_v4', 'personal_sign'].includes(method)) {
-      const hasPermission = await isPermissionValid(origin);
-      if (!hasPermission) {
-        throw new ProviderRpcError(4100, 'No permission to access accounts on this origin');
-      }
-    }
-
-    // Handle methods
-    switch (method) {
-      case 'eth_accounts':
-        return account ? [account] : [];
-
-      case 'eth_requestAccounts':
-        // For requestAccounts, we should prompt the user
-        if (!account) {
-          return await showEIP6963Approval(method, params);
-        }
-        return [account];
-
-      case 'eth_chainId':
-        return `0x${chainId.toString(16)}`;
-
-      case 'net_version':
-        // Return chain ID as decimal string
-        return chainId.toString();
-
-      case 'eth_sendTransaction':
-        // This requires user interaction through a popup
-        return await showEIP6963Popup(method, params);
-
-      case 'eth_signTypedData_v3':
-      case 'eth_signTypedData_v4':
-      case 'personal_sign':
-        return await showEIP6963Popup(method, params);
-
-      case 'wallet_switchEthereumChain':
-        try {
-          const newChainId = parseInt(params[0].chainId, 16);
-          // Update the current chain ID
-          if (currentlySelected.shortcuts) {
-            currentlySelected.shortcuts.chainId = newChainId;
-
-            // Update the network object too if available
-            if (currentlySelected.shortcuts.networks) {
-              const newNetwork = currentlySelected.shortcuts.networks.find(n => n.chainId === newChainId);
-              if (newNetwork) {
-                currentlySelected.shortcuts.network = newNetwork;
-              }
-            }
-
-            await setObjectInLocalStorage("yakklCurrentlySelected", currentlySelected);
-            // Broadcast chain change to all connected providers
-            broadcastToEIP6963Ports('chainChanged', `0x${newChainId.toString(16)}`);
-            return null;
-          }
-          throw new ProviderRpcError(4902, 'Cannot switch chain, wallet not initialized');
-        } catch (error) {
-          // If there's an error parsing chainId or something else
-          log.error('Error in wallet_switchEthereumChain', false, error);
-          throw new ProviderRpcError(4901, 'Failed to switch chain');
-        }
-
-      case 'wallet_addEthereumChain':
-        // Implement chain adding logic
-        return await showEIP6963Popup(method, params);
-
-      case 'eth_getBlockByNumber':
-      case 'eth_getBlockByHash':
-      case 'eth_estimateGas':
-      case 'eth_call':
-      case 'eth_getBalance':
-      case 'eth_getTransactionCount':
-      case 'eth_gasPrice':
-      case 'eth_getTransactionReceipt':
-        // These methods don't require user interaction, forward to the network
-        try {
-          // If you have a direct way to forward these to your node/RPC, implement it here
-          // For example, if you want to forward directly to an RPC endpoint:
-          // return await forwardRequestToRPC(method, params, chainId);
-
-          // Or handle via a popup that just shows the request is happening
-          return await showEIP6963Popup(method, params);
-        } catch (error) {
-          log.error(`Error handling RPC method ${method}`, false, error);
-          throw new ProviderRpcError(4200, `Error processing method: ${method}`);
-        }
-
-      default:
-        throw new ProviderRpcError(4200, `Method ${method} not supported`);
-    }
-  } catch (error) {
-    log.error('Error handling EIP-6963 request', false, error);
-    throw error;
+    throw new ProviderRpcError(
+      EIP1193_ERRORS.INTERNAL_ERROR.code,
+      error instanceof Error ? error.message : EIP1193_ERRORS.INTERNAL_ERROR.message
+    );
   }
 }
 
-// Function to broadcast to all connected EIP-6963 ports
+// Helper function to check wallet connection and permissions
+async function checkPermissionAndConnection(yakklCurrentlySelected: YakklCurrentlySelected): Promise<void> {
+  if (!yakklCurrentlySelected || yakklCurrentlySelected.shortcuts.isLocked) {
+    throw new ProviderRpcError(4100, 'Wallet is locked or not initialized');
+  }
+
+  const origin = getRequestOrigin();
+  const hasPermission = await isPermissionValid(origin);
+  if (!hasPermission) {
+    throw new ProviderRpcError(4100, 'No permission to access accounts on this origin');
+  }
+}
+
+// Update broadcastToEIP6963Ports to handle standard events
 export function broadcastToEIP6963Ports(event: string, data: any) {
   eip6963Ports.forEach(port => {
     try {
-      const message: EIP6963Event = {
+      // Standardize events according to EIP-1193
+      const message: EIP6963YakklEvent = {
         type: 'YAKKL_EVENT:EIP6963',
         event,
         data
       };
 
-      if (port.sender) { // Check if the port is still connected
+      if (port.sender) {
         port.postMessage(message);
+        log.debug('Broadcasted event to EIP-6963 port', false, { event, data });
+
+        // Handle special cases for chain changes
+        if (event === 'chainChanged') {
+          // Emit connect event with new chain
+          port.postMessage({
+            type: 'YAKKL_EVENT:EIP6963',
+            event: 'connect',
+            data: { chainId: data }
+          });
+        }
       }
     } catch (e) {
       log.error('Failed to broadcast to EIP-6963 port', false, e);
+      // Emit disconnect event on error
+      if (port.sender) {
+        port.postMessage({
+          type: 'YAKKL_EVENT:EIP6963',
+          event: 'disconnect',
+          data: { code: 4900, message: 'Disconnected' }
+        });
+      }
     }
   });
 }
 
 // Function to show the EIP-6963 approval popup
-// In showEIP6963Approval function in eip-6963.ts
 async function showEIP6963Approval(method: string, params: any): Promise<any> {
   return new Promise((resolve, reject) => {
     try {
       // Generate a unique request ID
-      const requestId = `eip6963_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const requestId = `eip6963_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
       log.debug('Showing EIP-6963 approval popup', false, { requestId, method, params });
 
-      // Store the request callbacks
+      // Store the request callbacks with the current timestamp
       requestsExternal.set(requestId, {
         resolve,
         reject,
@@ -411,9 +391,28 @@ async function showEIP6963Approval(method: string, params: any): Promise<any> {
       const popupUrl = `/dapp/popups/approve.html?requestId=${requestId}&source=eip6963&method=${method}`;
       log.debug('Opening popup with URL', false, popupUrl);
 
-      showDappPopup(popupUrl);
+      // Get current wallet state
+      browser.storage.local.get(STORAGE_YAKKL_CURRENTLY_SELECTED).then(result => {
+        const yakklCurrentlySelected = result[STORAGE_YAKKL_CURRENTLY_SELECTED] as YakklCurrentlySelected;
+        if (yakklCurrentlySelected?.shortcuts?.address) {
+          // If we already have an address, resolve immediately
+          log.debug('Already have an address, resolving immediately', false, {
+            address: yakklCurrentlySelected.shortcuts.address
+          });
+          resolve([yakklCurrentlySelected.shortcuts.address]);
+          requestsExternal.delete(requestId);
+        } else {
+          // Otherwise show the popup
+          showDappPopup(popupUrl).catch(error => {
+            log.error('Error showing popup', false, error);
+            reject(new ProviderRpcError(4001, 'Failed to show approval popup'));
+          });
+        }
+      }).catch(error => {
+        log.error('Error getting wallet state', false, error);
+        reject(new ProviderRpcError(4100, 'Failed to get wallet state'));
+      });
 
-      // Add a fallback timeout (your current implementation already has this in the periodic check)
     } catch (error) {
       log.error('Error showing EIP-6963 approval popup', false, error);
       reject(new ProviderRpcError(4001, 'User rejected the request'));
@@ -426,7 +425,7 @@ async function showEIP6963Popup(method: string, params: any): Promise<any> {
   return new Promise((resolve, reject) => {
     try {
       // Generate a unique request ID
-      const requestId = `eip6963_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const requestId = `eip6963_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 
       // Store the request callbacks with the current timestamp
       requestsExternal.set(requestId, {
@@ -461,7 +460,7 @@ export function getEIP6963RequestsMap() {
 }
 
 // Function to resolve an EIP-6963 request (called from the popup)
-export function resolveEIP6963Request(requestId: string, result: any) {
+export async function resolveEIP6963Request(requestId: string, result: any) {
   const request = requestsExternal.get(requestId);
   if (request) {
     log.debug('Resolving EIP-6963 request', false, {
@@ -473,15 +472,37 @@ export function resolveEIP6963Request(requestId: string, result: any) {
     request.resolve(result);
     requestsExternal.delete(requestId);
 
-    // If the result includes accounts and it's an eth_requestAccounts or eth_accounts
-    if ((request.method === 'eth_requestAccounts' || request.method === 'eth_accounts') &&
-        Array.isArray(result) && result.length > 0) {
+    // Handle state change events
+    switch (request.method) {
+      case 'eth_requestAccounts':
+      case 'eth_accounts':
+        if (Array.isArray(result) && result.length > 0) {
+          const currentState = await browser.storage.local.get(STORAGE_YAKKL_CURRENTLY_SELECTED);
+          const yakklCurrentlySelected = currentState[STORAGE_YAKKL_CURRENTLY_SELECTED] as YakklCurrentlySelected;
+          broadcastToEIP6963Ports('accountsChanged', result);
+          broadcastToEIP6963Ports('connect', {
+            chainId: `0x${yakklCurrentlySelected.shortcuts.chainId.toString(16)}`
+          });
+        }
+        break;
 
-      // Broadcast accountsChanged event
-      broadcastToEIP6963Ports('accountsChanged', result);
+      case 'wallet_switchEthereumChain':
+        if (result === null) { // Successful chain switch
+          const currentState = await browser.storage.local.get(STORAGE_YAKKL_CURRENTLY_SELECTED);
+          const yakklCurrentlySelected = currentState[STORAGE_YAKKL_CURRENTLY_SELECTED] as YakklCurrentlySelected;
+          const chainIdHex = `0x${yakklCurrentlySelected.shortcuts.chainId.toString(16)}`;
+          broadcastToEIP6963Ports('chainChanged', chainIdHex);
+        }
+        break;
 
-      // Also broadcast connect event with chainId
-      broadcastToEIP6963Ports('connect', { chainId: '0x1' }); // Use actual chainId here
+      case 'wallet_addEthereumChain':
+        if (result === null) { // Successful chain add
+          const currentState = await browser.storage.local.get(STORAGE_YAKKL_CURRENTLY_SELECTED);
+          const yakklCurrentlySelected = currentState[STORAGE_YAKKL_CURRENTLY_SELECTED] as YakklCurrentlySelected;
+          const chainIdHex = `0x${yakklCurrentlySelected.shortcuts.chainId.toString(16)}`;
+          broadcastToEIP6963Ports('chainChanged', chainIdHex);
+        }
+        break;
     }
 
     return true;
@@ -526,53 +547,118 @@ export function rejectEIP6963Request(requestId: string, error: any) {
 }
 
 // Function to handle EIP-6963 port messages
-export function onEIP6963Listener(message: unknown, port: Runtime.Port) {
-  const typedMessage = message as EIP6963Request;
-  if (!typedMessage || typeof typedMessage !== 'object' || typedMessage.type !== 'YAKKL_REQUEST:EIP6963') {
-    log.error('Invalid message format in onEIP6963Listener', false, message);
+export async function onEIP6963Listener(message: unknown, port: Runtime.Port) {
+  log.warn('onEIP6963Listener received message:', false, message);
+
+  if (!message || typeof message !== 'object') {
+    log.error('Invalid message format', false, message);
     return;
   }
 
-  const { id, method, params } = typedMessage;
+  const { id, method, params } = message as { id: number; method: string; params?: any[] };
 
-  log.debug('Processing EIP-6963 request via legacy listener', false, { id, method, params });
+  try {
+    const result = await handleEIP6963Request(method, params || []);
+    log.warn('handleEIP6963Request result:', false, { result, method });
 
-  // Process the request
-  handleEIP6963Request(method, params)
-    .then((result) => {
-      log.debug('EIP-6963 request succeeded via legacy listener', false, { id, method, result });
+    if (!port.sender) {
+      log.error('Port disconnected, cannot send response');
+      return;
+    }
 
-      // Send the response back
-      const response: EIP6963Response = {
-        id,
-        result,
-        method,
-        type: 'YAKKL_RESPONSE:EIP6963'
-      };
+    // For provider methods that should return raw values
+    if (['eth_accounts', 'eth_chainId', 'eth_requestAccounts', 'net_version'].includes(method)) {
+      log.debug('Sending raw provider response:', false, { method, result });
+      port.postMessage(result);
+      return;
+    }
 
-      // Check if port is still connected
-      if (port.sender) {
-        port.postMessage(response);
-      } else {
-        log.warn('Port disconnected, cannot send response', false, { id, method });
-      }
-    })
-    .catch((error) => {
-      log.error('EIP-6963 request error via legacy listener', false, { id, method, error });
+    // For error responses
+    if (result instanceof Error || (result && 'code' in result && 'message' in result)) {
+      log.debug('Sending error response:', false, result);
+      port.postMessage({ error: result });
+      return;
+    }
 
-      // Format the error appropriately
-      let errorMessage = error instanceof Error ? error.message : String(error);
-      let errorCode = error instanceof ProviderRpcError ? error.code : -32603; // Internal error by default
-
-      port.postMessage({
-        id,
-        error: {
-          code: errorCode,
-          message: errorMessage
-        },
-        method,
-        type: 'YAKKL_RESPONSE:EIP6963'
-      } as unknown as EIP6963Response);
+    // For standard responses
+    port.postMessage({
+      type: 'YAKKL_RESPONSE:EIP6963',
+      id,
+      result
     });
+    log.debug('Response sent successfully:', false, { id, result });
+
+  } catch (error) {
+    log.error('Request failed', false, { error, method });
+    const errorResponse = {
+      code: error instanceof ProviderRpcError ? error.code : 4001,
+      message: error instanceof Error ? error.message : "Unknown error occurred"
+    };
+
+    if (port.sender) {
+      port.postMessage({ error: errorResponse });
+    }
+  }
+}
+
+async function switchEthereumChain(params: any[]): Promise<null> {
+  try {
+    const newChainId = parseInt(params[0].chainId, 16);
+    // Update chain through appropriate mechanism
+    broadcastToEIP6963Ports('chainChanged', `0x${newChainId.toString(16)}`);
+    return null;
+  } catch (error) {
+    log.error('Error in wallet_switchEthereumChain', false, error);
+    throw new ProviderRpcError(4901, 'Failed to switch chain');
+  }
+}
+
+async function addEthereumChain(params: any[]): Promise<null> {
+  return await showEIP6963Popup('wallet_addEthereumChain', params);
+}
+
+async function getBlockByNumber(params: any[]): Promise<any> {
+  const result = await browser.storage.local.get(STORAGE_YAKKL_CURRENTLY_SELECTED);
+  const yakklCurrentlySelected = result[STORAGE_YAKKL_CURRENTLY_SELECTED] as YakklCurrentlySelected;
+  if (!yakklCurrentlySelected?.shortcuts?.chainId) {
+    throw new ProviderRpcError(4100, 'Wallet not initialized');
+  }
+  return await showEIP6963Popup('eth_getBlockByNumber', params);
+}
+
+async function estimateGas(params: any[], apiKey: string): Promise<any> {
+  const result = await browser.storage.local.get(STORAGE_YAKKL_CURRENTLY_SELECTED);
+  const yakklCurrentlySelected = result[STORAGE_YAKKL_CURRENTLY_SELECTED] as YakklCurrentlySelected;
+  if (!yakklCurrentlySelected?.shortcuts?.chainId) {
+    throw new ProviderRpcError(4100, 'Wallet not initialized');
+  }
+  return await showEIP6963Popup('eth_estimateGas', params);
+}
+
+// Add parameter validation
+function validateParams(method: string, params: any[]): boolean {
+  try {
+    switch (method) {
+      case 'eth_sendTransaction':
+        return params.length === 1 && typeof params[0] === 'object';
+      case 'eth_sign':
+        return params.length === 2 && typeof params[0] === 'string' && typeof params[1] === 'string';
+      case 'personal_sign':
+        return params.length === 3 && typeof params[0] === 'string' && typeof params[1] === 'string';
+      case 'eth_signTypedData_v4':
+      case 'eth_signTypedData_v3':
+        return params.length === 2 && typeof params[0] === 'string' && typeof params[1] === 'string';
+      case 'wallet_switchEthereumChain':
+        return params.length === 1 && typeof params[0] === 'object' && typeof params[0].chainId === 'string';
+      case 'wallet_addEthereumChain':
+        return params.length === 1 && typeof params[0] === 'object' && typeof params[0].chainId === 'string';
+      // Add more method validations as needed
+      default:
+        return true; // Default to true for methods without specific validation
+    }
+  } catch (error) {
+    log.error('Parameter validation error', false, { method, params, error });
+    return false;
+  }
 }
 

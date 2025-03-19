@@ -23,6 +23,7 @@ import type { GasEstimate, HistoricalGasData, GasPrediction } from '$lib/common/
 import type { Token } from '$plugins/Token';
 import { TokenService } from './blockchains/evm/TokenService';
 import { log } from '$plugins/Logger';
+import { browserSvelte, browser_ext } from '$lib/common/environment';
 
 export const walletStore = writable<Wallet | null>(null);
 
@@ -55,6 +56,16 @@ export class Wallet {
     this.privateKey = privateKey; // This is the user's private key
     this.initialize();
     Wallet.setInstance(this); // Any change to the wallet instance should update the store
+
+    // Send initial state change message
+    if (browserSvelte) {
+      browser_ext.runtime.sendMessage({
+        type: 'YAKKL_STATE_CHANGE',
+        data: { chainId }
+      }).catch((error: Error) => {
+        log.error('Error sending initial chain change message', true, error);
+      });
+    }
   }
 
   /**
@@ -263,9 +274,19 @@ export class Wallet {
 
   async setChainId(chainId: number): Promise<void> {
     this.chainId = chainId;
-    this.blockchain?.setChainId( chainId );
-    this.provider?.setChainId( chainId );
+    this.blockchain?.setChainId(chainId);
+    this.provider?.setChainId(chainId);
     Wallet.setInstance(this);
+
+    // Send state change message for chain ID update
+    if (browserSvelte) {
+      browser_ext.runtime.sendMessage({
+        type: 'YAKKL_STATE_CHANGE',
+        data: { chainId }
+      }).catch((error: Error) => {
+        log.error('Error sending chain change message', true, error);
+      });
+    }
   }
 
   /**

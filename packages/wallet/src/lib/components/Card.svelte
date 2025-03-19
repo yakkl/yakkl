@@ -27,6 +27,8 @@
 	import { handleOnMessageForPricing } from '$lib/common/listeners/ui/uiListeners';
   import { log } from "$plugins/Logger";
 	import Copy from './Copy.svelte';
+  import { TimerManager } from '$lib/plugins/TimerManager';
+  import { updateTokenPrices } from '$lib/common/tokenPriceManager';
   // import { broadcastToEIP6963Ports } from '$lib/extensions/chrome/eip-6963'; // Test
 
   interface Props {
@@ -171,6 +173,7 @@
         }
 
         startPricingChecks();
+        await updateTokenPrices(); // Initial token price update
 
         // toastStatus = false;
         if (!$yakklCurrentlySelectedStore) yakklCurrentlySelectedStore.set(await getYakklCurrentlySelected());
@@ -331,7 +334,7 @@
         return;
       }
 
-      let updatedCurrentlySelected = $yakklCurrentlySelectedStore; // Could just use $yakklCurrentlySelectedStore directly since the assignment is not reactive and only a reference
+      let updatedCurrentlySelected = $yakklCurrentlySelectedStore;
 
       if (updatedCurrentlySelected && isEncryptedData(updatedCurrentlySelected.data)) {
         updatedCurrentlySelected.data = (await decryptData(updatedCurrentlySelected.data, yakklMiscStore)) as CurrentlySelectedData;
@@ -358,11 +361,20 @@
         ),
       };
 
-      await setYakklCurrentlySelectedStorage(updatedCurrentlySelected); // This will force a reactive update due to store update in function
+      await setYakklCurrentlySelectedStorage(updatedCurrentlySelected);
 
-      // Update account change for EIP-6963 providers
-      // Test
-      // broadcastToEIP6963Ports('accountsChanged', [account.address]);
+      // Send state change message for account update
+      if (browserSvelte) {
+        browser_ext.runtime.sendMessage({
+          type: 'YAKKL_STATE_CHANGE',
+          data: {
+            address: account.address,
+            accounts: [account.address]
+          }
+        }).catch((error: Error) => {
+          log.error('Error sending account change message', true, error);
+        });
+      }
 
       // Update price and UI
       await updateWithCurrentlySelected();
@@ -384,7 +396,7 @@
           return;
         }
 
-        const currentlySelected = $yakklCurrentlySelectedStore; // Could just use $yakklCurrentlySelectedStore directly since the assignment is not reactive and only a reference
+        const currentlySelected = $yakklCurrentlySelectedStore;
         $yakklCurrentlySelectedStore.shortcuts.chainId = net.chainId;
         chainId = net.chainId;
         network = net;
@@ -404,11 +416,22 @@
           currentlySelected.data = encryptedData;
         }
 
-        await setYakklCurrentlySelectedStorage(currentlySelected); // Only want one update
+        await setYakklCurrentlySelectedStorage(currentlySelected);
         await updateValuePriceFiat();
         if (wallet && provider && blockchain && tokenService) {
           tokenService.updateTokenBalances($yakklCurrentlySelectedStore.shortcuts.address);
         }
+
+        // Send state change message for chain ID update
+        if (browserSvelte) {
+          browser_ext.runtime.sendMessage({
+            type: 'YAKKL_STATE_CHANGE',
+            data: { chainId: net.chainId }
+          }).catch((error: Error) => {
+            log.error('Error sending chain change message', true, error);
+          });
+        }
+
         // Close the dropdown
         isDropdownOpen = false;
       }

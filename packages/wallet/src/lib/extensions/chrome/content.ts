@@ -1,19 +1,23 @@
 // content.ts
 import { Duplex } from 'readable-stream';
-import { YAKKL_EXTERNAL, YAKKL_PROVIDER_EIP6963, YAKKL_PROVIDER_ETHEREUM } from '$lib/common/constants';
+import { YAKKL_PROVIDER_EIP6963 } from '$lib/common/constants';
 import type { Runtime } from 'webextension-polyfill';
-import { getIcon } from '$lib/common/icon';
-import { extractFQDN } from '$lib/common/misc';
-import type { MetaDataParams } from '$lib/common/interfaces';
 import { log } from '$lib/plugins/Logger';
 import browser from 'webextension-polyfill';
 
 type RuntimePort = Runtime.Port;
 
-// We only want to receive events from the inpage (injected) script
+// We only want to receive events from the inpage script
 const windowOrigin = window.location.origin;
-let portExternal: RuntimePort | undefined = undefined;
 let portEIP6963: RuntimePort | undefined = undefined;
+let contentStream: PortDuplexStream | undefined = undefined;
+let reconnectAttempts = 0;
+let isConnecting = false;  // Add connection state tracking
+const MAX_RECONNECT_ATTEMPTS = 5;
+const INITIAL_RECONNECT_DELAY = 1000; // 1 second
+
+// Add a flag to track extension context validity
+let isExtensionContextValid = true;
 
 class PortDuplexStream extends Duplex {
   private port: RuntimePort;
@@ -63,226 +67,278 @@ class PortDuplexStream extends Duplex {
   }
 }
 
-function createLegacyPort(name: string) {
-  try {
-    // Should only be one. All frames use the same port OR there should only be an injection into the top frame (one content script per tab)
-    if (portExternal || !browser) {
-      return;
-    }
-    portExternal = browser.runtime.connect({
-      name: name
-    });
-    if (portExternal) {
-      portExternal.onMessage.addListener(onMessageListener());
-      portExternal.onDisconnect.addListener(onDisconnectListener);
-    }
-  } catch (error) {
-    log.error('Content: createLegacyPort:', false, error);
-  }
-}
-
-function onMessageListener() {
-  return function(response: any) {
-    try {
-      if (response.type === 'YAKKL_RESPONSE') {
-        window.postMessage(response, windowOrigin); // This is the response back to the dApp!
-      }
-    } catch (error) {
-      log.error('onMessageListener:', false, error);
-      window.postMessage({id: response.id, method: response.method, error: error, type: 'YAKKL_RESPONSE'}, windowOrigin);
-    }
-  };
-}
-
-function onDisconnectListener() {
-  try {
-    if (!browser) return;
-
-    if (browser.runtime?.lastError) {
-      log.warn('onDisconnectListener - lastError:', false, browser.runtime.lastError);
-    }
-    if (portExternal) {
-      if (portExternal.onMessage) {
-        portExternal.onMessage.removeListener(onMessageListener());
-      }
-      portExternal = undefined;
-    }
-
-    // Reconnect the port
-    createLegacyPort(YAKKL_EXTERNAL);
-  } catch (error) {
-    log.error('Error in onDisconnectListener', false, error);
-  }
-}
-
 // Setup EIP-6963 connection with proper error handling
 function setupEIP6963Connection() {
   try {
-    if (!browser) {
-      log.error('Browser extension API not available');
+    if (!browser?.runtime) {
+      log.error('Browser extension API not available', false);
+      isExtensionContextValid = false;
       return null;
     }
 
+    // Check if the extension context is still valid
+    if (browser.runtime.id === undefined) {
+      log.error('Extension context invalidated', false);
+      isExtensionContextValid = false;
+      // Clean up existing connection
+      cleanupConnection();
+      return null;
+    }
+
+    // Reset context validity flag since we can access the runtime
+    isExtensionContextValid = true;
+
+    log.info('setupEIP6963Connection - isConnecting', false, isConnecting);
+    log.info('setupEIP6963Connection - portEIP6963?.name', false, portEIP6963?.name);
+    log.info('setupEIP6963Connection - contentStream', false, contentStream);
+
+    // If we already have an active connection or are in the process of connecting, don't create a new one
+    if (isConnecting || (portEIP6963?.name === YAKKL_PROVIDER_EIP6963 && contentStream)) {
+      return contentStream;
+    }
+
+    isConnecting = true;
+    log.debug('Setting up EIP-6963 connection...', false);
+
     // Create a port for EIP-6963 communication
-    portEIP6963 = browser.runtime.connect({ name: YAKKL_PROVIDER_EIP6963 });
-    const contentStream = new PortDuplexStream(portEIP6963);
+    try {
+      portEIP6963 = browser.runtime.connect({ name: YAKKL_PROVIDER_EIP6963 });
+      log.debug('Created EIP-6963 port connection', false, { portName: YAKKL_PROVIDER_EIP6963 });
+    } catch (error) {
+      log.error('Failed to create port connection:', false, error);
+      isConnecting = false;
+      // Check if this was due to invalid context
+      if (browser.runtime.id === undefined) {
+        isExtensionContextValid = false;
+      }
+      return null;
+    }
 
-    // Setup port disconnect handler for EIP-6963
+    contentStream = new PortDuplexStream(portEIP6963);
+    log.debug('Created PortDuplexStream for EIP-6963', false);
+
+    // Single disconnect handler with exponential backoff
+    let disconnectHandled = false;
     portEIP6963.onDisconnect.addListener(() => {
-      log.debug('EIP-6963 port disconnected, attempting to reconnect');
-      if (browser.runtime?.lastError) {
-        log.warn('EIP-6963 port disconnect error:', false, browser.runtime.lastError);
-      }
-      portEIP6963 = undefined;
+      if (disconnectHandled) return;
+      disconnectHandled = true;
 
-      // Try to reconnect immediately
-      setTimeout(() => {
-        if (!portEIP6963) {
-          try {
-            setupEIP6963Connection();
-          } catch (e) {
-            log.error('Failed to reconnect EIP-6963 port', false, e);
+      const lastError = browser.runtime.lastError;
+      log.debug('EIP-6963 port disconnected', false, { lastError });
+
+      // Clean up existing connection
+      cleanupConnection();
+
+      // Check if extension context is still valid before attempting reconnection
+      if (browser.runtime.id === undefined) {
+        log.error('Extension context invalidated during disconnect', false);
+        return;
+      }
+
+      // Implement exponential backoff for reconnection
+      if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        const delay = INITIAL_RECONNECT_DELAY * Math.pow(2, reconnectAttempts);
+        log.debug(`Attempting reconnection in ${delay}ms (attempt ${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})`, false);
+
+        setTimeout(() => {
+          // Double-check extension context before reconnecting
+          if (browser.runtime.id !== undefined) {
+            disconnectHandled = false;
+            reconnectAttempts++;
+            const newStream = setupEIP6963Connection();
+            if (newStream) {
+              reconnectAttempts = 0; // Reset on successful connection
+            }
+          } else {
+            log.error('Extension context invalid, skipping reconnection attempt', false);
           }
-        }
-      }, 1000);
-    });
-
-    // Listen for messages from inpage script to forward to background
-    window.addEventListener('message', (event: MessageEvent) => {
-      try {
-        if (event.source !== window) return;
-        if (event.data && event.data.type === 'YAKKL_REQUEST:EIP6963') {
-          log.debug('Content script received EIP-6963 request', false, event.data);
-          contentStream.write(event.data);
-        }
-      } catch (error) {
-        log.error('Error processing EIP-6963 message from inpage', false, error);
+        }, delay);
+      } else {
+        log.error('Max reconnection attempts reached', false);
       }
     });
 
-    // Forward responses and events from background to inpage script
-    contentStream.on('data', (data) => {
-      try {
-        log.debug('Content script received response from background', false, data);
-        window.postMessage(data, windowOrigin);
-      } catch (error) {
-        log.error('Error forwarding EIP-6963 response to inpage', false, error);
-      }
-    });
+    // Setup message handling for the stream
+    setupMessageHandling(contentStream);
 
-    // Add error handling for the stream
-    contentStream.on('error', (error) => {
-      log.error('EIP-6963 content stream error', false, error);
-
-      // Try to reconnect on error
-      setTimeout(() => {
-        if (!portEIP6963) {
-          try {
-            setupEIP6963Connection();
-          } catch (e) {
-            log.error('Failed to reconnect EIP-6963 port after error', false, e);
-          }
-        }
-      }, 2000);
-    });
-
-    log.debug('EIP-6963 connection established');
+    log.debug('EIP-6963 connection established', false);
+    isConnecting = false;
     return contentStream;
   } catch (error) {
-    log.error('Failed to setup EIP-6963 connection', false, error);
+    log.error('Failed to setup EIP-6963 connection:', false, error);
+    // Check if this was due to invalid context
+    if (browser?.runtime?.id === undefined) {
+      isExtensionContextValid = false;
+    }
+    cleanupConnection();
     return null;
   }
 }
 
-function requestListener(event: any) {
+// Helper function to clean up connection state
+function cleanupConnection() {
+  if (contentStream) {
+    try {
+      contentStream.destroy();
+    } catch (e) {
+      log.error('Error destroying content stream:', false, e);
+    }
+  }
+  contentStream = undefined;
+  portEIP6963 = undefined;
+  isConnecting = false;
+  reconnectAttempts = 0; // Reset reconnect attempts on cleanup
+}
+
+// Setup message handling for the stream
+function setupMessageHandling(stream: PortDuplexStream) {
+  if (!stream) return;
+
+  // Listen for messages from the background script
+  stream.on('data', (data: any) => {
+    try {
+      log.debug('Received message from background:', false, data);
+
+      // Forward the response to the inpage script
+      window.postMessage({
+        type: 'YAKKL_RESPONSE:EIP6963',
+        ...data
+      }, window.location.origin);
+    } catch (error) {
+      log.error('Error handling message from background:', false, error);
+    }
+  });
+
+  // Listen for messages from the inpage script
+  window.addEventListener('message', handleInpageMessage);
+}
+
+// Handler for inpage messages
+function handleInpageMessage(event: MessageEvent) {
+  if (event.source !== window) return;
+  if (!event.data?.type) return;
+
   try {
-    if (event?.source !== window) return;
-
-    if (event?.data && event?.data?.type === 'YAKKL_REQUEST' && event?.origin === windowOrigin) {
-      const data = event.data;
-      data.external = true;
-
-      createLegacyPort(YAKKL_EXTERNAL); // This will return an already created port otherwise create a new one
-
-      if (data.params === undefined) {
-        data.params = [];
+    // Handle both EIP-6963 and EIP-1193 requests
+    if (event.data.type === 'YAKKL_REQUEST:EIP6963' || event.data.type === 'YAKKL_REQUEST:EIP1193') {
+      // Ensure we have an active connection
+      if (!contentStream && !isConnecting) {
+        contentStream = setupEIP6963Connection();
       }
 
-      const faviconUrl = getIcon();
-      const title = window.document?.title ?? '';
-      const domain = extractFQDN(event?.origin);
-      const context = data.method;
-      const message = (data.method === 'eth_requestAccounts' || data.method === 'wallet_requestPermissions') ? 'Wanting you to approve one or more accounts the dApp can work with!' : 'Wanting you to approve the transaction or sign message. Be mindful of the request!';
-
-      if (domain === null) {
-        throw 'Domain name is not valid. This can be due to malformed URL Address of the dApp.';
-      }
-
-      const metaDataParams: MetaDataParams = { title: title, icon: faviconUrl, domain: domain, context: context, message: message };
-
-      switch (data.method) {
-        case 'wallet_switchEthereumChain':
-        case 'wallet_addEthereumChain':
-        case 'eth_sendTransaction':
-        case 'eth_signTypedData_v3':
-        case 'eth_signTypedData_v4':
-        case 'eth_estimategas':
-        case 'personal_sign':
-          data.metaDataParams = metaDataParams.transaction = data.params;
-          break;
-        default:
-          data.metaDataParams = metaDataParams;
-          break;
-      }
-
-      if (data.method && portExternal) {
-        portExternal.postMessage(data);
+      if (contentStream) {
+        log.debug('Forwarding request to background:', false, event.data);
+        contentStream.write({
+          ...event.data,
+          // Always convert to EIP-6963 type for background processing
+          type: 'YAKKL_REQUEST:EIP6963'
+        });
+      } else {
+        log.error('Failed to establish connection for message:', false, event.data);
+        // Send error response back to inpage script
+        window.postMessage({
+          type: 'YAKKL_RESPONSE:EIP6963',
+          id: event.data.id,
+          error: {
+            code: 4900,
+            message: 'Failed to establish connection'
+          }
+        }, window.location.origin);
       }
     }
-  } catch (e) {
-    log.error('Error in requestListener', false, e);
-    window.postMessage({ id: event.id, method: event.method, error: e, type: 'YAKKL_RESPONSE' }, windowOrigin);
+  } catch (error) {
+    log.error('Error processing message from inpage:', false, error);
+    // Send error response back to inpage script
+    if (event.data?.id) {
+      window.postMessage({
+        type: 'YAKKL_RESPONSE:EIP6963',
+        id: event.data.id,
+        error: {
+          code: -32603,
+          message: 'Internal error processing request'
+        }
+      }, window.location.origin);
+    }
   }
+}
+
+// Listen for EIP-6963 events from background
+browser.runtime.onMessage.addListener((message: unknown) => {
+  const yakklEvent = message as { type: string; event: string; data: unknown };
+  if (yakklEvent.type === 'YAKKL_EVENT:EIP6963') {
+    // Forward EIP-6963 events to inpage
+    window.postMessage({
+      type: 'YAKKL_EVENT:EIP6963',
+      event: yakklEvent.event,
+      data: yakklEvent.data
+    }, window.location.origin);
+  }
+  return true;
+});
+
+// Modify the periodic health check
+let healthCheckInterval: number | undefined;
+
+function startHealthCheck() {
+  if (healthCheckInterval) {
+    clearInterval(healthCheckInterval);
+  }
+
+  healthCheckInterval = window.setInterval(() => {
+    // If context was previously invalid, check if it's been restored
+    if (!isExtensionContextValid) {
+      if (browser?.runtime?.id !== undefined) {
+        log.debug('Extension context restored, resuming normal operation', false);
+        isExtensionContextValid = true;
+        reconnectAttempts = 0;
+      } else {
+        // Context still invalid, skip health check
+        return;
+      }
+    }
+
+    // Only attempt reconnection if context is valid
+    if (isExtensionContextValid && (!portEIP6963 || !contentStream)) {
+      log.debug('EIP-6963 connection lost, attempting to restore...', false);
+      reconnectAttempts = 0; // Reset attempts for periodic checks
+      setupEIP6963Connection();
+    }
+  }, 60000); // Check every minute
+
+  // Cleanup on page beforeunload
+  window.addEventListener('beforeunload', () => {
+    if (healthCheckInterval) {
+      clearInterval(healthCheckInterval);
+    }
+    cleanupConnection();
+  });
 }
 
 // This is the main entry point for the content script
 try {
+  log.debug('Content script starting...', false);
   if (browser) {
     // Inject the inpage script
     if (document.contentType === "text/html") {
+      log.debug('Injecting inpage script...', false);
       const container = document.head || document.documentElement;
       const script = document.createElement("script");
       script.setAttribute("async", "false");
       script.src = browser.runtime.getURL("/ext/inpage.js");
-      script.id = YAKKL_PROVIDER_ETHEREUM;
+      script.id = YAKKL_PROVIDER_EIP6963;
       script.onload = () => {
+        log.debug('Inpage script loaded', false);
         script.remove();
       };
       container.prepend(script);
     }
 
-    // Create legacy provider connection
-    createLegacyPort(YAKKL_EXTERNAL);
-
-    // Listen for legacy provider messages
-    window.addEventListener('message', requestListener);
-
-    // Setup EIP-6963 connection
+    // Setup initial EIP-6963 connection
     setupEIP6963Connection();
 
-    // Set up a periodic check to make sure connections are still alive
-    setInterval(() => {
-      if (!portExternal) {
-        log.debug('Legacy port disconnected, reconnecting');
-        createLegacyPort(YAKKL_EXTERNAL);
-      }
-
-      if (!portEIP6963) {
-        log.debug('EIP-6963 port disconnected, reconnecting');
-        setupEIP6963Connection();
-      }
-    }, 30000); // Check every 30 seconds
+    // Start the health check
+    startHealthCheck();
   }
 } catch (e) {
-  log.error('content - YAKKL: Provider injection failed. This web page will not be able to connect to YAKKL.', false, e);
+  log.error('Content script initialization failed:', false, e);
 }

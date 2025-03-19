@@ -1,6 +1,7 @@
 // $lib/shared/BrowserAccessor.ts
 import type { Browser, Runtime, Tabs, Alarms } from 'webextension-polyfill';
 import { log } from "$plugins/Logger";
+import type { ExtendedBrowser } from '../types/browser-extensions';
 
 
 // Interfaces for local use (to avoid namespace issues)
@@ -27,10 +28,10 @@ export enum ExtensionContext {
  */
 export class BrowserAccessor {
   private static instance: BrowserAccessor;
-  private browserApi: Browser | null = null;
+  private browserApi: ExtendedBrowser | null = null;
   private currentContext: ExtensionContext = ExtensionContext.UNKNOWN;
   private initialized = false;
-  private initPromise: Promise<Browser | null> | null = null;
+  private initPromise: Promise<ExtendedBrowser | null> | null = null;
 
   /**
    * Private constructor - use getInstance()
@@ -133,7 +134,7 @@ export class BrowserAccessor {
    * Initialize the browser API - respects the context it's running in
    * Returns a promise that resolves to the browser API or null
    */
-  public async initialize(): Promise<Browser | null> {
+  public async initialize(): Promise<ExtendedBrowser | null> {
     // Return existing result if already initialized
     if (this.initialized) {
       return this.browserApi;
@@ -161,7 +162,7 @@ export class BrowserAccessor {
         if (this.currentContext !== ExtensionContext.UNKNOWN) {
           // First try global browser (from script tag)
           if (typeof window !== 'undefined' && (window as any).browser) {
-            this.browserApi = (window as any).browser as Browser;
+            this.browserApi = (window as any).browser as ExtendedBrowser;
             log.info("Using global browser API from window.browser");
           }
           // Then try chrome namespace with polyfill
@@ -171,7 +172,7 @@ export class BrowserAccessor {
               // In background context, we can directly import
               try {
                 const polyfill = await import('webextension-polyfill');
-                this.browserApi = polyfill.default;
+                this.browserApi = polyfill.default as ExtendedBrowser;
                 log.info("Loaded browser API via dynamic import in background");
               } catch (e) {
                 log.error("Failed to import polyfill in background:", false, e);
@@ -206,7 +207,7 @@ export class BrowserAccessor {
   /**
    * Get the browser API instance with lazy initialization
    */
-  public async getBrowser(): Promise<Browser | null> {
+  public async getBrowser(): Promise<ExtendedBrowser | null> {
     if (!this.initialized && !this.initPromise) {
       await this.initialize();
     }
@@ -217,7 +218,7 @@ export class BrowserAccessor {
    * Get the browser API synchronously - may return null if not initialized
    * Consider using getBrowser() for more reliable access
    */
-  public getBrowserSync(): Browser | null {
+  public getBrowserSync(): ExtendedBrowser | null {
     if (!this.initialized && !this.initPromise) {
       // Start initialization but don't wait for it
       this.initialize().catch(e => {
@@ -240,7 +241,7 @@ export class BrowserAccessor {
   /**
    * Set the browser API explicitly (useful for testing or special contexts)
    */
-  public setBrowser(browser: Browser): void {
+  public setBrowser(browser: ExtendedBrowser): void {
     this.browserApi = browser;
     this.initialized = true;
   }
@@ -271,7 +272,7 @@ export class BrowserAccessor {
    * Perform a browser API operation safely with proper typing
    */
   public async performOperation<T>(
-    operation: (browser: Browser) => Promise<T> | T,
+    operation: (browser: ExtendedBrowser) => Promise<T> | T,
     fallback: T
   ): Promise<T> {
     const browser = await this.getBrowser();
@@ -292,10 +293,10 @@ export class BrowserAccessor {
    * Create a chrome API shim that mimics the browser API
    * This is a fallback when the polyfill isn't available
    */
-  private createChromeShim(): Browser {
+  private createChromeShim(): ExtendedBrowser {
     if (!this.hasChromeApis()) {
       log.warn("Chrome APIs not available for creating shim");
-      return {} as Browser;
+      return {} as ExtendedBrowser;
     }
 
     // Create an empty object to serve as our browser implementation
@@ -563,6 +564,8 @@ export class BrowserAccessor {
 
     // Add other APIs as needed using the same pattern
 
-    return browser as Browser;
+    const browser_ext = browser as ExtendedBrowser;
+
+    return browser_ext;
   }
 }

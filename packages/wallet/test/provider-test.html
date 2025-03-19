@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>YAKKL Provider Test</title>
+    <style>
+        .success { color: green; }
+        .error { color: red; }
+        .pending { color: orange; }
+    </style>
+</head>
+<body>
+    <h1>YAKKL Provider Test</h1>
+    <div id="results"></div>
+
+    <script>
+        const log = (msg, data, status = '') => {
+            console.log(msg, data);
+            const div = document.createElement('div');
+            div.className = status;
+            div.textContent = `${msg}: ${JSON.stringify(data)}`;
+            document.getElementById('results').appendChild(div);
+        };
+
+        async function makeRequest(provider, method, params = []) {
+            log(`Sending ${method} request`, { params }, 'pending');
+            try {
+                const startTime = performance.now();
+                const response = await provider.request({ method, params });
+                console.log('response', response, method, params);
+                const endTime = performance.now();
+                log(`${method} response`, {
+                    value: response,
+                    type: typeof response,
+                    isArray: Array.isArray(response),
+                    raw: JSON.stringify(response),
+                    timeMs: Math.round(endTime - startTime)
+                }, 'success');
+                return response;
+            } catch (error) {
+                log(`${method} error`, {
+                    code: error.code,
+                    message: error.message,
+                    type: error.constructor.name
+                }, 'error');
+                throw error;
+            }
+        }
+
+        async function testProvider() {
+            try {
+                log('Starting provider tests...', { timestamp: new Date().toISOString() });
+
+                // Wait for provider to be injected
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // Test provider presence
+                const hasProvider = !!window.yakkl;
+                log('Provider exists', hasProvider, hasProvider ? 'success' : 'error');
+
+                if (!hasProvider) {
+                    throw new Error('Provider not found');
+                }
+
+                log('Provider info', window.yakkl?.info, 'success');
+                const provider = window.yakkl?.provider;
+
+                // Test basic properties
+                log('Provider properties', {
+                    isConnected: provider.isConnected?.(),
+                    hasRequest: typeof provider.request === 'function',
+                    hasOn: typeof provider.on === 'function',
+                    hasRemoveListener: typeof provider.removeListener === 'function'
+                });
+
+                // Test basic requests
+                await makeRequest(provider, 'eth_chainId');
+                await makeRequest(provider, 'eth_accounts');
+
+                // Test eth_requestAccounts (should trigger connection)
+                try {
+                    await makeRequest(provider, 'eth_requestAccounts');
+                } catch (e) {
+                    log('eth_requestAccounts failed (expected if wallet locked)', e);
+                }
+
+                // Test network state
+                await makeRequest(provider, 'net_version');
+
+                // Test read-only methods that don't require approval
+                log('Testing read-only methods...', { timestamp: new Date().toISOString() });
+
+                // Test eth_getBlockByNumber
+                await makeRequest(provider, 'eth_getBlockByNumber', ['latest', false]);
+                await makeRequest(provider, 'eth_getBlockByNumber', ['0x1', false]);
+
+                // Test eth_blockNumber
+                await makeRequest(provider, 'eth_blockNumber');
+
+                // Test eth_call (empty call to test infrastructure)
+                await makeRequest(provider, 'eth_call', [{
+                    to: '0x0000000000000000000000000000000000000000',
+                    data: '0x'
+                }, 'latest']);
+
+                // Test eth_gasPrice
+                await makeRequest(provider, 'eth_gasPrice');
+
+                // Test event subscription
+                provider.on('connect', (connectInfo) => {
+                    log('connect event', connectInfo, 'success');
+                });
+
+                provider.on('disconnect', (error) => {
+                    log('disconnect event', error, 'error');
+                });
+
+                provider.on('chainChanged', (newChainId) => {
+                    log('chainChanged event', newChainId, 'success');
+                });
+
+                provider.on('accountsChanged', (newAccounts) => {
+                    log('accountsChanged event', newAccounts, 'success');
+                });
+
+                // Test invalid requests
+                try {
+                    await makeRequest(provider, 'eth_nonexistentMethod');
+                } catch (error) {
+                    log('Invalid method test passed', {
+                        code: error.code,
+                        message: error.message
+                    }, 'success');
+                }
+
+                // Compare with MetaMask
+                if (window.ethereum) {
+                    log('=== MetaMask Comparison ===', '');
+                    const mmChainId = await window.ethereum.request({ method: 'eth_chainId' });
+                    log('MetaMask chainId', {
+                        value: mmChainId,
+                        type: typeof mmChainId
+                    }, 'success');
+                }
+
+            } catch (error) {
+                log('Test error', {
+                    message: error.message,
+                    stack: error.stack
+                }, 'error');
+            }
+        }
+
+        // Run tests when page loads
+        window.addEventListener('load', testProvider);
+
+        // Listen for provider announcements
+        window.addEventListener('eip6963:announceProvider', (event) => {
+            log('Provider announced', {
+                name: event.detail.info.name,
+                uuid: event.detail.info.uuid,
+                timestamp: new Date().toISOString()
+            }, 'success');
+        });
+
+        // Listen for all postMessage events
+        window.addEventListener('message', (event) => {
+            if (event.data?.type?.includes('YAKKL')) {
+                log('PostMessage intercepted', {
+                    type: event.data.type,
+                    method: event.data.method,
+                    result: event.data.result,
+                    hasResult: 'result' in event.data,
+                    hasError: 'error' in event.data
+                }, 'pending');
+            }
+        });
+    </script>
+</body>
+</html>

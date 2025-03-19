@@ -83,9 +83,9 @@ export async function init() {
     const browserApi = getBrowserExt();
 
     if (process.env.DEV_DEBUG) {
-      log.setLevel('ERROR', 'CONTAINS', ['ERROR', 'DEBUG', 'WARN', 'INFO', 'TRACE']);
+      log.setLevel('DEBUG', 'CONTAINS', ['DEBUG', 'DEBUG_TRACE', 'INFO', 'INFO_TRACE', 'WARN', 'ERROR', 'ERROR_TRACE', 'TRACE']);
     } else {
-      log.setLevel('ERROR', 'CONTAINS', ['ERROR']);
+      log.setLevel('ERROR', 'CONTAINS', ['ERROR', 'ERROR_TRACE']);
     }
 
     // Setup listeners first
@@ -119,7 +119,6 @@ export async function setupGlobalListeners(browserApi: Browser | null = null) {
           browser.runtime.onMessage.removeListener(handleOnMessageForExtension);
         }
 
-        window.removeEventListener('unload', handleUnload);
         window.removeEventListener('beforeunload', handleUnload);
       } catch (error) {
         log.error("Cleanup error:", false, error);
@@ -151,7 +150,6 @@ export async function setupGlobalListeners(browserApi: Browser | null = null) {
     }
 
     // Finally add window listeners
-    window.addEventListener('unload', handleUnload);
     window.addEventListener('beforeunload', handleUnload);
 
     return cleanup;
@@ -276,7 +274,6 @@ export { idleManager, getBrowserExt };
 //           }
 //         }
 
-//         window.removeEventListener('unload', handleUnload);
 //         window.removeEventListener('beforeunload', handleUnload);
 //       } catch (error) {
 //         log.error("Cleanup error:", false, error);
@@ -304,7 +301,6 @@ export { idleManager, getBrowserExt };
 //     }
 
 //     // Finally add window listeners
-//     window.addEventListener('unload', handleUnload);
 //     window.addEventListener('beforeunload', handleUnload);
 
 //     return cleanup;

@@ -5,682 +5,448 @@
 // You can not use browser extention only classes and methods here. You must pass events
 //   back and forth to the background.js service.
 
-import EventEmitter from "events";
-import { VERSION } from "$lib/common/constants";
-import { supportedChainId } from "$lib/common/utils";
-import type { LegacyWalletProvider, LegacyWindowEthereum, RequestArguments } from "$lib/common";
-import { ProviderRpcError } from '$lib/common';
-
-import { getEIP6963ProviderDetail } from '$lib/plugins/providers/network/ethereum_provider/EthereumProvider';
-import type { EIP6963ProviderDetail } from '$lib/plugins/providers/network/ethereum_provider/EthereumProviderTypes';
-
+import { getEIP6963ProviderDetail } from '$lib/plugins/providers/network/ethereum_provider/eip-6963';
 import { log } from "$lib/plugins/Logger";
+import type { EIP6963ProviderDetail, EIP6963Provider, EIP6963ProviderInfo } from '$lib/plugins/providers/network/ethereum_provider/eip-types';
+import type { RequestArguments } from '$lib/common';
+import { EventEmitter } from 'events';
+
+// Error types
+const EIP1193_ERRORS = {
+  USER_REJECTED: {
+    code: 4001,
+    message: 'The user rejected the request.'
+  },
+  UNAUTHORIZED: {
+    code: 4100,
+    message: 'The requested method and/or account has not been authorized by the user.'
+  },
+  UNSUPPORTED_METHOD: {
+    code: 4200,
+    message: 'The Provider does not support the requested method.'
+  },
+  DISCONNECTED: {
+    code: 4900,
+    message: 'The Provider is disconnected from all chains.'
+  },
+  CHAIN_DISCONNECTED: {
+    code: 4901,
+    message: 'The Provider is not connected to the requested chain.'
+  },
+  TIMEOUT: {
+    code: 4902,
+    message: 'Request timeout'
+  },
+  INTERNAL_ERROR: {
+    code: -32603,
+    message: 'Internal error'
+  }
+} as const;
+
+class ProviderRpcError extends Error {
+  code: number;
+  data?: unknown;
+
+  constructor(code: number, message: string, data?: unknown) {
+    super(message);
+    this.code = code;
+    this.data = data;
+    this.name = 'ProviderRpcError';
+  }
+}
+
+// Base64 encoded icon
+const YAKKL_ICON = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAACXBIWXMAAAsTAAALEwEAmpwYAAAF8WlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4gPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iQWRvYmUgWE1QIENvcmUgNy4yLWMwMDAgNzkuMWI2NWE3OWI0LCAyMDIyLzA2LzEzLTIyOjAxOjAxICAgICAgICAiPiA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtbG5zOnhtcE1NPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvbW0vIiB4bWxuczpzdEV2dD0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL3NUeXBlL1Jlc291cmNlRXZlbnQjIiB4bWxuczpkYz0iaHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8iIHhtbG5zOnBob3Rvc2hvcD0iaHR0cDovL25zLmFkb2JlLmNvbS9waG90b3Nob3AvMS4wLyIgeG1wOkNyZWF0b3JUb29sPSJBZG9iZSBQaG90b3Nob3AgMjQuMCAoTWFjaW50b3NoKSIgeG1wOkNyZWF0ZURhdGU9IjIwMjMtMDMtMjJUMTU6NDc6NDctMDQ6MDAiIHhtcDpNZXRhZGF0YURhdGU9IjIwMjMtMDMtMjJUMTU6NDc6NDctMDQ6MDAiIHhtcDpNb2RpZnlEYXRlPSIyMDIzLTAzLTIyVDE1OjQ3OjQ3LTA0OjAwIiB4bXBNTTpJbnN0YW5jZUlEPSJ4bXAuaWlkOjk0YzFkNDY5LTU2ZDAtNDI0Ni1hMjM0LTM2ZDY5ZjI1MjQ5YiIgeG1wTU06RG9jdW1lbnRJRD0iYWRvYmU6ZG9jaWQ6cGhvdG9zaG9wOjM0ZjEyZmJiLTY0ZjAtYjM0NC1hZDY3LTY2NDg0ZmQ5ZjFhYiIgeG1wTU06T3JpZ2luYWxEb2N1bWVudElEPSJ4bXAuZGlkOjk0YzFkNDY5LTU2ZDAtNDI0Ni1hMjM0LTM2ZDY5ZjI1MjQ5YiIgZGM6Zm9ybWF0PSJpbWFnZS9wbmciIHBob3Rvc2hvcDpDb2xvck1vZGU9IjMiPiA8eG1wTU06SGlzdG9yeT4gPHJkZjpTZXE+IDxyZGY6bGkgc3RFdnQ6YWN0aW9uPSJjcmVhdGVkIiBzdEV2dDppbnN0YW5jZUlEPSJ4bXAuaWlkOjk0YzFkNDY5LTU2ZDAtNDI0Ni1hMjM0LTM2ZDY5ZjI1MjQ5YiIgc3RFdnQ6d2hlbj0iMjAyMy0wMy0yMlQxNTo0Nzo0Ny0wNDowMCIgc3RFdnQ6c29mdHdhcmVBZ2VudD0iQWRvYmUgUGhvdG9zaG9wIDI0LjAgKE1hY2ludG9zaCkiLz4gPC9yZGY6U2VxPiA8L3htcE1NOkhpc3Rvcnk+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+YWpJdAAAAnVJREFUaN7tmE1IVFEUx3/zZsw0NUtnxmw0paBFs4UQRbRpEdUiKGgVLfoiWrSJFkG0KoKgRR8EQdCiWkQtWkRB0GdE9LFoYUGrqEWWZjEjpdN4b064MjLvY957c9+938CDN/PevXPO/5x7/+ece8E555xzrgnkgKvAa2AReAcsAfeAXUDBOVcELgF5oD7m7xpwBsg4F0oFYBSoAk+Ao8A2YAfQCxwGHgJ14DGwxTlXAqaAz8Bl59xm51y3c67bOdcDXAG+AlPOuXJKQWwHXgJzwP4m9+0DZoF3QE/aQewEpoEPwMEE9x8CPhJ5Y0daQewB3gIvgH0t2ukH5oHnwO40gTgEfCLa3YMW7Q0C74m8eSgNIPqAWSKv7LPZ7gDwBngG7IoTRBG4CPwGrsc8/5uRXf8Al4FCkkDKwDXgD3A7wbm4Q7Q5rgOVuECUiEL5L3AnhYtgArgJLAM3gFKnQJSJvLIMTALFFK+kY8AtohR7k2hh2wJRIdrKK8DtNgVxXIwQxcQdoLc/wc6vADdkB0/FsHvbBaRfvFADJoDNMdodINrOK8CkHCC2QGwjyiyfgYsxLN5OgzgPLMkW7bMBYqsUUp+Bi20e/E4vkEEppmaBM02qiXYA6ZF0+QU41YGQbQeQ48Br4CFwoEMFQydAjACPgPvAvg4XLZ0AMQQ8lVJzKIbKtd0ghoEngp2RmOrndoE4IaE6BeyMuQVhF8RRYEaK+L6Y2zB2QJyVwn0S2J5AB8kOiItSLl4FtiXUg7MD4gYwDGxNoAvmBEQ1hX+Lq0nPQEVAVFPohVqSM1ARECvAz5R5YUXOQEXgH/AbWEwZiJqcgYoJxGIKQfyUM1AxgVhOIYjaPwEGADmPjMkWWdYrAAAAAElFTkSuQmCC';
+
+// Chrome types
+declare namespace chrome {
+  export namespace runtime {
+    interface Port {
+      name: string;
+      onMessage: {
+        addListener: (callback: (message: any) => void) => void;
+      };
+      onDisconnect: {
+        addListener: (callback: () => void) => void;
+      };
+      postMessage: (message: any) => void;
+    }
+    function connect(connectInfo?: { name: string }): Port;
+  }
+}
+
+// Declare window interface
+declare global {
+  var yakkl: EIP6963ProviderDetail;
+  interface Window {
+    ethereum: EIP6963Provider;
+  }
+}
+
+log.debug('Initializing inpage script', true);
 
 const windowOrigin = window.location.origin;
+log.debug('Window origin:', true, windowOrigin);
 
-class RateLimiter {
-  private maxTokens: number;
-  private fillRate: number;
-  private tokens: number;
-  private lastTimestamp: number;
+// Initialize provider info
+const providerInfo: EIP6963ProviderInfo = {
+  uuid: crypto.randomUUID(),
+  name: 'Yakkl',
+  icon: YAKKL_ICON,
+  rdns: 'com.yakkl',
+  walletId: 'yakkl'
+};
 
-  constructor(maxTokens: number, fillRate: number) {
-    this.maxTokens = maxTokens;
-    this.fillRate = fillRate;
-    this.tokens = maxTokens;
-    this.lastTimestamp = Date.now();
-  }
+class EIP1193Provider extends EventEmitter implements EIP6963Provider {
+  private _isConnected: boolean = false;
+  private requestId = 0;
+  private pendingRequests = new Map<number, {
+    resolve: (value: any) => void;
+    reject: (error: any) => void;
+    method: string;
+  }>();
+  private connectionAttempts = 0;
+  private readonly MAX_CONNECTION_ATTEMPTS = 3;
+  private isConnecting = false;
+  private initializationPromise: Promise<void>;
+  private chainId: string = '0x1';  // Default mainnet
+  private networkVersion: string = '1';
 
-  consume(): boolean {
-    const now = Date.now();
-    const deltaTime = now - this.lastTimestamp;
-    this.lastTimestamp = now;
-
-    const refillTokens = deltaTime * this.fillRate;
-    this.tokens = Math.min(this.maxTokens, this.tokens + refillTokens);
-
-    if (this.tokens < 1) {
-      return false; // rate limit exceeded
-    }
-
-    this.tokens -= 1;
-    return true; // within rate limit
-  }
-}
-
-class EthereumProviderManager {
-  providers: Map<any, any>;
-  previousProvider: any;
-  currentProvider: any;
-
-  constructor() {
-    this.providers = new Map();
-    this.previousProvider = undefined;
-    this.currentProvider = new YakklWalletProvider();  // Defaults to yakkl
-
-    this.providers.set('yakklwallet', new YakklWalletProvider());
-
-    if (typeof window !== "undefined") {
-      if (window.ethereum) {
-        this.previousProvider = window.ethereum;
-
-        const descriptor = Object.getOwnPropertyDescriptor(window, "ethereum");
-
-        if (descriptor?.writable && descriptor.configurable) {
-          this._replaceProvider(new YakklWalletProvider());
-        } else {
-          this._removeProxyAndReplaceProvider(new YakklWalletProvider());
-        }
-
-        if (!(window.ethereum instanceof YakklWalletProvider)) {
-          this.addProvider('previous', window.ethereum); // Would be good if all providers provided a consist name/label to identify themselves
-          this._replaceProvider(new YakklWalletProvider());
-        }
-      }
-    }
-  }
-
-  reload() {
-    if (window.location.href.includes("app.uniswap.org") ||
-      window.location.href.includes("galxe.com")) {
-      setTimeout(() => {
-        window.location.reload()
-      }, 1000)
-    }
-  }
-
-  addProvider(name: string, provider: LegacyWindowEthereum) {
-    if (provider && name) {
-      this.providers.set(name, provider);
-    } else {
-      throw new Error("The provider must have a name.");
-    }
-  }
-
-  removeProvider(providerName: string) {
-    if (this.providers.has(providerName)) {
-      this.providers.delete(providerName);
-    } else {
-      throw new Error(`Provider with name '${providerName}' not found.`);
-    }
-  }
-
-  swapProvider(providerName: string) {
-    if (this.providers.has(providerName)) {
-      const newProvider = this.providers.get(providerName);
-      this._replaceProvider(newProvider);
-    } else {
-      throw new Error(`Provider with name '${providerName}' not found.`);
-    }
-  }
-
-  _isProxy(obj: object) {
-    try {
-      Proxy.revocable(obj, {});
-      return false;
-    } catch (e) {
-      return true;
-    }
-  }
-
-  _replaceProvider(provider: YakklWalletProvider) {
-    const handler = {
-      get: (target: any, prop: any, receiver: unknown) => {
-        return Reflect.get(target, prop, receiver);
-      },
-      set: (target: any, prop: any, value: any, receiver: any) => {
-        return Reflect.set(target, prop, value, receiver);
-      },
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      deleteProperty: (target: any, prop: any) => {
-        return true;
-      },
-    };
-
-    const proxy = new Proxy(provider, handler);
-
-    Object.defineProperty(window, 'ethereum', {
-      value: proxy,
-      writable: true,
-      configurable: true,
-    });
-  }
-
-  _removeProxyAndReplaceProvider(provider: YakklWalletProvider) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      //@ts-ignore
-      window.ethereum.__proto__ = null;
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      //@ts-ignore
-      delete window.ethereum.__proto__;
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      //@ts-ignore
-      if (window.ethereum) window.ethereum = null;
-    } catch (e) {
-      log.error('Inpage - _removeProxy', true, e);
-    }
-    this._replaceProvider(provider);
-  }
-}
-
-export class YakklWalletProvider extends EventEmitter {
   constructor() {
     super();
-    this._requestId = 0;
-    this._connected = false;
-    this._rateLimiter = new RateLimiter(100, 0.01);
-    this.selectedAddresses = [];
-    this.setMaxListeners(100);
-    this.request = this.request.bind(this);
-    this.providers = [this];
+    this.setupMessageListener();
+    this.initializationPromise = this.initialize();
+  }
 
-    // Event propagation causes the listener to be called multiple times for the same event. So, we need to use a flag to make sure our handlers are only called once. This happens with the handlers check.
-    window.addEventListener('message', (event: MessageEvent) => {
-      if (event?.data?.type === 'YAKKL_RESPONSE' && event.origin === windowOrigin) {
-        try {
-          const { id, error } = event.data;
-          const handlers = this._pendingRequests.get(id);
-          if (handlers) {
-            this._pendingRequests.delete(id);
-            if (error) { // General error - not a ProviderRpcError per se
-              handlers.reject(new ProviderRpcError(-32603, error));
-            } else {
-              const result = this.handleResults(event);
-              handlers.resolve(result);
-            }
-          }
-        } catch (e) {
-          log.error('Inpage - YakklWalletProvider', true, e);
-        }
+  isConnected(): boolean {
+    return this._isConnected;
+  }
+
+  private setupMessageListener() {
+    window.addEventListener('message', (event) => {
+      // Only accept messages from the same origin
+      if (event.origin !== window.location.origin) return;
+
+      const message = event.data;
+      if (!message || typeof message !== 'object') return;
+
+      // Handle responses from content script
+      if (message.type === 'YAKKL_RESPONSE:EIP6963') {
+        this.handleResponse(message);
+      }
+
+      // Handle events from content script
+      if (message.type === 'YAKKL_EVENT:EIP6963') {
+        this.emitEvent(message.event, message.data);
       }
     });
-    this._initialized = true;
   }
 
-  private _pendingRequests = new Map<
-  string,
-  {
-    resolve: (value: unknown) => void;
-    reject: (value: unknown) => void;
-  }
-  >();
-  private _rateLimiter;
-  private _connected;
-  private _requestId;
-  private _providerError: ProviderRpcError | undefined;
-  private _initialized=false;
-
-  private _count=0;
-
-  public chainId: number = 1;
-  public networkVersion = "1";
-  public icon = "https://yakkl.com/images/logoBull48x48.png?utm_source=yakkl&utm_medium=extension&utm_campaign=inpage_logo";
-  public isMetaMask = true;
-  public _metamask = {
-    isUnlocked: () => true
-  };
-  public isWeb3 = true;
-  public isYakkl = true;
-  public label = "Web3/dApp Injected Provider - YAKKL® Smart Wallet";
-
-  public selectedAddresses: string[];
-  public version = VERSION;
-
-  public providers: YakklWalletProvider[] = [];
-
-  public isConnected(): boolean {
-    return this._connected;
-  }
-
-  public setMaxListeners(n: number): this {
-    super.setMaxListeners(n);
-    return this;
-  }
-
-  // Primary request method from dApp
-  public async request(request: RequestArguments): Promise<unknown> {
+  private async initialize() {
     try {
-      if (request === undefined) {
-        throw new ProviderRpcError(-32602, 'request had no value(s) passed in.');
-      }
-
-      this.validateRequest(request);
-      if (!this._rateLimiter.consume()) {
-        this._providerError = new ProviderRpcError(429, 'Dapp, too many requests which exceeds the default rate limit. Rate of calls will continue to be throttled or stopped unless rate slows down. Try again later.');
-        throw this._providerError;
-      }
-
-      return this.handleRequest(request);
-    } catch(e) {
-      log.error('Inpage - request', true, e);
-      this.disconnect();
-      return Promise.reject(e); // Must be in a ProviderRpcError format
+      await this.connect();
+      // Only announce provider after successful connection
+      announceProvider();
+    } catch (error) {
+      log.error('Failed to initialize provider:', false, error);
+      throw error;
     }
   }
 
-  // Private methods
-  private disconnect(): void {
-    this._connected = false; // The dApp will need to reconnect
-    this.selectedAddresses = [];
-    this.emit('disconnect', this.chainId);
-  }
+  private async connect(): Promise<void> {
+    if (this._isConnected) {
+      return;
+    }
 
-  private async sendRequest(method: string, params: unknown[] | object): Promise<unknown> {
-    let promise;
-    let requestId: number = 0;
-    let rejectType = 0;
+    if (this.isConnecting) {
+      // If already connecting, wait for the current attempt to finish
+      await new Promise(resolve => setTimeout(resolve, 100));
+      if (this._isConnected) return;
+    }
 
     try {
-      requestId = this._requestId++;
-      promise = new Promise<unknown>((resolve, reject) => {
-        this._pendingRequests.set(requestId.toString(), { resolve, reject });
-      });
-      rejectType = 1;
+      this.isConnecting = true;
+      log.debug('Connecting to EIP-6963...', false);
 
-      window.postMessage({id: requestId.toString(), method, params, type: 'YAKKL_REQUEST'}, windowOrigin);
-      this._requestId++;
+      if (this.connectionAttempts >= this.MAX_CONNECTION_ATTEMPTS) {
+        log.error('Max connection attempts reached', false);
+        throw new ProviderRpcError(4100, 'Failed to connect after maximum attempts');
+      }
 
-      return promise;
-    } catch (e) {
-      log.error('Inpage - sendRequest', true, e);
-      if (rejectType === 1) {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        //@ts-ignore
-        const { reject } = this._pendingRequests.get(requestId.toString());
-        if (!reject) {
-          Promise.reject(e);
+      this.connectionAttempts++;
+
+      // Test connection by requesting accounts
+      const accounts = await this.request({ method: 'eth_accounts' });
+      if (!Array.isArray(accounts)) {
+        throw new Error('Invalid response from eth_accounts');
+      }
+
+      // Update provider state
+      this._isConnected = true;
+      this.connectionAttempts = 0; // Reset on successful connection
+      log.debug('Successfully connected to EIP-6963', false);
+    } catch (error) {
+      log.error('Failed to connect to EIP-6963:', false, error);
+      this._isConnected = false;
+
+      // Only retry if we haven't reached max attempts
+      if (this.connectionAttempts < this.MAX_CONNECTION_ATTEMPTS) {
+        const delay = 1000 * Math.pow(2, this.connectionAttempts);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        this.isConnecting = false;
+        return this.connect(); // Retry connection
+      }
+      throw error;
+    } finally {
+      this.isConnecting = false;
+    }
+  }
+
+  private handleResponse(response: any) {
+    log.debug('Handling response in inpage:', true, response);
+
+    // Extract id from response using various possible formats
+    const id = response.id ||
+      (response.type === 'YAKKL_REQUEST:EIP6963' ? response.requestId : undefined) ||
+      (response.data && response.data.id);
+
+    // Handle error responses first
+    if (response.error) {
+      const pendingRequest = id ?
+        this.pendingRequests.get(id) :
+        Array.from(this.pendingRequests.values())[0];
+
+      if (pendingRequest) {
+        const error = new ProviderRpcError(
+          response.error.code || 4001,
+          response.error.message || 'Unknown error'
+        );
+        pendingRequest.reject(error);
+        this.pendingRequests.delete(id || Array.from(this.pendingRequests.keys())[0]);
+      }
+      return;
+    }
+
+    // If response is an array or has array data (special case for eth_accounts)
+    if (Array.isArray(response) || (response[0] && typeof response[0] === 'string')) {
+      const accounts = Array.isArray(response) ? response : [response[0]];
+      // Find eth_accounts request
+      for (const [reqId, request] of this.pendingRequests.entries()) {
+        if (request.method === 'eth_accounts' || request.method === 'eth_requestAccounts') {
+          this._isConnected = true;
+          this.emit('accountsChanged', accounts);
+          request.resolve(accounts);
+          this.pendingRequests.delete(reqId);
+          return;
         }
-        this._pendingRequests.delete(requestId.toString());
-        reject(e);
-      } else {
-        Promise.reject(e);
       }
+      return;
+    }
+
+    // Handle response with method and result format
+    if (response.method && response.result !== undefined) {
+      // Find request by method if no ID match
+      for (const [reqId, request] of this.pendingRequests.entries()) {
+        if (request.method === response.method) {
+          if (response.method === 'eth_accounts') {
+            this._isConnected = true;
+            this.emit('accountsChanged', response.result);
+          }
+          request.resolve(response.result);
+          this.pendingRequests.delete(reqId);
+          return;
+        }
+      }
+      return;
+    }
+
+    // Handle standard response format
+    const pendingRequest = id ?
+      this.pendingRequests.get(id) :
+      Array.from(this.pendingRequests.values())[0];
+
+    if (!pendingRequest) {
+      log.debug('No pending request found for response', false, { response, pendingRequests: Array.from(this.pendingRequests.entries()) });
+      return;
+    }
+
+    try {
+      const result = response.result || response;
+
+      // Special handling for eth_accounts responses
+      if (pendingRequest.method === 'eth_accounts' || pendingRequest.method === 'eth_requestAccounts') {
+        if (Array.isArray(result)) {
+          this._isConnected = true;
+          this.emit('accountsChanged', result);
+        }
+      }
+
+      pendingRequest.resolve(result);
+      this.pendingRequests.delete(id || Array.from(this.pendingRequests.keys())[0]);
+    } catch (error) {
+      log.error('Error processing response:', false, error);
+      pendingRequest.reject(new ProviderRpcError(
+        EIP1193_ERRORS.INTERNAL_ERROR.code,
+        EIP1193_ERRORS.INTERNAL_ERROR.message
+      ));
+      this.pendingRequests.delete(id || Array.from(this.pendingRequests.keys())[0]);
     }
   }
 
-  private async handleRequest(request: RequestArguments): Promise<unknown> {
-    try {
-      const { method, params } = request;
-
-      switch (method) {
-        case 'eth_chainId':
-          return this.handleChainId(); // Automatically wraps this in a Promise
-
-        case 'net_version':
-          return this.handleNetworkVersion(); // Automatically wraps this in a Promise
-
-        case 'eth_accounts':
-          return this.handleAccounts(); // Automatically wraps this in a Promise
-
-        case 'eth_requestAccounts':
-          return this.requestAccounts(params ?? []);
-
-        case 'eth_sendTransaction':
-          return this.sendTransaction(params ?? []);
-
-        case 'eth_signTypedData_v3':
-          return this.signTypedData_v3(params ?? []);
-
-        case 'eth_signTypedData_v4':
-          return this.signTypedData_v4(params ?? []);
-
-        case 'personal_sign':
-          return this.personal_sign(params ?? []);
-
-        case 'wallet_getPermissions':
-          return this.getPermissions(params ?? []);
-
-        case 'wallet_requestPermissions':
-          return this.requestPermissions(params ?? []);
-
-        case 'wallet_switchEthereumChain':
-          return this.switchEthereumChain(params ?? []);
-
-        case 'wallet_addEthereumChain':
-          return this.addEthereumChain(params ?? []);
-
-        case 'eth_getBlockByNumber':
-          return this.getBlockByNumber(params ?? []);
-
-        case 'eth_estimateGas':
-          return this.estimateGas(params ?? []);
-
-        default:
-          throw new ProviderRpcError(4200, `The requested method ${method} is not supported by this Ethereum provider.`);
-      }
-    } catch (e) {
-      log.error('Inpage - handleRequest', true, e);
-      throw e;
-    }
+  private emitEvent(eventName: string, data: any) {
+    this.emit(eventName, data);
   }
 
-  // All of these methods do not flow through to the background.js service
-  private handleChainId(): number {
-    try {
-      this.handleChainIdChange(this.chainId);
+  async request(args: RequestArguments): Promise<unknown> {
+    // Handle eth_chainId directly
+    if (args.method === 'eth_chainId') {
       return this.chainId;
-    } catch (e) {
-      log.error('Inpage - handleChainId', true, e);
-      return 0;
     }
-  }
 
-  private handleNetworkVersion(): string {
-    this.handleChainIdChange(this.chainId);
-    return this.networkVersion;
-  }
-
-  private handleAccounts(): string[] {
-    return this.selectedAddresses;
-  }
-
-  // All of these methods flow through to the background.js service
-  private async requestAccounts(params: unknown[] | object): Promise<unknown> {
-    return this.sendRequest('eth_requestAccounts', params);
-  }
-
-  private async sendTransaction(params: unknown[] | object): Promise<unknown> {
-    return this.sendRequest('eth_sendTransaction', params);
-  }
-
-  private async signTypedData_v3(params: unknown[] | object): Promise<unknown> {
-    return this.sendRequest('eth_signTypedData_v3', params);
-  }
-
-  private async signTypedData_v4(params: unknown[] | object): Promise<unknown> {
-    return this.sendRequest('eth_signTypedData_v4', params);
-  }
-
-  private async personal_sign(params: unknown[] | object): Promise<unknown> {
-    return this.sendRequest('personal_sign', params);
-  }
-
-  private async getPermissions(params: unknown[] | object): Promise<unknown> {
-    return this.sendRequest('eth_getPermissions', params);
-  }
-
-  private async requestPermissions(params: unknown[] | object): Promise<unknown> {
-    return this.sendRequest('eth_requestPermissions', params);
-  }
-
-  private async switchEthereumChain(params: unknown[] | object): Promise<unknown> {
-    return this.sendRequest('eth_switchEthereumChain', params);
-  }
-
-  private async addEthereumChain(params: unknown[] | object): Promise<unknown> {
-    return this.sendRequest('eth_addEthereum', params);
-  }
-
-  private async getBlockByNumber(params: unknown[] | object): Promise<unknown> {
-    // It is getting the block info so no account is needed
-    return this.sendRequest('eth_getBlockByNumber', params);
-  }
-
-  private async estimateGas(params: unknown[] | object): Promise<unknown> {
-    // It is getting the block info so no account is needed
-    return this.sendRequest('eth_estimateGas', params);
-  }
-
-  // Result handler
-  private handleResults(event: MessageEvent): unknown {
-    try {
-      let result = event?.data?.result;
-
-      switch(event?.data?.method) {
-        case 'eth_requestAccounts':
-          {
-            const addresses = result as string[];
-            const chainId = event.data.chainId;
-
-            if (!this._connected && addresses && addresses.length > 0) {
-              this._connected = true;
-              this.emit('connect', { chainId: chainId });
-            }
-
-            this.handleChainIdChange(chainId);
-            this.handleAddressChange(addresses);
-          }
-          break;
-        case 'eth_switchEthereumChain':
-        case 'eth_addEthereumChain':
-          {
-            // const chainId = result;
-            const chainId = event.data.chainId;
-            const supported = supportedChainId(chainId);
-            if (!supported) {
-              throw new ProviderRpcError(4901, 'The provider is disconnected from the specified chain.');
-            }
-            this.handleChainIdChange(chainId);
-          }
-          break;
-        case 'error':
-          result = event.data.data;
-          break;
-      }
-      return result;
-    } catch (e) {
-        log.error('Inpage - validation', true, e); // Must be in a ProviderRpcError format
-        if (!(e as ProviderRpcError)?.code) {
-          throw new ProviderRpcError(-32603, (e as string)); // Assume a string if not a ProviderRpcError
-      } else {
-        throw e;
-      }
+    // Handle net_version directly
+    if (args.method === 'net_version') {
+      return this.networkVersion;
     }
-  }
 
-  private checkConnection(): void {
-    if (!this._connected) {
-      throw new ProviderRpcError(4900, 'The Provider is disconnected from all chains.');
+    // Handle wallet_requestPermissions
+    if (args.method === 'wallet_requestPermissions') {
+      // This will trigger the eth_requestAccounts flow which handles permissions
+      const accounts = await this.request({ method: 'eth_requestAccounts' });
+      return [{
+        parentCapability: 'eth_accounts',
+        caveats: [],
+        date: new Date().getTime()
+      }];
     }
-  }
 
-  private validateRequest(request: RequestArguments): void {
-    // eslint-disable-next-line no-useless-catch
-    try{
-      const { method } = request;
+    // List of methods that don't require approval
+    const noApprovalMethods = [
+      'eth_getBlockByNumber',
+      'eth_getBlockByHash',
+      'eth_blockNumber',
+      'eth_call',
+      'eth_estimateGas',
+      'eth_gasPrice',
+      'eth_getBalance',
+      'eth_getCode',
+      'eth_getTransactionCount',
+      'eth_getTransactionReceipt',
+      'eth_getStorageAt',
+      'eth_getTransactionByHash',
+      'eth_getLogs'
+    ];
 
-      if (!this._rateLimiter.consume()) {
-        throw new ProviderRpcError(429, 'Too many requests which exceeds the default rate limit. Rate of calls will continue to be throttled or stopped unless rate slows down. Try again later.');
-      }
+    const id = ++this.requestId;
+    log.debug('Making request from inpage:', false, { id, ...args });
 
-      if (request === undefined) {
-        throw new ProviderRpcError(-32603, 'request had no value(s) passed in.');
-      }
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        this.pendingRequests.delete(id);
+        reject(new ProviderRpcError(4001, 'Request timeout'));
+      }, 30000);
 
-      const validMethods = [
-        'eth_requestAccounts',
-        'eth_accounts',
-        'eth_chainId',
-        'eth_sendTransaction',
-        'eth_signTypedData_v3',
-        'eth_signTypedData_v4',
-        'eth_getBlockByNumber',
-        'eth_estimateGas',
-        'personal_sign',
-        'wallet_getPermissions',
-        'wallet_requestPermissions',
-        'wallet_switchEthereumChain',
-        'wallet_addEthereumChain',
-        'net_version'
-      ];
-
-      if (!validMethods.includes(method)) {
-        throw new ProviderRpcError(4200, `The requested method ${method} is not supported by this Ethereum provider.`);
-      }
-    } catch (e) {
-      throw e;
-    }
-  }
-
-  private handleChainIdChange(chainId: number): void {
-    try {
-      this.chainId = chainId;
-      this.emit("chainChanged", chainId);
-      this.emit("networkChanged", chainId);
-    } catch (e) {
-      log.error('Inpage - handleChainIdChange', true, e);
-    }
-  }
-
-  private handleAddressChange(addresses: Array<string>): void {
-    try {
-      if (this.selectedAddresses !== addresses) {
-        this.selectedAddresses = addresses;
-        this.emit("accountsChanged", addresses);
-      }
-    } catch (e) {
-      log.error('Inpage - handleAddressChange', true, e);
-    }
-  }
-}
-
-// Initial setting of window.ethereum before the proxy
-export const windowProvider = {
-  value:  new YakklWalletProvider(),
-  configurable: true,
-}
-
-// Base code has yakkl__2 and web3__2 defined. The build system changes the name of the provider to yakkl__2 to yakkl and web3__2 to web3 to keep linting happy. Quick and dirty fix for now.
-declare global {
-  interface Window {
-    yakklLegacy: YakklWalletProvider,
-    ethereumProviderManager?: EthereumProviderManager,
-    ethereum?: LegacyWindowEthereum,  // Set this so that we can remove a provider that is not playing well because writable and configurable are set to true so no modifications!
-    web3?: YakklWalletProvider,
-    yakkl?: EIP6963ProviderDetail
-  }
-}
-
-let cachedEthereumProviderProxy: LegacyWindowEthereum;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-let cachedCurrentProvider: LegacyWalletProvider;
-
-// Default - YakklWalletProvider is passed here...
-function setGlobalProvider(windowProvider: PropertyDescriptor & ThisType<any>) {
-  try {
-    if (!window.yakklLegacy) {
-      Object.defineProperty(window, 'yakklLegacy', windowProvider); // set this with no proxy
-
-      Object.defineProperty(window, "ethereumProviderManager", {
-        value: new EthereumProviderManager,
-        writable: false,
-        configurable: false,
+      this.pendingRequests.set(id, {
+        resolve: (value) => {
+          clearTimeout(timeout);
+          resolve(value);
+        },
+        reject: (reason) => {
+          clearTimeout(timeout);
+          reject(reason);
+        },
+        method: args.method // Store the method for matching array responses
       });
 
-      Object.defineProperty(window, "ethereum", {
-        get() {
-          if (!window.ethereumProviderManager) {
-            throw new Error("window.ethereumProviderManager is expected to be set to change the injected provider on window.ethereum.");
-          }
-          if (cachedEthereumProviderProxy && cachedCurrentProvider === window.ethereumProviderManager.currentProvider) return cachedEthereumProviderProxy;
+      try {
+        window.postMessage({
+          type: 'YAKKL_REQUEST:EIP6963',
+          id,
+          ...args,
+          requiresApproval: !noApprovalMethods.includes(args.method)
+        }, window.location.origin);
+      } catch (error) {
+        clearTimeout(timeout);
+        this.pendingRequests.delete(id);
+        reject(new ProviderRpcError(4001, 'Failed to send request'));
+      }
+    });
+  }
 
-          cachedEthereumProviderProxy = new Proxy(window.ethereumProviderManager.currentProvider, {
-            get(target, prop, receiver) {
-              if (
-                window.ethereumProviderManager &&
-                !(prop in window.ethereumProviderManager.currentProvider) &&
-                prop in window.ethereumProviderManager
-              ) {
-                // Uniswap MM connector checks the providers array for the MM provider and forces to use that
-                // https://github.com/Uniswap/web3-react/blob/main/packages/metamask/src/index.ts#L57
-                // as a workaround we need to remove this list for uniswap so the actual provider change can work after reload.
-                // The same is true for `galaxy.eco`
-                if (
-                  (window.location.href.includes("app.uniswap.org") ||
-                    window.location.href.includes("kwenta.io") ||
-                    window.location.href.includes("galxe.com")) &&
-                  prop === "providers"
-                ) {
-                  return null;
-                }
-                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                //@ts-ignore
-                return window.ethereumProviderManager[prop];
-              }
-              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-              //@ts-ignore
-              return Reflect.get(window.ethereumProviderManager.currentProvider ?? target, prop, receiver);
-            },
-            deleteProperty: () => true,
-          })
-          cachedCurrentProvider = window.ethereumProviderManager.currentProvider;
-          return cachedEthereumProviderProxy;
-        },
-        set(newProvider) {
-          try {
-            window.ethereumProviderManager?.addProvider('epm',newProvider);
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            //@ts-ignore
-            window.ethereum.providers = [...window.ethereumProviderManager.providers.values()] ?? [];
-            // window.ethereumProviderManager?.reload(); // This will check for certain sites that require a reload to work properly
-          } catch (e) {
-            log.error('Inpage - addProvider', true, e); // Nothing else
-          }
-        },
-        configurable: false, // true
-      })
-    }
-    window.dispatchEvent(new Event('ethereum#initialized'));
-  } catch (e) {
-    log.error('Inpage - unable to setGlobalProvider', true, e);
+  announce(): void {
+    announceProvider();
   }
 }
 
-// Set up legacy provider
-setGlobalProvider(windowProvider);
+// Initialize provider state
+const provider = new EIP1193Provider();
 
-// EIP-6963 Provider
-const eip6963ProviderDetail = getEIP6963ProviderDetail();
-window.yakkl = eip6963ProviderDetail;
+// Create the provider detail object
+const providerDetail: EIP6963ProviderDetail = {
+  provider,
+  info: providerInfo
+};
 
-// Announce provider on load
-window.addEventListener('DOMContentLoaded', () => {
-  try {
-    if (eip6963ProviderDetail?.provider) {
-      log.debug('Announcing EIP-6963 provider on DOMContentLoaded');
-      eip6963ProviderDetail.provider.announce();
-    }
-  } catch (e) {
-    log.error('Error announcing EIP-6963 provider on DOMContentLoaded', true, e);
+// Expose the provider
+window.ethereum = provider;
+window.yakkl = providerDetail;
+
+let hasAnnounced = false;
+
+// Function to announce provider
+function announceProvider() {
+  if (hasAnnounced) {
+    log.debug('Provider already announced, skipping', false);
+    return;
   }
-});
 
-// Also listen for explicit requests
+  try {
+    log.debug('Announcing EIP-6963 provider', false);
+
+    // Dispatch the announcement event
+    window.dispatchEvent(
+      new CustomEvent('eip6963:announceProvider', {
+        detail: providerDetail
+      })
+    );
+
+    // Also listen for request events
+    window.addEventListener('eip6963:requestProvider', () => {
+      log.debug('Received EIP-6963 provider request', false);
+      window.dispatchEvent(
+        new CustomEvent('eip6963:announceProvider', {
+          detail: providerDetail
+        })
+      );
+    });
+
+    hasAnnounced = true;
+    log.debug('Provider announced with details:', false, providerInfo);
+  } catch (e) {
+    log.error('Error announcing EIP-6963 provider', false, e);
+    hasAnnounced = false;
+  }
+}
+
+// Announce provider immediately if document is already loaded
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  announceProvider();
+} else {
+  // Otherwise wait for the document to load
+  document.addEventListener('DOMContentLoaded', () => {
+    announceProvider();
+  });
+}
+
+// Also announce when specifically requested
 window.addEventListener('eip6963:requestProvider', () => {
-  try {
-    log.debug('Received eip6963:requestProvider event');
-    if (eip6963ProviderDetail?.provider) {
-      eip6963ProviderDetail.provider.announce();
-    }
-  } catch (e) {
-    log.error('Error handling eip6963:requestProvider event', true, e);
-  }
+  announceProvider();
 });
 
-// Listen for EIP-6963 event forwarding from content script
-window.addEventListener('message', (event) => {
-  try {
-    if (event.source !== window) return;
+// Re-export for use in other modules
+export { provider };
 
-    const { data } = event;
-    if (!data || data.type !== 'YAKKL_EVENT:EIP6963') return;
-
-    const { event: eventName, data: eventData } = data;
-
-    // Forward events to the EIP-6963 provider
-    if (window.yakkl?.provider) {
-      if (eventName === 'accountsChanged') {
-        window.yakkl.provider.emit('accountsChanged', eventData);
-      } else if (eventName === 'chainChanged') {
-        window.yakkl.provider.emit('chainChanged', eventData);
-      } else if (eventName === 'connect') {
-        window.yakkl.provider.emit('connect', eventData);
-      } else if (eventName === 'disconnect') {
-        window.yakkl.provider.emit('disconnect', eventData);
-      }
-    }
-  } catch (e) {
-    log.error('Error forwarding EIP-6963 event', true, e);
-  }
+// Debug log for window.yakkl assignment
+log.debug('window.yakkl assigned', false, {
+  provider: providerInfo,
+  readyState: document.readyState
 });

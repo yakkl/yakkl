@@ -11,7 +11,7 @@
 	import ProgressWaiting from '$lib/components/ProgressWaiting.svelte';
 	import type { AccountAddress, ConnectedDomainAddress, YakklAccount, YakklConnectedDomain, YakklCurrentlySelected } from '$lib/common';
 
-  import type { Runtime } from '';
+  import type { Runtime } from 'webextension-polyfill';
 	import { dateString } from '$lib/common/datetime';
 	import { log } from '$lib/plugins/Logger';
 
@@ -37,7 +37,7 @@
   let port: RuntimePort;
   let domain: string = $state('');
   let domainLogo: string = $state('');
-  let domainTitle: string;
+  let domainTitle: string = $state('');
   let requestId: string | null;
   let requestData: any;
   let pass = false;
@@ -496,140 +496,128 @@ async function close() {
 
 <Success bind:show={showSuccess} title="Success!" content="{domain} is now connected to YAKKL®" handleConfirm={() => {window.close()}}/> -->
 
-<div class="modal" class:modal-open={showConfirm}>
-  <div class="modal-box relative">
-
-    <h3 class="text-lg font-bold">Connect to {domain}</h3>
-    <p class="py-4">This will connect <span class="font-bold">{domain}</span> to {accountsPicked} of your addresses! Do you wish to continue?</p>
-    <div class="modal-action">
-      <button class="btn" onclick={()=>showConfirm = false}>Cancel</button>
-      <button class="btn" onclick={handleProcess}>Yes</button>
+{#if showConfirm}
+<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+  <div class="bg-base-100 rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl">
+    <h3 class="text-lg font-bold mb-4">Connect to {domain}</h3>
+    <p class="mb-6">Connect <span class="font-bold text-primary">{accountsPicked}</span> address{accountsPicked > 1 ? 'es' : ''} to {domain}?</p>
+    <div class="flex justify-end gap-4">
+      <button class="btn btn-outline" onclick={() => showConfirm = false}>Cancel</button>
+      <button class="btn btn-primary" onclick={handleProcess}>Connect</button>
     </div>
   </div>
 </div>
+{/if}
 
-<div class="modal" class:modal-open={showSuccess}>
-  <div class="modal-box relative">
-
-    <h3 class="text-lg font-bold">Success!</h3>
-    <p class="py-4"><span class="font-bold">{domain}</span> is now connected to YAKKL®</p>
-    <div class="modal-action">
-      <button class="btn" onclick={()=> window.close()}>Close</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal" class:modal-open={showFailure}>
-  <div class="modal-box relative">
-
-    <h3 class="text-lg font-bold">Failed!</h3>
-    <p class="py-4">{errorValue}</p>
-    <div class="modal-action">
-      <button class="btn" onclick={()=> window.close()}>Close</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal" class:modal-open={showWarning}>
-  <div class="modal-box relative">
-
-    <h3 class="text-lg font-bold">Failed!</h3>
-    <p class="py-4">{warningValue}</p>
-    <div class="modal-action">
-      <button class="btn" onclick={() => showWarning=false}>OK</button>
-    </div>
-  </div>
-</div>
-
-{#await filteredAddresses}
-<div class="w-[96%] text-center justify-center m-2 flex flex-col">
-  <div class="justify-center">
-    <div class="rounded-badge inline-flex w-fit p-2 bg-secondary text-base-content font-semibold">
-      <div class="flex flex-row w-8 h-8">
-        <img crossorigin="anonymous" src={domainLogo} alt="Dapp logo" />
+<div class="flex flex-col h-full">
+  <!-- Header -->
+  <div class="p-4 border-b border-base-300">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <img src={domainLogo} alt="Dapp logo" class="w-8 h-8 rounded-full" />
+        <span class="font-semibold">{domainTitle || domain}</span>
       </div>
-      <div class="flex flex-row">
-      <p class="ml-2 mt-2">Accounts to use in DAPP</p>
-      </div>
+      <!-- svelte-ignore a11y_consider_explicit_label -->
+      <button onclick={handleReject} class="btn btn-ghost btn-sm">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+        </svg>
+      </button>
     </div>
   </div>
-  <div class="text-primary-content text-2xl font-bold flex flex-col">
-    Connect with YAKKL®
-  </div>
 
-  <div class="w-full text-center flex flex-col">
-    <p class="text-base-content">Loading accounts...</p>
-  </div>
+  <!-- Content -->
+  <div class="flex-1 p-4">
+    <div class="text-center mb-6">
+      <h2 class="text-xl font-bold mb-2">Select Accounts</h2>
+      <p class="text-base-content/80">Choose which accounts to connect with this site</p>
+    </div>
 
-</div>
-{:then _}
-<div class="w-[96%] text-center justify-center m-2 flex flex-col">
-  <div class="justify-center">
-    <div class="rounded-badge inline-flex w-fit p-2 bg-secondary text-base-content font-semibold">
-      <div class="flex flex-row w-8 h-8">
-        <img src={domainLogo} alt="Dapp logo" />
-      </div>
-      <div class="flex flex-row">
-      <p class="ml-2 mt-2">Accounts to use in DAPP</p>
-      </div>
+    <!-- Search -->
+    <div class="relative mb-4">
+      <input
+        type="text"
+        bind:value={searchTerm}
+        placeholder="Search accounts"
+        class="input input-bordered w-full pl-10"
+      />
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+    </div>
+
+    <!-- Account List -->
+    <div class="overflow-y-auto max-h-[300px] rounded-lg border border-base-300">
+      {#await filteredAddresses}
+        <div class="p-4 text-center">
+          <span class="loading loading-spinner"></span>
+          <p class="mt-2">Loading accounts...</p>
+        </div>
+      {:then _}
+        {#each filteredAddressesArray as item, i}
+          <div class="flex items-center gap-3 p-3 hover:bg-base-200 border-b border-base-300 last:border-none">
+            <input
+              type="checkbox"
+              id="cb{i}"
+              class="checkbox checkbox-primary"
+              onclick={(e) => handleAccount(item, e)}
+              checked={item.checked}
+            />
+            <label for="cb{i}" class="flex-1 cursor-pointer">
+              <div class="font-medium">{truncate(item.name, 20)}</div>
+              <div class="text-sm text-base-content/70">
+                {truncate(item.address, 6) + item.address.substring(item.address.length - 4)}
+                {#if item?.alias?.length > 0}
+                  <span class="ml-2 text-primary">{item.alias}</span>
+                {/if}
+              </div>
+            </label>
+          </div>
+        {/each}
+      {/await}
     </div>
   </div>
-  <div class="text-primary-content text-2xl font-bold flex flex-col">
-    Connect with YAKKL®
-  </div>
 
-  <div class="w-full text-center flex flex-col">
-    <p class="text-base-content">Select the account to use for this dApp site</p>
-  </div>
-
-</div>
-
-<div class="mx-4 mb-2 overflow-scroll max-h-[700px]">
-  <TableSearch placeholder="Search by address name" hoverable={true} bind:inputValue={searchTerm} > <!-- shadow> -->
-    <TableHead>
-      <TableHeadCell>
-
-        <!-- <Checkbox on:click={handleToggleAll}/> -->
-
-      </TableHeadCell>
-      <TableHeadCell>Addresses</TableHeadCell>
-    </TableHead>
-    <TableBody tableBodyClass="divide-y">
-      {#each filteredAddressesArray as item, i}
-        <TableBodyRow>
-          <!-- ; (item.checked === true) ? 'checked' : '' -->
-          <TableBodyCell><Checkbox id="cb{i}" on:click={(e) => {handleAccount(item, e); (item.checked === true) ? 'checked' : '' }}/></TableBodyCell>
-          <TableBodyCell>
-            {truncate(item.name, 20)} - {truncate(item.address, 6) + item.address.substring(item.address.length - 4)}
-            {#if item?.alias?.length > 0}
-            {item.alias}
-            {/if}
-          </TableBodyCell>
-        </TableBodyRow>
-      {/each}
-    </TableBody>
-  </TableSearch>
-</div>
-
-<div class="my-4">
-  <div class="flex space-x-2 justify-center">
-    <button
-      onclick={handleReject}
-      class="btn-sm btn-accent uppercase rounded-full"
-      aria-label="Cancel">
-      Reject
-    </button>
-
-    <button
-      type="submit"
-      id="recover"
-      onclick={handleConfirm}
-      class="btn-sm btn-primary uppercase rounded-full ml-2"
-      aria-label="Confirm">
-      Approve
-    </button>
+  <!-- Footer -->
+  <div class="p-4 border-t border-base-300">
+    <div class="flex gap-4 justify-end">
+      <button onclick={handleReject} class="btn btn-outline">
+        Cancel
+      </button>
+      <button onclick={handleConfirm} class="btn btn-primary">
+        Connect ({accountsPicked})
+      </button>
+    </div>
   </div>
 </div>
 
-{/await}
+<style>
+  /* Smooth transitions */
+  .btn {
+    transition: all 0.2s ease;
+  }
+
+  .btn:hover {
+    transform: translateY(-1px);
+  }
+
+  /* Custom scrollbar */
+  .overflow-y-auto {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--p)) transparent;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--p));
+    border-radius: 3px;
+  }
+</style>
 

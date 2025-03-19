@@ -71,6 +71,7 @@ import type { TokenService } from '$lib/plugins/blockchains/evm/TokenService';
 import { tokens } from './stores/tokens';
 // import { timerManagerStore } from '$lib/plugins/TimerManager';
 import { log } from "$plugins/Logger";
+import { AccountTypeCategory, NetworkType } from '$lib/common/types';
 
 // Svelte writeable stores
 export const alert = writable({
@@ -862,8 +863,65 @@ export async function getProfile(): Promise<Profile | null> {
 export async function getYakklCurrentlySelected(): Promise<YakklCurrentlySelected> {
   try {
     const value = await getObjectFromLocalStorage<YakklCurrentlySelected>(STORAGE_YAKKL_CURRENTLY_SELECTED);
-    if (typeof value === 'string') { // Had !value check but this causes an error on early loading so check needs to be more specific at later step
-      throw new Error("No currently selected Yakkl found");
+
+    // If no value or value is a string, return default values
+    if (!value || typeof value === 'string') {
+      log.warn('No currently selected Yakkl found, using defaults', false, value);
+      return {
+        id: '',
+        shortcuts: {
+          value: 0n,
+          accountType: AccountTypeCategory.PRIMARY,
+          accountName: 'YAKKL_ZERO_ACCOUNT',
+          smartContract: false,
+          address: '',
+          alias: '',
+          primary: null,
+          init: false,
+          legal: false,
+          isLocked: true,
+          showTestNetworks: false,
+          profile: {
+            userName: '',
+            name: null,
+            email: '',
+          },
+          gasLimit: 21000,
+          networks: [
+            {
+              blockchain: 'Ethereum',
+              name: 'Mainnet',
+              chainId: 1,
+              symbol: 'ETH',
+              type: NetworkType.MAINNET,
+              explorer: 'https://etherscan.io',
+              decimals: 18,
+            }
+          ],
+          network: {
+            blockchain: 'Ethereum',
+            name: 'Mainnet',
+            chainId: 1,
+            symbol: 'ETH',
+            type: NetworkType.MAINNET,
+            explorer: 'https://etherscan.io',
+            decimals: 18,
+          },
+          blockchain: 'Ethereum',
+          type: NetworkType.MAINNET,
+          chainId: 1,
+          symbol: 'ETH',
+          explorer: 'https://etherscan.io',
+        },
+        preferences: {
+          locale: "en_US",
+          currency: {code: 'USD', symbol: '$'},
+        },
+        data: {},
+        version: '1.0.0',
+        createDate: new Date().toISOString(),
+        updateDate: new Date().toISOString(),
+      };
     }
     return value;
   } catch (error) {

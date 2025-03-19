@@ -1,5 +1,5 @@
 import { get, writable } from 'svelte/store';
-import type { EIP6963ProviderDetail } from '$lib/plugins/providers/network/ethereum_provider/EthereumProviderTypes';
+import type { EIP6963ProviderDetail } from '$lib/plugins/providers/network/ethereum_provider/eip-types';
 
 // Store for available EIP-6963 providers
 export const eip6963Providers = writable<EIP6963ProviderDetail[]>([]);
