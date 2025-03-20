@@ -12,6 +12,7 @@ import { getBlock } from './legacy';
 import type { Block, BlockTag } from 'alchemy-sdk';
 import type { YakklCurrentlySelected } from '../../common/interfaces';
 import { STORAGE_YAKKL_CURRENTLY_SELECTED, YAKKL_PROVIDER_EIP6963 } from '$lib/common/constants';
+import { KeyManager } from '$lib/plugins/KeyManager';
 
 // Import estimateGas from legacy.ts
 // const { estimateGas } = await import('./legacy');
@@ -284,8 +285,14 @@ async function handleEIP6963Request(method: string, params: any[], requestContex
           return yakklCurrentlySelected.shortcuts.address ? [yakklCurrentlySelected.shortcuts.address] : [];
         case 'eth_getBlockByNumber':
           try {
-            // Call getBlock without API key - it will be handled in the background
-            return await getBlock(yakklCurrentlySelected.shortcuts.chainId, params[0], undefined);
+            // Get API key (will return empty string if not found)
+            const apiKey = KeyManager.getInstance().getKey('INFURA_API_KEY') || '';
+
+            // Only use API key if it's not empty
+            const keyToUse = apiKey && apiKey !== '' ? apiKey : undefined;
+
+            // Call getBlock with API key if available, undefined otherwise
+            return await getBlock(yakklCurrentlySelected.shortcuts.chainId, params[0], keyToUse);
           } catch (error) {
             log.error('Error in eth_getBlockByNumber', false, error);
             throw new ProviderRpcError(4200, error instanceof Error ? error.message : 'Failed to fetch block');

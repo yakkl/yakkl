@@ -3,8 +3,6 @@
 // Background actions for the extension...
 
 import { initializeEIP6963 } from './eip-6963';
-import { initializeApiKeys } from './legacy';
-// import { BackgroundStorageHandler } from './background-storage-handler';
 
 import { addBackgroundListeners } from '$lib/common/listeners/background/backgroundListeners';
 import { globalListenerManager } from '$lib/plugins/GlobalListenerManager';
@@ -15,12 +13,10 @@ import type { Runtime } from 'webextension-polyfill';
 
 import { activeTabBackgroundStore, backgroundUIConnectedStore } from '$lib/common/stores';
 import { get } from 'svelte/store';
-import { getObjectFromLocalStorage, STORAGE_YAKKL_CURRENTLY_SELECTED, type ActiveTab } from '$lib/common';
-import type { YakklCurrentlySelected } from '$lib/common/interfaces';
+import { type ActiveTab } from '$lib/common';
 import { initializePermissions } from '$lib/permissions';
-import { keyManager } from '$lib/plugins/KeyManager';
-
-const browser_ext = browser;
+import { initializeStorageDefaults, watchLockedState } from '$lib/common/backgroundUtils';
+import { KeyManager } from '$lib/plugins/KeyManager';
 
 type RuntimeSender = Runtime.MessageSender;
 
@@ -33,38 +29,37 @@ type RuntimeSender = Runtime.MessageSender;
 // UPDATE: Moved idle timer to the IdleManager plugin and for anything needed to always be active while the UI is active
 // IdleManager is UI context only and is not used in the background context
 
+
+// Export KeyManager for console debugging
+// Use globalThis instead of window to support Service Workers
+(globalThis as any).debugKeyManager = KeyManager.getInstance();
+
 // Initialize on startup
 async function initialize() {
   try {
-    // Initialize storage handler
-    // BackgroundStorageHandler.getInstance();
+    log.info('Initializing background script...');
 
-    if (browser_ext) {
-      if (!browser_ext.alarms.onAlarm.hasListener(onAlarmListener)) {
-        browser_ext.alarms.onAlarm.addListener(onAlarmListener);
-      }
-    }
+    // Add extension listeners
+    addBackgroundListeners();
+    browser.alarms.onAlarm.addListener(onAlarmListener);
 
-    // Chrome specific
-    chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
+    // Initialize default storage values first
+    initializeStorageDefaults();
 
-    if (browser_ext) {
-      // Ensure initialization happens at key points
-      browser_ext.runtime.onStartup.addListener(initialize);
-      browser_ext.runtime.onInstalled.addListener(initialize);
-    }
+    // log.warn('Alchemy API Key:', false, process.env.VITE_ALCHEMY_API_KEY_PROD);
+    // log.warn('Infura API Key:', false, process.env.VITE_INFURA_API_KEY_WEB3P);
+    // log.warn('Etherscan API Key:', false, process.env.VITE_ETHERSCAN_API_KEY);
 
     // Initialize KeyManager first
-    await keyManager.initialize();
-
-    // Initialize API keys first
-    initializeApiKeys();
+    // await initializeKeyManager(); // Will come back to this when focusing on security
 
     // Initialize permissions system
-    await initializePermissions();
+    initializePermissions();
 
     // Initialize EIP-6963 handler
     initializeEIP6963();
+
+    await watchLockedState(5 * 60 * 1000);
 
     log.info('Background script initialized successfully');
   } catch (error) {
@@ -72,18 +67,16 @@ async function initialize() {
   }
 }
 
-initialize(); // Initial setup on load or reload. Alarm and State need to be set up quickly so they are here
-
-addBackgroundListeners();
+await initialize(); // Initial setup on load or reload. Alarm and State need to be set up quickly so they are here
 
 try {
-  if (browser_ext) {
+  if (browser) {
     // Set the active tab on startup
-    const tabs = await browser_ext.tabs.query({ active: true, currentWindow: true });
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
     log.debug('Active tabs:', false, tabs);
 
     if (tabs.length > 0) {
-      const window = await browser_ext.windows.get(tabs[0].windowId);
+      const window = await browser.windows.get(tabs[0].windowId);
       let activeTab: ActiveTab | null = {
         tabId: tabs[0].id ?? 0,
         windowId: tabs[0].windowId ?? 0,
@@ -97,7 +90,7 @@ try {
 
       if (activeTab.windowType === 'normal') {
         activeTabBackgroundStore.set(activeTab);
-        await browser_ext.storage.local.set({['activeTabBackground']: activeTab});
+        await browser.storage.local.set({['activeTabBackground']: activeTab});
       }
 
       log.debug('Added active tab:', false, get(activeTabBackgroundStore));
@@ -117,16 +110,16 @@ try {
 }
 
 try {
-  if (browser_ext) {
-    if (!browser_ext.runtime.onMessage.hasListener(onRuntimeMessageBackgroundListener)) {
-      browser_ext.runtime.onMessage.addListener(onRuntimeMessageBackgroundListener);
+  if (browser) {
+    if (!browser.runtime.onMessage.hasListener(onRuntimeMessageBackgroundListener)) {
+      browser.runtime.onMessage.addListener(onRuntimeMessageBackgroundListener);
     }
 
-    // if (!browser_ext.runtime.onConnect.hasListener(onConnectBackgroundUIListener)) {
-    //   browser_ext.runtime.onConnect.addListener(onConnectBackgroundUIListener);
+    // if (!browser.runtime.onConnect.hasListener(onConnectBackgroundUIListener)) {
+    //   browser.runtime.onConnect.addListener(onConnectBackgroundUIListener);
     // }
-    // if (!browser_ext.runtime.onConnect.hasListener(onDisconnectBackgroundUIListener)) {
-    //   browser_ext.runtime.onConnect.addListener(onDisconnectBackgroundUIListener);
+    // if (!browser.runtime.onConnect.hasListener(onDisconnectBackgroundUIListener)) {
+    //   browser.runtime.onConnect.addListener(onDisconnectBackgroundUIListener);
     // }
   }
 } catch (error) {
@@ -186,21 +179,70 @@ export async function onSuspendListener() {
   }
 }
 
-// Define safe methods that can work with defaults
-const SAFE_METHODS = new Set([
-  'eth_chainId',
-  'eth_accounts',
-  'eth_requestAccounts', // Initially returns empty array if wallet locked
-  'net_version', // Can work with default chainId
-]);
-
-// Get current wallet state
-async function getWalletState(): Promise<YakklCurrentlySelected | null> {
-  return await getObjectFromLocalStorage<YakklCurrentlySelected>(STORAGE_YAKKL_CURRENTLY_SELECTED);
+/**
+ * Determine if we're in a development environment
+ * This method checks multiple possible indicators since NODE_ENV might be inconsistent
+ */
+function isDevelopmentEnvironment(): boolean {
+  // Check multiple possible indicators for development mode
+  return (
+    // Standard NODE_ENV check
+    (typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production') ||
+    // Vite-specific development indicator
+    (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV === true) ||
+    // Check for DEV_DEBUG flag that might be set in your build process
+    (typeof process !== 'undefined' && process.env && process.env.DEV_DEBUG === 'true')
+  );
 }
 
-// Handle wallet-specific requests
-async function handleWalletRequest(method: string, params: unknown[]): Promise<unknown> {
-  // This should be implemented based on your wallet's capabilities
-  throw new Error('Method not implemented: ' + method);
+/**
+ * Initialize the KeyManager
+ */
+async function initializeKeyManager(): Promise<void> {
+  try {
+    const keyManager = KeyManager.getInstance();
+
+    // Log environment details for debugging
+    log.info('Environment details:', false, {
+      NODE_ENV: process.env.NODE_ENV,
+      isDev: isDevelopmentEnvironment(),
+      availableEnvKeys: process.env ? Object.keys(process.env).filter(key =>
+        key.includes('API_KEY') || key.includes('ALCHEMY') || key.includes('INFURA') || key.includes('BLOCKNATIVE')
+      ) : []
+    });
+
+    // Try normal initialization
+    try {
+      log.info('Initializing KeyManager...');
+      await keyManager.initialize();
+      log.info('KeyManager initialized successfully');
+    } catch (error: any) {
+      if (error?.message?.includes('background context')) {
+        log.warn('Forcing background initialization as fallback');
+        // Force initialize using reflection to bypass the check for testing
+        (keyManager as any)._forceInitializeInBackground();
+      } else {
+        throw error;
+      }
+    }
+
+    // Skip direct key setup - it's better to allow empty keys than to use incorrect values
+    // KeyManager.getKey will now return empty strings instead of undefined for missing keys
+
+    // Log available keys for debugging
+    const keyStatus = keyManager.getKeyStatus();
+    log.info('KeyManager initialized with keys:', false, keyStatus);
+
+    // Explicitly log full key details (development only)
+    if (isDevelopmentEnvironment()) {
+      try {
+        log.info('Logging detailed key information...');
+        keyManager.debugLogKeys();
+      } catch (error) {
+        log.error('Failed to log key details', false, error);
+      }
+    }
+  } catch (error) {
+    log.error('Failed to initialize KeyManager', false, error);
+  }
 }

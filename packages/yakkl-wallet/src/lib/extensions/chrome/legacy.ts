@@ -2,33 +2,33 @@ import { log } from '$lib/plugins/Logger';
 import type { Deferrable } from '@ethersproject/properties';
 import { Alchemy, Network, type TransactionRequest, type BlockTag } from 'alchemy-sdk';
 import { keyManager } from '$lib/plugins/KeyManager';
+import browser from 'webextension-polyfill';
 
 // Secure API key management - only accessible in background context
 let alchemyApiKey: string | undefined;
 
 // Initialize API keys from environment - should be called only in background context
-export function initializeApiKeys() {
-  try {
-    // In background script, we can access chrome.storage.local
-    chrome.storage.local.get(['ALCHEMY_API_KEY'], (result) => {
-      if (result.ALCHEMY_API_KEY) {
-        alchemyApiKey = result.ALCHEMY_API_KEY;
-      } else {
-        // If not in storage, try to get from environment
-        const envKey = process.env.VITE_ALCHEMY_API_KEY_PROD;
-        if (envKey) {
-          alchemyApiKey = envKey;
-          // Store for future use
-          chrome.storage.local.set({ ALCHEMY_API_KEY: envKey });
-        } else {
-          log.error('Alchemy API key not found in storage or environment');
-        }
-      }
-    });
-  } catch (error) {
-    log.error('Failed to initialize API keys', false, error);
-  }
-}
+// export async function initializeApiKeys() {
+//   try {
+//     // In background script, we can access chrome.storage.local
+//     const result = await browser.storage.local.get(['ALCHEMY_API_KEY']);
+//     if (result.ALCHEMY_API_KEY) {
+//       alchemyApiKey = result.ALCHEMY_API_KEY as string;
+//     } else {
+//       // If not in storage, try to get from environment
+//       const envKey = process.env.VITE_ALCHEMY_API_KEY_PROD;
+//       if (envKey) {
+//         alchemyApiKey = envKey;
+//         // Store for future use
+//         browser.storage.local.set({ ALCHEMY_API_KEY: envKey });
+//       } else {
+//         log.error('Alchemy API key not found in storage or environment');
+//       }
+//     }
+//   } catch (error) {
+//     log.error('Failed to initialize API keys', false, error);
+//   }
+// }
 
 /**********************************************************************************************************************/
 // This section is for the Ethereum provider - Legacy version
@@ -47,13 +47,27 @@ export async function estimateGas(chainId: any, params: Deferrable<TransactionRe
   }
 }
 
-export async function getBlock(chainId: any, block: BlockTag | Promise<BlockTag>, _kval?: string) {
+export async function getBlock(chainId: any, block: BlockTag | Promise<BlockTag>, apiKeyOverride?: string) {
   try {
-    const apiKey = await keyManager.getKey('ALCHEMY_API_KEY_PROD');
+    // Try to use the provided API key first
+    let apiKey = apiKeyOverride;
+
+    // If no key was provided, try to get it from KeyManager
     if (!apiKey) {
-      throw new Error('API key not configured');
+      try {
+        apiKey = await keyManager.getKey('ALCHEMY_API_KEY_PROD');
+      } catch (error) {
+        log.warn('Could not get API key from KeyManager, using fallback', false, error);
+      }
     }
-    const provider = new Alchemy(getProviderConfig(chainId, apiKey));
+
+    // If still no key, use a reasonable fallback mechanism
+    if (!apiKey) {
+      log.warn('No API key available for Alchemy, using public endpoints');
+      // We could implement a public API fallback here
+    }
+
+    const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
     return await provider.core.getBlock(block);
   } catch (e) {
     log.error('Error in getBlock', false, e);
@@ -87,3 +101,33 @@ function getProviderConfig(chainId: any, apiKey: string) {
     throw e;
   }
 }
+
+// We should implement support for these methods in legacy.ts
+// if (legacyMethods.includes(method)) {
+//   try {
+//     // Query blockchain data as needed
+//     switch (method) {
+//       case 'eth_getBlockByNumber': {
+//         // Get the API key (fallbacks to empty string)
+//         const apiKey = await keyManager.getKey('ALCHEMY_API_KEY_PROD') || '';
+//
+//         // Only pass the API key if it's not empty
+//         const keyToUse = apiKey !== '' ? apiKey : undefined;
+//
+//         return await getBlock(yakklCurrentlySelected.shortcuts.chainId, params[0], keyToUse);
+//       }
+//       case 'eth_getBlockByHash': {
+//         // Get the API key (fallbacks to empty string)
+//         const apiKey = await keyManager.getKey('ALCHEMY_API_KEY_PROD') || '';
+//
+//         // Only pass the API key if it's not empty
+//         const keyToUse = apiKey !== '' ? apiKey : undefined;
+//
+//         return await getBlockByHash(yakklCurrentlySelected.shortcuts.chainId, params[0], keyToUse);
+//       }
+//     }
+//   } catch (e) {
+//     log.error('Error in legacy method', false, e);
+//     throw e;
+//   }
+// }

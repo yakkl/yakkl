@@ -31,8 +31,6 @@ export async function onInstalledUpdatedListener( details: Runtime.OnInstalledDe
     openPopups.clear();
 
     if ( details && details.reason === "install") {
-      await initializeDatabase(false);
-
       // This only happens on initial install to set the defaults
       yakklStoredObjects.forEach(async (element) => {
         try {
@@ -41,6 +39,8 @@ export async function onInstalledUpdatedListener( details: Runtime.OnInstalledDe
           log.error(`Error setting default for ${element.key}:`, false, error);
         }
       });
+
+      await initializeDatabase(false);
 
       await browser_ext.runtime.setUninstallURL(encodeURI("https://yakkl.com?userName=&utm_source=yakkl&utm_medium=extension&utm_campaign=uninstall&utm_content=" + `${VERSION}` + "&utm_term=extension"));
       await setLocalObjectStorage(platform, false);

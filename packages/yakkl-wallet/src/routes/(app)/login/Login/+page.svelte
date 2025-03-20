@@ -93,6 +93,7 @@
         setLocks(true);
 
         // Sets the default of 60 seconds but can be changed by setting the properties to another integer.
+        // Most browser type functions exist in the background context but we have this to be more dynamic
         browser_ext.idle.setDetectionInterval(yakklPreferences ? yakklPreferences?.idleDelayInterval ?? 60 : 60); // System idle time is 2 minutes. This adds 1 minute to that. If any movement or activity is detected then it resets.
 
         registeredType = yakklSettings.registeredType as string;
@@ -153,7 +154,7 @@
           }
           $yakklUserNameStore = userName;
 
-          setLocks(false, registeredType);
+          // setLocks(false, registeredType);
 
           if (isEncryptedData(profile.data)) {
             profile.data = await decryptData(profile.data, yakklMisc);
@@ -203,7 +204,8 @@
           if (await checkAccountRegistration()) {
             // resetTokenDataStoreValues();
             // await updateTokenPrices();
-            await sendNotificationStartLockIconTimer();
+
+            // await sendNotificationStartLockIconTimer();
             goto(redirect, {replaceState: true, invalidateAll: true});
           } else {
             showRegistrationOption = true;

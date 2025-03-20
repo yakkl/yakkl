@@ -128,6 +128,7 @@ export function showPermissionPrompt(origin: string): Promise<PermissionResponse
         window.permissionCallbacks[requestId] = { resolve, reject };
       }
 
+      log.info('Showing permission popup', false, { origin, requestId });
       // Show the approval popup
       const popupUrl = `/dapp/popups/connect.html?requestId=${requestId}&origin=${encodeURIComponent(origin)}`;
       log.debug('Opening permission popup', false, { origin, popupUrl });

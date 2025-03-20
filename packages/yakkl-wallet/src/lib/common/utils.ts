@@ -23,6 +23,35 @@ export function getUserId(): string {
   return userId;
 }
 
+export function detectExecutionContext(): "background" | "content_script" | "popup" | "options" | "unknown" {
+  // Background Service Worker (No `window` object)
+  if (typeof window === "undefined") {
+    return "background";
+  }
+
+  // Content Script (Has `document`, but no `chrome-extension://` URL)
+  if (typeof document !== "undefined" && window.location.protocol !== "chrome-extension:") {
+    return "content_script";
+  }
+
+  // Popup or Options Page (Runs within the extension UI)
+  if (window.location.protocol === "chrome-extension:") {
+    // Check if running in a popup
+    if (window.location.pathname.includes("popup")) {
+      return "popup";
+    }
+
+    // Check if running in the options page
+    if (window.location.pathname.includes("options")) {
+      return "options";
+    }
+
+    return "unknown"; // Some other extension UI page
+  }
+
+  return "unknown"; // Fallback if none of the above match
+}
+
 export async function checkAccountRegistration(): Promise<boolean> {
   try {
     const accounts: YakklAccount[] = get(yakklAccountsStore);
