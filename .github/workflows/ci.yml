@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
 
 jobs:
   build:
@@ -15,22 +15,35 @@ jobs:
         node-version: [18.x]
 
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v3
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Build
-      run: npm run build:wallet --if-present
-      
-    # - name: Run tests
-    #   run: npm test --if-present
+      - uses: actions/checkout@v3
 
-    # - name: Lint
-    #   run: npm run lint --if-present 
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9.15.0 # use your actual pnpm version
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build
+        run: pnpm run build:wallet --if-present
+
+      # Optional: Dependency submission (helps GitHub shut up about missing lockfiles)
+      - name: Submit Dependency Graph
+        uses: actions/dependency-submission-action@v3
+        with:
+          lock-file: pnpm-lock.yaml
+          package-manager: pnpm
+
+      # - name: Run tests
+      #   run: pnpm test --if-present
+
+      # - name: Lint
+      #   run: pnpm run lint --if-present
