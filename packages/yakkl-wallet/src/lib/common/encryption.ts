@@ -46,8 +46,6 @@ export async function digestMessage(message: string) {
 
 
 export async function deriveKeyFromPassword( password: string, existingSalt?: string ): Promise<SaltedKey> {
-  const { crypto } = window; //global;
-
   const salt = existingSalt || (await generateSalt());
   const encoder = new TextEncoder();
 

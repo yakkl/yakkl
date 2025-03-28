@@ -70,8 +70,14 @@ class PostMessageDuplexStream extends Duplex {
   _write(message: any, _encoding: string, callback: (error?: Error) => void) {
     try {
       log.debug('PostMessageDuplexStream writing message', true, { message, origin: this._origin });
-      window.postMessage(message, this._origin);
-      callback();
+      if (window && typeof window.postMessage === 'function') {
+        window.postMessage(message, this._origin);
+        callback();
+      } else {
+        const error = new Error('Window context invalid for postMessage');
+        log.error('Error in PostMessageDuplexStream _write', true, error);
+        callback(error);
+      }
     } catch (error) {
       log.error('Error in PostMessageDuplexStream _write', true, error);
       callback(error instanceof Error ? error : new Error(String(error)));

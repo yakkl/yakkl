@@ -870,7 +870,7 @@ export async function getYakklCurrentlySelected(): Promise<YakklCurrentlySelecte
       return {
         id: '',
         shortcuts: {
-          value: 0n,
+          quantity: 0n,
           accountType: AccountTypeCategory.PRIMARY,
           accountName: 'YAKKL_ZERO_ACCOUNT',
           smartContract: false,

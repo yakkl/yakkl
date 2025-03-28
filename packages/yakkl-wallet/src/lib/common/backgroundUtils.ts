@@ -32,25 +32,31 @@ export async function initializeStorageDefaults() {
 }
 
 export async function manageLockedState() {
-  const yakklSettings = await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS) as Settings;
-  const yakklCurrentlySelected = await getObjectFromLocalStorage(STORAGE_YAKKL_CURRENTLY_SELECTED) as YakklCurrentlySelected;
-  if (yakklCurrentlySelected && yakklSettings) { // This just makes sure the locks are the same
-    if (!yakklSettings.isLocked || !yakklCurrentlySelected?.shortcuts?.isLocked) {
-        yakklCurrentlySelected.shortcuts.isLocked = yakklSettings.isLocked = true;
-        await setObjectInLocalStorage(STORAGE_YAKKL_CURRENTLY_SELECTED, yakklCurrentlySelected);
-        await setObjectInLocalStorage(STORAGE_YAKKL_SETTINGS, yakklSettings);
-    }
-    if (yakklSettings?.isLocked) {
-      await browser.action.setIcon({path: {16: "/images/logoBullLock16x16.png", 32: "/images/logoBullLock32x32.png", 48: "/images/logoBullLock48x48.png", 128: "/images/logoBullLock128x128.png"}});
+  try {
+    const yakklSettings: Settings = await browser.storage.local.get(STORAGE_YAKKL_SETTINGS) as unknown as Settings; //await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS) as Settings;
+    const yakklCurrentlySelected: YakklCurrentlySelected = await browser.storage.local.get(STORAGE_YAKKL_CURRENTLY_SELECTED) as unknown as YakklCurrentlySelected; //await getObjectFromLocalStorage(STORAGE_YAKKL_CURRENTLY_SELECTED) as YakklCurrentlySelected;
+    if ( yakklCurrentlySelected?.shortcuts &&
+          'isLocked' in yakklCurrentlySelected.shortcuts &&
+          'isLocked' in yakklSettings) {
+      if (!yakklSettings.isLocked || !yakklCurrentlySelected.shortcuts.isLocked) {
+          yakklCurrentlySelected.shortcuts.isLocked = yakklSettings.isLocked = true;
+          await browser.storage.local.set({[STORAGE_YAKKL_CURRENTLY_SELECTED]: yakklCurrentlySelected});//await setObjectInLocalStorage(STORAGE_YAKKL_CURRENTLY_SELECTED, yakklCurrentlySelected);
+          await browser.storage.local.set({[STORAGE_YAKKL_SETTINGS]: yakklSettings});//await setObjectInLocalStorage(STORAGE_YAKKL_SETTINGS, yakklSettings);
+      }
+      if (yakklSettings.isLocked) {
+        await browser.action.setIcon({path: {16: "/images/logoBullLock16x16.png", 32: "/images/logoBullLock32x32.png", 48: "/images/logoBullLock48x48.png", 128: "/images/logoBullLock128x128.png"}});
+      } else {
+        await browser.action.setIcon({path: {16: "/images/logoBull16x16.png", 32: "/images/logoBull32x32.png", 48: "/images/logoBull48x48.png", 128: "/images/logoBull128x128.png"}});
+      }
+
     } else {
-      await browser.action.setIcon({path: {16: "/images/logoBull16x16.png", 32: "/images/logoBull32x32.png", 48: "/images/logoBull48x48.png", 128: "/images/logoBull128x128.png"}});
+      await browser.action.setIcon({path: {16: "/images/logoBullLock16x16.png", 32: "/images/logoBullLock32x32.png", 48: "/images/logoBullLock48x48.png", 128: "/images/logoBullLock128x128.png"}});
     }
 
-  } else {
-    await browser.action.setIcon({path: {16: "/images/logoBullLock16x16.png", 32: "/images/logoBullLock32x32.png", 48: "/images/logoBullLock48x48.png", 128: "/images/logoBullLock128x128.png"}});
+    log.warn("Managing locked state", false, yakklSettings, yakklSettings?.isLocked);
+  } catch (error) {
+    log.error("Error managing locked state:", false, error);
   }
-
-  log.warn("Managing locked state", false, yakklSettings, yakklSettings?.isLocked);
 }
 
 /**

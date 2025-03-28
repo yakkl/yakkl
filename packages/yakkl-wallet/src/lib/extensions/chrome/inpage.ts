@@ -5,11 +5,11 @@
 // You can not use browser extention only classes and methods here. You must pass events
 //   back and forth to the background.js service.
 
-import { getEIP6963ProviderDetail } from '$lib/plugins/providers/network/ethereum_provider/eip-6963';
 import { log } from "$lib/plugins/Logger";
 import type { EIP6963ProviderDetail, EIP6963Provider, EIP6963ProviderInfo } from '$lib/plugins/providers/network/ethereum_provider/eip-types';
 import type { RequestArguments } from '$lib/common';
 import { EventEmitter } from 'events';
+import { getWindowOrigin, isValidOrigin, getTargetOrigin, safePostMessage } from '$lib/common/origin';
 
 // Error types
 const EIP1193_ERRORS = {
@@ -85,7 +85,8 @@ declare global {
 
 log.debug('Initializing inpage script', true);
 
-const windowOrigin = window.location.origin;
+// Initialize provider state
+const windowOrigin = getWindowOrigin();
 log.debug('Window origin:', true, windowOrigin);
 
 // Initialize provider info
@@ -124,8 +125,8 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 
   private setupMessageListener() {
     window.addEventListener('message', (event) => {
-      // Only accept messages from the same origin
-      if (event.origin !== window.location.origin) return;
+      // Only accept messages from valid origins
+      if (!isValidOrigin(event.origin)) return;
 
       const message = event.data;
       if (!message || typeof message !== 'object') return;
@@ -178,7 +179,8 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
       // Test connection by requesting accounts
       const accounts = await this.request({ method: 'eth_accounts' });
       if (!Array.isArray(accounts)) {
-        throw new Error('Invalid response from eth_accounts');
+        log.error('Invalid response from eth_accounts', false, accounts);
+        // throw new Error('Invalid response from eth_accounts');
       }
 
       // Update provider state
@@ -203,7 +205,11 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
   }
 
   private handleResponse(response: any) {
-    log.debug('Handling response in inpage:', true, response);
+    log.debug('Handling response in inpage:', true, {
+      response,
+      pendingRequests: Array.from(this.pendingRequests.keys()),
+      timestamp: new Date().toISOString()
+    });
 
     // Extract id from response using various possible formats
     const id = response.id ||
@@ -221,6 +227,11 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
           response.error.code || 4001,
           response.error.message || 'Unknown error'
         );
+        log.error('Handling error response:', false, {
+          id,
+          error,
+          timestamp: new Date().toISOString()
+        });
         pendingRequest.reject(error);
         this.pendingRequests.delete(id || Array.from(this.pendingRequests.keys())[0]);
       }
@@ -235,6 +246,11 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
         if (request.method === 'eth_accounts' || request.method === 'eth_requestAccounts') {
           this._isConnected = true;
           this.emit('accountsChanged', accounts);
+          log.debug('Handling accounts response:', false, {
+            reqId,
+            accounts,
+            timestamp: new Date().toISOString()
+          });
           request.resolve(accounts);
           this.pendingRequests.delete(reqId);
           return;
@@ -252,6 +268,12 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
             this._isConnected = true;
             this.emit('accountsChanged', response.result);
           }
+          log.debug('Handling method response:', false, {
+            reqId,
+            method: response.method,
+            result: response.result,
+            timestamp: new Date().toISOString()
+          });
           request.resolve(response.result);
           this.pendingRequests.delete(reqId);
           return;
@@ -266,7 +288,11 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
       Array.from(this.pendingRequests.values())[0];
 
     if (!pendingRequest) {
-      log.debug('No pending request found for response', false, { response, pendingRequests: Array.from(this.pendingRequests.entries()) });
+      log.debug('No pending request found for response', false, {
+        response,
+        pendingRequests: Array.from(this.pendingRequests.entries()),
+        timestamp: new Date().toISOString()
+      });
       return;
     }
 
@@ -281,10 +307,20 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
         }
       }
 
+      log.debug('Resolving request:', false, {
+        id,
+        method: pendingRequest.method,
+        result,
+        timestamp: new Date().toISOString()
+      });
       pendingRequest.resolve(result);
       this.pendingRequests.delete(id || Array.from(this.pendingRequests.keys())[0]);
     } catch (error) {
-      log.error('Error processing response:', false, error);
+      log.error('Error processing response:', false, {
+        error,
+        id,
+        timestamp: new Date().toISOString()
+      });
       pendingRequest.reject(new ProviderRpcError(
         EIP1193_ERRORS.INTERNAL_ERROR.code,
         EIP1193_ERRORS.INTERNAL_ERROR.message
@@ -298,6 +334,19 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
   }
 
   async request(args: RequestArguments): Promise<unknown> {
+
+    log.debug('Requesting method (start):', false, {
+      method: args.method,
+      params: args.params,
+      sender: typeof window !== 'undefined' && typeof document !== 'undefined' ? {
+        origin: window.location?.origin || 'unknown',
+        href: window.location?.href || 'unknown',
+        referrer: document.referrer || 'unknown',
+        hostname: window.location?.hostname || 'unknown'
+      } : 'window/document not available',
+      timestamp: new Date().toISOString()
+    });
+
     // Handle eth_chainId directly
     if (args.method === 'eth_chainId') {
       return this.chainId;
@@ -337,37 +386,99 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
     ];
 
     const id = ++this.requestId;
-    log.debug('Making request from inpage:', false, { id, ...args });
+    const startTime = Date.now();
+
+    log.debug('Making request from inpage:', false, {
+      id,
+      method: args.method,
+      params: args.params,
+      requiresApproval: !noApprovalMethods.includes(args.method),
+      timestamp: new Date().toISOString()
+    });
 
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
+        const duration = Date.now() - startTime;
+        log.error('Request timeout:', false, {
+          id,
+          method: args.method,
+          params: args.params,
+          duration,
+          pendingRequests: Array.from(this.pendingRequests.keys()).map(id => ({
+            id,
+            method: this.pendingRequests.get(id)?.method
+          })),
+          timestamp: new Date().toISOString()
+        });
         this.pendingRequests.delete(id);
-        reject(new ProviderRpcError(4001, 'Request timeout'));
-      }, 30000);
+        reject(new ProviderRpcError(
+          EIP1193_ERRORS.TIMEOUT.code,
+          `Request timeout for method: ${args.method} after ${duration}ms`
+        ));
+      }, 60000); // Increased timeout to 60 seconds for debugging
 
       this.pendingRequests.set(id, {
         resolve: (value) => {
           clearTimeout(timeout);
+          const duration = Date.now() - startTime;
+          log.debug('Request resolved:', false, {
+            id,
+            method: args.method,
+            duration,
+            timestamp: new Date().toISOString()
+          });
           resolve(value);
         },
         reject: (reason) => {
           clearTimeout(timeout);
+          const duration = Date.now() - startTime;
+          log.error('Request rejected:', false, {
+            id,
+            method: args.method,
+            reason,
+            duration,
+            timestamp: new Date().toISOString()
+          });
           reject(reason);
         },
         method: args.method // Store the method for matching array responses
       });
 
       try {
-        window.postMessage({
-          type: 'YAKKL_REQUEST:EIP6963',
-          id,
-          ...args,
-          requiresApproval: !noApprovalMethods.includes(args.method)
-        }, window.location.origin);
+        if (window && typeof window.postMessage === 'function') {
+          const message = {
+            type: 'YAKKL_REQUEST:EIP6963',
+            id,
+            ...args,
+            requiresApproval: !noApprovalMethods.includes(args.method)
+          };
+          log.debug('Sending request:', false, {
+            message,
+            targetOrigin: getTargetOrigin(),
+            timestamp: new Date().toISOString()
+          });
+          safePostMessage(message, getTargetOrigin());
+        } else {
+          clearTimeout(timeout);
+          this.pendingRequests.delete(id);
+          reject(new ProviderRpcError(
+            EIP1193_ERRORS.DISCONNECTED.code,
+            'Window context invalid for postMessage'
+          ));
+        }
       } catch (error) {
         clearTimeout(timeout);
         this.pendingRequests.delete(id);
-        reject(new ProviderRpcError(4001, 'Failed to send request'));
+        log.error('Failed to send request:', false, {
+          id,
+          method: args.method,
+          error,
+          timestamp: new Date().toISOString()
+        });
+        reject(new ProviderRpcError(
+          EIP1193_ERRORS.DISCONNECTED.code,
+          'Failed to send request'
+        ));
       }
     });
   }
@@ -450,3 +561,16 @@ log.debug('window.yakkl assigned', false, {
   provider: providerInfo,
   readyState: document.readyState
 });
+
+function post(message: any, targetOrigin: string | null) {
+  safePostMessage(message, targetOrigin, { context: 'inpage' });
+}
+
+// Helper function to safely send messages
+// function safePostMessage(message: any, targetOrigin: string | null) {
+//   if (!targetOrigin) {
+//     log.warn('Cannot send message - invalid target origin', false);
+//     return;
+//   }
+//   window.postMessage(message, targetOrigin);
+// }

@@ -20,6 +20,7 @@ export class EIP1193Provider extends EventEmitter {
     resolve: (value: unknown) => void;
     reject: (reason?: any) => void;
     timeoutId: NodeJS.Timeout;
+    method: string;
   }>();
   private _queuedRequests: Array<{
     args: RequestArguments;
@@ -106,11 +107,15 @@ export class EIP1193Provider extends EventEmitter {
   private async initializeFromShortcuts(): Promise<void> {
     try {
       // Send request through content script using window.postMessage
-      window.postMessage({
-        id: (this._requestId++).toString(),
-        type: 'YAKKL_REQUEST:EIP6963',
-        method: 'eth_chainId'
-      }, window.location.origin);
+      if (window && typeof window.postMessage === 'function') {
+        window.postMessage({
+          id: (this._requestId++).toString(),
+          type: 'YAKKL_REQUEST:EIP6963',
+          method: 'eth_chainId'
+        }, window.location.origin);
+      } else {
+        log.error('Window context invalid for postMessage');
+      }
 
       // Wait for the chain ID response from content script
       const chainIdResponse = await new Promise((resolve, reject) => {
@@ -129,11 +134,15 @@ export class EIP1193Provider extends EventEmitter {
       });
 
       // Get accounts through content script
-      window.postMessage({
-        id: (this._requestId++).toString(),
-        type: 'YAKKL_REQUEST:EIP6963',
-        method: 'eth_accounts'
-      }, window.location.origin);
+      if (window && typeof window.postMessage === 'function') {
+        window.postMessage({
+          id: (this._requestId++).toString(),
+          type: 'YAKKL_REQUEST:EIP6963',
+          method: 'eth_accounts'
+        }, window.location.origin);
+      } else {
+        log.error('Window context invalid for postMessage');
+      }
 
       // Wait for the accounts response from content script
       const accountsResponse = await new Promise((resolve, reject) => {
@@ -204,22 +213,74 @@ export class EIP1193Provider extends EventEmitter {
   private _sendRequest(method: string, params: unknown[]): Promise<unknown> {
     return new Promise((resolve, reject) => {
       const id = (this._requestId++).toString();
+      const startTime = Date.now();
+
       const timeoutId = setTimeout(() => {
         this._pendingRequests.delete(id);
-        reject(new ProviderRpcError(EIP1193_ERRORS.TIMEOUT.code, EIP1193_ERRORS.TIMEOUT.message));
+        const duration = Date.now() - startTime;
+        const error = new ProviderRpcError(
+          EIP1193_ERRORS.TIMEOUT.code,
+          `Request timeout for method: ${method} after ${duration}ms`
+        );
+        log.error('Request timeout:', true, {
+          id,
+          method,
+          params,
+          duration,
+          pendingRequests: Array.from(this._pendingRequests.keys()),
+          timestamp: new Date().toISOString()
+        });
+        reject(error);
       }, 30000);
 
-      this._pendingRequests.set(id, { resolve, reject, timeoutId });
+      this._pendingRequests.set(id, { resolve, reject, timeoutId, method });
 
       // Send request through content script
-      window.postMessage({
-        type: 'YAKKL_REQUEST:EIP6963',
-        id,
-        method,
-        params
-      }, window.location.origin);
-
-      log.debug('Sent request through content script', true, { id, method, params });
+      if (window && typeof window.postMessage === 'function') {
+        try {
+          window.postMessage({
+            type: 'YAKKL_REQUEST:EIP6963',
+            id,
+            method,
+            params
+          }, window.location.origin);
+          log.debug('Sent request through content script', true, {
+            id,
+            method,
+            params,
+            timestamp: new Date().toISOString()
+          });
+        } catch (error) {
+          clearTimeout(timeoutId);
+          this._pendingRequests.delete(id);
+          const providerError = new ProviderRpcError(
+            EIP1193_ERRORS.DISCONNECTED.code,
+            'Failed to send request - postMessage error'
+          );
+          log.error('Failed to send request:', true, {
+            id,
+            method,
+            params,
+            error,
+            timestamp: new Date().toISOString()
+          });
+          reject(providerError);
+        }
+      } else {
+        clearTimeout(timeoutId);
+        this._pendingRequests.delete(id);
+        const error = new ProviderRpcError(
+          EIP1193_ERRORS.DISCONNECTED.code,
+          'Window context invalid for postMessage'
+        );
+        log.error('Failed to send request - invalid window context:', true, {
+          id,
+          method,
+          params,
+          timestamp: new Date().toISOString()
+        });
+        reject(error);
+      }
     });
   }
 

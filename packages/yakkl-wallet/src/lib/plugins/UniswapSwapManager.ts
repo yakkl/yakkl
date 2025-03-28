@@ -1300,7 +1300,7 @@ export class UniswapSwapManager extends SwapManager {
         from: await signer.getAddress(),
         to: this.routerContract!.target as string,
         data: populatedTx.data,
-        value: tokenIn.isNative ? amountIn : 0,
+        quantity: tokenIn.isNative ? amountIn : 0n,
         chainId: this.getChainId()
       } );
 
@@ -1310,7 +1310,7 @@ export class UniswapSwapManager extends SwapManager {
     return {
       to: this.routerContract.target as string,
       data: populatedTx.data,
-      value: tokenIn.isNative ? amountIn : 0,
+      quantity: tokenIn.isNative ? amountIn : 0n,
       from: params.recipient,
       chainId: this.getChainId()
     };
@@ -1339,7 +1339,7 @@ export class UniswapSwapManager extends SwapManager {
     return {
       to: this.routerContract!.target as string,
       data: populatedTx.data,
-      value: tokenIn.isNative ? amountIn : 0,
+      quantity: tokenIn.isNative ? amountIn : 0,
       from: params.recipient,
       chainId: this.getChainId()
     };

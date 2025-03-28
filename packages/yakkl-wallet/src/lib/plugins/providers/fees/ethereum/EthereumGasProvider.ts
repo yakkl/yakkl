@@ -315,7 +315,7 @@ getName(): string {
   ): Promise<GasEstimate> {
     const transaction: TransactionRequest = {
       to,
-      value,
+      quantity: value,
       from: '0x0000000000000000000000000000000000000000',
       chainId: this.blockchain.getChainId()
     };

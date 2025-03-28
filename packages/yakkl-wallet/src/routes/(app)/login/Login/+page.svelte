@@ -152,6 +152,9 @@
           if (!yakklMisc) {
             throw `User [ ${userName} ] was not found OR password is not correct. Please try again or register if not already registered`;
           }
+
+          console.log('yakklMisc', yakklMisc);
+          
           $yakklUserNameStore = userName;
 
           // setLocks(false, registeredType);

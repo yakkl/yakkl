@@ -67,8 +67,8 @@
         } else {
           alert('Unable to verify contact before processing. There could be a duplicate contact or invalid address.');
         }
-      } catch (e) {
-        log.error('Error processing contact:', e);
+      } catch (error) {
+        log.error('Error processing contact:', false, error);
       }
     },
   });

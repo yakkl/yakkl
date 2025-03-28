@@ -173,7 +173,7 @@ export let yakklWatch: YakklWatch = {
   blockchain: '',
   name: '',
   tags: [],
-  value: 0n,
+  quantity: 0n,
   includeInPortfolio: false,
   explorer: '',
   address: '',
@@ -239,7 +239,7 @@ export let yakklChat: YakklChat = {
 export let yakklCurrentlySelected: YakklCurrentlySelected = {
   id: '',  // Profile id
   shortcuts: {
-    value: 0n, // Account value - IF not 0.0 then use formatEther from utilities. If you need to convert to bigint then use parseEther from ethers
+    quantity: 0n, // Account value - IF not 0.0 then use formatEther from utilities. If you need to convert to bigint then use parseEther from ethers
     accountType: AccountTypeCategory.PRIMARY,  // primary, imported, sub
     accountName: YAKKL_ZERO_ACCOUNT_NAME, // shortcut for account.name
     smartContract: false,
@@ -315,7 +315,7 @@ export let yakklPrimaryAccount: YakklPrimaryAccount = {
   id: '',  // Profile id
   name: YAKKL_ZERO_ACCOUNT_NAME,  // account name, address, and keys are here for convenience - they are also in the yakklAccount record
   address: YAKKL_ZERO_ADDRESS,
-  value: 0n,
+  quantity: 0n,
   index: 0,  // for primary path account index
   data: {} as PrimaryAccountData,  // Encrypted
   account: {} as YakklAccount, // Primary
@@ -340,7 +340,7 @@ export let yakklAccount: YakklAccount = {
   description: '', // Can use this to describe an account associated with an NFT or RWA (Real World Asset) or class
   primaryAccount: yakklPrimaryAccount, // If the account is a primary account then this is empty
   data: {} as AccountData, // Encrypted
-  value: 0n, // big number and supports up to 18 decimals - contains the value here plus the sum of all derived accounts from this primary account
+  quantity: 0n, // big number and supports up to 18 decimals - contains the value here plus the sum of all derived accounts from this primary account
   class: "Default", // This is only used for enterprise like environments. It can be used for departments like 'Finance', 'Accounting', '<whatever>'
   level: 'L1',
   isSigner: true,
@@ -426,7 +426,7 @@ export let sampleWatch: YakklWatch[] = [
     blockchain: "Ethereum",
     name: "Watcher 1",
     tags: ["Binance 8", "Uniswap"],
-    value: '.000455',
+    quantity: '.000455',
     includeInPortfolio: true,
     explorer: '',
     address: "0xf977814e90da44bfa03b6295a0616a897441acec",
@@ -440,7 +440,7 @@ export let sampleWatch: YakklWatch[] = [
     blockchain: "Ethereum",
     name: "Watcher 2",
     tags: ["Vb", "Token holdings"],
-    value: '0.0',
+    quantity: '0.0',
     includeInPortfolio: false,
     explorer: "https://etherscan.io/tokenholdings?a=0xab5801a7d398351b8be11c439e05c5b3259aec9b",
     address: "0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B",
@@ -454,7 +454,7 @@ export let sampleWatch: YakklWatch[] = [
     blockchain: "Ethereum",
     name: "Watcher 3",
     tags: ["barmstrong.eth", "coinbase", "address"],
-    value: '0.0',
+    quantity: '0.0',
     includeInPortfolio: false,
     explorer: "https://etherscan.io/address/0x5b76f5b8fc9d700624f78208132f91ad4e61a1f0",
     address: "0x5b76f5B8fc9D700624F78208132f91AD4e61a1f0",

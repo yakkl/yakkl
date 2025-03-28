@@ -182,6 +182,9 @@ class Logger {
 
   private persistLogLocalStorage(log: LogEntry): void {
     try {
+      // Do not store at this time. localStorage could fail for local environment reasons.
+      return;
+
       if (typeof localStorage !== 'undefined') {
         const logs = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
 
@@ -417,7 +420,7 @@ class Logger {
         this.persistLog(entry);
       }
     } catch (error: any) {
-      console.error('Logging failed:', error);
+      this.error('Logging failed:', false, error);
     }
   }
 
