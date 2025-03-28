@@ -36,7 +36,7 @@ jobs:
         run: pnpm run build:wallet --if-present
 
       - name: Submit Dependency Graph
-        uses: github/dependency-submission-action@v2
+        uses: advanced-security/dependency-submission-action@v2
         with:
           lock-file: pnpm-lock.yaml
           package-manager: pnpm
