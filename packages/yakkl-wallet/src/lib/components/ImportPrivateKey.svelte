@@ -139,17 +139,16 @@
 
       (yakklAccount.data as AccountData).privateKey = prvKey;
       (yakklAccount.data as AccountData).path = ''; // Imported accounts are not derived
-      yakklAccount.value = 0n; // Default
+      yakklAccount.quantity = 0n; // Default
       yakklAccount.address = await walletNew.getAddress();
       yakklAccount.name = accountName;
       yakklAccount.alias = alias;
       yakklAccount.description = 'Imported account using private key';
-      yakklAccount.value = 0n; // Default
 
       await wallet
         .getBalance(yakklAccount.address)
         .then((result) => {
-          if (result) yakklAccount.value = result;
+          if (result) yakklAccount.quantity = result;
         })
         .catch((e) => {
           log.error(`Import: error getting balance: ${e}`);
@@ -203,7 +202,7 @@
 
       (currentlySelected.data as CurrentlySelectedData).profile = profile;
 
-      currentlySelected.shortcuts.value = !yakklAccount.value ? '0.0' : yakklAccount.value;
+      currentlySelected.shortcuts.quantity = !yakklAccount.quantity ? '0.0' : yakklAccount.quantity;
       currentlySelected.shortcuts.address = yakklAccount.address;
       currentlySelected.shortcuts.accountName = accountName;
       currentlySelected.shortcuts.alias = alias;

@@ -148,7 +148,7 @@ export async function createSubportfolioAccount(yakklMiscStore: string, currentl
       description: '',
       primaryAccount: yakklPrimaryAccount,  // If subaccount then it must be a valid primaryaccount else undefined
       data: accountData,
-      value: 0n,
+      quantity: 0n,
       class: "Default",  // This is only used for enterprise like environments. It can be used for departments like 'Finance', 'Accounting', '<whatever>'
       level: 'L1',
       isSigner: true,
@@ -207,7 +207,7 @@ export async function createSubportfolioAccount(yakklMiscStore: string, currentl
     currentlySelected.shortcuts.showTestNetworks = preferences.showTestNetworks as boolean;
     currentlySelected.shortcuts.profile.name = (profile.data as ProfileData).name;
     currentlySelected.shortcuts.profile.email = (profile.data as ProfileData).email;
-    currentlySelected.shortcuts.value = 0n;
+    currentlySelected.shortcuts.quantity = 0n;
     currentlySelected.shortcuts.address = yakklAccountEnc.address;
     currentlySelected.shortcuts.primary = yakklPrimaryAccount;
     currentlySelected.shortcuts.accountName = yakklAccountEnc.name;

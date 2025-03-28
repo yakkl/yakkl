@@ -142,7 +142,7 @@
     txStatus: '',
     txHash: '',
     txToAddress: '',
-    txValue: '0.0',
+    txQuantity: '0.0',
     txmaxFeePerGas: '0.0',
     txmaxPriorityFeePerGas: '0.0',
     txGasLimit: 21000n,
@@ -642,7 +642,7 @@
 			if (browserSvelte) {
 				try {
 					currentlySelected = $yakklCurrentlySelectedStore;
-					value = currentlySelected!.shortcuts.value ?? 0n;
+					value = currentlySelected!.shortcuts.quantity ?? 0n;
 
 					if (value.valueOf() as bigint <= 0n) {
 						greaterThan0 = false;
@@ -733,7 +733,7 @@
 				type: 2,
 				from: transactionState.address ? transactionState.address : '',
 				to: cancel === false ? toAddress : currentlySelected!.shortcuts.address, // Allows for sending to yourself to cancel a transaction
-				value: cancel === true ? 0n : EthereumBigNumber.toWei(toAddressValue).value, //parseEther(toAddressValue.toString()), // If cancel is true then set value to 0
+				quantity: cancel === true ? 0n : EthereumBigNumber.toWei(toAddressValue).value, //parseEther(toAddressValue.toString()), // If cancel is true then set value to 0
 				chainId: currentlySelected!.shortcuts.network.chainId,
 				gasLimit: gasLimit,
 				maxPriorityFeePerGas: EthereumBigNumber.toGwei(priorityFeePerGas).value, //parseUnits(priorityFeePerGas.toString(), 'gwei'),   // In gwei
@@ -775,7 +775,7 @@
 			transactionState.txURL = $yakklCurrentlySelectedStore?.shortcuts.network.explorer + '/address/' + transactionState.address;
 			transactionState.txHash = transaction.hash ?? '';
 			transactionState.txToAddress = transaction.to ?? '';
-			transactionState.txValue = transaction.value?.toString() ?? '0.0';
+			transactionState.txQuantity = transaction.quantity?.toString() ?? '0.0';
 			transactionState.txmaxFeePerGas = transaction.maxFeePerGas?.toString() ?? '0';
 			txmaxPriorityFeePerGas = transaction.maxPriorityFeePerGas?.toString() ?? '0';
 			txGasLimit = transaction.gasLimit as bigint;
@@ -901,7 +901,7 @@
 	function handleMax() {
 		// May need to reduce based on estimated fees
 		try {
-			$form.toAddressValue = EthereumBigNumber.toEtherString($yakklCurrentlySelectedStore!.shortcuts.value) ?? '0.0';
+			$form.toAddressValue = EthereumBigNumber.toEtherString($yakklCurrentlySelectedStore!.shortcuts.quantity) ?? '0.0';
 		} catch(e) {
 			log.error('Send - handleMax', true, e);
 			clearVerificationValues();
@@ -934,7 +934,7 @@
 			transactionState.txURL = '';
 			transactionState.txHash = '';
 			transactionState.txToAddress = '';
-			transactionState.txValue = '0.0';
+			transactionState.txQuantity = '0.0';
 			transactionState.txGasPercentIncrease = 0; // This is a percentage increase to the gas fee to aid in unblocking transactions and must be an integer and not a float
 			transactionState.txmaxFeePerGas = '0.0';
 			txmaxPriorityFeePerGas = '0.0';
@@ -1453,7 +1453,7 @@
 
 								<div class="w-full break-all ">
 									<p class="text-sm font-semibold text-white">
-										Sending/Transferring: {transactionState.txValue}
+										Sending/Transferring: {transactionState.txQuantity}
 									</p>
 									<p class="text-sm -mt-1 font-semibold text-white">
 										To:

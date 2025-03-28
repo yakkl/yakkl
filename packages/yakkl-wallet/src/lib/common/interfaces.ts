@@ -214,7 +214,7 @@ export interface BaseTransaction {
   gasLimit?: BigNumberish | null | undefined;
   gasPrice?: BigNumberish | null | undefined;
   data?: BytesLike;
-  value?: BigNumberish | null;
+  quantity?: BigNumberish | null;
   chainId?: BigNumberish;
   r?: string;
   s?: string;
@@ -598,7 +598,7 @@ export interface YakklWatch {
   blockchain: string;
   name: string;
   tags?: string[];
-  value: BigNumberish;
+  quantity?: BigNumberish;
   includeInPortfolio: boolean;
   explorer?: string;
   address: string;
@@ -616,7 +616,7 @@ export interface ProfileData {
   pincode: string;
   sig?: string;
   security?: YakklSecurity;
-  value: BigNumberish;
+  value: BigNumberish; // This is the total value of all the accounts in the portfolio
   accountIndex: number;
   primaryAccounts: YakklPrimaryAccount[];
   importedAccounts: YakklAccount[]; // Independent accounts - These accounts have no relation to any primary or subaccount but do use the account model
@@ -700,7 +700,7 @@ export interface ProfileShort {
 }
 
 export interface Shortcuts {
-  value: BigNumberish; // Account value
+  quantity?: BigNumberish; // Account value
   accountType: AccountTypeCategory; // primary, imported, sub
   accountName: string;
   smartContract: boolean;
@@ -765,11 +765,11 @@ export interface YakklAccount {
   description: string; // Can use this to describe an account associated with an NFT or RWA (Real World Asset) or class
   primaryAccount: YakklPrimaryAccount | null; // If the account is a primary account then this is empty
   data: EncryptedData | AccountData; // anything with 'data' as a property then the content will be encrypted
-  value: BigNumberish; // Value is used as a placeholder and adjusted as needed for display and calculations - dynamic
+  quantity?: BigNumberish; // Value is used as a placeholder and adjusted as needed for display and calculations - dynamic
   class?: string; // Used for enterprise environments
   level?: string; // L1
   isSigner?: boolean;
-  avatar: string; // Default is identityicon but can be changed to user/account avatar
+  avatar?: string; // Default is identityicon but can be changed to user/account avatar
   tags?: string[];
   includeInPortfolio: boolean; // This only applies to the value in this primary account and not any of the derived accounts
   // explorer?: string; // Remove later - moved to network
@@ -807,7 +807,7 @@ export interface YakklPrimaryAccount {
   id: string; // Profile id
   name: string; // account name, address, and keys are here for convenience - they are also in the yakklAccount record
   address: string;
-  value: BigNumberish;  // Value is used as a placeholder and adjusted as needed for display and calculations - dynamic
+  quantity: BigNumberish;  // Value is used as a placeholder and adjusted as needed for display and calculations - dynamic
   index: number; // for primary path account index
   data: EncryptedData | PrimaryAccountData; // anything with 'data' as a property then the content will be encrypted
   account: YakklAccount; // Primary

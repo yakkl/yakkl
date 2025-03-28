@@ -105,7 +105,7 @@ export async function onPortConnectListener(port: RuntimePort) {
         }
       break;
       default:
-        log.info(`Message ${port.name} is not recognized.`);
+        log.info(`Message ${port.name} is not recognized.`, false, port);
         break;
     }
   } catch(error) {
@@ -150,26 +150,16 @@ export async function onPortDisconnectListener(port: RuntimePort): Promise<void>
 export async function onPortExternalListener(event, sender): Promise<void> {
   try {
     if (!browser_ext) return;
+    if (!sender || !sender.postMessage) {
+      log.error('Invalid sender in onPortExternalListener', false, sender);
+      return;
+    }
 
     if (event.method) {
       let yakklCurrentlySelected;
       let error = false;
       const externalData = event;
       externalData.sender = sender;
-
-      switch (event.method) {
-        case 'yak_dappsite':
-          // This is a WIP. DappIndicator.svelte is done and the messaging here is complete. Content.ts needs to send the site to here!
-          browser_ext.runtime.sendMessage({method: event.method});  // This sends the message to the UI for it to display 'DAPP'. Later we can add which site if we need to.
-          return;
-
-        case 'yak_checkdomain':
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          checkDomain(event.params[0]).then(result => {
-          // WIP - Need to update the background.ts in yakkl to build the db from the json file and then have the inpage.ts send the domain to content.ts which will ask background.ts to check it. If it's flagged, then we'll redirect to this page. My concern is the performance of this. We'll need to test it.
-          });
-          break;
-      }
 
       // This needs to be checked. If the user has never selected a default account then the needed values will not be present and errors will occur.
       // If this occurs, close the approval popup, launch Yakkl Extension, select a default account and a default network type (default is mainnet), close Yakkl and then connect the Dapp.
@@ -244,7 +234,7 @@ export async function onPortExternalListener(event, sender): Promise<void> {
         case 'wallet_switchEthereumChain':
           {
             let value = null;
-            if ( event?.params?.length > 0) {
+            if (event?.params?.length > 0) {
               const chainId: number = event.params[0];
               const supported = supportedChainId(chainId);
               if (supported) {
@@ -290,7 +280,11 @@ export async function onPortExternalListener(event, sender): Promise<void> {
       sender.postMessage({id: event.id, method: event.method, type: 'YAKKL_RESPONSE', error: {code: 4200, message: 'The requested method is not supported by this Ethereum provider.'}});
     }
   } catch (error) {
-    sender.postMessage({id: event.id, method: event.method, type: 'YAKKL_RESPONSE', error: {code: -1, message: error}});
+    if (sender && typeof sender.postMessage === 'function') {
+      sender.postMessage({id: event.id, method: event.method, type: 'YAKKL_RESPONSE', error: {code: -1, message: error}});
+    } else {
+      log.error('Cannot send error response - port is invalid', false, error);
+    }
   }
 }
 

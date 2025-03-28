@@ -8,7 +8,7 @@ export interface TransactionState {
   txURL: string;
   txHash: string;
   txToAddress: string;
-  txValue: string;
+  txQuantity: string;
   txmaxFeePerGas: string;
   txmaxPriorityFeePerGas: string;
   txGasPercentIncrease: number;

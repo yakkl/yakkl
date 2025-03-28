@@ -170,7 +170,7 @@
             chainCode: ethWallet.chainCode,
             assignedTo: [],    // Who are the parties that have responsibility for this account
           },
-          value: 0n,
+          quantity: 0n,
           class: "Default",  // This is only used for enterprise like environments. It can be used for departments like 'Finance', 'Accounting', '<whatever>'
           level: 'L1',
           isSigner: true,
@@ -187,7 +187,7 @@
           id: yakklAccount.id,
           name: yakklAccount.name,
           address: yakklAccount.address,
-          value: yakklAccount.value,
+          quantity: yakklAccount.quantity,
           index: index,  // for the primary account path index
           data: {
             privateKey: ethWallet.privateKey,
@@ -358,7 +358,7 @@
                   chainCode: ethWallet.chainCode,
                   assignedTo: [],    // Who are the parties that have responsibility for this account
                 },
-                value: 0n,
+                quantity: 0n,
                 class: "Default",  // This is only used for enterprise like environments. It can be used for departments like 'Finance', 'Accounting', '<whatever>'
                 level: 'L1',
                 isSigner: true,

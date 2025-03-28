@@ -108,7 +108,7 @@ export async function createPortfolioAccount(yakklMiscStore: string, profile: Pr
       description: '',
       primaryAccount: null,  // If subaccount then it must be a valid primaryaccount else undefined
       data: accountData,
-      value: 0n,
+      quantity: 0n,
       class: "Default",  // This is only used for enterprise like environments. It can be used for departments like 'Finance', 'Accounting', '<whatever>'
       level: 'L1',
       isSigner: true,
@@ -142,7 +142,7 @@ export async function createPortfolioAccount(yakklMiscStore: string, profile: Pr
       id: yakklAccount.id,
       name: yakklAccount.name,
       address: yakklAccount.address,
-      value: yakklAccount.value,
+      quantity: yakklAccount.quantity,
       index: index,  // for the primary account path index
       data: yakklPrimaryAccountData,
       account: yakklAccount,  // yakklAccount.primaryAccount is always undefined here since it is the primary account

@@ -97,7 +97,7 @@
   let symbolLabel: string = $state('');
   let currencyLabel: string = $state('');
   let currency: Intl.NumberFormat = $state();
-  let shortcutsValue: EthereumBigNumber = $state(EthereumBigNumber.from(0)); // .value is the amount of a given token the address holds
+  let shortcutsValue: EthereumBigNumber = $state(EthereumBigNumber.from(0)); // .quantity is the amount of a given token the address holds
   let chainId: number = $state(1);
   let formattedEtherValue: string = $state('');
   let isDropdownOpen = $state(false);
@@ -202,11 +202,11 @@
 
           // These are for the initial load and the intervals take over after this
           const val = await getBalance(currentlySelected.shortcuts.network.chainId, currentlySelected.shortcuts.address);
-          currentlySelected.shortcuts.value = val ?? 0n;
-          checkPricesCallback(); // Simple onetime price update for initial load - NOTE: Do not move this up any higher in the code or it will cause a loop. shortcuts.value is used in the updateValuePriceFiat function
+          currentlySelected.shortcuts.quantity = val ?? 0n;
+          checkPricesCallback(); // Simple onetime price update for initial load - NOTE: Do not move this up any higher in the code or it will cause a loop. shortcuts.quantity is used in the updateValuePriceFiat function
 
           await setYakklCurrentlySelectedStorage(currentlySelected); // This updates the store and local storage
-          if ($yakklCurrentlySelectedStore.shortcuts.value) await updateValuePriceFiat();
+          if ($yakklCurrentlySelectedStore.shortcuts.quantity) await updateValuePriceFiat();
           // updateUpgradeButton();
         }
       }
@@ -217,7 +217,7 @@
 
   async function updateWithCurrentlySelected() {
     try {
-      const { address, accountName, network, value } = $yakklCurrentlySelectedStore.shortcuts;
+      const { address, accountName, network, quantity } = $yakklCurrentlySelectedStore.shortcuts;
 
       addressShow = truncate(address, 6) + address.substring(address.length - 4);
       name = accountName;
@@ -226,7 +226,7 @@
       assetPriceValue = $yakklPricingStore?.price ?? 0;
       currencyLabel = $yakklCurrentlySelectedStore.preferences.currency.code ?? "USD";
 
-      shortcutsValue = EthereumBigNumber.from(value) ?? EthereumBigNumber.from(0); // .value is the amount of a given token the address holds
+      shortcutsValue = EthereumBigNumber.from(quantity) ?? EthereumBigNumber.from(0); // .quantity is the amount of a given token the address holds
       chainId = network?.chainId ?? 1;
     } catch (e) {
       log.error(e);
@@ -252,23 +252,23 @@
         return;
       }
 
-      let { address, value, network } = $yakklCurrentlySelectedStore.shortcuts;
+      let { address, quantity, network } = $yakklCurrentlySelectedStore.shortcuts;
 
       // Avoid unnecessary balance fetch
-      const val = await getBalance(network.chainId, address);
-      if ($yakklCurrentlySelectedStore.shortcuts.value !== val) {
+      const qty = await getBalance(network.chainId, address);
+      if ($yakklCurrentlySelectedStore.shortcuts.quantity !== qty) {
         // This will force a reactivity update
         // This can also cause a loop if not careful and using $effect to watch for changes
         yakklCurrentlySelectedStore.update((current) => ({
           ...current,
-          shortcuts: { ...current.shortcuts, value: val ?? 0n },
+          shortcuts: { ...current.shortcuts, value: qty ?? 0n },
         }));
       }
 
       // Update fiat and ether values only if necessary
       const price = EthereumBigNumber.from($yakklPricingStore?.price ?? 0);
-      if ($yakklCurrentlySelectedStore.shortcuts.value !== price) {
-        const etherValue = parseFloat(formatEther($yakklCurrentlySelectedStore.shortcuts.value ?? 0n));
+      if ($yakklCurrentlySelectedStore.shortcuts.quantity !== price) {
+        const etherValue = parseFloat(formatEther($yakklCurrentlySelectedStore.shortcuts.quantity ?? 0n));
 
         if (!isNaN(etherValue) && $yakklPricingStore?.price) {
           const fiatValue = etherValue * $yakklPricingStore.price;
@@ -298,7 +298,7 @@
   function setDefaultsForZeroAddress() {
     try {
       // Dont want to trigger reactivity if the value is zero unless the previous value was something other than 0
-      if (yakklCurrentlySelectedStore && ($yakklCurrentlySelectedStore.shortcuts?.value !== 0n)) {
+      if (yakklCurrentlySelectedStore && ($yakklCurrentlySelectedStore.shortcuts?.quantity !== 0n)) {
         yakklCurrentlySelectedStore.update((current) => ({
           ...current,
           shortcuts: { ...current.shortcuts, value: EthereumBigNumber.from(0) },
@@ -350,7 +350,7 @@
           address: account.address,
           primary: account.primaryAccount,
           accountName: account.name,
-          value: balance ?? EthereumBigNumber.from(0),
+          quantity: balance ?? EthereumBigNumber.from(0),
         },
         data: await encryptData(
           {
@@ -408,8 +408,8 @@
         currentlySelected.shortcuts.symbol = network.symbol;
         currentlySelected.shortcuts.type = network.type.toString();
 
-        const val = await getBalance(chainId, currentlySelected.shortcuts.address);
-        currentlySelected.shortcuts.value = val ?? 0n;
+        const qty = await getBalance(chainId, currentlySelected.shortcuts.address);
+        currentlySelected.shortcuts.quantity = qty ?? 0n;
 
         if (!isEncryptedData(currentlySelected.data)) {
           const encryptedData = await encryptData(currentlySelected.data, yakklMiscStore);

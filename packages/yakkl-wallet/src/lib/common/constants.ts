@@ -1,7 +1,7 @@
 // IMPORTANT NOTE: Edit 'constants.mustache' since it is the template for 'constants.ts'
 
 // Global shared constants. Network specifics are in the network/<whatever>/contants.js file
-export const VERSION = "1.5.1";
+export const VERSION = "1.5.2";
 
 export const YEAR = "2024"; // Instead of computing year since user can change date on system - use a constant
 
@@ -72,6 +72,7 @@ export const DEFAULT_DERIVED_PATH_ETH = "m/44'/60'/"; // '0'/0/0' - First of the
 
 export const DEFAULT_YAKKL_ASSETS = "yakklAssets"; // Not stored in local storage but static json.
 
+export const CURRENT_STORAGE_VERSION = 1; // Increment this value when the storage format changes for migration purposes. Secure storage keys are versioned.
 export const STORAGE_YAKKL_PREFERENCES = "preferences";
 export const STORAGE_YAKKL_SETTINGS = "settings";
 export const STORAGE_YAKKL_SECURITY = "yakklSecurity";
@@ -231,4 +232,43 @@ export const SMART_TRANSACTION_STATUSES = {
     PENDING: 'pending',
     SUCCESS: 'success',
 };
+
+// Wallet security configuration
+import { SecurityLevel } from '$lib/permissions/types';
+
+export const WALLET_SECURITY_CONFIG = {
+  DEFAULT_SECURITY_LEVEL: 'medium' as SecurityLevel,
+  DEFAULT_INJECT_IFRAMES: true,
+  TRUSTED_DOMAINS: [
+    'ethereum.org',
+    'uniswap.org',
+    'opensea.io',
+    'metamask.io',
+    // Add other trusted domains as needed
+  ],
+  SECURITY_LEVEL_SETTINGS: {
+    'high': {
+      injectIframes: false,
+      description: 'No iframe injection (highest security)'
+    },
+    'medium': {
+      injectIframes: true,
+      description: 'Inject into trusted domains only (balanced security)'
+    },
+    'standard': {
+      injectIframes: true,
+      description: 'Inject into all non-null origin frames (dApp compatible)'
+    }
+  } as Record<SecurityLevel, { injectIframes: boolean; description: string }>
+} as const;
+
+// Security level types
+// export type SecurityLevel = 0 | 1 | 2;
+
+// Security level descriptions
+export const SECURITY_LEVEL_DESCRIPTIONS: Record<SecurityLevel, string> = {
+  'high': 'Most restrictive - no iframe injection',
+  'medium': 'Trusted domains only - injects only into known dApp domains',
+  'standard': 'Most permissive - injects into all non-null origin frames'
+} as const;
 

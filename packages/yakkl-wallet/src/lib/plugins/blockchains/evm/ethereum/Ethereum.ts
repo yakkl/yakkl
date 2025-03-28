@@ -211,7 +211,7 @@ export class Ethereum extends AbstractBlockchain<EthereumTransaction> {
       description: '',
       primaryAccount: null,  // If subaccount then it must be a valid primaryaccount else undefined
       data: accountData,
-      value: 0n,
+      quantity: 0n,
       class: "Default",  // This is only used for enterprise like environments. It can be used for departments like 'Finance', 'Accounting', '<whatever>'
       level: 'L1',
       isSigner: true,
@@ -246,7 +246,7 @@ export class Ethereum extends AbstractBlockchain<EthereumTransaction> {
       id: accountInfo.id,
       name: 'Primary Account',
       address: ethWallet.address,
-      value: 0n,
+      quantity: 0n,
       index: 0,
       data: primaryAccountData,
       account: {} as YakklAccount,
@@ -292,7 +292,7 @@ export class Ethereum extends AbstractBlockchain<EthereumTransaction> {
       description: 'Description of the sub account',
       primaryAccount: primaryAccount,
       data: accountData,
-      value: 0n,
+      quantity: 0n,
       class: 'standard',
       level: 'L1',
       isSigner: true,

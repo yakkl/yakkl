@@ -13,10 +13,12 @@ import type { Runtime } from 'webextension-polyfill';
 
 import { activeTabBackgroundStore, backgroundUIConnectedStore } from '$lib/common/stores';
 import { get } from 'svelte/store';
-import { type ActiveTab } from '$lib/common';
+import { type ActiveTab, type YakklCurrentlySelected } from '$lib/common';
 import { initializePermissions } from '$lib/permissions';
 import { initializeStorageDefaults, watchLockedState } from '$lib/common/backgroundUtils';
 import { KeyManager } from '$lib/plugins/KeyManager';
+import { getMemoizedKey, migrateToSecureStorage, SecureStore } from '$lib/common/backgroundSecuredStorage';
+import { SecurityLevel } from '$lib/permissions/types';
 
 type RuntimeSender = Runtime.MessageSender;
 
@@ -59,7 +61,22 @@ async function initialize() {
     // Initialize EIP-6963 handler
     initializeEIP6963();
 
-    await watchLockedState(5 * 60 * 1000);
+    await watchLockedState(2 * 60 * 1000);
+
+    // Migrate legacy storage to secure storage test
+    const store = new SecureStore('wallet', await getMemoizedKey('a1d78c5adea2a8f39f09f562419284af7fa3f0289df87102cd0f2e5c0a64e817'));
+
+    await migrateToSecureStorage<YakklCurrentlySelected>(
+      'yakklCurrentlySelected',
+      store,
+      'yakklCurrentlySelected.secure',
+      [
+        'shortcuts.address',
+        'shortcuts.smartContract',
+        'preferences.locale',
+        'shortcuts.networks.*.chainId'
+      ]
+    );
 
     log.info('Background script initialized successfully');
   } catch (error) {
@@ -246,3 +263,54 @@ async function initializeKeyManager(): Promise<void> {
     log.error('Failed to initialize KeyManager', false, error);
   }
 }
+
+// Map security levels to iframe injection settings
+const SECURITY_LEVEL_IFRAME_SETTINGS = {
+  [SecurityLevel.HIGH]: {
+    injectIframes: false,
+    description: 'No iframe injection (highest security)'
+  },
+  [SecurityLevel.MEDIUM]: {
+    injectIframes: true,
+    description: 'Inject into trusted domains only (balanced security)'
+  },
+  [SecurityLevel.STANDARD]: {
+    injectIframes: true,
+    description: 'Inject into all non-null origin frames (dApp compatible)'
+  }
+} as const;
+
+async function updateSecurityConfig(securityLevel: SecurityLevel) {
+  try {
+    // Get all tabs
+    const tabs = await browser.tabs.query({});
+
+    // Get iframe settings based on security level
+    const iframeSettings = SECURITY_LEVEL_IFRAME_SETTINGS[securityLevel];
+
+    // Send the update to each tab
+    for (const tab of tabs) {
+      if (tab.id) {
+        await browser.tabs.sendMessage(tab.id, {
+          type: 'YAKKL_SECURITY_CONFIG_UPDATE',
+          securityLevel,
+          injectIframes: iframeSettings.injectIframes
+        });
+      }
+    }
+
+    log.debug('Security configuration updated across all tabs', false, {
+      securityLevel,
+      iframeSettings,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    log.error('Failed to update security configuration:', false, error);
+  }
+}
+
+// browser.tabs.sendMessage(tabId, {
+//   type: 'YAKKL_SECURITY_CONFIG_UPDATE',
+//   securityLevel: 2, // Change to strict mode
+//   injectIframes: false // Disable iframe injection
+// });

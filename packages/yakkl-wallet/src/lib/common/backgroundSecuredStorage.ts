@@ -4,6 +4,7 @@ import browser from 'webextension-polyfill';
 import { decryptData, deriveKeyFromPassword, digestMessage, encryptData } from './encryption';
 import type { EncryptedData } from './interfaces';
 import type { SaltedKey } from './evm';
+import { CURRENT_STORAGE_VERSION } from './constants';
 
 export interface SecureWrapper<T> {
   encrypted: EncryptedData; // AES-GCM encrypted JSON of T (includes public)
@@ -21,6 +22,37 @@ export type ValidatedStorageResult<T> = {
 
 // Memoized key cache (in-memory, cleared on reload)
 let cachedKey: SaltedKey | null = null;
+
+// This function is used to extract public fields from an object
+function extractPublicFields<T>(obj: T, paths: string[]): Partial<T> {
+  const result: any = {};
+
+  function walk(current: any, res: any, keys: string[]) {
+    if (!current || typeof current !== 'object') return;
+    const [head, ...rest] = keys;
+
+    if (head === '*') {
+      for (const key in current) {
+        res[key] ??= {};
+        walk(current[key], res[key], rest);
+      }
+    } else {
+      if (!(head in current)) return;
+      if (rest.length === 0) {
+        res[head] = current[head];
+      } else {
+        res[head] ??= {};
+        walk(current[head], res[head], rest);
+      }
+    }
+  }
+
+  for (const path of paths) {
+    walk(obj, result, path.split('.'));
+  }
+
+  return result;
+}
 
 /**
  * Memoize derived key to improve performance across multiple decryption calls.
@@ -185,14 +217,10 @@ export async function removeYakklSecureData(): Promise<void> {
 export async function storeSecureData<T>(
   key: string,
   data: T,
-  publicKeys: (keyof T)[],
+  publicPaths: string[],
   passwordOrKey: string | SaltedKey
 ): Promise<void> {
-  const publicSubset = publicKeys.reduce((acc, k) => {
-    acc[k] = data[k];
-    return acc;
-  }, {} as Partial<T>);
-
+  const publicSubset = extractPublicFields(data, publicPaths);
   const encrypted = await encryptData(data, passwordOrKey);
   const hash = await digestMessage(JSON.stringify(data));
 
@@ -202,7 +230,7 @@ export async function storeSecureData<T>(
     encrypted,
     public: publicSubset,
     hash,
-    version: 1,
+    version: CURRENT_STORAGE_VERSION,
     createdAt: now,
     lastUpdated: now,
   };
@@ -289,9 +317,9 @@ export class SecureStore {
     return `${this.namespace}:${key}`;
   }
 
-  async set<T>(key: string, data: T, publicKeys: (keyof T)[]): Promise<void> {
+  async set<T>(key: string, data: T, publicPaths: string[]): Promise<void> {
     const fullKey = this.scopedKey(key);
-    await storeSecureData(fullKey, data, publicKeys, this.keySource);
+    await storeSecureData(fullKey, data, publicPaths, this.keySource);
   }
 
   async get<T>(key: string): Promise<ReturnType<typeof loadSecureData<T>>> {
@@ -310,11 +338,51 @@ export class SecureStore {
 }
 
 /**
+ * Migrates plain-text localStorage data to secure storage with public field selection.
+ */
+export async function migrateToSecureStorage<T>(
+  legacyKey: string,
+  secureStore: SecureStore,
+  newKey: string,
+  publicPaths: string[]
+): Promise<void> {
+  const legacyData = await browser.storage.local.get(legacyKey);
+  if (!legacyData || !(legacyKey in legacyData)) return;
+
+  const plainData = legacyData[legacyKey] as T;
+  await secureStore.set(newKey, plainData, publicPaths);
+
+  // Note: Do NOT delete legacy key (for audit or rollback)
+}
+
+/**
  * Example usage:
  *
  * const store = new SecureStore('wallet', await getMemoizedKey(password));
- * await store.set('profile', profileData, ['username', 'avatar']);
- * const loaded = await store.get('profile');
+ * await migrateToSecureStorage<YakklCurrentlySelected>(
+ *   'yakklCurrentlySelected',
+ *   store,
+ *   'yakklCurrentlySelected.secure',
+ *   [
+ *     'shortcuts.address',
+ *     'shortcuts.smartContract',
+ *     'preferences.locale',
+ *     'shortcuts.networks.*.chainId'
+ *   ]
+ * );
+ */
+
+/**
+ * Example usage:
+ *
+ * const store = new SecureStore('wallet', await getMemoizedKey(password));
+ * await store.set('yakklCurrentlySelected', data, [
+ *   'shortcuts.address',
+ *   'shortcuts.smartContract',
+ *   'preferences.locale',
+ *   'shortcuts.networks.*.chainId' // wildcard!
+ * ]);
+ * const loaded = await store.get('yakklCurrentlySelected');
  * if (loaded?.corrupt) showWarning("Data was tampered with!");
  */
 
