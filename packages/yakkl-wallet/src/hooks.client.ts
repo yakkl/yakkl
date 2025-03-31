@@ -82,7 +82,7 @@ export async function init() {
     // First get the browser API
     const browserApi = getBrowserExt();
 
-    if (process.env.DEV_DEBUG) {
+    if (process.env.DEV_MODE) {
       log.setLevel('DEBUG', 'CONTAINS', ['DEBUG', 'DEBUG_TRACE', 'INFO', 'INFO_TRACE', 'WARN', 'ERROR', 'ERROR_TRACE', 'TRACE']);
     } else {
       log.setLevel('ERROR', 'CONTAINS', ['ERROR', 'ERROR_TRACE']);
@@ -238,7 +238,7 @@ export { idleManager, getBrowserExt };
 //     // Prevent multiple initializations
 //     if (isInitialized) return;
 
-//     if (process.env.DEV_DEBUG) {
+//     if (process.env.DEV_MODE) {
 //       log.setLevel('ERROR', 'CONTAINS', ['ERROR', 'DEBUG', 'WARN', 'INFO', 'TRACE']);
 //     } else {
 //       log.setLevel('ERROR', 'CONTAINS', ['ERROR']);

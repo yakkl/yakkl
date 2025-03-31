@@ -22,11 +22,13 @@ export async function handleOnActiveTabUIChanged(
   sendResponse: (response?: any) => void
 ): Promise<boolean | void>  {
   try {
+    log.debug('handleOnActiveTabUIChanged:', false, message);
+
     switch(message.type) {
       case 'setActiveTab': {
         try {
           activeTabUIStore.set(message.activeTab);
-          // log.debug('Active tabs UI:', false, message.activeTab);
+          log.debug('<<<<<<<<<<<<<< Active tabs UI:', false, message.activeTab);
           sendResponse({ success: true }); // GetActiveTabResponse format
         } catch (error) {
           log.error('Error on active tab change:', true, error);

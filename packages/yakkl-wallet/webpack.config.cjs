@@ -106,7 +106,12 @@ module.exports = {
     },
   },
   plugins: [
-    new webpack.DefinePlugin(getEnvKeys()),
+    new webpack.DefinePlugin(
+      getEnvKeys(),
+      {
+        DEV_MODE: JSON.stringify(process.env.NODE_ENV !== 'production')
+      }
+    ),
     new webpack.ProvidePlugin({
       browser: ['webextension-polyfill', 'default'],
       process: 'process/browser',

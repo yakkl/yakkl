@@ -15,9 +15,9 @@
       <p>Loading gas fees...</p>
     {:then fees}
       <ul>
-        <li>Low: {fees.low} GWEI</li>
+        <!-- <li>Low: {fees.low} GWEI</li>
         <li>Market: {fees.market} GWEI</li>
-        <li>Priority: {fees.priority} GWEI</li>
+        <li>Priority: {fees.priority} GWEI</li> -->
       </ul>
     {/await}
   </div>

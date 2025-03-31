@@ -4,7 +4,6 @@
   import { setIconLock } from '$lib/utilities/utilities';
 
   import { type Settings, type YakklCurrentlySelected } from '$lib/common';
-  import { browser_ext } from '$lib/common/environment';
 	import { removeTimers } from '$lib/common/timers';
 	import { removeListeners } from '$lib/common/listeners';
 	import { setLocks } from '$lib/common/locks';
@@ -37,10 +36,10 @@
       setYakklTokenDataCustomStorage($yakklTokenDataCustomStore); // Zero out values in custom token storage
       resetStores();
 
-      if (browser_ext) {
+      // if (browser_ext) {
         // Reload the browser extension
-        browser_ext.runtime.reload();
-      }
+        // browser_ext.runtime.reload();
+      // }
     } catch (error) {
       log.error('Logout failed:', false, error);
       alert('Logout encountered an error. Please try again or refresh the extension manually.');

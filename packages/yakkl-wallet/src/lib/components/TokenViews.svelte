@@ -12,6 +12,7 @@
   import LoadingState from './LoadingState.svelte';
 	import { onMount } from 'svelte';
   import { sessionInitialized } from '$lib/common/stores';
+	import TokenSymbolOverviewView from './TokenSymbolOverviewView.svelte';
 
   let tokens = $state<TokenData[]>([]);
   let sortedTokens = $state<TokenData[]>([]);
@@ -63,7 +64,7 @@
 
    // Print handler - basic stub for now. Need to format for print within each view.
   function handlePrint() {
-    window.print();
+    alert('Printing is in limited release. Soon to be available to all!');
   }
 </script>
 
@@ -75,7 +76,7 @@
   </div>
 
   <!-- Dynamic Views -->
-  <div class="relative rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-800 shadow-lg">
+  <div class="relative rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-800 shadow-lg h-[400px]">
     {#if isLoading && !$sessionInitialized}
       <LoadingState message="Analyzing Tokens..." />
     {/if}
@@ -84,13 +85,15 @@
       <TokenGridView tokens={sortedTokens} onTokenClick={(token) => log.info('Clicked:', false, token)} /> <!-- default onTokenClick for future -->
     {:else if currentView === 'chart'}
       <TokenChartsView />
+    {:else if currentView === 'chartAdvanced'}
+      <TokenSymbolOverviewView />
     {:else if currentView === 'news'}
       <TokenNewsTradingView />
     {:else if currentView === 'analysis'}
-      <TokenTechnicalView symbol="CRYPTO:ETHUSD" />
+      <TokenTechnicalView symbol="COINBASE:ETHUSD" />
     {:else if currentView === 'symbol'}
       {#each sortedTokens as token}
-        <TokenSymbolView symbol={`CRYPTO:${token.symbol.toUpperCase()}USD`} />
+        <TokenSymbolView symbol={`COINBASE:${token.symbol.toUpperCase()}USD`} />
       {/each}
     {/if}
   </div>

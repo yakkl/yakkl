@@ -3,12 +3,27 @@
 	"version": "1.5.2",
 	"version_sub": "",
 	"types": "index.d.ts",
+	"config": {
+		"instructions": "Set YAKKL_TYPE=sidepanel to build the sidepanel version, otherwise the popup version will be built.",
+		"YAKKL_TYPE": "sidepanel",
+		"environments": {
+			"dev": {
+				"DEV_MODE": "true",
+				"YAKKL_TYPE": "sidepanel"
+			},
+			"prod": {
+				"DEV_MODE": "false",
+				"YAKKL_TYPE": "sidepanel"
+			}
+		}
+	},
 	"scripts": {
-		"dev:chrome": "npm run build:chrome:manifest && npm run build:constants && npm run build:variables && webpack -c webpack.config.cjs && DEV_DEBUG=true vite build && node ./buildSveltekitForCSP.mjs",
-		"build:chrome": "npm run build:chrome:manifest && npm run build:constants && npm run build:variables && webpack -c webpack.config.cjs && vite build && node ./buildSveltekitForCSP.mjs",
-		"build:chrome:manifest": "mustache package.json ./src/lib/extensions/chrome/manifest.json.mustache > ./static/manifest.json",
+		"dev:chrome": "npm run build:env:dev && npm run build:constants && webpack -c webpack.config.cjs && DEV_MODE=true vite build && node ./buildSveltekitForCSP.mjs",
+		"build:chrome": "npm run build:env:prod && npm run build:constants && webpack -c webpack.config.cjs && vite build && node ./buildSveltekitForCSP.mjs",
 		"build:constants": "mustache package.json ./src/lib/common/constants.mustache > ./src/lib/common/constants.ts",
-		"build:variables": "mustache package.json ./.env.mustache > ./.env",
+		"build:env": "node ./build-env.js",
+		"build:env:dev": "node ./build-env.js dev",
+		"build:env:prod": "node ./build-env.js prod",
 		"build:clean": "rm ./src/extension-scripts/*-no-edit.ts",
 		"build:tsc": "tsc -p ./tsconfig.extonlyfiles.json",
 		"build:debug": "node build.mjs",
@@ -50,6 +65,7 @@
 		"@types/jest": "^29.5.14",
 		"@types/lodash": "^4.17.14",
 		"@types/lodash-es": "^4.17.12",
+		"@types/mustache": "^4.2.5",
 		"@types/node": "^20.17.14",
 		"@types/readable-stream": "^4.0.18",
 		"@types/uuid": "^10.0.0",

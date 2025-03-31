@@ -24,6 +24,23 @@ export const backgroundListenerManager = new ListenerManager();
 export async function onInstalledUpdatedListener( details: Runtime.OnInstalledDetailsType ): Promise<void> {
   try {
     if (!browser_ext) return;
+    if (typeof chrome !== "undefined" && chrome.sidePanel) {
+      // Set the panel behavior to NOT open on action click
+      chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false }); // Default to false
+      const isSidepanel = process.env.VITE_IS_SIDEPANEL === 'true' ? true : false;
+      // const isPopup = process.env.VITE_IS_POPUP === 'true' ? true : false;
+      if (isSidepanel) {
+        chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }); // Override default to true
+      }
+
+      chrome.runtime.onMessage.addListener((message: any, _sender: any, _sendResponse: any  ) => {
+      if (message.type === "SET_PANEL_BEHAVIOR") {
+        chrome.sidePanel.setPanelBehavior({
+          openPanelOnActionClick: !!message.open
+        });
+      }
+      });
+    }
 
     const platform: RuntimePlatformInfo = await browser_ext.runtime.getPlatformInfo();
 

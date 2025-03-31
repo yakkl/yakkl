@@ -17,14 +17,48 @@
       const script = document.createElement('script');
       script.type = 'text/javascript';
       script.async = true;
-      script.src = '../../js/embed-widget-symbol-info.js';
+      script.src = '../../js/embed-widget-symbol-overview.js';
       script.innerHTML = JSON.stringify({
         width: '100%',
         height: '100%',
-        isTransparent: false,
-        symbol, // Dynamically set the symbol
+        symbols: [
+          [
+            "COINBASE:ETHUSD|1D"
+          ],
+          [
+            "COINBASE:BTCUSD|1D"
+          ]
+        ], // Dynamically set the symbol
         locale: 'en',
         colorTheme: 'light',
+        autosize: true,
+        showVolume: true,
+        showMA: true,
+        hideDateRanges: false,
+        hideMarketStatus: false,
+        hideSymbolLogo: false,
+        scalePosition: "right",
+        scaleMode: "Normal",
+        fontFamily: "-apple-system, BlinkMacSystemFont, Trebuchet MS, Roboto, Ubuntu, sans-serif",
+        fontSize: "10",
+        noTimeScale: false,
+        valuesTracking: "1",
+        changeMode: "price-and-percent",
+        chartType: "area",
+        maLineColor: "#2962FF",
+        maLineWidth: 1,
+        maLength: 9,
+        headerFontSize: "medium",
+        lineWidth: 2,
+        lineType: 0,
+        dateRanges: [
+          "1d|1",
+          "1m|30",
+          "3m|60",
+          "12m|1D",
+          "60m|1W",
+          "all|1M"
+        ]
       });
 
       log.info('Script', false, script);
@@ -74,4 +108,5 @@
     height: 100%;
   }
 </style>
+
 

@@ -476,6 +476,7 @@ export const yakklStoredObjects = [
   { key: "profile", value: profile },
   { key: "yakklBlockedList", value: yakklBlockedList },
   { key: "yakklWatchList", value: sampleWatch },
+  { key: "yakklConnectedDomains", value: [] },
 ];
 
 

@@ -131,3 +131,102 @@ function getProviderConfig(chainId: any, apiKey: string) {
 //     throw e;
 //   }
 // }
+
+export async function getLatestBlock(chainId: any) {
+  try {
+    const apiKey = await keyManager.getKey('ALCHEMY_API_KEY_PROD');
+    const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
+    return await provider.core.getBlock('latest');
+  } catch (e) {
+    log.error('Error in getLatestBlock', false, e);
+    throw e;
+  }
+}
+
+export async function ethCall(chainId: any, transaction: Deferrable<TransactionRequest>, blockTag?: BlockTag) {
+  try {
+    const apiKey = await keyManager.getKey('ALCHEMY_API_KEY_PROD');
+    const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
+    return await provider.core.call(transaction, blockTag || 'latest');
+  } catch (e) {
+    log.error('Error in ethCall', false, e);
+    throw e;
+  }
+}
+
+export async function getGasPrice(chainId: any) {
+  try {
+    const apiKey = await keyManager.getKey('ALCHEMY_API_KEY_PROD');
+    const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
+    return await provider.core.getGasPrice();
+  } catch (e) {
+    log.error('Error in getGasPrice', false, e);
+    throw e;
+  }
+}
+
+export async function getBalance(chainId: any, address: string, blockTag?: BlockTag) {
+  try {
+    const apiKey = await keyManager.getKey('ALCHEMY_API_KEY_PROD');
+    const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
+    return await provider.core.getBalance(address, blockTag || 'latest');
+  } catch (e) {
+    log.error('Error in getBalance', false, e);
+    throw e;
+  }
+}
+
+export async function getCode(chainId: any, address: string, blockTag?: BlockTag) {
+  try {
+    const apiKey = await keyManager.getKey('ALCHEMY_API_KEY_PROD');
+    const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
+    return await provider.core.getCode(address, blockTag || 'latest');
+  } catch (e) {
+    log.error('Error in getCode', false, e);
+    throw e;
+  }
+}
+
+export async function getNonce(chainId: any, address: string, blockTag?: BlockTag) {
+  try {
+    const apiKey = await keyManager.getKey('ALCHEMY_API_KEY_PROD');
+    const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
+    return await provider.core.getTransactionCount(address, blockTag || 'latest');
+  } catch (e) {
+    log.error('Error in getNonce', false, e);
+    throw e;
+  }
+}
+
+export async function getTransactionReceipt(chainId: any, txHash: string) {
+  try {
+    const apiKey = await keyManager.getKey('ALCHEMY_API_KEY_PROD');
+    const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
+    return await provider.core.getTransactionReceipt(txHash);
+  } catch (e) {
+    log.error('Error in getTransactionReceipt', false, e);
+    throw e;
+  }
+}
+
+export async function getTransaction(chainId: any, txHash: string) {
+  try {
+    const apiKey = await keyManager.getKey('ALCHEMY_API_KEY_PROD');
+    const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
+    return await provider.core.getTransaction(txHash);
+  } catch (e) {
+    log.error('Error in getTransaction', false, e);
+    throw e;
+  }
+}
+
+export async function getLogs(chainId: any, filter: any) {
+  try {
+    const apiKey = await keyManager.getKey('ALCHEMY_API_KEY_PROD');
+    const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
+    return await provider.core.getLogs(filter);
+  } catch (e) {
+    log.error('Error in getLogs', false, e);
+    throw e;
+  }
+}

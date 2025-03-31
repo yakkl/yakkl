@@ -97,7 +97,6 @@ export async function onPortConnectListener(port: RuntimePort) {
         }
       break;
       case YAKKL_PROVIDER_EIP6963:
-        //@ts-ignore
         log.info('onPortConnectListener - YAKKL_PROVIDER_EIP6963', false, port);
         if (!port.onMessage.hasListener(onEIP6963Listener)) {
           //@ts-ignore
@@ -202,6 +201,8 @@ export async function onPortExternalListener(event, sender): Promise<void> {
       switch(event.method) {
         case 'eth_requestAccounts':
         case 'wallet_requestPermissions':
+          log.info('eth_requestAccounts - 6963 (portListener):', false, event);
+          
           showDappPopup('/dapp/popups/approve.html?requestId=' + Number(event.id).toString());
           break;
         case 'eth_sendTransaction':

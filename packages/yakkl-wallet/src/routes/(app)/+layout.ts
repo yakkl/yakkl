@@ -7,6 +7,8 @@ import { activeTabUIStore } from '$lib/common/stores';
 import type { GetActiveTabResponse } from '$lib/common/interfaces';
 import { isServerSide } from '$lib/common/utils';
 import { getBrowserExt } from '$lib/browser-polyfill-wrapper';
+import { getObjectFromLocalStorage } from '$lib/common/storage';
+
 
 export async function load() {
   if (isServerSide()) {
@@ -26,6 +28,8 @@ export async function load() {
           const response = await ext.runtime.sendMessage({ type: 'getActiveTab' }) as GetActiveTabResponse;
           if (response?.activeTab) {
             activeTabUIStore.set(response.activeTab);
+          } else {
+            log.debug('No active tab found, getting from local storage:', false, await getObjectFromLocalStorage('activeTabBackground'));
           }
           log.debug('Active tab:', false, activeTab, response, activeTabUIStore);
         } catch (error) {

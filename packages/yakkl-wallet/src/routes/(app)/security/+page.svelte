@@ -1,41 +1,22 @@
 <script lang="ts">
-  import { browserSvelte } from "$lib/common/environment";
-  import { goto } from "$app/navigation";
-  import { PATH_LOGIN, PATH_REGISTER } from "$lib/common/constants";
   import Back from "$lib/components/Back.svelte";
   import Pincode from "$lib/components/Pincode.svelte";
-  import ComingSoon from "$lib/components/ComingSoon.svelte";
 	import ErrorNoAction from "$lib/components/ErrorNoAction.svelte";
 	import Welcome from "$lib/components/Welcome.svelte";
 	import ButtonGridItem from "$lib/components/ButtonGridItem.svelte";
 	import ButtonGrid from "$lib/components/ButtonGrid.svelte";
-	import { getSettings } from "$lib/common/stores";
 
 	import EmergencyKitModal from "$lib/components/EmergencyKitModal.svelte";
 
   let error = $state(false);
   let errorValue: any = $state();
-  let yakklSettings;
-  let showComingSoon = $state(false);
+  // let showComingSoon = $state(false);
   let showPin = $state(false);
   let showEmergencyKit = $state(false);
 
-  if (browserSvelte) {
-    getSettings().then(result => {
-      yakklSettings = result;
-
-      if (yakklSettings!.init === false) {
-        goto(PATH_REGISTER);
-      }
-      if (yakklSettings!.isLocked === true) {
-        goto(PATH_LOGIN);
-      }
-    });
-  }
-
-  function handleComingSoon() {
-    showComingSoon = true;
-  }
+  // function handleComingSoon() {
+  //   showComingSoon = true;
+  // }
 
   function handleEmergencyKit(e: any) {
     showEmergencyKit = true;
@@ -46,7 +27,7 @@
 <Back defaultClass="left-3 top-[.8rem] absolute" href='' />
 <Pincode bind:show={showPin}/>
 <ErrorNoAction bind:show={error} value={errorValue} />
-<ComingSoon bind:show={showComingSoon} />
+<!-- <ComingSoon bind:show={showComingSoon} /> -->
 <EmergencyKitModal bind:show={showEmergencyKit} mode='export' />
 
 <!-- Top band on page using the bg of wherever this is - could be component but not sure we will keep it -->

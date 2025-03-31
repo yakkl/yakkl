@@ -32,6 +32,10 @@ export const EIP1193_ERRORS = {
   TIMEOUT: {
     code: 4902,
     message: 'The request timed out.'
+  },
+    INTERNAL_ERROR: {
+    code: -32603,
+    message: 'Internal error'
   }
 } as const;
 

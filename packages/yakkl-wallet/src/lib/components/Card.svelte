@@ -91,7 +91,7 @@
   let errorValue: string = $state('');
   let assetPriceValue: BigNumberish = $state(0n);
   let assetPrice: string = $state('');
-  let card = 'ethereum-background.png';
+  let card = 'background_gradient_2.png'; //'ethereum-background.png';
 
   let yakklMiscStore: string = getMiscStore();
   let symbolLabel: string = $state('');
@@ -718,7 +718,7 @@
             {$yakklCurrentlySelectedStore && $yakklCurrentlySelectedStore.shortcuts.network.blockchain}
           </span>
           {#if showTestNetworks}
-          <span class="flex h-6 absolute top-2 right-8">
+          <span class="flex h-6 absolute z-100 top-2 right-24">
             <div class="dropdown dropdown-bottom relative">
               {#if networkLabel.toLowerCase() === 'mainnet'}
               <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -777,7 +777,7 @@
             </div>
           </span>
           {:else}
-          <span class="flex h-6 absolute top-2 right-8">
+          <span class="flex h-6 absolute top-2 right-24">
             <!-- svelte-ignore a11y_label_has_associated_control -->
             <label
               class="w-28 px-3 py-1 bg-red-800/80 text-white font-medium text-xs leading-tight uppercase rounded-full shadow-md hover:bg-red-700 hover:shadow-lg focus:bg-red-700 focus:shadow-lg focus:outline-none focus:ring-0 active:bg-red-800 active:shadow-lg active:text-white transition duration-150 ease-in-out flex items-center whitespace-nowrap"
@@ -797,7 +797,7 @@
             <Copy target={{value: address}} />
           </p>
         </div>
-        <div class="absolute top-[118px] left-[175px] opacity-25 -z-10">
+        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-25 -z-10">
           {#if symbolLabel}
           <svg width="60" height="60" fill="none" viewBox="0 0 60 60">
             <g clip-path="url(#j)">
@@ -877,6 +877,6 @@
   </div>
 
   <!-- Card stack look -->
-  <div style="z-index: 1;" class="grid w-[381px] left-[18.5px] bottom-[5px] h-[10px] absolute rounded bg-secondary text-accent-content place-content-center"></div>
-  <div style="z-index: 0;" class="grid w-[366px] left-[27px] bottom-[2.5px] h-[10px] absolute rounded bg-accent text-secondary-content place-content-center"></div>
+  <div style="z-index: 1;" class="grid right-[18.5px] left-[18.5px] bottom-[5px] h-[10px] absolute rounded bg-secondary text-accent-content place-content-center"></div>
+  <div style="z-index: 0;" class="grid right-[27px] left-[27px] bottom-[2.5px] h-[10px] absolute rounded bg-accent text-secondary-content place-content-center"></div>
 </div>

@@ -58,10 +58,11 @@ export default defineConfig( {
   },
   define: {
     'process.env': {
+      DEV_MODE: JSON.stringify(process.env.NODE_ENV !== 'production'), // This is used to determine if we are in development mode to flush out non-production code
       NODE_ENV: JSON.stringify(process.env.NODE_ENV || 'development'),
     },
     __version__: JSON.stringify( process.env.npm_package_version ),
-    'process.env.DEV_DEBUG': process.env.DEV_DEBUG || false,
+    'process.env.DEV_MODE': process.env.DEV_MODE || false,
   },
   optimizeDeps: {
     exclude: [

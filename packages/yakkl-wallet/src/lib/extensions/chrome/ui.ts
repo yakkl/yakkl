@@ -126,9 +126,11 @@ export async function showPopupDapp(url: string): Promise<void> {
     // - Approval: 500px
     // - Transaction signing: 600px
     // - Account selection: 550px
-    const height = url.includes('approve.html') ? 500 :
+    const height = url.includes('approve.html') ? 600 :
                   url.includes('transactions.html') ? 600 :
                   url.includes('accounts.html') ? 550 : 500;
+
+    log.info('showPopupDapp - 133 (ui):', false, {url, height});
 
     showExtensionPopup(360, height, url).then(async (result) => {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -146,8 +148,11 @@ export async function showPopupDapp(url: string): Promise<void> {
 export async function showDappSidePanel(request: string) {
   try {
     // Check if the side panel is already open
-    const views = await browser_ext.extension.getViews({ type: 'tab' });
+    log.info('showDappSidePanel - 149 (ui):', false, request);
+
+    const views = browser_ext.extension.getViews({ type: 'tab' });
     if (views.length > 0) {
+      log.info('showDappSidePanel - 151 (ui):', false, views);
       // Side panel is already open, send message to update content
       views[0].postMessage({
         type: 'UPDATE_CONTENT',
@@ -176,9 +181,11 @@ export async function showDappSidePanel(request: string) {
 
 export async function showDappPopup(request: string) {
   try {
-    const height = request.includes('approve.html') ? 500 :
+    const height = request.includes('approve.html') ? 600 :
                    request.includes('transactions.html') ? 600 :
                    request.includes('accounts.html') ? 550 : 500;
+
+    log.info('showDappPopup - 186 (ui):', false, {request, height});
 
     showExtensionPopup(360, height, request).then(async (result) => {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment

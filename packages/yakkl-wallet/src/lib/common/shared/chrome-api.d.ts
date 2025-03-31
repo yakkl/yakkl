@@ -9,8 +9,8 @@ declare global {
   interface Chrome {
     runtime: ChromeRuntime;
     storage: ChromeStorage;
+    sidePanel: ChromeSidePanel;
     tabs?: ChromeTabs;
-    sidePanel?: ChromeSidePanel;
     alarms?: ChromeAlarms;
     idle?: ChromeIdle;
     notifications?: ChromeNotifications;
@@ -160,8 +160,9 @@ interface ChromeTabsMessageSendOptions {
 
 interface ChromeSidePanel {
   setPanelBehavior: (options: { openPanelOnActionClick: boolean }) => void;
-  open: () => void;
+  open: (options: { tabId: number }) => Promise<void>;
   getOptions?: () => Promise<{ enabled: boolean }>;
+  setOptions: (options: { tabId: number, enabled: boolean, path: string }) => Promise<void>;
 }
 
 interface ChromeAlarms {
@@ -298,4 +299,5 @@ declare namespace chrome {
 // Declare the global chrome variable
 declare const chrome: Chrome | undefined;
 
-export {};
+// Commented this line out to be truly global
+// export {};

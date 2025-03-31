@@ -30,7 +30,7 @@
     "pages": ["sandbox.html"]
   },
   "side_panel": {
-    "default_path": "sidepanel.html"
+    "default_path": "index.html"
   },
   "action": {
     "default_icon": {
@@ -83,8 +83,13 @@
         "size": "128"
       }
     ],
+  {{#isSidepanel}}
+    "default_title": "YAKKL® Smart Wallet"
+  {{/isSidepanel}}
+  {{#isPopup}}
     "default_title": "YAKKL® Smart Wallet",
     "default_popup": "/popup/popup.html"
+  {{/isPopup}}
   },
   "background": {
     "service_worker": "/js/background-wrapper.js",

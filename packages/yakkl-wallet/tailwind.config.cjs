@@ -23,7 +23,8 @@ module.exports = {
   darkMode: 'class',
 	theme: {
 			screens: {
-      'xs': '391px',
+      //'xs': '391px',
+      'xs': '350px',
       ...defaultTheme.screens
 		},
 		extend: {
@@ -56,20 +57,23 @@ module.exports = {
         'neutral-light': '#f3f4f6',  // Light gray for light mode
         'neutral-dark': '#1f2937',   // Dark gray for dark mode
 
-        // Text and input colors
-        'input-bg-light': '#FFFFFF',
-        'input-bg-dark': '#374151',
-        'input-text-light': '#111827',
-        'input-text-dark': '#E5E7EB',
-        'input-placeholder-light': '#9CA3AF',
-        'input-placeholder-dark': '#6B7280',
+      //   // Text and input colors
+      //   'input-bg-light': '#FFFFFF',
+      //   'input-bg-dark': '#374151',
+      //   'input-text-light': '#111827',
+      //   'input-text-dark': '#E5E7EB',
+      //   'input-placeholder-light': '#9CA3AF',
+      //   'input-placeholder-dark': '#6B7280',
 
-        // Borders for inputs or dividers
-        'input-border-light': '#D1D5DB',
-        'input-border-dark': '#4B5563',
-        'input-focused-border-light': '#6D28D9',
-        'input-focused-border-dark': '#8B5CF6',
+      //   // Borders for inputs or dividers
+      //   'input-border-light': '#D1D5DB',
+      //   'input-border-dark': '#4B5563',
+      //   'input-focused-border-light': '#6D28D9',
+      //   'input-focused-border-dark': '#8B5CF6',
       },
+
+
+
         // 'modal-bg-light': '#f9fafb',
         // 'modal-bg-dark': '#1f2937',
         // 'primary-light': '#6d28d9',
@@ -158,17 +162,21 @@ module.exports = {
       //   'alternative-light': '#ff7979',
       //   'alternative-dark': '#b34747',
       // }),
-      boxShadow: {
-        input: "0px 7px 20px rgba(0, 0, 0, 0.03)",
-        pricing: "0px 39px 23px -27px rgba(0, 0, 0, 0.04)",
-        "switch-1": "0px 0px 5px rgba(0, 0, 0, 0.15)",
-        "testimonial-4": "0px 60px 120px -20px #EBEFFD",
-        "testimonial-5": "0px 10px 39px rgba(92, 115, 160, 0.08)",
-        "contact-3": "0px 4px 28px rgba(0, 0, 0, 0.08)",
-        "contact-6": "0px 2px 4px rgba(0, 0, 0, 0.05)",
-        card: "0px 1px 3px rgba(0, 0, 0, 0.12)",
-        "card-2": "0px 1px 10px -2px rgba(0, 0, 0, 0.15)",
-      },
+
+
+
+
+      // boxShadow: {
+      //   input: "0px 7px 20px rgba(0, 0, 0, 0.03)",
+      //   pricing: "0px 39px 23px -27px rgba(0, 0, 0, 0.04)",
+      //   "switch-1": "0px 0px 5px rgba(0, 0, 0, 0.15)",
+      //   "testimonial-4": "0px 60px 120px -20px #EBEFFD",
+      //   "testimonial-5": "0px 10px 39px rgba(92, 115, 160, 0.08)",
+      //   "contact-3": "0px 4px 28px rgba(0, 0, 0, 0.08)",
+      //   "contact-6": "0px 2px 4px rgba(0, 0, 0, 0.05)",
+      //   card: "0px 1px 3px rgba(0, 0, 0, 0.12)",
+      //   "card-2": "0px 1px 10px -2px rgba(0, 0, 0, 0.15)",
+      // },
 
 			fontFamily: {
 				sans: ['Inter var', ...defaultTheme.fontFamily.sans],
