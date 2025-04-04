@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<!-- Removed the 'dark' class and daisyui should handle it going forward but test and then remove this comment -->
-<html lang="en" class="h-full bg-base-100 bg-dotted-spacing-1 bg-dotted-gray-600 no-js dark" style="overscroll-behavior-x: none;" data-theme="yakkl">
+<html lang="en" class="h-full bg-base-100 no-js dark"
+  style="overscroll-behavior-x: none;" data-theme="yakkl">
+<!-- <html lang="en" class="h-full bg-base-100 bg-dotted-spacing-1 bg-dotted-gray-600 no-js dark" style="overscroll-behavior-x: none;" data-theme="yakkl"> -->
 	<head>
 
 		<!-- <meta http-equiv="Content-Type" content="text/html" charset="utf-8" /> -->
@@ -54,10 +55,11 @@
 		%sveltekit.head%
 
 	</head>
-	<!-- dark:bg-[url('/images/background_1.png')] -->
-	<!-- overscroll-behavior-x: none; -->
-	<!-- min-h-[926px] -->
+  <!-- For sidepanel -->
 	<body style="resize: none; overflow: hidden;" class="text-base-content font-inter antialiased h-full w-full overscroll-hidden selection:bg-fuchsia-300 selection:text-fuchsia-900" >
+
+  <!-- For popup-->
+  <!-- <body style="resize: none; overflow: hidden;" class="text-base-content font-inter antialiased min-h-[926px] min-w-[428px] max-h-[926px] max-w-[428px] selection:bg-fuchsia-300 selection:text-fuchsia-900"> -->
 
 		<div id="sk-body" style="display: contents">%sveltekit.body%</div>
 
@@ -71,8 +73,6 @@
 		<script src="/js/console.js"></script>
 		<!-- <script src="/js/in/in.js" type="text/javascript">lang: en_US</script> -->
 		<!-- <script src="js/fb/sdk.js"></script> -->
-		<!-- <script src="/js/snow.prod.js"></script>
-		<script src="/js/use-snow.js"></script> -->
 
 	</body>
 </html>

@@ -6,42 +6,10 @@
 //   back and forth to the background.js service.
 
 import { log } from "$lib/plugins/Logger";
-import type { EIP6963ProviderDetail, EIP6963Provider, EIP6963ProviderInfo } from '$lib/plugins/providers/network/ethereum_provider/eip-types';
+import { type EIP6963ProviderDetail, type EIP6963Provider, type EIP6963ProviderInfo, EIP1193_ERRORS } from '$lib/plugins/providers/network/ethereum_provider/eip-types';
 import type { RequestArguments } from '$lib/common';
 import { EventEmitter } from 'events';
 import { getWindowOrigin, isValidOrigin, getTargetOrigin, safePostMessage } from '$lib/common/origin';
-
-// Error types
-const EIP1193_ERRORS = {
-  USER_REJECTED: {
-    code: 4001,
-    message: 'The user rejected the request.'
-  },
-  UNAUTHORIZED: {
-    code: 4100,
-    message: 'The requested method and/or account has not been authorized by the user.'
-  },
-  UNSUPPORTED_METHOD: {
-    code: 4200,
-    message: 'The Provider does not support the requested method.'
-  },
-  DISCONNECTED: {
-    code: 4900,
-    message: 'The Provider is disconnected from all chains.'
-  },
-  CHAIN_DISCONNECTED: {
-    code: 4901,
-    message: 'The Provider is not connected to the requested chain.'
-  },
-  TIMEOUT: {
-    code: 4902,
-    message: 'Request timeout'
-  },
-  INTERNAL_ERROR: {
-    code: -32603,
-    message: 'Internal error'
-  }
-} as const;
 
 class ProviderRpcError extends Error {
   code: number;
@@ -56,7 +24,7 @@ class ProviderRpcError extends Error {
 }
 
 // Base64 encoded icon
-const YAKKL_ICON = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAACXBIWXMAAAsTAAALEwEAmpwYAAAF8WlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4gPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iQWRvYmUgWE1QIENvcmUgNy4yLWMwMDAgNzkuMWI2NWE3OWI0LCAyMDIyLzA2LzEzLTIyOjAxOjAxICAgICAgICAiPiA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtbG5zOnhtcE1NPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvbW0vIiB4bWxuczpzdEV2dD0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL3NUeXBlL1Jlc291cmNlRXZlbnQjIiB4bWxuczpkYz0iaHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8iIHhtbG5zOnBob3Rvc2hvcD0iaHR0cDovL25zLmFkb2JlLmNvbS9waG90b3Nob3AvMS4wLyIgeG1wOkNyZWF0b3JUb29sPSJBZG9iZSBQaG90b3Nob3AgMjQuMCAoTWFjaW50b3NoKSIgeG1wOkNyZWF0ZURhdGU9IjIwMjMtMDMtMjJUMTU6NDc6NDctMDQ6MDAiIHhtcDpNZXRhZGF0YURhdGU9IjIwMjMtMDMtMjJUMTU6NDc6NDctMDQ6MDAiIHhtcDpNb2RpZnlEYXRlPSIyMDIzLTAzLTIyVDE1OjQ3OjQ3LTA0OjAwIiB4bXBNTTpJbnN0YW5jZUlEPSJ4bXAuaWlkOjk0YzFkNDY5LTU2ZDAtNDI0Ni1hMjM0LTM2ZDY5ZjI1MjQ5YiIgeG1wTU06RG9jdW1lbnRJRD0iYWRvYmU6ZG9jaWQ6cGhvdG9zaG9wOjM0ZjEyZmJiLTY0ZjAtYjM0NC1hZDY3LTY2NDg0ZmQ5ZjFhYiIgeG1wTU06T3JpZ2luYWxEb2N1bWVudElEPSJ4bXAuZGlkOjk0YzFkNDY5LTU2ZDAtNDI0Ni1hMjM0LTM2ZDY5ZjI1MjQ5YiIgZGM6Zm9ybWF0PSJpbWFnZS9wbmciIHBob3Rvc2hvcDpDb2xvck1vZGU9IjMiPiA8eG1wTU06SGlzdG9yeT4gPHJkZjpTZXE+IDxyZGY6bGkgc3RFdnQ6YWN0aW9uPSJjcmVhdGVkIiBzdEV2dDppbnN0YW5jZUlEPSJ4bXAuaWlkOjk0YzFkNDY5LTU2ZDAtNDI0Ni1hMjM0LTM2ZDY5ZjI1MjQ5YiIgc3RFdnQ6d2hlbj0iMjAyMy0wMy0yMlQxNTo0Nzo0Ny0wNDowMCIgc3RFdnQ6c29mdHdhcmVBZ2VudD0iQWRvYmUgUGhvdG9zaG9wIDI0LjAgKE1hY2ludG9zaCkiLz4gPC9yZGY6U2VxPiA8L3htcE1NOkhpc3Rvcnk+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+YWpJdAAAAnVJREFUaN7tmE1IVFEUx3/zZsw0NUtnxmw0paBFs4UQRbRpEdUiKGgVLfoiWrSJFkG0KoKgRR8EQdCiWkQtWkRB0GdE9LFoYUGrqEWWZjEjpdN4b064MjLvY957c9+938CDN/PevXPO/5x7/+ece8E555xzrgnkgKvAa2AReAcsAfeAXUDBOVcELgF5oD7m7xpwBsg4F0oFYBSoAk+Ao8A2YAfQCxwGHgJ14DGwxTlXAqaAz8Bl59xm51y3c67bOdcDXAG+AlPOuXJKQWwHXgJzwP4m9+0DZoF3QE/aQewEpoEPwMEE9x8CPhJ5Y0daQewB3gIvgH0t2ukH5oHnwO40gTgEfCLa3YMW7Q0C74m8eSgNIPqAWSKv7LPZ7gDwBngG7IoTRBG4CPwGrsc8/5uRXf8Al4FCkkDKwDXgD3A7wbm4Q7Q5rgOVuECUiEL5L3AnhYtgArgJLAM3gFKnQJSJvLIMTALFFK+kY8AtohR7k2hh2wJRIdrKK8DtNgVxXIwQxcQdoLc/wc6vADdkB0/FsHvbBaRfvFADJoDNMdodINrOK8CkHCC2QGwjyiyfgYsxLN5OgzgPLMkW7bMBYqsUUp+Bi20e/E4vkEEppmaBM02qiXYA6ZF0+QU41YGQbQeQ48Br4CFwoEMFQydAjACPgPvAvg4XLZ0AMQQ8lVJzKIbKtd0ghoEngp2RmOrndoE4IaE6BeyMuQVhF8RRYEaK+L6Y2zB2QJyVwn0S2J5AB8kOiItSLl4FtiXUg7MD4gYwDGxNoAvmBEQ1hX+Lq0nPQEVAVFPohVqSM1ARECvAz5R5YUXOQEXgH/AbWEwZiJqcgYoJxGIKQfyUM1AxgVhOIYjaPwEGADmPjMkWWdYrAAAAAElFTkSuQmCC';
+const YAKKL_ICON = "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz48c3ZnIGlkPSJhIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB2aWV3Qm94PSIwIDAgNzU4LjczIDczOC45MiI+PGRlZnM+PHJhZGlhbEdyYWRpZW50IGlkPSJiIiBjeD0iMzk5LjMiIGN5PSIzNTkuNDIiIGZ4PSIzOTkuMyIgZnk9IjM1OS40MiIgcj0iMzUxLjY2IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIuMDMiIHN0b3AtY29sb3I9IiNhZTVlYTQiLz48c3RvcCBvZmZzZXQ9Ii4zNCIgc3RvcC1jb2xvcj0iIzhmNGI5YiIvPjxzdG9wIG9mZnNldD0iLjg5IiBzdG9wLWNvbG9yPSIjNWMyZDhjIi8+PHN0b3Agb2Zmc2V0PSIuOTUiIHN0b3AtY29sb3I9IiM1YTJjOGEiLz48c3RvcCBvZmZzZXQ9Ii45OCIgc3RvcC1jb2xvcj0iIzU1MmI4MyIvPjxzdG9wIG9mZnNldD0iLjk5IiBzdG9wLWNvbG9yPSIjNGQyODc3Ii8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNDgyNzcwIi8+PC9yYWRpYWxHcmFkaWVudD48bGluZWFyR3JhZGllbnQgaWQ9ImMiIHgxPSIyMTkuNjMiIHkxPSI0OC4yMSIgeDI9IjU3OC45OCIgeTI9IjY3MC42MyIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2RlOWQyNiIvPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4YzkyNyIvPjxzdG9wIG9mZnNldD0iLjMyIiBzdG9wLWNvbG9yPSIjZTJhZTI0Ii8+PHN0b3Agb2Zmc2V0PSIuNjgiIHN0b3AtY29sb3I9IiNmY2YyOTAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiNmZmQ0M2YiLz48L2xpbmVhckdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iZCIgeDE9IjI3MS40MSIgeTE9IjQxMy40OSIgeDI9IjM0MC45MyIgeTI9IjQxMy40OSIgeGxpbms6aHJlZj0iI2MiLz48bGluZWFyR3JhZGllbnQgaWQ9ImUiIHgxPSI0NTcuNjciIHkxPSI0MTMuNDkiIHgyPSI1MjcuMiIgeTI9IjQxMy40OSIgeGxpbms6aHJlZj0iI2MiLz48bGluZWFyR3JhZGllbnQgaWQ9ImYiIHgxPSIxMjAuNjIiIHkxPSI0MTkuMjgiIHgyPSI2NzcuOTkiIHkyPSI0MTkuMjgiIHhsaW5rOmhyZWY9IiNjIi8+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMzU4LjU5IiB5MT0iMjkzLjk3IiB4Mj0iNDQwLjAyIiB5Mj0iMjkzLjk3IiB4bGluazpocmVmPSIjYyIvPjwvZGVmcz48Y2lyY2xlIGN4PSIzOTkuMyIgY3k9IjM1OS40MiIgcj0iMzUxLjY2IiBzdHlsZT0iZmlsbDp1cmwoI2IpOyBzdHJva2Utd2lkdGg6MHB4OyIvPjxwYXRoIGQ9Im0zOTkuMyw3MTguODRjLTE5OC4xOSwwLTM1OS40Mi0xNjEuMjQtMzU5LjQyLTM1OS40MlMyMDEuMTIsMCwzOTkuMywwczM1OS40MiwxNjEuMjQsMzU5LjQyLDM1OS40Mi0xNjEuMjQsMzU5LjQyLTM1OS40MiwzNTkuNDJabTAtNzAzLjMzQzIwOS42NywxNS41Miw1NS40LDE2OS43OSw1NS40LDM1OS40MnMxNTQuMjcsMzQzLjksMzQzLjksMzQzLjksMzQzLjktMTU0LjI3LDM0My45LTM0My45UzU4OC45MywxNS41MiwzOTkuMywxNS41MloiIHN0eWxlPSJmaWxsOnVybCgjYyk7IHN0cm9rZS13aWR0aDowcHg7Ii8+PHBhdGggZD0ibTMwNS4xNywzNjkuODhzLTE5LjM0LTE4LjI5LTMzLjc2LTIxLjF2NTQuODZsNjcuNTMsNzQuNTZzNi4zMy0yMy4yMS0zLjUyLTUzLjQ2YzAsMC0zNC4xMS0xNC40Mi0zMC4yNS01NC44NloiIHN0eWxlPSJmaWxsOnVybCgjZCk7IHN0cm9rZS13aWR0aDowcHg7Ii8+PHBhdGggZD0ibTQ2My4xOSw0MjQuNzRjLTkuODUsMzAuMjUtMy41Miw1My40Ni0zLjUyLDUzLjQ2bDY3LjUzLTc0LjU2di01NC44NmMtMTQuNDIsMi44MS0zMy43NiwyMS4xLTMzLjc2LDIxLjEsMy44Nyw0MC40NC0zMC4yNSw1NC44Ni0zMC4yNSw1NC44NloiIHN0eWxlPSJmaWxsOnVybCgjZSk7IHN0cm9rZS13aWR0aDowcHg7Ii8+PHBhdGggZD0ibTQ2MC40LDI2Mi45M2wtNDkuMzYsODUuNDljLTUuMDgsOC43OS0xOC40MSw4Ljc5LTIzLjQ4LDBsLTQ5LjM2LTg1LjQ5Yy04NS4wOCw0Ny4yNS0yMTcuNTgtMzUuOTgtMjE3LjU4LTM1Ljk4LDM3LjI2LDQ4LjUxLDc5LjcxLDY5LjczLDExNS4zLDc4LjM3LDU2LjczLDEzLjc3LDEwNS43LDQ3LjYxLDEzNS4xNiw5NS41M2wuNjYsMS4wN2MtMS45OCw3Ljk3LTIuOTgsMTYuMTMtMi45OCwyNC4zMnYxMDguODVjMCwyLjQzLS4yNiw0LjgzLS42OSw3LjItMTEuMDQsNy4xNy0xOC4wOSwxOC4wNS0xOC4wOSwzMC4yMywwLDIxLjU4LDIyLjA5LDM5LjA4LDQ5LjMzLDM5LjA4czQ5LjMzLTE3LjUsNDkuMzMtMzkuMDhjMC0xMi4xOS03LjA1LTIzLjA3LTE4LjA5LTMwLjIzLS40My0yLjM3LS42OS00Ljc3LS42OS03LjJ2LTEwOC44NWMwLTguMTktMS0xNi4zNS0yLjk4LTI0LjMybC42Ni0xLjA3YzI5LjQ2LTQ3LjkyLDc4LjQzLTgxLjc3LDEzNS4xNi05NS41MywzNS41OS04LjY0LDc4LjA0LTI5Ljg2LDExNS4zLTc4LjM3LDAsMC0xNjEuMDgsODUuOTYtMjE3LjU4LDM1Ljk4Wm0tNjEuMSwzNDIuNDljLTIyLjksMC00MS41Mi0xNC43Ni00MS41Mi0zMi45LDAtMi41Ni40MS01LjAzLDEuMTEtNy40Mmg4MC44NGMuNywyLjM5LDEuMTEsNC44NywxLjExLDcuNDIsMCwxOC4xNC0xOC42MywzMi45LTQxLjUyLDMyLjlaIiBzdHlsZT0iZmlsbDp1cmwoI2YpOyBzdHJva2Utd2lkdGg6MHB4OyIvPjxwYXRoIGQ9Im00MDcuMTMsMzIxLjA3bDMyLjg5LTYwLjE3cy00Mi41MywxNi45Mi04MS40MywwbDMyLjg5LDYwLjE3czguMzEsMTMuNDMsMTUuNjUsMFoiIHN0eWxlPSJmaWxsOnVybCgjZyk7IHN0cm9rZS13aWR0aDowcHg7Ii8+PHRleHQvPjwvc3ZnPg=="
 
 // Chrome types
 declare namespace chrome {
@@ -83,53 +51,74 @@ declare global {
   }
 }
 
-log.debug('Initializing inpage script', true);
+// log.debug('Initializing inpage script', true);
 
 // Initialize provider state
-const windowOrigin = getWindowOrigin();
-log.debug('Window origin:', true, windowOrigin);
+// const windowOrigin = getWindowOrigin();
+// log.debug('Window origin:', true, windowOrigin);
 
 // Initialize provider info
 const providerInfo: EIP6963ProviderInfo = {
   uuid: crypto.randomUUID(),
-  name: 'Yakkl',
-  icon: YAKKL_ICON,
+  name: 'YAKKL',
+  icon: "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz48c3ZnIGlkPSJhIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB2aWV3Qm94PSIwIDAgNzU4LjczIDczOC45MiI+PGRlZnM+PHJhZGlhbEdyYWRpZW50IGlkPSJiIiBjeD0iMzk5LjMiIGN5PSIzNTkuNDIiIGZ4PSIzOTkuMyIgZnk9IjM1OS40MiIgcj0iMzUxLjY2IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIuMDMiIHN0b3AtY29sb3I9IiNhZTVlYTQiLz48c3RvcCBvZmZzZXQ9Ii4zNCIgc3RvcC1jb2xvcj0iIzhmNGI5YiIvPjxzdG9wIG9mZnNldD0iLjg5IiBzdG9wLWNvbG9yPSIjNWMyZDhjIi8+PHN0b3Agb2Zmc2V0PSIuOTUiIHN0b3AtY29sb3I9IiM1YTJjOGEiLz48c3RvcCBvZmZzZXQ9Ii45OCIgc3RvcC1jb2xvcj0iIzU1MmI4MyIvPjxzdG9wIG9mZnNldD0iLjk5IiBzdG9wLWNvbG9yPSIjNGQyODc3Ii8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNDgyNzcwIi8+PC9yYWRpYWxHcmFkaWVudD48bGluZWFyR3JhZGllbnQgaWQ9ImMiIHgxPSIyMTkuNjMiIHkxPSI0OC4yMSIgeDI9IjU3OC45OCIgeTI9IjY3MC42MyIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2RlOWQyNiIvPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4YzkyNyIvPjxzdG9wIG9mZnNldD0iLjMyIiBzdG9wLWNvbG9yPSIjZTJhZTI0Ii8+PHN0b3Agb2Zmc2V0PSIuNjgiIHN0b3AtY29sb3I9IiNmY2YyOTAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiNmZmQ0M2YiLz48L2xpbmVhckdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iZCIgeDE9IjI3MS40MSIgeTE9IjQxMy40OSIgeDI9IjM0MC45MyIgeTI9IjQxMy40OSIgeGxpbms6aHJlZj0iI2MiLz48bGluZWFyR3JhZGllbnQgaWQ9ImUiIHgxPSI0NTcuNjciIHkxPSI0MTMuNDkiIHgyPSI1MjcuMiIgeTI9IjQxMy40OSIgeGxpbms6aHJlZj0iI2MiLz48bGluZWFyR3JhZGllbnQgaWQ9ImYiIHgxPSIxMjAuNjIiIHkxPSI0MTkuMjgiIHgyPSI2NzcuOTkiIHkyPSI0MTkuMjgiIHhsaW5rOmhyZWY9IiNjIi8+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMzU4LjU5IiB5MT0iMjkzLjk3IiB4Mj0iNDQwLjAyIiB5Mj0iMjkzLjk3IiB4bGluazpocmVmPSIjYyIvPjwvZGVmcz48Y2lyY2xlIGN4PSIzOTkuMyIgY3k9IjM1OS40MiIgcj0iMzUxLjY2IiBzdHlsZT0iZmlsbDp1cmwoI2IpOyBzdHJva2Utd2lkdGg6MHB4OyIvPjxwYXRoIGQ9Im0zOTkuMyw3MTguODRjLTE5OC4xOSwwLTM1OS40Mi0xNjEuMjQtMzU5LjQyLTM1OS40MlMyMDEuMTIsMCwzOTkuMywwczM1OS40MiwxNjEuMjQsMzU5LjQyLDM1OS40Mi0xNjEuMjQsMzU5LjQyLTM1OS40MiwzNTkuNDJabTAtNzAzLjMzQzIwOS42NywxNS41Miw1NS40LDE2OS43OSw1NS40LDM1OS40MnMxNTQuMjcsMzQzLjksMzQzLjksMzQzLjksMzQzLjktMTU0LjI3LDM0My45LTM0My45UzU4OC45MywxNS41MiwzOTkuMywxNS41MloiIHN0eWxlPSJmaWxsOnVybCgjYyk7IHN0cm9rZS13aWR0aDowcHg7Ii8+PHBhdGggZD0ibTMwNS4xNywzNjkuODhzLTE5LjM0LTE4LjI5LTMzLjc2LTIxLjF2NTQuODZsNjcuNTMsNzQuNTZzNi4zMy0yMy4yMS0zLjUyLTUzLjQ2YzAsMC0zNC4xMS0xNC40Mi0zMC4yNS01NC44NloiIHN0eWxlPSJmaWxsOnVybCgjZCk7IHN0cm9rZS13aWR0aDowcHg7Ii8+PHBhdGggZD0ibTQ2My4xOSw0MjQuNzRjLTkuODUsMzAuMjUtMy41Miw1My40Ni0zLjUyLDUzLjQ2bDY3LjUzLTc0LjU2di01NC44NmMtMTQuNDIsMi44MS0zMy43NiwyMS4xLTMzLjc2LDIxLjEsMy44Nyw0MC40NC0zMC4yNSw1NC44Ni0zMC4yNSw1NC44NloiIHN0eWxlPSJmaWxsOnVybCgjZSk7IHN0cm9rZS13aWR0aDowcHg7Ii8+PHBhdGggZD0ibTQ2MC40LDI2Mi45M2wtNDkuMzYsODUuNDljLTUuMDgsOC43OS0xOC40MSw4Ljc5LTIzLjQ4LDBsLTQ5LjM2LTg1LjQ5Yy04NS4wOCw0Ny4yNS0yMTcuNTgtMzUuOTgtMjE3LjU4LTM1Ljk4LDM3LjI2LDQ4LjUxLDc5LjcxLDY5LjczLDExNS4zLDc4LjM3LDU2LjczLDEzLjc3LDEwNS43LDQ3LjYxLDEzNS4xNiw5NS41M2wuNjYsMS4wN2MtMS45OCw3Ljk3LTIuOTgsMTYuMTMtMi45OCwyNC4zMnYxMDguODVjMCwyLjQzLS4yNiw0LjgzLS42OSw3LjItMTEuMDQsNy4xNy0xOC4wOSwxOC4wNS0xOC4wOSwzMC4yMywwLDIxLjU4LDIyLjA5LDM5LjA4LDQ5LjMzLDM5LjA4czQ5LjMzLTE3LjUsNDkuMzMtMzkuMDhjMC0xMi4xOS03LjA1LTIzLjA3LTE4LjA5LTMwLjIzLS40My0yLjM3LS42OS00Ljc3LS42OS03LjJ2LTEwOC44NWMwLTguMTktMS0xNi4zNS0yLjk4LTI0LjMybC42Ni0xLjA3YzI5LjQ2LTQ3LjkyLDc4LjQzLTgxLjc3LDEzNS4xNi05NS41MywzNS41OS04LjY0LDc4LjA0LTI5Ljg2LDExNS4zLTc4LjM3LDAsMC0xNjEuMDgsODUuOTYtMjE3LjU4LDM1Ljk4Wm0tNjEuMSwzNDIuNDljLTIyLjksMC00MS41Mi0xNC43Ni00MS41Mi0zMi45LDAtMi41Ni40MS01LjAzLDEuMTEtNy40Mmg4MC44NGMuNywyLjM5LDEuMTEsNC44NywxLjExLDcuNDIsMCwxOC4xNC0xOC42MywzMi45LTQxLjUyLDMyLjlaIiBzdHlsZT0iZmlsbDp1cmwoI2YpOyBzdHJva2Utd2lkdGg6MHB4OyIvPjxwYXRoIGQ9Im00MDcuMTMsMzIxLjA3bDMyLjg5LTYwLjE3cy00Mi41MywxNi45Mi04MS40MywwbDMyLjg5LDYwLjE3czguMzEsMTMuNDMsMTUuNjUsMFoiIHN0eWxlPSJmaWxsOnVybCgjZyk7IHN0cm9rZS13aWR0aDowcHg7Ii8+PHRleHQvPjwvc3ZnPg==",
   rdns: 'com.yakkl',
   walletId: 'yakkl'
 };
 
 class EIP1193Provider extends EventEmitter implements EIP6963Provider {
   private _isConnected: boolean = false;
-  private requestId = 0;
-  private pendingRequests = new Map<number, {
+  private requestId: number = 0;
+  private pendingRequests: Map<number, {
     resolve: (value: any) => void;
     reject: (error: any) => void;
     method: string;
-  }>();
-  private connectionAttempts = 0;
-  private readonly MAX_CONNECTION_ATTEMPTS = 3;
-  private isConnecting = false;
-  private initializationPromise: Promise<void>;
-  private chainId: string = '0x1';  // Default mainnet
-  private networkVersion: string = '1';
+    timestamp: number;
+  }> = new Map();
+  private connectionAttempts: number = 0;
+  private readonly MAX_CONNECTION_ATTEMPTS: number = 3;
+  private isConnecting: boolean = false;
+  private chainId: string | null = '0x1'; // Default to mainnet
+  private networkVersion: string | null = '1'; // Default to mainnet
+  private cachedAccounts: string[] | null = null;
+  public initializationPromise: Promise<void>;
 
   constructor() {
     super();
+    // Set up message listener first
     this.setupMessageListener();
+    // Then initialize
     this.initializationPromise = this.initialize();
   }
 
-  isConnected(): boolean {
-    return this._isConnected;
-  }
-
   private setupMessageListener() {
+    // Receives messages from content
     window.addEventListener('message', (event) => {
       // Only accept messages from valid origins
-      if (!isValidOrigin(event.origin)) return;
+      if (!isValidOrigin(event.origin)) {
+        log.debug('Message from invalid origin:', true, {
+          origin: event.origin,
+          expectedOrigin: getWindowOrigin(),
+          timestamp: new Date().toISOString()
+        });
+        return;
+      }
 
       const message = event.data;
-      if (!message || typeof message !== 'object') return;
+      if (!message || typeof message !== 'object') {
+        log.debug('Invalid message format:', true, {
+          message,
+          timestamp: new Date().toISOString()
+        });
+        return;
+      }
+
+      log.debug('Received message in inpage:', true, {
+        message,
+        origin: event.origin,
+        timestamp: new Date().toISOString(),
+        pendingRequests: Array.from(this.pendingRequests.keys())
+      });
 
       // Handle responses from content script
       if (message.type === 'YAKKL_RESPONSE:EIP6963') {
@@ -138,20 +127,38 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 
       // Handle events from content script
       if (message.type === 'YAKKL_EVENT:EIP6963') {
-        this.emitEvent(message.event, message.data);
+        this.handleEvent(message);
       }
     });
   }
 
   private async initialize() {
     try {
+      // Initialize connection first
       await this.connect();
-      // Only announce provider after successful connection
+
+      // Set default values without making any requests
+      this.chainId = '0x1';
+      this.networkVersion = '1';
+      this.cachedAccounts = [];
+
+      log.debug('Inpage: Setting default values:', false, {
+        chainId: this.chainId,
+        networkVersion: this.networkVersion,
+        accounts: this.cachedAccounts,
+        timestamp: new Date().toISOString()
+      });
+
+      // Then announce provider
       announceProvider();
     } catch (error) {
       log.error('Failed to initialize provider:', false, error);
       throw error;
     }
+  }
+
+  isConnected(): boolean {
+    return this._isConnected;
   }
 
   private async connect(): Promise<void> {
@@ -160,7 +167,6 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
     }
 
     if (this.isConnecting) {
-      // If already connecting, wait for the current attempt to finish
       await new Promise(resolve => setTimeout(resolve, 100));
       if (this._isConnected) return;
     }
@@ -176,311 +182,309 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 
       this.connectionAttempts++;
 
-      // Test connection by requesting accounts
-      const accounts = await this.request({ method: 'eth_accounts' });
-      if (!Array.isArray(accounts)) {
-        log.error('Invalid response from eth_accounts', false, accounts);
-        // throw new Error('Invalid response from eth_accounts');
-      }
-
-      // Update provider state
+      // Initialize basic state
       this._isConnected = true;
-      this.connectionAttempts = 0; // Reset on successful connection
+      this.connectionAttempts = 0;
+
+      // Emit connect event with chainId
+      this.emit('connect', { chainId: this.chainId || '0x1' });
+
       log.debug('Successfully connected to EIP-6963', false);
     } catch (error) {
-      log.error('Failed to connect to EIP-6963:', false, error);
-      this._isConnected = false;
-
-      // Only retry if we haven't reached max attempts
-      if (this.connectionAttempts < this.MAX_CONNECTION_ATTEMPTS) {
-        const delay = 1000 * Math.pow(2, this.connectionAttempts);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        this.isConnecting = false;
-        return this.connect(); // Retry connection
-      }
-      throw error;
-    } finally {
       this.isConnecting = false;
+      this._isConnected = false;
+      log.error('Failed to connect to EIP-6963', false, error);
+      throw error;
     }
   }
 
   private handleResponse(response: any) {
-    log.debug('Handling response in inpage:', true, {
-      response,
-      pendingRequests: Array.from(this.pendingRequests.keys()),
-      timestamp: new Date().toISOString()
-    });
+    try {
+      log.debug('Inpage: Handling response:', false, {
+        response,
+        pendingRequests: Array.from(this.pendingRequests.keys()),
+        timestamp: new Date().toISOString(),
+        providerState: {
+          isConnected: this._isConnected,
+          chainId: this.chainId,
+          networkVersion: this.networkVersion,
+          cachedAccounts: this.cachedAccounts
+        }
+      });
 
-    // Extract id from response using various possible formats
-    const id = response.id ||
-      (response.type === 'YAKKL_REQUEST:EIP6963' ? response.requestId : undefined) ||
-      (response.data && response.data.id);
+      const { id, method, result, error } = response;
 
-    // Handle error responses first
-    if (response.error) {
-      const pendingRequest = id ?
-        this.pendingRequests.get(id) :
-        Array.from(this.pendingRequests.values())[0];
-
-      if (pendingRequest) {
-        const error = new ProviderRpcError(
-          response.error.code || 4001,
-          response.error.message || 'Unknown error'
-        );
-        log.error('Handling error response:', false, {
+      // Find the pending request
+      const pendingRequest = this.pendingRequests.get(id);
+      if (!pendingRequest) {
+        log.warn('Inpage: No pending request found for response:', false, {
           id,
+          method,
+          response,
+          timestamp: new Date().toISOString(),
+          pendingRequests: Array.from(this.pendingRequests.entries()).map(([id, req]) => ({
+            id,
+            method: req.method,
+            timestamp: req.timestamp
+          }))
+        });
+        return;
+      }
+
+      // Remove the request from pending
+      this.pendingRequests.delete(id);
+
+      // Handle the response
+      if (error) {
+        log.error('Inpage: Response error:', false, {
           error,
+          method,
+          id,
           timestamp: new Date().toISOString()
         });
-        pendingRequest.reject(error);
-        this.pendingRequests.delete(id || Array.from(this.pendingRequests.keys())[0]);
-      }
-      return;
-    }
+        pendingRequest.reject(new ProviderRpcError(error.code, error.message, error.data));
+      } else {
+        // Update provider state if needed
+        const requestMethod = pendingRequest.method;
 
-    // If response is an array or has array data (special case for eth_accounts)
-    if (Array.isArray(response) || (response[0] && typeof response[0] === 'string')) {
-      const accounts = Array.isArray(response) ? response : [response[0]];
-      // Find eth_accounts request
-      for (const [reqId, request] of this.pendingRequests.entries()) {
-        if (request.method === 'eth_accounts' || request.method === 'eth_requestAccounts') {
-          this._isConnected = true;
-          this.emit('accountsChanged', accounts);
-          log.debug('Handling accounts response:', false, {
-            reqId,
-            accounts,
-            timestamp: new Date().toISOString()
-          });
-          request.resolve(accounts);
-          this.pendingRequests.delete(reqId);
-          return;
-        }
-      }
-      return;
-    }
+        // Cache the results for cacheable methods
+        if (this.isMethodCached(requestMethod)) {
+          if (requestMethod === 'eth_chainId' && result) {
+            this.chainId = result;
+            this.emit('chainChanged', result);
+            log.debug('Inpage: Cached chainId:', false, {
+              chainId: result,
+              timestamp: new Date().toISOString()
+            });
+          } else if ((requestMethod === 'eth_accounts' || requestMethod === 'eth_requestAccounts') && Array.isArray(result)) {
+            // Only update accounts if we got a valid array and it's different from current
+            log.info('eth_requestAccounts - 261 (inpage):', false, result);
 
-    // Handle response with method and result format
-    if (response.method && response.result !== undefined) {
-      // Find request by method if no ID match
-      for (const [reqId, request] of this.pendingRequests.entries()) {
-        if (request.method === response.method) {
-          if (response.method === 'eth_accounts') {
-            this._isConnected = true;
-            this.emit('accountsChanged', response.result);
+            const validAccounts = result.filter(addr => addr && addr !== '0x0000000000000000000000000000000000000000');
+            if (!this.cachedAccounts || JSON.stringify(validAccounts) !== JSON.stringify(this.cachedAccounts)) {
+              this.cachedAccounts = validAccounts;
+              this.emit('accountsChanged', validAccounts);
+              log.debug('Inpage: Cached accounts:', false, {
+                accounts: validAccounts,
+                timestamp: new Date().toISOString()
+              });
+            }
+            this._isConnected = validAccounts.length > 0;
+          } else if (requestMethod === 'net_version' && result) {
+            this.networkVersion = result;
+            log.debug('Inpage: Cached networkVersion:', false, {
+              networkVersion: result,
+              timestamp: new Date().toISOString()
+            });
           }
-          log.debug('Handling method response:', false, {
-            reqId,
-            method: response.method,
-            result: response.result,
-            timestamp: new Date().toISOString()
-          });
-          request.resolve(response.result);
-          this.pendingRequests.delete(reqId);
-          return;
+        } else if (requestMethod === 'wallet_switchEthereumChain') {
+          // After switching chains, update chainId
+          this.request({ method: 'eth_chainId', params: [] })
+            .then((chainId) => {
+              if (typeof chainId === 'string' && chainId !== this.chainId) {
+                this.chainId = chainId;
+                this.emit('chainChanged', chainId);
+              }
+            })
+            .catch(err => log.error('Error updating chainId after switch:', false, err));
         }
+
+        // Resolve with the result
+        pendingRequest.resolve(result);
+        log.debug('Inpage: Request resolved:', false, {
+          method: requestMethod,
+          id,
+          result,
+          timestamp: new Date().toISOString()
+        });
       }
-      return;
-    }
-
-    // Handle standard response format
-    const pendingRequest = id ?
-      this.pendingRequests.get(id) :
-      Array.from(this.pendingRequests.values())[0];
-
-    if (!pendingRequest) {
-      log.debug('No pending request found for response', false, {
-        response,
-        pendingRequests: Array.from(this.pendingRequests.entries()),
-        timestamp: new Date().toISOString()
-      });
-      return;
-    }
-
-    try {
-      const result = response.result || response;
-
-      // Special handling for eth_accounts responses
-      if (pendingRequest.method === 'eth_accounts' || pendingRequest.method === 'eth_requestAccounts') {
-        if (Array.isArray(result)) {
-          this._isConnected = true;
-          this.emit('accountsChanged', result);
-        }
-      }
-
-      log.debug('Resolving request:', false, {
-        id,
-        method: pendingRequest.method,
-        result,
-        timestamp: new Date().toISOString()
-      });
-      pendingRequest.resolve(result);
-      this.pendingRequests.delete(id || Array.from(this.pendingRequests.keys())[0]);
     } catch (error) {
-      log.error('Error processing response:', false, {
+      log.error('Error handling response:', false, {
         error,
-        id,
+        response,
         timestamp: new Date().toISOString()
       });
-      pendingRequest.reject(new ProviderRpcError(
-        EIP1193_ERRORS.INTERNAL_ERROR.code,
-        EIP1193_ERRORS.INTERNAL_ERROR.message
-      ));
-      this.pendingRequests.delete(id || Array.from(this.pendingRequests.keys())[0]);
     }
   }
 
-  private emitEvent(eventName: string, data: any) {
-    this.emit(eventName, data);
+  private handleEvent(event: any) {
+    const { event: eventName, data } = event;
+    log.debug('Inpage: Handling event:', false, { eventName, data });
+
+    // Update state based on event
+    switch (eventName) {
+      case 'accountsChanged':
+        // Clear cached accounts when they change
+        this.cachedAccounts = null;
+        this.emit('accountsChanged', data);
+        break;
+      case 'chainChanged':
+        // Clear cached chainId when it changes
+        this.chainId = null;
+        this.emit('chainChanged', data);
+        // Also emit networkChanged for backwards compatibility
+        if (data) {
+          const networkVersion = parseInt(data, 16).toString();
+          this.networkVersion = networkVersion;
+          this.emit('networkChanged', networkVersion);
+        }
+        break;
+      case 'connect':
+        // Clear all caches on connect
+        this.chainId = null;
+        this.networkVersion = null;
+        this.cachedAccounts = null;
+        this._isConnected = true;
+        this.emit('connect', { chainId: this.chainId || '0x1' });
+        break;
+      case 'disconnect':
+        // Clear all caches on disconnect
+        this.chainId = null;
+        this.networkVersion = null;
+        this.cachedAccounts = null;
+        this._isConnected = false;
+        this.emit('disconnect', { code: 1000, reason: 'Disconnected' });
+        break;
+      case 'message':
+        this.emit('message', data);
+        break;
+    }
   }
 
   async request(args: RequestArguments): Promise<unknown> {
+    // Ensure provider is initialized
+    if (!this._isConnected) {
+      await this.initializationPromise;
+    }
 
-    log.debug('Requesting method (start):', false, {
-      method: args.method,
-      params: args.params,
-      sender: typeof window !== 'undefined' && typeof document !== 'undefined' ? {
-        origin: window.location?.origin || 'unknown',
-        href: window.location?.href || 'unknown',
-        referrer: document.referrer || 'unknown',
-        hostname: window.location?.hostname || 'unknown'
-      } : 'window/document not available',
-      timestamp: new Date().toISOString()
+    const { method, params = [] } = args;
+    const id = ++this.requestId;
+
+    log.debug('EIP1193: Sending request:', false, {
+      method,
+      params,
+      id,
+      cachedValue: this.getCachedResult(method)
     });
 
-    // Handle eth_chainId directly
-    if (args.method === 'eth_chainId') {
+    // Handle special methods with cached values only if they are valid
+    if (method === 'eth_chainId' && this.chainId && this.chainId !== '0x1') {
+      log.debug('EIP1193: Using cached chainId:', false, {
+        chainId: this.chainId
+      });
       return this.chainId;
     }
 
-    // Handle net_version directly
-    if (args.method === 'net_version') {
+    if (method === 'net_version' && this.networkVersion && this.networkVersion !== '1') {
+      log.debug('EIP1193: Using cached networkVersion:', false, {
+        networkVersion: this.networkVersion
+      });
       return this.networkVersion;
     }
 
-    // Handle wallet_requestPermissions
-    if (args.method === 'wallet_requestPermissions') {
-      // This will trigger the eth_requestAccounts flow which handles permissions
-      const accounts = await this.request({ method: 'eth_requestAccounts' });
-      return [{
-        parentCapability: 'eth_accounts',
-        caveats: [],
-        date: new Date().getTime()
-      }];
+    if (method === 'eth_accounts' && this.cachedAccounts && this.cachedAccounts.length > 0) {
+      log.debug('EIP1193: Using cached accounts:', false, {
+        accounts: this.cachedAccounts
+      });
+      return this.cachedAccounts;
     }
 
-    // List of methods that don't require approval
-    const noApprovalMethods = [
-      'eth_getBlockByNumber',
-      'eth_getBlockByHash',
-      'eth_blockNumber',
-      'eth_call',
-      'eth_estimateGas',
-      'eth_gasPrice',
-      'eth_getBalance',
-      'eth_getCode',
-      'eth_getTransactionCount',
-      'eth_getTransactionReceipt',
-      'eth_getStorageAt',
-      'eth_getTransactionByHash',
-      'eth_getLogs'
-    ];
-
-    const id = ++this.requestId;
-    const startTime = Date.now();
-
-    log.debug('Making request from inpage:', false, {
-      id,
-      method: args.method,
-      params: args.params,
-      requiresApproval: !noApprovalMethods.includes(args.method),
-      timestamp: new Date().toISOString()
-    });
-
     return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        const duration = Date.now() - startTime;
-        log.error('Request timeout:', false, {
-          id,
-          method: args.method,
-          params: args.params,
-          duration,
-          pendingRequests: Array.from(this.pendingRequests.keys()).map(id => ({
-            id,
-            method: this.pendingRequests.get(id)?.method
-          })),
-          timestamp: new Date().toISOString()
-        });
-        this.pendingRequests.delete(id);
-        reject(new ProviderRpcError(
-          EIP1193_ERRORS.TIMEOUT.code,
-          `Request timeout for method: ${args.method} after ${duration}ms`
-        ));
-      }, 60000); // Increased timeout to 60 seconds for debugging
-
+      // Store the request with its resolve/reject callbacks
       this.pendingRequests.set(id, {
-        resolve: (value) => {
-          clearTimeout(timeout);
-          const duration = Date.now() - startTime;
-          log.debug('Request resolved:', false, {
-            id,
-            method: args.method,
-            duration,
-            timestamp: new Date().toISOString()
-          });
-          resolve(value);
-        },
-        reject: (reason) => {
-          clearTimeout(timeout);
-          const duration = Date.now() - startTime;
-          log.error('Request rejected:', false, {
-            id,
-            method: args.method,
-            reason,
-            duration,
-            timestamp: new Date().toISOString()
-          });
-          reject(reason);
-        },
-        method: args.method // Store the method for matching array responses
+        resolve,
+        reject,
+        method,
+        timestamp: Date.now()
       });
 
-      try {
-        if (window && typeof window.postMessage === 'function') {
-          const message = {
-            type: 'YAKKL_REQUEST:EIP6963',
+      log.debug('Inpage: Request stored in pending:', false, {
+        method,
+        id,
+        timestamp: new Date().toISOString(),
+        pendingRequests: Array.from(this.pendingRequests.entries()).map(([id, req]) => ({
+          id,
+          method: req.method,
+          timestamp: req.timestamp
+        }))
+      });
+
+      // Send the request
+      const requestMessage = {
+        type: 'YAKKL_REQUEST:EIP6963',
+        id,
+        method,
+        params,
+        requiresApproval: this.requiresApproval(method)
+      };
+
+      log.debug('Inpage: Sending request message:', false, {
+        message: requestMessage,
+        targetOrigin: getTargetOrigin(),
+        timestamp: new Date().toISOString()
+      });
+
+      log.info('eth_requestAccounts - 262 (inpage)?????????????:', false, requestMessage);
+
+      safePostMessage(requestMessage, getTargetOrigin(), {
+        context: 'inpage',
+        allowRetries: true,
+        retryKey: `${method}-${id}`
+      });
+
+      // Set a timeout for the request
+      setTimeout(() => {
+        const request = this.pendingRequests.get(id);
+        if (request) {
+          log.warn('Inpage: Request timed out:', false, {
+            method,
             id,
-            ...args,
-            requiresApproval: !noApprovalMethods.includes(args.method)
-          };
-          log.debug('Sending request:', false, {
-            message,
-            targetOrigin: getTargetOrigin(),
             timestamp: new Date().toISOString()
           });
-          safePostMessage(message, getTargetOrigin());
-        } else {
-          clearTimeout(timeout);
-          this.pendingRequests.delete(id);
-          reject(new ProviderRpcError(
-            EIP1193_ERRORS.DISCONNECTED.code,
-            'Window context invalid for postMessage'
+          request.reject(new ProviderRpcError(
+            EIP1193_ERRORS.TIMEOUT.code,
+            EIP1193_ERRORS.TIMEOUT.message
           ));
+          this.pendingRequests.delete(id);
         }
-      } catch (error) {
-        clearTimeout(timeout);
-        this.pendingRequests.delete(id);
-        log.error('Failed to send request:', false, {
-          id,
-          method: args.method,
-          error,
-          timestamp: new Date().toISOString()
-        });
-        reject(new ProviderRpcError(
-          EIP1193_ERRORS.DISCONNECTED.code,
-          'Failed to send request'
-        ));
-      }
+      }, 30000); // 30 second timeout
     });
+  }
+
+  private requiresApproval(method: string): boolean {
+    const approvalMethods = [
+      'eth_requestAccounts',
+      'eth_sendTransaction',
+      'eth_signTransaction',
+      'eth_sign',
+      'personal_sign',
+      'eth_signTypedData',
+      'eth_signTypedData_v1',
+      'eth_signTypedData_v3',
+      'eth_signTypedData_v4',
+      'wallet_addEthereumChain',
+      'wallet_switchEthereumChain',
+      'wallet_watchAsset'
+    ];
+    return approvalMethods.includes(method);
+  }
+
+  private isMethodCached(method: string): boolean {
+    const cachedMethods = ['eth_chainId', 'eth_accounts', 'net_version'];
+    return cachedMethods.includes(method);
+  }
+
+  private getCachedResult(method: string): any {
+    switch (method) {
+      case 'eth_chainId':
+        return this.chainId;
+      case 'eth_accounts':
+        return this.cachedAccounts;
+      case 'net_version':
+        return this.networkVersion;
+      default:
+        return undefined;
+    }
   }
 
   announce(): void {
@@ -506,12 +510,12 @@ let hasAnnounced = false;
 // Function to announce provider
 function announceProvider() {
   if (hasAnnounced) {
-    log.debug('Provider already announced, skipping', false);
+    // log.debug('Provider already announced, skipping', false);
     return;
   }
 
   try {
-    log.debug('Announcing EIP-6963 provider', false);
+    // log.debug('Announcing EIP-6963 provider', false);
 
     // Dispatch the announcement event
     window.dispatchEvent(
@@ -522,7 +526,7 @@ function announceProvider() {
 
     // Also listen for request events
     window.addEventListener('eip6963:requestProvider', () => {
-      log.debug('Received EIP-6963 provider request', false);
+      // log.debug('Received EIP-6963 provider request', false);
       window.dispatchEvent(
         new CustomEvent('eip6963:announceProvider', {
           detail: providerDetail
@@ -531,22 +535,27 @@ function announceProvider() {
     });
 
     hasAnnounced = true;
-    log.debug('Provider announced with details:', false, providerInfo);
+    // log.debug('Provider announced with details:', false, providerInfo);
   } catch (e) {
-    log.error('Error announcing EIP-6963 provider', false, e);
+    // log.error('Error announcing EIP-6963 provider', false, e);
     hasAnnounced = false;
   }
 }
 
-// Announce provider immediately if document is already loaded
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
-  announceProvider();
-} else {
-  // Otherwise wait for the document to load
-  document.addEventListener('DOMContentLoaded', () => {
+// Wait for provider initialization before announcing
+provider.initializationPromise.then(() => {
+  // Announce provider if document is already loaded
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
     announceProvider();
-  });
-}
+  } else {
+    // Otherwise wait for the document to load
+    document.addEventListener('DOMContentLoaded', () => {
+      announceProvider();
+    });
+  }
+}).catch(error => {
+  log.error('Inpage: Failed to initialize provider:', false, error);
+});
 
 // Also announce when specifically requested
 window.addEventListener('eip6963:requestProvider', () => {
@@ -557,20 +566,12 @@ window.addEventListener('eip6963:requestProvider', () => {
 export { provider };
 
 // Debug log for window.yakkl assignment
-log.debug('window.yakkl assigned', false, {
-  provider: providerInfo,
-  readyState: document.readyState
-});
+// log.debug('window.yakkl assigned', false, {
+//   provider: providerInfo,
+//   readyState: document.readyState
+// });
 
-function post(message: any, targetOrigin: string | null) {
-  safePostMessage(message, targetOrigin, { context: 'inpage' });
-}
-
-// Helper function to safely send messages
-// function safePostMessage(message: any, targetOrigin: string | null) {
-//   if (!targetOrigin) {
-//     log.warn('Cannot send message - invalid target origin', false);
-//     return;
-//   }
-//   window.postMessage(message, targetOrigin);
+// function post(message: any, targetOrigin: string | null) {
+//   safePostMessage(message, targetOrigin, { context: 'inpage' });
 // }
+

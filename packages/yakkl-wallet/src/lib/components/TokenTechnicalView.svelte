@@ -1,7 +1,8 @@
 <script lang="ts">
+	import { log } from '$lib/plugins/Logger';
   import { onMount, onDestroy } from 'svelte';
 
-  let { symbol = 'CRYPTO:ETHUSD' } = $props();
+  let { symbol = 'COINBASE:ETHUSD' } = $props();
   let widgetContainer: HTMLDivElement | null = null;
   const URL = import.meta.env.VITE_TRADING_VIEW_LINK;
 
@@ -18,15 +19,18 @@
     script.src = '../../js/embed-widget-technical-analysis.js';
     script.innerHTML = JSON.stringify({
       interval: '1m',
-      width: '392',
+      width: '100%',
+      height: '100%',
       isTransparent: false,
-      height: '950',
       symbol, // Dynamically set the symbol
       showIntervalTabs: true,
       displayMode: 'multiple',
       locale: 'en',
       colorTheme: 'light',
     });
+
+    log.info('Script', false, script);
+    log.info('Widget Container', false, widgetContainer);
 
     widgetContainer.appendChild(script);
   };
@@ -49,7 +53,7 @@
 
 <section id="technical-analysis">
   <div class="tradingview-widget-container">
-    <div bind:this={widgetContainer} class="tradingview-widget-container__widget"></div>
+    <div bind:this={widgetContainer} class="tradingview-widget-container__widget" style="width: auto; height: 400px; min-height: 400px; max-height: auto;"></div>
     <div class="tradingview-widget-copyright">
       <a
         href={URL}

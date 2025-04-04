@@ -187,7 +187,7 @@ export class EmergencyKitManager {
 
   static async downloadEmergencyKit(emergencyKit: EmergencyKitData, filePath?: string): Promise<string> {
     if (typeof window !== 'undefined' && window.document) {
-      const fileName = `emergency-kit-${emergencyKit.id}-${emergencyKit?.meta?.createDate}.json`;
+      const fileName = `yakkl-emergency-kit-${emergencyKit.id}-${emergencyKit?.meta?.createDate}.json`;
       // Browser environment
       this.downloadObjectAsJson(emergencyKit, fileName);
       return fileName;
@@ -203,7 +203,7 @@ export class EmergencyKitManager {
   static async downloadBulkEmergencyKit(bulkEmergencyKit: BulkEmergencyKitData): Promise<string> {
     try {
       if (typeof window !== 'undefined' && window.document) {
-        const fileName = `bulk-emergency-kit-${bulkEmergencyKit.meta.id}-${bulkEmergencyKit.meta.createDate}.json`;
+        const fileName = `yakkl-bulk-emergency-kit-${bulkEmergencyKit.meta.id}-${bulkEmergencyKit.meta.createDate}.json`;
         // Browser environment
         this.downloadObjectAsJson(bulkEmergencyKit, fileName);
         return fileName;

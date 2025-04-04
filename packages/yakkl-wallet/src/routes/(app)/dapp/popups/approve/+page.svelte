@@ -2,7 +2,7 @@
   import { browser_ext, browserSvelte } from '$lib/common/environment';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
-  import { yakklConnectedDomainsStore, getSettings, yakklDappConnectRequestStore } from '$lib/common/stores';
+  import { yakklConnectedDomainsStore, getSettings, yakklDappConnectRequestStore, setYakklConnectedDomainsStorage } from '$lib/common/stores';
   import { PATH_LOGIN, YAKKL_DAPP, PATH_DAPP_ACCOUNTS, WEB3_SVG_DATA, DEFAULT_TITLE } from '$lib/common/constants';
   import { onMount, onDestroy } from 'svelte';
 	import { wait } from '$lib/common/utils';
@@ -43,6 +43,7 @@
   async function handleIsLocked() {
     try {
       let yakklSettings = await getSettings();
+      log.info('handleIsLocked - 61 (approve):', false, yakklSettings);
 
       if (yakklSettings!.isLocked === true) {
         // If 'init' then we need to go to the login page and let it handle forwarding to registration if needed
@@ -58,6 +59,7 @@
 
   async function onMessageListener(event: any) {
     try {
+      log.info('onMessageListener - 61 (approve):', false, event);
       if (event.method === 'get_params') {
         domainTitle = event.data.data.metaDataParams.title ?? '';
         domain = event.data.data.metaDataParams.domain ?? '';
@@ -66,12 +68,13 @@
         context = event.data.data.metaDataParams.context ?? 'accounts';
         requestId = !requestId ? event.data.id : requestId;
 
+        log.info('onMessageListener - 61 (approve):', false, {domain, domainTitle, domainLogo, message, context, requestId});
         if (domain) {
 
           ////
           // NOTE: Only enable these if you need to CLEAR everything out for testing!
           // $yakklConnectedDomainsStore = null;
-          // await setYakklConnectedDomainsStorage(null);
+          // await setYakklConnectedDomainsStorage([]);
           // let yakklAccounts = [];
           // yakklAccounts = await getYakklAccounts();
           // for (const item of yakklAccounts) {
@@ -91,6 +94,10 @@
                 return;
               }
             });
+          } else {
+            log.info('onMessageListener - 97 (approve):', false, 'No connected domains found');
+            $yakklConnectedDomainsStore = [];
+            await setYakklConnectedDomainsStorage([]);
           }
         }
       }
@@ -148,9 +155,9 @@
       errorValue = '';
 
       if (port) {
-      //console.log('handleReject:port still valid ', method, requestId);
         port.postMessage({id: requestId, method: 'error', response: {type: 'YAKKL_RESPONSE', data: {name: 'ProviderRpcError', code: 4001, message: 'User rejected the request.'}}});
       }
+
       // If requestId is not valid then use 0 since we are bailing out anyway
       // May want to think about putting a slight tick to make sure all queues get flushed
       //goto(PATH_LOGOUT); // May want to do something else if they are already logged in!
@@ -182,15 +189,6 @@
 <svelte:head>
 	<title>{DEFAULT_TITLE}</title>
 </svelte:head>
-
-<!-- <Confirm
-  bind:show={showConfirm}
-  title="Confirmation"
-  content="This will connect {domain} to YAKKL®! Do you wish to continue?"
-  handleReject={handleReject}
-  handleConfirm={handleIsLocked}
-  rejectText="Reject"
-  confirmText="Yes, Approved"/> -->
 
 <Failed
   bind:show={showFailure}

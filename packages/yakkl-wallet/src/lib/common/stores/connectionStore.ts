@@ -179,6 +179,8 @@ startConnectionMonitor();
 
 function handleMessage(message: MessageTypes) {
   try {
+    log.debug('handleMessage:[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]', false, message);
+
     switch (message.type) {
       case MessageType.ACTIVE_TAB_CHANGED:
         if (isTabChangeData(message.data)) {
@@ -239,6 +241,8 @@ function isWindowFocusData(data: unknown): data is WindowFocusData {
 
 // Handler functions with proper typing
 function handleActiveTabChange(data: TabChangeData) {
+  log.debug('handleActiveTabChange:-------------------->>>>>>>>>>', false, data);
+
   if (data?.windowType === 'normal') {
     activeTabUIStore.set(data);
     log.debug('Active tab changed:', false, data);
@@ -247,7 +251,7 @@ function handleActiveTabChange(data: TabChangeData) {
   }
 }
 
-function handleTabUpdate(data: TabChangeData) {
+function handleTabRemove(data: TabChangeData) {
   // We don't need to update the active tab on tab update
 
   // if (data?.windowType === 'normal') {
@@ -258,7 +262,7 @@ function handleTabUpdate(data: TabChangeData) {
   // }
 }
 
-function handleTabRemove(data: TabChangeData | null) {
+function handleTabUpdate(data: TabChangeData | null) {
   activeTabUIStore.set(data);
   log.debug('Tab removed:', false, data);
 }
@@ -267,10 +271,12 @@ async function handleWindowFocus(data: WindowFocusData) {
   try {
     if (!(browserSvelte && browser_ext)) return;
 
+    log.debug('handleWindowFocus:>>>>>>>>>>>>>>>>>>>>>>', false, data);
+
     // Implement window focus logic if needed
     if (data?.type === 'normal') {
       // This should set the active tab to the focused window if it is normal and not a popup or other type
-      const activeTab = { tabId: 0, windowId: data.windowId, windowType: data.type, url: '', title: '', favIconUrl: '' };
+      const activeTab = { tabId: 0, windowId: data.windowId, windowType: data.type, url: '', title: '', favIconUrl: '', dateTime: new Date().toISOString() };
       const tabs = await browser_ext.tabs.query({ active: true, windowId: data.windowId });
       if (tabs.length > 0) {
         activeTab.tabId = tabs[0].id ?? 0;

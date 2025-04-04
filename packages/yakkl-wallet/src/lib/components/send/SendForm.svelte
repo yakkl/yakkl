@@ -16,10 +16,10 @@
   async function handleSubmit() {
     const isValid = await validateForm(data);
     if (isValid) {
-      log.info('Form is valid, submitting:', data);
+      log.info('Form is valid, submitting:', false, data);
       // Perform the transaction here
     } else {
-      log.error('Form validation failed:', errors);
+      log.error('Form validation failed:', false, errors);
     }
   }
 </script>

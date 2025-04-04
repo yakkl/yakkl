@@ -4,7 +4,7 @@ import { isBlacklisted } from "$lib/extensions/chrome/database";
 import { portsExternal } from "$lib/extensions/chrome/ports";
 import { log } from "$lib/plugins/Logger";
 import type { Tabs } from "webextension-polyfill";
-import { activeTabBackgroundStore } from "$lib/common/stores";
+import { activeTabBackgroundStore, activeTabUIStore } from "$lib/common/stores";
 import { get } from "svelte/store";
 import { setObjectInLocalStorage } from "$lib/common/storage";
 import { backgroundManager } from "$lib/plugins/BackgroundManager";
@@ -17,7 +17,10 @@ const browser_ext = browser;
 export async function onTabActivatedListener(activeInfo: Tabs.OnActivatedActiveInfoType) {
   try {
     if (!browser_ext) return;
-    const activeTab = { tabId: activeInfo.tabId, windowId: activeInfo.windowId, windowType: '', url: '', title: '', favIconUrl: '' };
+
+    log.debug('onTabActivatedListener', false, activeInfo);
+
+    const activeTab = { tabId: activeInfo.tabId, windowId: activeInfo.windowId, windowType: '', url: '', title: '', favIconUrl: '', dateTime: new Date().toISOString() };
     const tab = await browser_ext.tabs.get(activeInfo.tabId);
     if (tab) {
       // Can add more properties here if needed
@@ -29,8 +32,11 @@ export async function onTabActivatedListener(activeInfo: Tabs.OnActivatedActiveI
         activeTab.windowType = window.type;
       }
 
+      log.debug('onTabActivatedListener - Active tab:', false, activeTab);
+
       if (activeTab.windowType === 'normal') {
         activeTabBackgroundStore.set(activeTab);
+        activeTabUIStore.set(activeTab);
         try {
           await backgroundManager.sendMessage(MessageType.ACTIVE_TAB_CHANGED, activeTab);
           await setObjectInLocalStorage('activeTabBackground', activeTab); // Not sure if this is needed
@@ -49,7 +55,7 @@ export async function onTabUpdatedListener(tabId: number, changeInfo: any, tabTa
   try {
     if (!browser_ext) return;
 
-    const activeTab = { tabId: tabId, windowId: 0, windowType: '', url: '', title: '', favIconUrl: '' };
+    const activeTab = { tabId: tabId, windowId: 0, windowType: '', url: '', title: '', favIconUrl: '', dateTime: new Date().toISOString() };
       const tab = await browser_ext.tabs.get(tabId);
       if (tab) {
         // Can add more properties here if needed
@@ -66,7 +72,7 @@ export async function onTabUpdatedListener(tabId: number, changeInfo: any, tabTa
 
         if (activeTab.windowType === 'normal') {
           activeTabBackgroundStore.set(activeTab);
-
+          activeTabUIStore.set(activeTab);
           try {
             await backgroundManager.sendMessage(MessageType.TAB_UPDATED, activeTab);
             await setObjectInLocalStorage('activeTabBackground', activeTab); // Not sure if this is needed
@@ -133,7 +139,7 @@ export async function onWindowsFocusChangedListener(windowId: number) {
       };
 
       if (window.type === 'normal') {
-        const activeTab = { tabId: 0, windowId: windowId, windowType: window.type, url: '', title: '', favIconUrl: '' };
+        const activeTab = { tabId: 0, windowId: windowId, windowType: window.type, url: '', title: '', favIconUrl: '', dateTime: new Date().toISOString() };
         const tabs = await browser_ext.tabs.query({ active: true, windowId: windowId });
         if (tabs.length > 0) {
           activeTab.tabId = tabs[0].id ?? 0;
@@ -143,6 +149,7 @@ export async function onWindowsFocusChangedListener(windowId: number) {
 
           if (activeTab.tabId > 0) {
             activeTabBackgroundStore.set(activeTab);
+            activeTabUIStore.set(activeTab); // ??
             log.debug('Window focused changed:', false, activeTab);
             await backgroundManager.sendMessage(MessageType.WINDOW_FOCUSED, data);
             await setObjectInLocalStorage('activeTabBackground', activeTab); // Not sure if this is needed

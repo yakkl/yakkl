@@ -3,11 +3,11 @@
 
   export interface Props {
     onSortChange: (criteria: string) => void;
-    onViewChange: (view: 'grid' | 'carousel' | 'thumbnail' | 'chart' | 'list' | 'table' | 'news' | 'analysis' | 'symbol') => void;
+    onViewChange: (view: 'grid' | 'carousel' | 'thumbnail' | 'chart' | 'chartAdvanced' | 'list' | 'table' | 'news' | 'analysis' | 'symbol') => void;
     onPrint?: () => void;
   }
 
-  let { onSortChange, onViewChange, onPrint = () => {} }: Props = $props();
+  let { onSortChange, onViewChange, onPrint = () => {alert('Printing is in limited release. Soon to be available to all!')} }: Props = $props();
 
   const sortOptions = [
     { label: 'Name', value: 'name' },
@@ -16,10 +16,10 @@
   ];
 
   // Manage cycling views
-  let currentView = $state<'grid' | 'carousel' | 'thumbnail' | 'chart' | 'list' | 'table' | 'news' | 'analysis' | 'symbol'>('grid');
+  let currentView = $state<'grid' | 'carousel' | 'thumbnail' | 'chart' | 'chartAdvanced' | 'list' | 'table' | 'news' | 'analysis' | 'symbol'>('grid');
 
   function onSelect(value: string) {
-    currentView = value as 'grid' | 'carousel' | 'thumbnail' | 'chart' | 'list' | 'table' | 'news' | 'analysis' | 'symbol';
+    currentView = value as 'grid' | 'carousel' | 'thumbnail' | 'chart' | 'chartAdvanced' | 'list' | 'table' | 'news' | 'analysis' | 'symbol';
     onViewChange(currentView);
   }
 </script>

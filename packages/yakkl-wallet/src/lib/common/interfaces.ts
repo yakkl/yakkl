@@ -31,6 +31,7 @@ export interface ActiveTab {
   url?: string;
   title?: string;
   favIconUrl?: string;
+  dateTime?: string;
 }
 
 export interface GetActiveTabResponse {

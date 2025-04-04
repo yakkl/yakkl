@@ -358,8 +358,8 @@ export class KeyManager {
       (typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production') ||
       // Vite-specific development indicator
       (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV === true) ||
-      // Check for DEV_DEBUG flag that might be set in your build process
-      (typeof process !== 'undefined' && process.env && process.env.DEV_DEBUG === 'true')
+      // Check for DEV_MODE flag that might be set in your build process
+      (typeof process !== 'undefined' && process.env && process.env.DEV_MODE === 'true')
     );
   }
 

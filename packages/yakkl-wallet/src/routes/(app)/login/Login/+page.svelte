@@ -19,7 +19,8 @@
   import { browser_ext, browserSvelte } from '$lib/common/environment';
 	import { setLocks } from '$lib/common/locks';
   import { log } from '$plugins/Logger';
-	import { sendNotificationStartLockIconTimer } from '$lib/common/notifications';
+
+	// import { sendNotificationStartLockIconTimer } from '$lib/common/notifications';
 	// import { updateTokenPrices } from '$lib/common/tokenPriceManager';
 	// import { resetTokenDataStoreValues } from '$lib/common/resetTokenDataStoreValues';
 
@@ -154,7 +155,7 @@
           }
 
           console.log('yakklMisc', yakklMisc);
-          
+
           $yakklUserNameStore = userName;
 
           // setLocks(false, registeredType);
@@ -360,7 +361,7 @@
         handleSubmit(e);
       }}>
 
-        <div class="mt-5 flex flex-row">
+        <div class="mt-5 flex flex-row justify-center">
           <div class="form-control w-[22rem]">
             <div class="join">
               <input id="userName"
@@ -376,7 +377,7 @@
 
         </div>
 
-        <div class="mt-5 flex flex-row">
+        <div class="mt-5 flex flex-row justify-center">
           <div class="form-control w-[22rem]">
             <input id="password" type="password"
               class="input input-bordered input-primary w-full mt-2"
@@ -394,6 +395,7 @@
               <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
               <path fill-rule="evenodd" d="M1.323 11.447C2.811 6.976 7.028 3.75 12.001 3.75c4.97 0 9.185 3.223 10.675 7.69.12.362.12.752 0 1.113-1.487 4.471-5.705 7.697-10.677 7.697-4.97 0-9.186-3.223-10.675-7.69a1.762 1.762 0 010-1.113zM17.25 12a5.25 5.25 0 11-10.5 0 5.25 5.25 0 0110.5 0z" clip-rule="evenodd" />
             </svg>
+
           </div>
           <svg id="pwd-help" tabindex="-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" class="w-6 h-6 ml-1 mt-4 fill-gray-300">
               <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />

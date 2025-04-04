@@ -40,7 +40,7 @@
 
   // Effect: Manage Debug Mode and Blocking Features
   $effect(() => {
-    if (process.env.DEV_DEBUG) {
+    if (process.env.DEV_MODE) {
       contextMenu = true;
       resize = true;
     }

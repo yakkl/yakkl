@@ -12,10 +12,11 @@
   import { handleOpenInTab } from '$lib/utilities';
 	import NotEnabled from '$lib/components/NotEnabled.svelte';
 	import Share from '$lib/components/Share.svelte';
-  // import CommingSoon from '$lib/components/ComingSoon.svelte';
 	import { onMount } from 'svelte';
 	import EmergencyKitModal from './EmergencyKitModal.svelte';
 	import { log } from '$lib/plugins/Logger';
+	import { browser_ext, browserSvelte } from '$lib/common/environment';
+	import { BrowserAccessor, ExtensionContext } from '$lib/common/shared/BrowserAccessor';
 
   interface Props {
     id?: string;
@@ -35,8 +36,12 @@
   let showEmergencyKitExport = $state(false);
   let showEmergencyKitImport = $state(false);
 
+  let browserAccessor = BrowserAccessor.getInstance();
+  let browserContext = $state();
+  
   onMount(async () => {
     try {
+      browserContext = await browserAccessor.getContext();
       currentlySelected = await getYakklCurrentlySelected();
       // yakklMiscStore = getMiscStore();
       address = currentlySelected.shortcuts.address;
@@ -46,16 +51,12 @@
     }
   });
 
-  // function handleDelete() {
-  //   try {
-  //     document.getElementById('collapseSidenavSecEx2')?.classList?.remove('show');
-  //     document.getElementById('offcanvasSettings')?.classList?.remove('show');
-  //     let id = document.getElementsByClassName('offcanvas-backdrop')[0];
-  //   id.remove();
-  //   } catch (error) {
-  //     log.error(error);
-  //   }
-  // }
+  function handlePopout() {
+    if (browserSvelte) {
+      browser_ext.runtime.sendMessage({type: 'popout'});
+      goto(PATH_LOGOUT);
+    }
+  }
 
   function handleUniversity() {
     try {
@@ -68,7 +69,6 @@
 </script>
 
 <NotEnabled bind:show={showInfo} value="This feature is not yet available. It will be released soon!"/>
-<!-- <CommingSoon bind:show={showComingSoon} value="This feature is not yet available. It will be released soon!"/> -->
 <EmergencyKitModal bind:show={showEmergencyKit} mode={showEmergencyKitExport ? 'export' : showEmergencyKitImport ? 'import' : 'export'} />
 
 <ImageBar>
@@ -101,12 +101,22 @@
 
     <Share class="absolute top-[1.1rem] right-[2.8rem]"/>
 
-    <a data-bs-toggle="offcanvas" href="#offcanvasSettings" role="button" aria-controls="offcanvasSettings">
+    {console.log(browserContext)}
+    {#if browserContext === ExtensionContext.SIDEPANEL}
+    <button onclick={() => handlePopout()} aria-label="Popout" >
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 lucide lucide-external-link-icon lucide-external-link">
+        <path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+      </svg>
+    </button>
+    {:else}
       <!-- Can add an avatar here ---- <img id="avatar" src="{imageSRC}" class="rounded-full mr-2 w-8 ring-offset-1 ring-2 " alt="Avatar" /> -->
+    <!-- svelte-ignore a11y_consider_explicit_label -->
+    <a data-bs-toggle="offcanvas" href="#offcanvasSettings" role="button" aria-controls="offcanvasSettings">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" class="w-8 h-8 font-bold stroke-gray-100 hover:stroke-gray-500">
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z" />
       </svg>
     </a>
+    {/if}
   </nav>
 
 </ImageBar>

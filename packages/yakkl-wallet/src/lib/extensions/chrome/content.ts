@@ -9,6 +9,25 @@ import { log } from '$lib/plugins/Logger';
 import browser from 'webextension-polyfill';
 import { getWindowOrigin, isValidOrigin, getTargetOrigin, safePostMessage } from '$lib/common/origin';
 import { SecurityLevel as PermissionsSecurityLevel } from '$lib/permissions/types';
+import { isFrameAccessible } from '$lib/common/frameInspector';
+import { ProviderRpcError } from "$lib/common";
+
+// Chrome types
+declare namespace chrome {
+  export namespace runtime {
+    interface Port {
+      name: string;
+      onMessage: {
+        addListener: (callback: (message: any) => void) => void;
+      };
+      onDisconnect: {
+        addListener: (callback: () => void) => void;
+      };
+      postMessage: (message: any) => void;
+    }
+    function connect(connectInfo?: { name: string }): Port;
+  }
+}
 
 type RuntimePort = Runtime.Port;
 
@@ -38,6 +57,54 @@ const pendingMessages = new Map<string, {
 const MAX_RETRY_ATTEMPTS = 3;
 // const RETRY_DELAY = 1000; // 1 second
 
+// Add port state tracking
+let isPortOpen = false;
+
+// Initialize connection to background script
+let port: chrome.runtime.Port | null = null;
+let isConnected = false;
+let connectionAttempts = 0;
+const MAX_CONNECTION_ATTEMPTS = 3;
+const RECONNECT_DELAY = 1000;
+
+// Track pending requests
+interface PendingRequest {
+  id: number | string;
+  method: string;
+  type: string;
+  timestamp: number;
+}
+
+// Message interfaces
+interface YakklRequest {
+  type: string;
+  id: number | string;
+  method: string;
+  params: unknown[];
+  requiresApproval?: boolean;
+}
+
+interface YakklResponse {
+  type: string;
+  id: number | string;
+  result?: unknown;
+  error?: {
+    code: number;
+    message: string;
+    data?: unknown;
+  };
+}
+
+interface YakklEvent {
+  type: string;
+  event: string;
+  data: unknown;
+}
+
+type YakklMessage = YakklRequest | YakklResponse | YakklEvent;
+
+const pendingRequests: Map<string | number, PendingRequest> = new Map();
+
 class PortDuplexStream extends Duplex {
   private port: RuntimePort;
 
@@ -54,7 +121,7 @@ class PortDuplexStream extends Duplex {
 
   _write(message: any, _encoding: string, callback: () => void) {
     try {
-      log.debug('Writing to port', false, message);
+      log.debug('PortDuplexStream: Writing to port', false, message);
       this.port.postMessage(message);
       callback();
     } catch (error) {
@@ -86,19 +153,21 @@ class PortDuplexStream extends Duplex {
   }
 }
 
-// Setup EIP-6963 connection with proper error handling
+// Modify setupEIP6963Connection to track port state
 function setupEIP6963Connection() {
   try {
     if (!browser?.runtime) {
-      log.error('Browser extension API not available', false);
+      log.error('Content: Browser extension API not available', false);
       isExtensionContextValid = false;
+      isPortOpen = false;
       return null;
     }
 
     // Check if the extension context is still valid
     if (browser.runtime.id === undefined) {
-      log.error('Extension context invalidated', false);
+      log.error('Content: Extension context invalidated', false);
       isExtensionContextValid = false;
+      isPortOpen = false;
       // Clean up existing connection
       cleanupConnection();
       return null;
@@ -107,25 +176,25 @@ function setupEIP6963Connection() {
     // Reset context validity flag since we can access the runtime
     isExtensionContextValid = true;
 
-    log.info('setupEIP6963Connection - isConnecting', false, isConnecting);
-    log.info('setupEIP6963Connection - portEIP6963?.name', false, portEIP6963?.name);
-    log.info('setupEIP6963Connection - contentStream', false, contentStream);
+    log.info('Content: setupEIP6963Connection - isConnecting, portEIP6963?.name, contentStream', false, isConnecting, portEIP6963?.name, contentStream);
 
     // If we already have an active connection or are in the process of connecting, don't create a new one
     if (isConnecting || (portEIP6963?.name === YAKKL_PROVIDER_EIP6963 && contentStream)) {
+      isPortOpen = true;
       return contentStream;
     }
 
     isConnecting = true;
-    log.debug('Setting up EIP-6963 connection...', false);
 
     // Create a port for EIP-6963 communication
     try {
       portEIP6963 = browser.runtime.connect({ name: YAKKL_PROVIDER_EIP6963 });
-      log.debug('Created EIP-6963 port connection', false, { portName: YAKKL_PROVIDER_EIP6963 });
+      log.debug('Created EIP-6963 port connection', false, { portName: YAKKL_PROVIDER_EIP6963, portEIP6963 });
+      isPortOpen = true;
     } catch (error) {
       log.error('Failed to create port connection:', false, error);
       isConnecting = false;
+      isPortOpen = false;
       // Check if this was due to invalid context
       if (browser.runtime.id === undefined) {
         isExtensionContextValid = false;
@@ -134,7 +203,7 @@ function setupEIP6963Connection() {
     }
 
     contentStream = new PortDuplexStream(portEIP6963);
-    log.debug('Created PortDuplexStream for EIP-6963', false, contentStream);
+    // log.debug('Created PortDuplexStream for EIP-6963', false, contentStream);
 
     // Single disconnect handler with exponential backoff
     let disconnectHandled = false;
@@ -143,7 +212,8 @@ function setupEIP6963Connection() {
       disconnectHandled = true;
 
       const lastError = browser.runtime.lastError;
-      log.debug('EIP-6963 port disconnected', false, { lastError });
+      // log.debug('EIP-6963 port disconnected', false, { lastError });
+      isPortOpen = false;
 
       // Clean up existing connection
       cleanupConnection();
@@ -157,7 +227,7 @@ function setupEIP6963Connection() {
       // Implement exponential backoff for reconnection
       if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
         const delay = INITIAL_RECONNECT_DELAY * Math.pow(2, reconnectAttempts);
-        log.debug(`Attempting reconnection in ${delay}ms (attempt ${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})`, false);
+        log.debug(`Content: Attempting reconnection in ${delay}ms (attempt ${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})`, false);
 
         setTimeout(() => {
           // Double-check extension context before reconnecting
@@ -169,7 +239,7 @@ function setupEIP6963Connection() {
               reconnectAttempts = 0; // Reset on successful connection
             }
           } else {
-            log.error('Extension context invalid, skipping reconnection attempt', false);
+            log.error('Content: Extension context invalid, skipping reconnection attempt', false);
           }
         }, delay);
       } else {
@@ -180,7 +250,7 @@ function setupEIP6963Connection() {
     // Setup message handling for the stream
     setupMessageHandling(contentStream);
 
-    log.debug('EIP-6963 connection established', false);
+    log.debug('Content: EIP-6963 connection established', false);
     isConnecting = false;
     return contentStream;
   } catch (error) {
@@ -189,12 +259,13 @@ function setupEIP6963Connection() {
     if (browser?.runtime?.id === undefined) {
       isExtensionContextValid = false;
     }
+    isPortOpen = false;
     cleanupConnection();
     return null;
   }
 }
 
-// Helper function to clean up connection state
+// Modify cleanupConnection to update port state
 function cleanupConnection() {
   if (contentStream) {
     try {
@@ -206,138 +277,212 @@ function cleanupConnection() {
   contentStream = undefined;
   portEIP6963 = undefined;
   isConnecting = false;
+  isPortOpen = false;
   reconnectAttempts = 0; // Reset reconnect attempts on cleanup
+}
+
+// Add port state check function
+function ensurePortConnection(): boolean {
+  if (!isPortOpen || !contentStream) {
+    log.debug('Content: Port not open, attempting to establish connection', false);
+    const newStream = setupEIP6963Connection();
+    if (!newStream) {
+      log.error('Content: Failed to establish port connection', false);
+      return false;
+    }
+  }
+  return true;
 }
 
 // Setup message handling for the stream
 function setupMessageHandling(stream: PortDuplexStream) {
   if (!stream) {
-    log.error('No stream provided for message handling', false);
+    log.error('Content: No stream provided for message handling', false);
     return;
   }
 
   // Listen for messages from the background script
   stream.on('data', (data: any) => {
     try {
-      log.debug('Received message from background:', false, {
+      log.debug('Content: Received message from background:', false, {
         data,
+        timestamp: new Date().toISOString(),
+        targetOrigin: getTargetOrigin(),
+        windowOrigin: getWindowOrigin(),
+        isFrameAccessible: isFrameAccessible(window)
+      });
+
+      // Format the response properly
+      let message: {
+        type: string;
+        id: any;
+        method?: string;
+        result?: any;
+        error?: any;
+        event?: string;
+      } = {
+        type: 'YAKKL_RESPONSE:EIP6963',
+        id: data.id || data.requestId || data.messageId,
+        method: data.method
+      };
+
+      // Handle array responses (like eth_accounts)
+      if (Array.isArray(data)) {
+        message.result = data;
+      }
+      // Handle string responses
+      else if (typeof data === 'string') {
+        // For chainId, ensure hex format
+        if (message.method === 'eth_chainId') {
+          message.result = data.startsWith('0x') ? data : `0x${parseInt(data).toString(16)}`;
+        }
+        // For net_version, ensure string format
+        else if (message.method === 'net_version') {
+          message.result = String(data);
+        }
+        // For other string responses, pass through
+        else {
+          message.result = data;
+        }
+      }
+      // Handle object responses with result field
+      else if (data.result !== undefined) {
+        message.result = data.result;
+      }
+      // Handle error responses
+      else if (data.error) {
+        message.error = data.error;
+      }
+      // Handle raw object responses
+      else if (typeof data === 'object') {
+        message.result = data;
+      }
+
+      // Ensure we have a result or error
+      if (!message.result && !message.error) {
+        message.result = data;
+      }
+
+      log.debug('Content: Formatted message for sending to inpage:', false, {
+        originalData: data,
+        formattedMessage: message,
         timestamp: new Date().toISOString()
       });
 
       // Forward the response to the inpage script
-      post(data, getTargetOrigin(), );
+      safePostMessage(message, getTargetOrigin(), {
+        context: 'content',
+        allowRetries: true,
+        retryKey: `${message.type}-${message.id || 'event'}`
+      });
     } catch (error) {
       log.error('Error handling message from background:', false, {
         error,
         data,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        targetOrigin: getTargetOrigin(),
+        windowOrigin: getWindowOrigin()
       });
     }
   });
 
   // Listen for messages from the inpage script
-  window.addEventListener('message', handleInpageMessage);
-  log.debug('Message handling setup complete', false, {
-    timestamp: new Date().toISOString()
+  window.addEventListener('message', async (event) => {
+    // Only accept messages from valid origins
+    if (!isValidOrigin(event.origin)) {
+      log.debug('Content: Message from invalid origin:', true, {
+        origin: event.origin,
+        expectedOrigin: getWindowOrigin(),
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    const message = event.data;
+    if (!message || typeof message !== 'object') {
+      log.debug('Content: Invalid message format:', true, {
+        message,
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    log.debug('Content: Received message in content script:', true, {
+      message,
+      origin: event.origin,
+      timestamp: new Date().toISOString(),
+      portState: {
+        isPortOpen,
+        hasContentStream: !!contentStream,
+        portName: portEIP6963?.name
+      }
+    });
+
+    // Handle requests from inpage script
+    if (message.type === 'YAKKL_REQUEST:EIP6963') {
+      try {
+        // Forward the request to the background script
+        log.debug('Content: Forwarding request to background script:', true, {
+          message,
+          timestamp: new Date().toISOString(),
+          portState: {
+            isPortOpen,
+            hasContentStream: !!contentStream,
+            portName: portEIP6963?.name
+          }
+        });
+
+        // Use port connection instead of sendMessage
+        if (contentStream) {
+          contentStream.write({
+            type: 'YAKKL_REQUEST:EIP6963',
+            id: message.id,
+            method: message.method,
+            params: message.params,
+            requiresApproval: message.requiresApproval
+          });
+          log.debug('Content: Request written to contentStream:', true, {
+            method: message.method,
+            id: message.id,
+            timestamp: new Date().toISOString()
+          });
+        } else {
+          throw new Error('No active port connection');
+        }
+      } catch (error) {
+        log.error('Error handling request:', true, {
+          error,
+          message,
+          timestamp: new Date().toISOString(),
+          portState: {
+            isPortOpen,
+            hasContentStream: !!contentStream,
+            portName: portEIP6963?.name
+          }
+        });
+
+        // Format error response properly
+        const errorResponse = {
+          type: 'YAKKL_RESPONSE:EIP6963',
+          id: message.id,
+          error: {
+            code: error instanceof ProviderRpcError ? error.code : 4001,
+            message: error instanceof Error ? error.message : 'Unknown error'
+          }
+        };
+
+        log.debug('Content: Sending error response to inpage:', true, {
+          errorResponse,
+          timestamp: new Date().toISOString()
+        });
+
+        // Send the formatted error response back to the inpage script
+        window.postMessage(errorResponse, event.origin);
+      }
+    }
   });
 }
 
-function post(message: any, targetOrigin: string | null) {
-  const retryKey = `${message.type}-${message.id}`;
-  safePostMessage(message, targetOrigin, {
-    context: 'content',
-    allowRetries: message.type === 'YAKKL_RESPONSE:EIP6963',
-    retryKey
-  });
-}
-
-// // Helper function to verify if a frame is still accessible
-// function isFrameAccessible(win: Window | null): boolean {
-//   try {
-//     if (!win) return false;
-//     // Try to access a property that would throw if frame is blocked
-//     return !!win && win !== window && typeof win.postMessage === 'function';
-//   } catch (e) {
-//     return false;
-//   }
-// }
-
-// Helper function to safely send messages
-// function safePostMessage(
-//   message: any,
-//   targetOrigin: string | null,
-//   options?: {
-//     allowRetries?: boolean;
-//     retryKey?: string;
-//     context?: 'content' | 'inpage' | 'ports';
-//   }) {
-//   try {
-//     // If we have a null origin, this likely means the frame was blocked by CSP
-//     if (!targetOrigin) {
-//       const messageKey = `${message.type}-${message.id}`;
-
-//       log.warn('Cannot send message - frame may have been blocked by CSP', false, {
-//         messageType: message.type,
-//         messageId: message.id,
-//         timestamp: new Date().toISOString()
-//       });
-
-//       if (options?.context === 'content' && options?.allowRetries && options.retryKey) {
-//         // For EIP-6963 responses, store for potential retry
-//         if (message.type === 'YAKKL_RESPONSE:EIP6963') {
-//           const pendingMessage = pendingMessages.get(messageKey);
-//           if (!pendingMessage || pendingMessage.attempts < MAX_RETRY_ATTEMPTS) {
-//             const attempts = (pendingMessage?.attempts || 0) + 1;
-//             pendingMessages.set(messageKey, {
-//               message: {
-//                 ...message,
-//                 error: {
-//                   code: 4900,
-//                   message: 'Frame blocked by Content Security Policy'
-//                 }
-//               },
-//               timestamp: Date.now(),
-//               attempts
-//             });
-
-//             // Schedule retry if we haven't exceeded max attempts
-//             if (attempts < MAX_RETRY_ATTEMPTS) {
-//               setTimeout(() => {
-//                 const stored = pendingMessages.get(messageKey);
-//                 if (stored && Date.now() - stored.timestamp < RETRY_DELAY * MAX_RETRY_ATTEMPTS) {
-//                   safePostMessage(stored.message, getTargetOrigin(), options);
-//                 }
-//               }, RETRY_DELAY * attempts);
-//               }
-//             }
-//           }
-//       }
-//       return;
-//     }
-
-//     // Verify frame is still accessible before sending
-//     if (!isFrameAccessible(window)) {
-//       log.warn('Frame is no longer accessible, message not sent', false, {
-//         messageType: message.type,
-//         messageId: message.id,
-//         timestamp: new Date().toISOString()
-//       });
-//       return;
-//     }
-
-//     window.postMessage(message, targetOrigin);
-//   } catch (error) {
-//     log.error('Error sending message:', false, {
-//       error,
-//       messageType: message.type,
-//       messageId: message.id,
-//       targetOrigin,
-//       timestamp: new Date().toISOString()
-//     });
-//   }
-// }
-
-// Clean up pending messages periodically
 function cleanupPendingMessages() {
   const now = Date.now();
   for (const [key, value] of pendingMessages.entries()) {
@@ -357,7 +502,7 @@ window.addEventListener('beforeunload', () => {
   pendingMessages.clear();
 });
 
-// Handler for inpage messages
+// Modify the message handling to check port state
 function handleInpageMessage(event: MessageEvent) {
   log.debug('Content script received message:', false, {
     event,
@@ -383,29 +528,14 @@ function handleInpageMessage(event: MessageEvent) {
   try {
     // Handle both EIP-6963 and EIP-1193 requests
     if (event.data.type === 'YAKKL_REQUEST:EIP6963' || event.data.type === 'YAKKL_REQUEST:EIP1193') {
-      log.debug('Processing request from inpage:', false, {
+      log.debug('Content: Processing request from inpage:', false, {
         data: event.data,
         timestamp: new Date().toISOString()
       });
 
       // Ensure we have an active connection
-      if (!contentStream && !isConnecting) {
-        log.debug('No active connection, attempting to establish one', false);
-        contentStream = setupEIP6963Connection();
-      }
-
-      if (contentStream) {
-        log.debug('Forwarding request to background:', false, {
-          data: event.data,
-          timestamp: new Date().toISOString()
-        });
-        contentStream.write({
-          ...event.data,
-          // Always convert to EIP-6963 type for background processing
-          type: 'YAKKL_REQUEST:EIP6963'
-        });
-      } else {
-        log.error('Failed to establish connection for message:', false, {
+      if (!ensurePortConnection()) {
+        log.error('Failed to establish port connection for message:', false, {
           data: event.data,
           timestamp: new Date().toISOString()
         });
@@ -413,12 +543,27 @@ function handleInpageMessage(event: MessageEvent) {
         safePostMessage({
           type: 'YAKKL_RESPONSE:EIP6963',
           id: event.data.id,
+          method: event.data.method,
           error: {
             code: 4900,
             message: 'Failed to establish connection'
           }
         }, getTargetOrigin());
+        return;
       }
+
+      // Forward all requests to background without special handling
+      log.debug('Forwarding request to background:', false, {
+        data: event.data,
+        timestamp: new Date().toISOString()
+      });
+      contentStream.write({
+        type: 'YAKKL_REQUEST:EIP6963',
+        method: event.data.method,
+        params: event.data.params,
+        requiresApproval: event.data.requiresApproval,
+        id: event.data.id
+      });
     }
   } catch (error) {
     log.error('Error processing message from inpage:', false, {
@@ -431,6 +576,7 @@ function handleInpageMessage(event: MessageEvent) {
       safePostMessage({
         type: 'YAKKL_RESPONSE:EIP6963',
         id: event.data.id,
+        method: event.data.method,
         error: {
           code: -32603,
           message: 'Internal error processing request'
@@ -444,6 +590,11 @@ function handleInpageMessage(event: MessageEvent) {
 browser.runtime.onMessage.addListener((message: unknown) => {
   const yakklEvent = message as { type: string; event: string; data: unknown };
   if (yakklEvent.type === 'YAKKL_EVENT:EIP6963') {
+    log.debug('Content: Received EIP-6963 event from background:', false, {
+      event: yakklEvent.event,
+      data: yakklEvent.data,
+      yakklEvent
+    });
     // Forward EIP-6963 events to inpage
     safePostMessage({
       type: 'YAKKL_EVENT:EIP6963',
@@ -492,11 +643,70 @@ function getSecurityLevelDescription(level: SecurityLevel): string {
   }
 }
 
+// Helper function to check if a frame is safe to inject into
+function isFrameSafe(frame: Window): boolean {
+  try {
+    // Basic safety checks
+    if (!frame) {
+      log.debug('Frame is null or undefined', false);
+      return false;
+    }
+
+    // Check for null origin
+    if (frame.location.origin === 'null') {
+      log.debug('Frame has null origin, skipping injection', false);
+      return false;
+    }
+
+    // For other frames, check if we can access the frame's location
+    try {
+      frame.location.href;
+    } catch (e) {
+      log.debug('Cannot access frame location, skipping injection', false);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    log.debug('Error checking frame safety:', false, error);
+    return false;
+  }
+}
+
+// Helper function to inject script into a frame
+function injectScriptIntoFrame(frame: Window) {
+  try {
+    // Additional safety check before injection
+    if (!isFrameSafe(frame)) {
+      log.debug('Frame failed safety checks, skipping injection', false);
+      return;
+    }
+
+    if (!frame || !frame.document) return;
+
+    const container = frame.document.head || frame.document.documentElement;
+    const script = frame.document.createElement("script");
+    script.setAttribute("async", "false");
+    script.src = browser.runtime.getURL("/ext/inpage.js");
+    script.id = YAKKL_PROVIDER_EIP6963;
+    script.onload = () => {
+      log.debug('Inpage script loaded in frame:', false, {
+        origin: frame.location.origin,
+        timestamp: new Date().toISOString()
+      });
+      script.remove();
+    };
+    container.prepend(script);
+  } catch (error) {
+    log.debug('Error injecting script into frame:', false, error);
+  }
+}
+
 // Helper function to check if we should inject into a frame
 function shouldInjectIntoFrame(frame: Window): boolean {
   try {
     // Don't inject if the frame is not accessible
-    if (!frame || !frame.document) {
+    if (!frame) {
       return false;
     }
 
@@ -504,6 +714,12 @@ function shouldInjectIntoFrame(frame: Window): boolean {
     if (!injectIframes) {
       log.debug('Iframe injection is disabled', false);
       return false;
+    }
+
+    // Special handling for test dapp
+    if (frame.location.hostname === 'metamask.github.io') {
+      log.debug('Allowing injection into test dapp frame', false);
+      return true;
     }
 
     // Check security level
@@ -551,65 +767,6 @@ function shouldInjectIntoFrame(frame: Window): boolean {
       injectIframes
     });
     return false;
-  }
-}
-
-// Helper function to check if a frame is safe to inject into
-function isFrameSafe(frame: Window): boolean {
-  try {
-    // Basic safety checks
-    if (!frame || !frame.document) {
-      log.debug('Frame is not accessible', false);
-      return false;
-    }
-
-    // Check for null origin
-    if (frame.location.origin === 'null') {
-      log.debug('Frame has null origin, skipping injection', false);
-      return false;
-    }
-
-    // Check if we can access the frame's location
-    try {
-      frame.location.href;
-    } catch (e) {
-      log.debug('Cannot access frame location, skipping injection', false);
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    log.debug('Error checking frame safety:', false, error);
-    return false;
-  }
-}
-
-// Helper function to inject script into a frame
-function injectScriptIntoFrame(frame: Window) {
-  try {
-    // Additional safety check before injection
-    if (!isFrameSafe(frame)) {
-      log.debug('Frame failed safety checks, skipping injection', false);
-      return;
-    }
-
-    if (!frame || !frame.document) return;
-
-    const container = frame.document.head || frame.document.documentElement;
-    const script = frame.document.createElement("script");
-    script.setAttribute("async", "false");
-    script.src = browser.runtime.getURL("/ext/inpage.js");
-    script.id = YAKKL_PROVIDER_EIP6963;
-    script.onload = () => {
-      log.debug('Inpage script loaded in frame:', false, {
-        origin: frame.location.origin,
-        timestamp: new Date().toISOString()
-      });
-      script.remove();
-    };
-    container.prepend(script);
-  } catch (error) {
-    log.debug('Error injecting script into frame:', false, error);
   }
 }
 
@@ -715,3 +872,205 @@ try {
 } catch (e) {
   log.error('Content script initialization failed:', false, e);
 }
+
+// Connect to background script
+function connectToBackground() {
+  if (isConnected) return;
+
+  try {
+    connectionAttempts++;
+    log.debug('Content script connecting to background...', false, {
+      attempt: connectionAttempts,
+      maxAttempts: MAX_CONNECTION_ATTEMPTS
+    });
+
+    port = chrome.runtime.connect({ name: 'yakkl-wallet-content' });
+
+    // Set up message listener from background
+    port.onMessage.addListener((message) => {
+      handleBackgroundMessage(message);
+    });
+
+    // Handle disconnection
+    port.onDisconnect.addListener(() => {
+      log.warn('Disconnected from background script', false);
+      isConnected = false;
+      port = null;
+
+      // Attempt to reconnect if under max attempts
+      if (connectionAttempts < MAX_CONNECTION_ATTEMPTS) {
+        setTimeout(connectToBackground, RECONNECT_DELAY);
+      } else {
+        log.error('Failed to connect to background after max attempts', false);
+      }
+    });
+
+    isConnected = true;
+    connectionAttempts = 0;
+    log.debug('Connected to background script', false);
+  } catch (error) {
+    log.error('Error connecting to background script', false, error);
+    isConnected = false;
+    port = null;
+
+    // Attempt to reconnect if under max attempts
+    if (connectionAttempts < MAX_CONNECTION_ATTEMPTS) {
+      setTimeout(connectToBackground, RECONNECT_DELAY);
+    }
+  }
+}
+
+// Handle messages from background script
+function handleBackgroundMessage(message: YakklMessage) {
+  if (!message || typeof message !== 'object') {
+    log.warn('Invalid message from background', false, message);
+    return;
+  }
+
+  log.debug('Received message from background', false, {
+    message,
+    timestamp: new Date().toISOString()
+  });
+
+  // Forward response to webpage
+  if (message.type === 'YAKKL_RESPONSE:EIP6963' || message.type === 'YAKKL_RESPONSE:EIP1193') {
+    const response = message as YakklResponse;
+    const { id } = response;
+    const pendingRequest = pendingRequests.get(id);
+
+    if (pendingRequest) {
+      log.debug('Forwarding response to webpage', false, {
+        id,
+        method: pendingRequest.method,
+        type: message.type,
+        timestamp: new Date().toISOString()
+      });
+
+      // Remove from pending requests
+      pendingRequests.delete(id);
+
+      // Forward to webpage
+      safePostMessage(message, getTargetOrigin(), {
+        context: 'content',
+        allowRetries: true,
+        retryKey: `response-${id}`
+      });
+    } else {
+      log.warn('No pending request found for response', false, {
+        id,
+        message,
+        pendingRequests: Array.from(pendingRequests.keys())
+      });
+    }
+  }
+
+  // Forward events to webpage
+  if (message.type === 'YAKKL_EVENT:EIP6963' || message.type === 'YAKKL_EVENT:EIP1193') {
+    const event = message as YakklEvent;
+    log.debug('Forwarding event to webpage', false, {
+      event: event.event,
+      type: message.type,
+      timestamp: new Date().toISOString()
+    });
+
+    // Forward to webpage
+    safePostMessage(message, getTargetOrigin(), {
+      context: 'content',
+      allowRetries: true,
+      retryKey: `event-${event.event}-${Date.now()}`
+    });
+  }
+}
+
+// Handle messages from webpage
+function handleWebpageMessage(event: MessageEvent) {
+  // Validate origin
+  if (!isValidOrigin(event.origin)) {
+    return;
+  }
+
+  const message = event.data;
+  if (!message || typeof message !== 'object') {
+    return;
+  }
+
+  // Handle requests from webpage
+  if (message.type === 'YAKKL_REQUEST:EIP6963' || message.type === 'YAKKL_REQUEST:EIP1193') {
+    const { id, method, params } = message;
+
+    log.debug('Received request from webpage', false, {
+      id,
+      method,
+      type: message.type,
+      timestamp: new Date().toISOString()
+    });
+
+    // Ensure connection to background
+    if (!isConnected) {
+      connectToBackground();
+
+      // If still not connected, send error response
+      if (!isConnected) {
+        const errorResponse = {
+          type: message.type.replace('REQUEST', 'RESPONSE'),
+          id,
+          error: {
+            code: 4900,
+            message: 'Provider not connected'
+          }
+        };
+
+        safePostMessage(errorResponse, getTargetOrigin(), {
+          context: 'content',
+          allowRetries: true,
+          retryKey: `error-${id}`
+        });
+
+        return;
+      }
+    }
+
+    // Track the request
+    pendingRequests.set(id, {
+      id,
+      method,
+      type: message.type,
+      timestamp: Date.now()
+    });
+
+    // Forward to background
+    if (port) {
+      port.postMessage(message);
+    }
+  }
+}
+
+// Initialize content script
+function initialize() {
+  // Connect to background script
+  connectToBackground();
+
+  // Set up listener for messages from webpage
+  window.addEventListener('message', handleWebpageMessage);
+
+  // Clean up old pending requests periodically
+  setInterval(() => {
+    const now = Date.now();
+    for (const [id, request] of pendingRequests.entries()) {
+      // Remove requests older than 30 seconds
+      if (now - request.timestamp > 30000) {
+        log.warn('Removing stale request', false, {
+          id,
+          method: request.method,
+          age: now - request.timestamp
+        });
+        pendingRequests.delete(id);
+      }
+    }
+  }, 10000);
+
+  log.debug('Content script initialized', false);
+}
+
+// Start the content script
+initialize();

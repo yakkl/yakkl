@@ -1,4 +1,5 @@
 import { log } from "$lib/plugins/Logger";
+import { isFrameAccessible } from "./frameInspector";
 
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY = 1000; // 1 second
@@ -60,6 +61,7 @@ export function getTargetOrigin(): string | null {
   try {
     // Check if window and location exist
     if (typeof window !== 'undefined' && window.location) {
+      // log.debug('getTargetOrigin - window.location', false, window.location, window);
       // If we're in a frame with a null origin, reject the message
       if (window.location.origin === 'null') {
         return null;
@@ -77,27 +79,31 @@ export function getTargetOrigin(): string | null {
   }
 }
 
-// Helper function to verify if a frame is still accessible
-export function isFrameAccessible(win: Window | null): boolean {
-  try {
-    if (!win) return false;
-    // Try to access a property that would throw if frame is blocked
-    return !!win && win !== window && typeof win.postMessage === 'function';
-  } catch (e) {
-    return false;
-  }
-}
-
+// Example: safePostMessage(msg, origin, { targetWindow: iframe.contentWindow });
+// Use this format when needing to send a message to a specific iframe (parent or child). Otherwise, use the default format below.
 // Note: Cleaning up pending messages is handled in the content script
 export function safePostMessage(
   message: any,
   targetOrigin: string | null,
   options?: {
+    targetWindow?: Window | null;
     allowRetries?: boolean;
     retryKey?: string;
     context?: 'content' | 'inpage' | 'ports';
   }) {
   try {
+    const recipient = options?.targetWindow ?? window;
+
+    // log.debug('safePostMessage - attempting to send message:', false, {
+    //   message,
+    //   targetOrigin,
+    //   options,
+    //   windowOrigin: getWindowOrigin(),
+    //   isFrameAccessible: isFrameAccessible(recipient),
+    //   context: options?.context,
+    //   timestamp: new Date().toISOString()
+    // });
+
     // If we have a null origin, this likely means the frame was blocked by CSP
     if (!targetOrigin) {
       const messageKey = `${message.type}-${message.id}`;
@@ -131,19 +137,24 @@ export function safePostMessage(
               setTimeout(() => {
                 const stored = pendingMessages.get(messageKey);
                 if (stored && Date.now() - stored.timestamp < RETRY_DELAY * MAX_RETRY_ATTEMPTS) {
+                  log.debug('Retrying message send:', false, {
+                    messageKey,
+                    attempt: attempts,
+                    timestamp: new Date().toISOString()
+                  });
                   safePostMessage(stored.message, getTargetOrigin(), options);
                 }
               }, RETRY_DELAY * attempts);
-              }
             }
           }
+        }
       }
       return;
     }
 
     // Verify frame is still accessible before sending
-    if (!isFrameAccessible(window)) {
-      log.warn('Frame is no longer accessible, message not sent', false, {
+    if (!isFrameAccessible(recipient)) {
+      log.debug('Frame is no longer accessible, message not sent', false, {
         messageType: message.type,
         messageId: message.id,
         timestamp: new Date().toISOString()
@@ -151,9 +162,29 @@ export function safePostMessage(
       return;
     }
 
-    window.postMessage(message, targetOrigin);
+    // Try to send the message
+    try {
+      recipient.postMessage(message, targetOrigin);
+
+      log.debug('safePostMessage: Message sent successfully:', false, {
+        messageType: message.type,
+        messageId: message.id,
+        message,
+        targetOrigin,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error) {
+      log.error('Error sending message:', false, {
+        error,
+        messageType: message.type,
+        messageId: message.id,
+        targetOrigin,
+        timestamp: new Date().toISOString()
+      });
+    }
   } catch (error) {
-    log.error('Error sending message:', false, {
+    log.error('Error in safePostMessage:', false, {
       error,
       messageType: message.type,
       messageId: message.id,
