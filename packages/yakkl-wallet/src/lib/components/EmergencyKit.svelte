@@ -26,7 +26,7 @@
 	import { log } from '$lib/plugins/Logger';
 
   interface Props {
-    mode?: 'import' | 'export';
+    mode?: 'import' | 'export' | 'restore';
     onComplete: (success: boolean, message: string) => void;
     onCancel?: () => void;
   }
@@ -97,7 +97,7 @@
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to export emergency kit';
       log.error(err);
-      onComplete(false, false, error);
+      onComplete(false, error);
     } finally {
       loading = false;
     }

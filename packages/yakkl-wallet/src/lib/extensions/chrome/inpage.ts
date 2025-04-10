@@ -10,6 +10,7 @@ import { type EIP6963ProviderDetail, type EIP6963Provider, type EIP6963ProviderI
 import type { RequestArguments } from '$lib/common';
 import { EventEmitter } from 'events';
 import { getWindowOrigin, isValidOrigin, getTargetOrigin, safePostMessage } from '$lib/common/origin';
+import { generateEipId, ensureEipId } from '$lib/common/id-generator';
 
 class ProviderRpcError extends Error {
   code: number;
@@ -68,8 +69,7 @@ const providerInfo: EIP6963ProviderInfo = {
 
 class EIP1193Provider extends EventEmitter implements EIP6963Provider {
   private _isConnected: boolean = false;
-  private requestId: number = 0;
-  private pendingRequests: Map<number, {
+  private pendingRequests: Map<string, {
     resolve: (value: any) => void;
     reject: (error: any) => void;
     method: string;
@@ -113,7 +113,7 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
         return;
       }
 
-      log.debug('Received message in inpage:', true, {
+      log.debug('Received message in inpage:====================================[][][]', true, {
         message,
         origin: event.origin,
         timestamp: new Date().toISOString(),
@@ -122,11 +122,20 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 
       // Handle responses from content script
       if (message.type === 'YAKKL_RESPONSE:EIP6963') {
+        log.info('handleResponse: INPAGE -------------------- YAKKL_RESPONSE:EIP6963', false, {
+          message: message,
+          pendingRequests: Array.from(this.pendingRequests.keys())
+        });
+
         this.handleResponse(message);
       }
 
       // Handle events from content script
       if (message.type === 'YAKKL_EVENT:EIP6963') {
+        log.info('handleEvent: INPAGE -------------------- YAKKL_EVENT:EIP6963', false, {
+          message: message,
+        });
+
         this.handleEvent(message);
       }
     });
@@ -358,7 +367,7 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
     }
 
     const { method, params = [] } = args;
-    const id = ++this.requestId;
+    const id = generateEipId();
 
     log.debug('EIP1193: Sending request:', false, {
       method,
@@ -447,7 +456,7 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
           ));
           this.pendingRequests.delete(id);
         }
-      }, 30000); // 30 second timeout
+      }, 90000); // 90 second timeout
     });
   }
 

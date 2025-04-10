@@ -1,6 +1,6 @@
 {
 	"name": "yakkl-wallet",
-	"version": "1.5.2",
+	"version": "1.5.3",
 	"version_sub": "",
 	"types": "index.d.ts",
 	"config": {

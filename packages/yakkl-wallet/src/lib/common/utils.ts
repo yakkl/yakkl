@@ -1,8 +1,8 @@
 /* eslint-disable no-debugger */
 import { type ErrorBody, type ParsedError } from '$lib/common';
 import { AccountTypeCategory } from '$lib/common/types';
-import type { YakklAccount } from '$lib/common/interfaces';
-import { yakklAccountsStore } from '$lib/common/stores';
+import type { YakklAccount, YakklPrimaryAccount } from '$lib/common/interfaces';
+import { getYakklAccounts, getYakklPrimaryAccounts, yakklAccountsStore, setYakklAccountsStorage, setYakklPrimaryAccountsStorage, yakklPrimaryAccountsStore } from '$lib/common/stores';
 import { ethers as ethersv6 } from 'ethers-v6';
 import { get } from 'svelte/store';
 import { log } from "$lib/plugins/Logger";
@@ -52,18 +52,58 @@ export function detectExecutionContext(): "background" | "content_script" | "pop
   return "unknown"; // Fallback if none of the above match
 }
 
+// export async function checkAccountRegistration(): Promise<boolean> {
+//   try {
+//     const accounts: YakklAccount[] = get(yakklAccountsStore);
+
+//     if (!accounts || accounts.length === 0) {
+//       return false;
+//     }
+
+//     let hasPrimaryOrImported = false; 
+//     if (Array.isArray(accounts)) {
+//       hasPrimaryOrImported = accounts.some(account =>
+//         account.accountType === AccountTypeCategory.PRIMARY ||
+//         account.accountType === AccountTypeCategory.IMPORTED
+//       );
+//     } else {
+//       log.warn('Accounts is currently not an array:', false, accounts);
+//     }
+
+//     return hasPrimaryOrImported;
+//   } catch (error) {
+//     log.error('Error checking registration:', false, error);
+//     return false;
+//   }
+// }
+
 export async function checkAccountRegistration(): Promise<boolean> {
   try {
-    const accounts: YakklAccount[] = get(yakklAccountsStore);
+    let accounts: YakklAccount[] | Record<string, YakklAccount> = get(yakklAccountsStore);
+    let primaryAccounts: YakklPrimaryAccount[] | Record<string, YakklPrimaryAccount> = get(yakklPrimaryAccountsStore);
+
+    // Ensure accounts is an array
+    if (!Array.isArray(accounts)) {
+      accounts = Object.values(accounts);
+      log.warn('Accounts is currently not an array:', false, accounts);
+      await setYakklAccountsStorage(accounts);
+      yakklAccountsStore.set(accounts);
+      if (Array.isArray(accounts)) log.info('Accounts has been converted to an array and stored:', false, accounts);
+    }
 
     if (!accounts || accounts.length === 0) {
       return false;
     }
-
+    
     const hasPrimaryOrImported = accounts.some(account =>
       account.accountType === AccountTypeCategory.PRIMARY ||
       account.accountType === AccountTypeCategory.IMPORTED
     );
+
+    // Ensure primaryAccounts is an array of values and if not return false
+    if (!primaryAccounts || primaryAccounts.length === 0) {
+      return false;
+    }
 
     return hasPrimaryOrImported;
   } catch (error) {
@@ -218,6 +258,105 @@ export function getLengthInBytes(value: string): number {
     return value.length;
   }
   return 0;
+}
+
+/**
+ * Checks if an address exists in either accounts or primary accounts tables
+ * @param address The address to check
+ * @returns An object with exists (boolean) and table (string) properties
+ */
+export async function addressExist(address: string): Promise<{ exists: boolean; table: string | null }> {
+  try {
+    // Check in accounts table
+    const yakklAccounts = await getYakklAccounts();
+    for (const account of yakklAccounts) {
+      if (account.address === address) {
+        return { exists: true, table: 'accounts' };
+      }
+    }
+
+    // Check in primary accounts table
+    const yakklPrimaryAccounts = await getYakklPrimaryAccounts();
+    for (const account of yakklPrimaryAccounts) {
+      if (account.address === address) {
+        return { exists: true, table: 'primaryAccounts' };
+      }
+    }
+
+    // Address not found in either table
+    return { exists: false, table: null };
+  } catch (error) {
+    log.error('Error checking if address exists:', false, error);
+    return { exists: false, table: null };
+  }
+}
+
+/**
+ * Removes duplicate addresses from yakklAccounts and yakklPrimaryAccounts
+ * @returns An object with the number of duplicates removed from each table
+ */
+export async function removeDuplicateAddress(): Promise<{ accountsRemoved: number; primaryAccountsRemoved: number }> {
+  try {
+    // Get current accounts
+    const yakklAccounts = await getYakklAccounts();
+    const yakklPrimaryAccounts = await getYakklPrimaryAccounts();
+
+    // Track original counts
+    const originalAccountsCount = yakklAccounts.length;
+    const originalPrimaryAccountsCount = yakklPrimaryAccounts.length;
+
+    // Create maps to track unique addresses
+    const uniqueAccounts = new Map<string, YakklAccount>();
+    const uniquePrimaryAccounts = new Map<string, YakklPrimaryAccount>();
+
+    // Process accounts - keep only the most recent entry for each address
+    for (const account of yakklAccounts) {
+      if (uniqueAccounts.has(account.address)) {
+        // If we already have this address, keep the one with the most recent update date
+        const existingAccount = uniqueAccounts.get(account.address)!;
+        if (account.updateDate > existingAccount.updateDate) {
+          uniqueAccounts.set(account.address, account);
+        }
+      } else {
+        uniqueAccounts.set(account.address, account);
+      }
+    }
+
+    // Process primary accounts - keep only the most recent entry for each address
+    for (const account of yakklPrimaryAccounts) {
+      if (uniquePrimaryAccounts.has(account.address)) {
+        // If we already have this address, keep the one with the most recent update date
+        const existingAccount = uniquePrimaryAccounts.get(account.address)!;
+        if (account.updateDate > existingAccount.updateDate) {
+          uniquePrimaryAccounts.set(account.address, account);
+        }
+      } else {
+        uniquePrimaryAccounts.set(account.address, account);
+      }
+    }
+
+    // Convert maps back to arrays
+    const deduplicatedAccounts = Array.from(uniqueAccounts.values());
+    const deduplicatedPrimaryAccounts = Array.from(uniquePrimaryAccounts.values());
+
+    // Calculate how many duplicates were removed
+    const accountsRemoved = originalAccountsCount - deduplicatedAccounts.length;
+    const primaryAccountsRemoved = originalPrimaryAccountsCount - deduplicatedPrimaryAccounts.length;
+
+    // Only update storage if duplicates were found and removed
+    if (accountsRemoved > 0) {
+      await setYakklAccountsStorage(deduplicatedAccounts);
+    }
+
+    if (primaryAccountsRemoved > 0) {
+      await setYakklPrimaryAccountsStorage(deduplicatedPrimaryAccounts);
+    }
+
+    return { accountsRemoved, primaryAccountsRemoved };
+  } catch (error) {
+    log.error('Error removing duplicate addresses:', false, error);
+    return { accountsRemoved: 0, primaryAccountsRemoved: 0 };
+  }
 }
 
 

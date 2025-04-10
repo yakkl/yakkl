@@ -1,31 +1,67 @@
 <script lang="ts">
   import { browser_ext, browserSvelte } from '$lib/common/environment';
   import { goto } from '$app/navigation';
-  import { Checkbox, TableBody, TableBodyCell, TableBodyRow, TableHead, TableHeadCell, TableSearch } from 'flowbite-svelte';
   import { getYakklAccounts, setYakklConnectedDomainsStorage, setYakklAccountsStorage, yakklDappConnectRequestStore, getYakklCurrentlySelected, getYakklConnectedDomains } from '$lib/common/stores';
-  import { deepCopy, truncate } from "$lib/utilities/utilities";
-  import { PATH_LOGIN, YAKKL_DAPP, DEFAULT_TITLE } from '$lib/common/constants';
+  import { deepCopy } from "$lib/utilities/utilities";
+  import { PATH_LOGIN, YAKKL_DAPP, DEFAULT_TITLE, PATH_LOGOUT } from '$lib/common/constants';
   import { onMount, onDestroy } from 'svelte';
   import { navigating, page } from '$app/state'; // NOTE: address
   import { wait } from '$lib/common/utils';
 	import ProgressWaiting from '$lib/components/ProgressWaiting.svelte';
-	import type { AccountAddress, ConnectedDomainAddress, YakklAccount, YakklConnectedDomain, YakklCurrentlySelected } from '$lib/common';
+	import type { AccountAddress, JsonRpcResponse, YakklAccount, YakklConnectedDomain, YakklCurrentlySelected } from '$lib/common';
 
   import type { Runtime } from 'webextension-polyfill';
 	import { dateString } from '$lib/common/datetime';
 	import { log } from '$lib/plugins/Logger';
+  import Confirmation from '$lib/components/Confirmation.svelte';
+  // import Failed from '$lib/components/Failed.svelte';
+  // import { writable, get } from 'svelte/store';
+  // import type { Readable } from 'svelte/store';
+
+  // import type { YakklPrimaryAccount } from '$lib/common/interfaces';
 
   type RuntimePort = Runtime.Port | undefined;
+
+  // Define the ConnectedDomainAddress interface locally
+  interface ConnectedDomainAddress {
+    address: string;
+    selected: boolean;
+    checked: boolean;
+    name: string;
+    alias: string;
+    blockchain: string;
+    chainId: number;
+  }
+
+  interface FilteredAddress {
+    address: string;
+    name: string;
+    alias: string;
+    blockchain: string;
+    chainId: number;
+    selected: boolean;
+    checked: boolean;
+  }
+
+  interface AddressWithSelection {
+    address: string;
+    selected?: boolean;
+    alias?: string;
+    blockchain?: string;
+    chainId?: number;
+    name?: string;
+    checked?: boolean;
+  }
 
   let currentlySelected: YakklCurrentlySelected;
   let yakklAccountsStore: YakklAccount[] = [];
   let yakklConnectedDomainsStore: YakklConnectedDomain[] = [];
 
-  let searchTerm = $state('');
-  let addresses: Map<string, ConnectedDomainAddress> = new Map();  // Complete list
-  let filteredAddresses: Map<string, ConnectedDomainAddress> = $state(new Map());  // Filtered list
+  // let searchTerm = $state('');
+  // let addresses: Map<string, ConnectedDomainAddress> = new Map();  // Complete list
+  // let filteredAddresses: Map<string, ConnectedDomainAddress> = $state(new Map());  // Filtered list
   let accounts: AccountAddress [] = [];
-  let accountNumber = 0; // Number of accounts
+  // let accountNumber = 0; // Number of accounts
   let accountsPicked = $state(0);
   let showConfirm = $state(false);
   let showSuccess = $state(false);
@@ -41,7 +77,8 @@
   let requestId: string | null;
   let requestData: any;
   let pass = false;
-  let filteredAddressesArray: ConnectedDomainAddress[] = $state();
+  let filteredAddressesArray: AddressWithSelection[] = $state([]);
+  let currentlySelectedAddress: string = $state('');
 
   if (browserSvelte) {
     try {
@@ -73,377 +110,53 @@
 
   async function getAccounts() {
     try {
-      if (browserSvelte) {
-        if (!currentlySelected.shortcuts.accountName) {
-          currentlySelected = await getYakklCurrentlySelected();
-        }
-        yakklAccountsStore = await getYakklAccounts();
+      // Get current connected domains
+      const connectedDomains = await getYakklConnectedDomains();
+      const domainExists = connectedDomains.find(d => d.domain === domain);
 
-        for (const account of yakklAccountsStore) {
-          if (currentlySelected.shortcuts.blockchain === account.blockchain) {
-            // Could use a variable of type ConnectedDomainAddress and push that instead but this is easier
-            addresses.set(account.address, {
-              address: account.address,
-              name: account.name,
-              alias: account.alias,
-              blockchain: currentlySelected.shortcuts.blockchain,
-              chainId: currentlySelected.shortcuts.chainId as number,
-              checked: false,
-            }); // Only add if not already there for a given blockchain
-          }
+      // Get primary accounts
+      const accounts = await getYakklAccounts();
+      if (!accounts || accounts.length === 0) {
+        throw new Error('No accounts available');
+      }
+
+      yakklAccountsStore = accounts;
+
+      // Map accounts to the filtered addresses array
+      filteredAddressesArray = accounts.map((account: YakklAccount) => {
+        // Check if this account has previously connected to the current domain
+        const hasConnectedToDomain = Array.isArray(account.connectedDomains) &&
+          account.connectedDomains.includes(domain);
+
+        return {
+          address: account.address,
+          name: account.name,
+          alias: account.alias || account.address,
+          blockchain: account.blockchain || 'ethereum',
+          chainId: account.chainIds?.[0] || 1,
+          selected: hasConnectedToDomain,
+          checked: hasConnectedToDomain
         };
+      }) as AddressWithSelection[];
 
-        filteredAddresses = addresses;
-        accountNumber = addresses.size;
-      }
-    } catch(e) {
-      log.error(e);
-    }
-  }
-
-
-  // (async () => {
-  //   await getAccounts();
-  // })();
-
-
-  $effect(() => {
-    try {
-      filteredAddresses = addresses.has(searchTerm) ? addresses : new Map([...addresses].filter(([k, v]) => v.name.toLowerCase().includes(searchTerm.toLowerCase())));
-      filteredAddressesArray = Array.from(filteredAddresses.values());
-    } catch(e) {
-      log.error(e);
-    }
-  });
-
-  onMount(async () => {
-    try {
-      if (browserSvelte) {
-        currentlySelected = await getYakklCurrentlySelected();
-
-        await getAccounts();
-        port = browser_ext.runtime.connect({name: YAKKL_DAPP});
-        if (port) {
-          port.onMessage.addListener(async (event: any) => {
-            requestData = event.data;
-
-            if (event.method === 'get_params') {
-              domainTitle = requestData?.data?.metaDataParams?.title ?? '';
-              domain = requestData?.data?.metaDataParams?.domain ?? '';
-              domainLogo = requestData?.data?.metaDataParams?.icon ?? '/images/logoBullLock48x48.png';
-              domain = domain.trim();
-
-              if (!requestId) requestId = requestData?.id ?? null;
-              if (!domain || !requestId) {
-                showFailure = true;
-              } else {
-                // Update the connected domains
-                yakklConnectedDomainsStore =  await getYakklConnectedDomains();
-                if (yakklConnectedDomainsStore) {
-                  yakklConnectedDomainsStore.find(element => {
-                    if (element.domain === domain) {
-                      let counter = 0;
-
-                      for (const address of element.addresses) {
-                        let index = -1;
-                        let itemElem: ConnectedDomainAddress | null = null;
-
-                        // Find the item in the items array
-                        for (const [i, [key, value]] of Array.from(addresses.entries()).entries()) {
-                          if (key === address.address) {
-                            itemElem = value;
-                            index = i;
-                            accounts.push(value);
-                            break;
-                          }
-                        };
-
-                        counter++;
-                        if (counter > accountNumber) {
-                          return true; // circuit breaker
-                        }
-
-                        if (index >= 0) {
-                          (document.getElementById("cb" + index.toString()) as HTMLInputElement).checked = true;
-                          if (itemElem) itemElem.checked = true;
-                        }
-
-                      // let counter = 0;
-                      // let index = 0;
-
-                      // for (const address of element.addresses) {
-                      //   let itemElem: ConnectedDomainAddress | undefined;
-                      //   counter++;
-
-                      //   if (counter > accountNumber) {
-                      //     return; // circuit breaker
-                      //   }
-
-                      //   itemElem = addresses.get(address.address);
-                      //   if (itemElem) {
-                      //     index++;
-                      //     (document.getElementById("cb" + index.toString()) as HTMLInputElement).checked = true;
-                      //     itemElem.checked = true;
-                      //     accounts.push(itemElem);
-                      //   }
-                      // }
-                      // return;
-                      };
-                    }
-                  });
-                }
-              }
-            }
-         });
-          port.postMessage({method: 'get_params', id: requestId});
-        }
-      }
-    } catch(e) {
-      log.error(e);
-    }
-  });
-
-
-  onDestroy( () => {
-    try {
-      if (browserSvelte) {
-        if (port) {
-          // port.onMessage.removeListener();
-          port.disconnect();
-          port = undefined;
-        }
-      }
-    } catch(e) {
-      log.error(e);
-    }
-  });
-
-
-  function handleAccount(item: ConnectedDomainAddress, e: MouseEvent) {
-    try {
-      let index = -1;
-      if (!item) throw 'No item was found.';
-      const target = e.target as HTMLInputElement;
-      if (!target) throw 'No event was found.';
-
-      item.checked = target.checked;
-
-      if (addresses.size > 0 && item.checked === true) {
-        accounts.find((element, i) => {
-          if (element.address === item.address) {
-            index = i;
-            return true;
-          }
-        });
-        if (index >= 0) {
-          accounts.splice(index,1);
-          return;
+      // Check if currentlySelected.shortcuts.account matches any accounts.address
+      if (currentlySelected?.shortcuts?.address) {
+        const matchingAccount = accounts.find(
+          account => account.address === currentlySelected.shortcuts.address);
+        if (matchingAccount) {
+          currentlySelectedAddress = matchingAccount.address;
         }
       }
 
-      if (item.checked === true) {
-        accounts.push(item);
-      } else {
-        index = -1;
-        accounts.find((element, i) => {
-          if (element.address === item.address) {
-            index = i;
-            return true;
-          }
-        });
-        if (index >= 0) {
-          accounts.splice(index, 1);
-        }
-      }
-      accountsPicked = accounts.length;
-    } catch(e) {
-      log.error(e);
-    }
-  }
+      log.info('currentlySelectedAddress:', false, currentlySelectedAddress);
 
-  // Not used but could be useful for future use
-  // function handleToggleAll(e: any) {
-  //   try {
-  //     let arrIndex = 0;
-  //     let accountsStore = [];
+      // Update accountsPicked count
+      accountsPicked = filteredAddressesArray.filter(addr => addr.selected).length;
 
-  //     if ($yakklAccountsStore?.length === 0) {
-  //       throw 'No accounts are present.';
-  //     }
-  //     accountsStore = $yakklAccountsStore;
-
-  //     if (!e || !e?.srcElement) throw 'No event was found.';
-
-  //     if (e.srcElement.checked) {
-  //       accounts.length = 0;
-  //       addresses.clear();
-  //       // select them all...
-  //       for (const [index, account] of accountsStore.entries()) {
-  //         if (currentlySelected.shortcuts.blockchain === account.blockchain) {
-  //           addresses.set(account.address, {
-	// 								address: account.address,
-  //                 name: account.name,
-  //                 alias: account.alias,
-	// 								blockchain: currentlySelected.shortcuts.blockchain,
-	// 								chainId: currentlySelected.shortcuts.chainId,
-  //                 checked: true,
-	// 							}); // Only add if not already there for a given blockchain
-
-  //           // accounts.push({address: item.address, name: item.name, alias: item.alias, checked: true});
-
-  //           (document.getElementById("cb" + index.toString()) as HTMLInputElement).checked = true;
-  //         }
-  //       };
-  //     } else {
-  //       // unselect them all...
-  //       addresses.clear();
-  //       for (const [index, account] of accountsStore.entries()) {
-  //         if (currentlySelected.shortcuts.blockchain === account.blockchain) {
-  //           addresses.set(account.address, {
-	// 								address: account.address,
-  //                 name: account.name,
-  //                 alias: account.alias,
-	// 								blockchain: currentlySelected.shortcuts.blockchain,
-	// 								chainId: currentlySelected.shortcuts.chainId,
-  //                 checked: false,
-	// 							}); // Only add if not already there for a given blockchain
-  //           (document.getElementById("cb" + index.toString()) as HTMLInputElement).checked = false;
-  //         }
-  //       };
-  //       accounts.length = 0;
-  //     }
-  //   } catch(e) {
-  //     console.log(e);
-  //   }
-  // }
-
-  function handleConfirm() {
-    accountsPicked = accounts.length;
-    if (accounts.length > 0) {
-      showConfirm=true;
-    } else {
-      showConfirm=false;
-      warningValue = 'No accounts were selected. Access to YAKKL® is denied.';
-      showWarning=true;
-    }
-  }
-
-  // Final accepted step so all updates and confirmations are done here
-  async function handleProcess() {
-    let domains: YakklConnectedDomain[] = [];
-    let addDomain = false;
-
-    try {
-      if (!domain) {
-        throw 'No domain name is present.';
-      }
-      if (yakklAccountsStore.length === 0) {
-        throw 'No accounts are present.';
-      }
-
-      showProgress = true;
-
-      if (yakklConnectedDomainsStore) {
-        domains = deepCopy(yakklConnectedDomainsStore);
-      }
-      if (domains?.length > 0) {
-        let domainFound: boolean = false;
-        domains.find((element) => {
-          if (element.domain === domain) {
-            element.addresses.length = 0;
-            element.updateDate = dateString();
-            for (const item of accounts) {
-              if (!element.addresses.includes(item)) {
-                element.addresses.push(item);
-              }
-            }
-            domainFound = true; //element;
-            return true;
-          }
-        });
-
-        if (!domainFound) {
-          addDomain = true;
-        } else {
-          addDomain = false;
-        }
-      } else {
-        addDomain = true;
-      }
-
-      let localAddresses: AccountAddress[] = [];
-      for (const item of accounts) {
-        if (!localAddresses.find((address) => {address.address === item.address})) {
-          localAddresses.push({address: item.address, name: item.name, alias: item.alias, blockchain: currentlySelected!.shortcuts.blockchain as string,
-            chainId: currentlySelected!.shortcuts.chainId as number});
-        }
-      };
-
-      if (addDomain === true) {
-        domains.push({
-          id: currentlySelected!.id,
-          addresses: localAddresses,
-          name: domainTitle,
-          domain: domain,
-          icon: domainLogo,
-          permissions: [],
-          version: currentlySelected!.version,
-          createDate: dateString(),
-          updateDate: dateString()
-        });
-      } else {
-        domains.find((element: YakklConnectedDomain) => {
-          if (element.domain === domain) {
-            element.name = domainTitle;
-            element.icon = domainLogo;
-            element.addresses = localAddresses;
-            element.version = currentlySelected!.version;
-            element.updateDate = dateString();
-            return;
-          }
-        });
-      }
-
-      // Update storage and stores
-      yakklConnectedDomainsStore = deepCopy(domains);
-      await setYakklConnectedDomainsStorage(domains);
-
-      let yakklAccounts: YakklAccount[] = [];
-      yakklAccounts = deepCopy(yakklAccountsStore);
-      for (const item of accounts) {
-        yakklAccounts.find(element => {
-          if (element.address === item.address) {
-            if (!element.connectedDomains.includes(domain)) {
-              element.connectedDomains.push(domain);
-            }
-            return;
-          }
-        });
-      };
-
-      yakklAccountsStore = deepCopy(yakklAccounts);
-      await setYakklAccountsStorage(yakklAccountsStore);
-
-      let sendAccounts = [];
-      for (const item of localAddresses) {
-          sendAccounts.push(item.address);
-      }
-
-      let yakklCurrentlySelected = await getYakklCurrentlySelected();
-      let chainId = yakklCurrentlySelected.shortcuts.chainId;
-
-      if (port)
-        port.postMessage({id: requestId, method: 'eth_requestAccounts', type: 'YAKKL_RESPONSE', chainId: chainId, result: sendAccounts});
-
-      showConfirm = false;
-      showSuccess = false; //true;
-
-      await close();
-
-    } catch (error: any) {
-      log.error('Dapp - accounts process error:', true, error);
-      errorValue = error as string;
-      resetValuesExcept('showFailure');
+    } catch (error) {
+      log.error('Error in getAccounts:', false, error);
+      showFailure = true;
+      errorValue = 'Failed to load accounts. Please try again.';
     }
   }
 
@@ -460,25 +173,233 @@
       resetValuesExcept(''); // Reset all values
 
       if (port) {
-        port.postMessage({id: requestId, method: 'eth_requestAccounts', response: {type: 'error', data: {name: 'ProviderRPCError', code: 4001, message: 'User rejected the request.'}}});
+        port.postMessage({
+          type: 'YAKKL_RESPONSE:EIP6963',
+          jsonrpc: '2.0',
+          id: requestId,
+          error: {
+            code: 4001,
+            message: 'User rejected the request.'
+          }
+        });
       }
 
     } catch(e) {
       log.error(e);
     } finally {
-      // If requestId is not valid then use 0 since we are bailing out anyway
-      // May want to think about putting a slight tick to make sure all queues get flushed
-      //goto(PATH_LOGOUT); // May want to do something else if they are already logged in!
       if (browserSvelte) {
         await close();
       }
     }
   }
 
-async function close() {
-  await wait(1000); // Wait for the port to disconnect and message to go through
-  window.close();
-}
+  function toggleAddress(address: string) {
+    const index = filteredAddressesArray.findIndex(addr => addr.address === address);
+    if (index !== -1) {
+      const currentAddress = filteredAddressesArray[index];
+      filteredAddressesArray[index] = {
+        ...currentAddress,
+        selected: !(currentAddress.selected ?? false)
+      };
+      filteredAddressesArray = [...filteredAddressesArray];
+    }
+    accountsPicked = filteredAddressesArray.filter(addr => addr.selected).length;
+  }
+
+  async function handleProcess() {
+    try {
+      if (!domain) {
+        throw 'No domain name is present.';
+      }
+
+      // Get selected addresses from filteredAddressesArray
+      accounts = filteredAddressesArray
+        .filter(addr => addr.selected)
+        .map(addr => ({
+          address: addr.address,
+          name: addr.name,
+          alias: addr.alias,
+          blockchain: addr.blockchain,
+          chainId: addr.chainId
+        }));
+
+      accountsPicked = accounts.length;
+      log.info('accounts selected:', false, accounts);
+
+      if (accounts.length === 0) {
+        throw 'No accounts were selected. Please select at least one account.';
+      }
+
+      if (!Array.isArray(accounts)) {
+        accounts = Object.values(accounts);
+      }
+
+      showProgress = true;
+
+      // Update the connected domains store
+      const existingDomainIndex = yakklConnectedDomainsStore.findIndex(d => d.domain === domain);
+
+      if (existingDomainIndex === -1) {
+        // Create a new domain entry if it doesn't exist
+        const newDomain: YakklConnectedDomain = {
+          id: currentlySelected?.id || '',
+          domain: domain,
+          name: domainTitle || domain,
+          icon: domainLogo,
+          addresses: accounts,
+          permissions: [],
+          version: currentlySelected?.version || '',
+          createDate: dateString(),
+          updateDate: dateString()
+        };
+
+        yakklConnectedDomainsStore = [...yakklConnectedDomainsStore, newDomain];
+      } else {
+        // Update existing domain
+        const existingDomain = yakklConnectedDomainsStore[existingDomainIndex];
+        existingDomain.name = domainTitle || domain;
+        existingDomain.icon = domainLogo;
+        existingDomain.addresses = accounts;
+        existingDomain.updateDate = dateString();
+        existingDomain.version = currentlySelected?.version || existingDomain.version;
+
+        // Update the store with the modified domain
+        yakklConnectedDomainsStore = [
+          ...yakklConnectedDomainsStore.slice(0, existingDomainIndex),
+          existingDomain,
+          ...yakklConnectedDomainsStore.slice(existingDomainIndex + 1)
+        ];
+      }
+
+      await setYakklConnectedDomainsStorage(yakklConnectedDomainsStore);
+
+      // Update accounts store with connected domains
+      for (const account of yakklAccountsStore) {
+        const accountIndex = yakklAccountsStore.findIndex(a => a.address === account.address);
+        if (accountIndex !== -1) {
+          const existingAccount = yakklAccountsStore[accountIndex];
+          if (!Array.isArray(existingAccount.connectedDomains)) {
+            existingAccount.connectedDomains = [];
+          }
+
+          // Check if this account is in the selected accounts
+          const isSelected = accounts.some(acc => acc.address === account.address);
+
+          if (isSelected) {
+            // Add domain if not already present
+            if (!existingAccount.connectedDomains.includes(domain)) {
+              existingAccount.connectedDomains.push(domain);
+            }
+          } else {
+            // Remove domain if present
+            const domainIndex = existingAccount.connectedDomains.indexOf(domain);
+            if (domainIndex !== -1) {
+              existingAccount.connectedDomains.splice(domainIndex, 1);
+            }
+          }
+
+          yakklAccountsStore[accountIndex] = existingAccount;
+        }
+      }
+
+      await setYakklAccountsStorage(yakklAccountsStore);
+
+      // Send response to dapp
+      if (port) {
+        const response: JsonRpcResponse = {
+          type: 'YAKKL_RESPONSE:EIP6963',
+          jsonrpc: '2.0',
+          id: requestId,
+          result: accounts.map(acc => acc.address)
+        };
+        port.postMessage(response);
+      }
+
+      showProgress = false;
+      showConfirm = false;
+      showSuccess = false;
+
+      await close();
+    } catch (error: any) {
+      log.error('Dapp - accounts process error:', true, error);
+      errorValue = error as string;
+      resetValuesExcept('showFailure');
+    }
+  }
+
+  onMount(async () => {
+    try {
+      if (browserSvelte) {
+        currentlySelected = await getYakklCurrentlySelected();
+
+        port = browser_ext.runtime.connect({name: YAKKL_DAPP});
+        if (port) {
+          port.onMessage.addListener(async (event: any) => {
+            try {
+              requestData = event.data;
+
+              if (!domainLogo) domainLogo = '/images/logoBullLock48x48.png'; // Set default logo but change if favicon is present
+
+              if (event.method === 'get_params') {
+                domainTitle = requestData?.data?.metaDataParams?.title ?? '';
+                domain = requestData?.data?.metaDataParams?.domain ?? '';
+                // Get favicon from URL parameters first, fall back to metadata
+                const url = new URL(window.location.href);
+                const favicon = url.searchParams.get('favicon');
+                domainLogo = favicon ?? requestData?.data?.metaDataParams?.icon ?? '/images/logoBullLock48x48.png';
+                domain = domain.trim();
+
+                // Ensure we have a valid domain for the store and localStorage
+                if (!domain) {
+                  // If domain is empty, try to extract from the URL
+                  try {
+                    const origin = new URL(requestData?.data?.metaDataParams?.origin || window.location.href).origin;
+                    domain = origin.replace(/^https?:\/\//, '');
+                  } catch (e) {
+                    // If all else fails, use a default value
+                    domain = 'unknown-domain';
+                  }
+                }
+
+                if (!requestId) requestId = requestData?.id ?? null;
+                if (!requestId) {
+                  showFailure = true;
+                  errorValue = 'No request ID was found. Access to YAKKL® is denied.';
+                } else {
+                  // Call getAccounts to handle domain checking and account setup
+                  await getAccounts();
+                }
+              }
+            } catch(e) {
+              log.error(e);
+            }
+          });
+          port.postMessage({method: 'get_params', id: requestId});
+        }
+      }
+    } catch(e) {
+      log.error(e);
+    }
+  });
+
+  onDestroy(() => {
+    try {
+      if (browserSvelte) {
+        if (port) {
+          port.disconnect();
+          port = undefined;
+        }
+      }
+    } catch(e) {
+      log.error(e);
+    }
+  });
+
+  async function close() {
+    // goto(PATH_LOGOUT);
+    await wait(1000); // Wait for the port to disconnect and message to go through
+    window.close();
+  }
 
 </script>
 
@@ -488,7 +409,7 @@ async function close() {
 
 <ProgressWaiting bind:show={showProgress} title="Processing" value="Verifying selected accounts..."/>
 
-<!-- <Confirm bind:show={showConfirm} title="Connect to {domain}" content="This will connect {domain} to {accountsPicked} of your addresses! Do you wish to continue?" handleConfirm={handleProcess}/> -->
+<Confirmation bind:show={showConfirm} title="Connect to {domain}" message="This will connect {domain} to {accountsPicked} of your addresses! Do you wish to continue?" onConfirm={handleProcess}/>
 
 <!-- <Warning bind:show={showWarning} title="Warning!" content={warningValue}/>
 
@@ -501,96 +422,111 @@ async function close() {
   <div class="bg-base-100 rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl">
     <h3 class="text-lg font-bold mb-4">Connect to {domain}</h3>
     <p class="mb-6">Connect <span class="font-bold text-primary">{accountsPicked}</span> address{accountsPicked > 1 ? 'es' : ''} to {domain}?</p>
-    <div class="flex justify-end gap-4">
-      <button class="btn btn-outline" onclick={() => showConfirm = false}>Cancel</button>
-      <button class="btn btn-primary" onclick={handleProcess}>Connect</button>
+    <div class="mt-4 flex justify-end space-x-2">
+      <button
+        class="px-4 py-2 bg-gray-200 rounded"
+        onclick={() => window.close()}
+      >
+        Cancel
+      </button>
+      <button
+        class="px-4 py-2 bg-blue-500 text-white rounded"
+        onclick={handleProcess}
+      >
+        Connect
+      </button>
     </div>
   </div>
 </div>
 {/if}
 
-<div class="flex flex-col h-full">
-  <!-- Header -->
-  <div class="p-4 border-b border-base-300">
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <img src={domainLogo} alt="Dapp logo" class="w-8 h-8 rounded-full" />
-        <span class="font-semibold">{domainTitle || domain}</span>
+{#if showFailure}
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+    <div class="bg-base-100 rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl">
+      <h3 class="text-lg font-bold mb-4 text-error">Failed!</h3>
+      <p class="mb-6">{errorValue}</p>
+      <div class="flex justify-end">
+        <button
+          class="btn btn-primary"
+          onclick={handleReject}
+        >
+          Close
+        </button>
       </div>
-      <!-- svelte-ignore a11y_consider_explicit_label -->
-      <button onclick={handleReject} class="btn btn-ghost btn-sm">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-        </svg>
-      </button>
     </div>
   </div>
-
-  <!-- Content -->
-  <div class="flex-1 p-4">
-    <div class="text-center mb-6">
-      <h2 class="text-xl font-bold mb-2">Select Accounts</h2>
-      <p class="text-base-content/80">Choose which accounts to connect with this site</p>
-    </div>
-
-    <!-- Search -->
-    <div class="relative mb-4">
-      <input
-        type="text"
-        bind:value={searchTerm}
-        placeholder="Search accounts"
-        class="input input-bordered w-full pl-10"
-      />
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-      </svg>
-    </div>
-
-    <!-- Account List -->
-    <div class="overflow-y-auto max-h-[300px] rounded-lg border border-base-300">
-      {#await filteredAddresses}
-        <div class="p-4 text-center">
-          <span class="loading loading-spinner"></span>
-          <p class="mt-2">Loading accounts...</p>
+{:else}
+  <div class="flex flex-col h-full max-h-screen overflow-hidden">
+    <!-- Header -->
+    <div class="p-4 border-b border-base-300 flex-shrink-0">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2 min-w-0">
+          <img id="dappImageId" crossorigin="anonymous" src={domainLogo} alt="Dapp logo" class="w-8 h-8 rounded-full flex-shrink-0" />
+          <span class="font-semibold truncate" title={domainTitle || domain}>{domainTitle || domain}</span>
         </div>
-      {:then _}
-        {#each filteredAddressesArray as item, i}
-          <div class="flex items-center gap-3 p-3 hover:bg-base-200 border-b border-base-300 last:border-none">
+        <button
+          onclick={handleReject}
+          class="btn btn-ghost btn-sm flex-shrink-0"
+          aria-label="Close">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="flex-1 p-6 overflow-hidden flex flex-col min-w-[360px] max-w-[426px]">
+      <div class="text-center mb-4 flex-shrink-0">
+        <h2 class="text-xl font-bold mb-2">Select Accounts</h2>
+        <p class="text-base-content/80">Choose which accounts to connect to {domain}</p>
+      </div>
+
+    <div class="overflow-y-auto flex-1 min-h-0 mb-4">
+      {#each filteredAddressesArray as address}
+        {#if address.address === currentlySelectedAddress}
+          <!-- Column layout for currentlySelectedAddress -->
+          <div class="flex items-start gap-3 p-3 bg-base-200 rounded-lg mb-2">
             <input
               type="checkbox"
-              id="cb{i}"
-              class="checkbox checkbox-primary"
-              onclick={(e) => handleAccount(item, e)}
-              checked={item.checked}
+              class="checkbox checkbox-primary w-5 h-5 flex-shrink-0 text-2xl"
+              checked={address.checked}
+              onchange={() => toggleAddress(address.address)}
             />
-            <label for="cb{i}" class="flex-1 cursor-pointer">
-              <div class="font-medium">{truncate(item.name, 20)}</div>
-              <div class="text-sm text-base-content/70">
-                {truncate(item.address, 6) + item.address.substring(item.address.length - 4)}
-                {#if item?.alias?.length > 0}
-                  <span class="ml-2 text-primary">{item.alias}</span>
-                {/if}
-              </div>
-            </label>
+            <div class="flex flex-col">
+              <span class="font-mono text-sm truncate" title={address.address}>{address.address}</span>
+              <span class="badge badge-primary text-xs mt-1">Default account</span>
+            </div>
           </div>
-        {/each}
-      {/await}
+        {:else}
+          <!-- Row layout for other addresses -->
+          <div class="flex items-center gap-3 p-3 bg-base-200 rounded-lg mb-2">
+            <input
+              type="checkbox"
+              class="checkbox checkbox-primary w-5 h-5 flex-shrink-0 text-2xl"
+              checked={address.checked}
+              onchange={() => toggleAddress(address.address)}
+            />
+            <span class="font-mono text-sm truncate" title={address.address}>{address.address}</span>
+          </div>
+        {/if}
+      {/each}
     </div>
-  </div>
+    </div>
 
   <!-- Footer -->
-  <div class="p-4 border-t border-base-300">
+  <div class="p-4 border-t border-base-300 flex-shrink-0">
     <div class="flex gap-4 justify-end">
       <button onclick={handleReject} class="btn btn-outline">
-        Cancel
+        Reject
       </button>
-      <button onclick={handleConfirm} class="btn btn-primary">
-        Connect ({accountsPicked})
+      <button onclick={() => { showConfirm=true; }} class="btn btn-primary">
+        Connect
       </button>
     </div>
   </div>
 </div>
-
+{/if}
 <style>
   /* Smooth transitions */
   .btn {

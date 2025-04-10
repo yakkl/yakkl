@@ -83,7 +83,7 @@ export interface EIP6963Request {
 
 export interface EIP6963Response {
   type: string;
-  id: string | number;
+  id: string;
   result?: any;
   error?: {
     code: number;

@@ -1,6 +1,6 @@
 <!-- ImportPrivateKey.svelte -->
 <script lang="ts">
-  import { browserSvelte } from '$lib/utilities/browserSvelte';
+  import { browserSvelte } from '$lib/common/environment';
   import { setYakklAccountsStorage, setYakklCurrentlySelectedStorage, setProfileStorage, getYakklAccounts, getProfile, getYakklCurrentlySelected, getMiscStore } from '$lib/common/stores';
   import { yakklAccount as yakklAccountDefault } from '$lib/models/dataModels';
   import { getWallet } from '$lib/utilities/ethereum';
@@ -11,7 +11,7 @@
   import * as yup from 'yup';
   // import { Confetti } from 'svelte-confetti';
   // import { confetti } from '@neoconfetti/svelte';
-  import { AccountTypeCategory, isEncryptedData, NetworkType, type AccountData, type CurrentlySelectedData, type Profile, type ProfileData, type YakklAccount, type YakklCurrentlySelected } from '$lib/common';
+  import { AccountTypeCategory, addressExist, isEncryptedData, NetworkType, type AccountData, type CurrentlySelectedData, type Profile, type ProfileData, type YakklAccount, type YakklCurrentlySelected } from '$lib/common';
   import WalletManager from '$lib/plugins/WalletManager';
   import type { Wallet } from '$lib/plugins/Wallet';
   import { onMount } from 'svelte';
@@ -71,10 +71,16 @@
 
   async function checkIfAccountExists(name: string, address: string, alias: string) {
     const yakklAccounts = await getYakklAccounts();
+    // Check if the address exists in the accounts table along with the name and alias
     const result = yakklAccounts.find((x) => {
       if (x.address === address || x.name === name || (alias && x.alias === alias)) return true;
     });
-    return !!result;
+    if (result) {
+      return true;
+    }
+    // Double check if the address exists in the accounts or primary accounts tables
+    const { exists, table } = await addressExist(address);
+    return exists;
   }
 
   async function handleImport(accountName: string, alias: string, prvKey: string) {

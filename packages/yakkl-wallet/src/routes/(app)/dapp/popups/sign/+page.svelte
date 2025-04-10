@@ -88,7 +88,10 @@
             if (event.method === 'get_params') {
               domainTitle = requestData?.data?.metaDataParams?.title ?? '';
               domain = requestData?.data?.metaDataParams?.domain ?? '';
-              domainLogo = requestData?.data?.metaDataParams?.icon ?? '/images/logoBullLock48x48.png';
+              // Get favicon from URL parameters first, fall back to metadata
+              const url = new URL(window.location.href);
+              const favicon = url.searchParams.get('favicon');
+              domainLogo = favicon || (requestData?.data?.metaDataParams?.icon ?? '/images/logoBullLock48x48.png');
               message = requestData?.data?.metaDataParams?.message ?? 'Nothing was passed in explaining the intent of this approval. Be mindful!';
               context = requestData?.data?.metaDataParams?.context ?? 'sign';
               params = requestData?.data?.metaDataParams?.transaction ?? [];

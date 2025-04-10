@@ -11,6 +11,7 @@ import { dateString } from '$lib/common/datetime';
 import { AccountTypeCategory, NetworkType } from '$lib/common/types';
 import { VERSION } from '$lib/common/constants';
 import { log } from '$lib/plugins/Logger';
+import { addressExist } from '$lib/common/utils';
 
 export async function createPortfolioAccount(yakklMiscStore: string, profile: Profile) {
   try {
@@ -74,6 +75,12 @@ export async function createPortfolioAccount(yakklMiscStore: string, profile: Pr
     const entropy = ethersv6.randomBytes(32);
     const randomMnemonic = ethersv6.Mnemonic.fromEntropy(entropy);
     const ethWallet = ethersv6.HDNodeWallet.fromMnemonic(randomMnemonic, derivedPath);
+
+    // Check if address already exists in accounts or primary accounts
+    const { exists, table } = await addressExist(ethWallet.address);
+    if (exists) {
+      throw `The Ethereum Wallet (Portfolio Account) was not able to be created. Address already exists in ${table}. Please try again.`;
+    }
 
     if ( !ethWallet ) {
       throw "The Ethereum Wallet (Portfolio Account) was not able to be created. Please try again.";

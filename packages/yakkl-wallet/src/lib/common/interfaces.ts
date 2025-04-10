@@ -10,6 +10,78 @@ export interface RequestArguments {
   params?: unknown[] | object;
 }
 
+export interface JsonRpcRequest {
+  jsonrpc: '2.0';
+  id: number | string;
+  method: string;
+  params?: unknown[];
+}
+
+export interface JsonRpcResponse {
+  type: 'YAKKL_RESPONSE:EIP6963';
+  jsonrpc: '2.0';
+  id: number | string;
+  result?: unknown;
+  error?: {
+      code: number;
+      message: string;
+      data?: unknown;
+  };
+}
+
+export interface YakklRequest {
+  type: string;
+  id: number | string;
+  method: string;
+  params: unknown[];
+  requiresApproval?: boolean;
+}
+
+export interface YakklResponse {
+  type: string;
+  id: number | string;
+  method?: string;
+  result?: unknown;
+  error?: {
+    code: number;
+    message: string;
+    data?: unknown;
+  };
+}
+
+export interface YakklEvent {
+  type: string;
+  event: string;
+  data: unknown;
+}
+
+export type YakklMessage = YakklRequest | YakklResponse | YakklEvent;
+
+// Define the request metadata type
+export interface RequestMetadata {
+  method: string;
+  params: any[];
+  metaDataParams: {
+    domain: string;
+    icon: string;
+    title: string;
+    message: string;
+    context: string;
+  };
+}
+
+// Define the pending request type
+export interface PendingRequest {
+  method: string;
+  params?: any[];
+  resolve?: (value: any) => void;
+  reject?: (error: any) => void;
+  timestamp: number;
+  port?: chrome.runtime.Port;
+  id?: string | number;
+  type?: string;
+}
+
 export interface EncryptedData {
   data: string;
   iv: string;
@@ -772,9 +844,10 @@ export interface YakklAccount {
   isSigner?: boolean;
   avatar?: string; // Default is identityicon but can be changed to user/account avatar
   tags?: string[];
+  chainIds?: number[]; // 1 will be the default for all accounts
+  connectedDomains: string[];
   includeInPortfolio: boolean; // This only applies to the value in this primary account and not any of the derived accounts
   // explorer?: string; // Remove later - moved to network
-  connectedDomains: string[];
   version: string; // Travels with the data for upgrades
   createDate: string;
   updateDate: string;

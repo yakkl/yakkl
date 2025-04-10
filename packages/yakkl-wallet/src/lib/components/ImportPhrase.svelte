@@ -1,6 +1,6 @@
 <!-- ImportPhrase.svelte -->
 <script lang="ts">
-  import { browserSvelte } from '$lib/utilities/browserSvelte';
+  import { browserSvelte } from '$lib/common/environment';
   import { ethers as ethersv6 } from 'ethers-v6';
   import { createForm } from 'svelte-forms-lib';
   import * as yup from 'yup';
@@ -11,7 +11,7 @@
   import { setSettingsStorage, getSettings, yakklMiscStore, setProfileStorage, setYakklCurrentlySelectedStorage, setYakklPrimaryAccountsStorage, getYakklPrimaryAccounts, getYakklAccounts, setYakklAccountsStorage, getProfile } from '$lib/common/stores';
   import { encryptData, decryptData } from '$lib/common/encryption';
   import { DEFAULT_DERIVED_PATH_ETH, VERSION } from '$lib/common/constants';
-  import { AccountTypeCategory, isEncryptedData, type CurrentlySelectedData, type PrimaryAccountData, type Profile, type ProfileData, type YakklAccount, type YakklCurrentlySelected, type YakklPrimaryAccount } from '$lib/common';
+  import { AccountTypeCategory, addressExist, isEncryptedData, type CurrentlySelectedData, type PrimaryAccountData, type Profile, type ProfileData, type YakklAccount, type YakklCurrentlySelected, type YakklPrimaryAccount } from '$lib/common';
   import { dateString } from '$lib/common/datetime';
   import PincodeVerify from './PincodeVerify.svelte';
   import Modal from './Modal.svelte';
@@ -165,6 +165,13 @@
 
         const mnemonicObject = ethersv6.Mnemonic.fromPhrase(mnemonic);
         const ethWallet = ethersv6.HDNodeWallet.fromMnemonic(mnemonicObject, derivedPath);
+
+        // Check if address already exists in accounts or primary accounts
+        const { exists, table } = await addressExist(ethWallet.address);
+        if (exists) {
+          throw `The Ethereum Wallet (Portfolio Account) was not able to be created. Address already exists in ${table}. Please try again.`;
+        }
+
 
         if (!ethWallet) {
           throw "The Ethereum Wallet (Portfolio Account) was not able to be created. Please try again.";
