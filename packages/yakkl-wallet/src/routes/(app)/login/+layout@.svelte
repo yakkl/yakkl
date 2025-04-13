@@ -17,7 +17,7 @@
   //   };
   // });
 </script>
-
-<div class="print:hidden bg-base-100  m-2 rounded-xl border border-gray-900 overflow-hidden">
+<!-- bg-base-100  m-2 rounded-xl border border-gray-900 overflow-hidden -->
+<div class="print:hidden transition-opacity duration-500 animate-fade-in m-1 rounded-xl overflow-hidden">
   {@render children?.()}
 </div>

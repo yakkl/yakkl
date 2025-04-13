@@ -2,33 +2,6 @@ import { log } from '$lib/plugins/Logger';
 import type { Deferrable } from '@ethersproject/properties';
 import { Alchemy, Network, type TransactionRequest, type BlockTag } from 'alchemy-sdk';
 import { keyManager } from '$lib/plugins/KeyManager';
-import browser from 'webextension-polyfill';
-
-// Secure API key management - only accessible in background context
-let alchemyApiKey: string | undefined;
-
-// Initialize API keys from environment - should be called only in background context
-// export async function initializeApiKeys() {
-//   try {
-//     // In background script, we can access chrome.storage.local
-//     const result = await browser.storage.local.get(['ALCHEMY_API_KEY']);
-//     if (result.ALCHEMY_API_KEY) {
-//       alchemyApiKey = result.ALCHEMY_API_KEY as string;
-//     } else {
-//       // If not in storage, try to get from environment
-//       const envKey = process.env.VITE_ALCHEMY_API_KEY_PROD;
-//       if (envKey) {
-//         alchemyApiKey = envKey;
-//         // Store for future use
-//         browser.storage.local.set({ ALCHEMY_API_KEY: envKey });
-//       } else {
-//         log.error('Alchemy API key not found in storage or environment');
-//       }
-//     }
-//   } catch (error) {
-//     log.error('Failed to initialize API keys', false, error);
-//   }
-// }
 
 /**********************************************************************************************************************/
 // This section is for the Ethereum provider - Legacy version
@@ -55,7 +28,7 @@ export async function getBlock(chainId: any, block: BlockTag | Promise<BlockTag>
     // If no key was provided, try to get it from KeyManager
     if (!apiKey) {
       try {
-        apiKey = await keyManager.getKey('ALCHEMY_API_KEY_PROD');
+        apiKey = keyManager.getKey('ALCHEMY_API_KEY_PROD');
       } catch (error) {
         log.warn('Could not get API key from KeyManager, using fallback', false, error);
       }

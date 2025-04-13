@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="favicon.png" />
     <title>Check Providers - EIP-1193 & EIP-6963 Test Suite</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -217,6 +218,9 @@
         async function sendTransaction() {
             try {
                 const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+
+                // NOTE: This is a dummy transaction to the zero address
+                // Replace with a valid transaction in a real scenario
                 const result = await window.ethereum.request({
                     method: 'eth_sendTransaction',
                     params: [{

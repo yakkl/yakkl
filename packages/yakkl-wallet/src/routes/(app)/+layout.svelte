@@ -62,12 +62,13 @@
 
 <ErrorNoAction bind:show={error} title="Error" value={errorValue} />
 
-<div id="wrapper" class="w-[{popupWidth}px] rounded-lg flex flex-col">
+<div id="wrapper" class="w-[{popupWidth}px] rounded-md flex flex-col  bg-gradient-to-br from-gray-900 via-gray-800 to-black min-h-screen transition-opacity duration-500 animate-fade-in">
   <Header containerWidth={popupWidth} />
 
   <div class="min-h-[40rem] mx-2">
     <div class="relative mt-1">
-      <main class="p-2 {maxHeightClass} rounded-xl bg-base-100 overflow-scroll border-2 border-stone-700 border-r-stone-700/75 border-b-slate-700/75">
+      <!-- rounded-xl overflow-scroll bg-base-100 border-2 border-stone-700 border-r-stone-700/75 border-b-slate-700/75 -->
+      <main class="p-2 {maxHeightClass}">
         {@render children?.()}
       </main>
     </div>

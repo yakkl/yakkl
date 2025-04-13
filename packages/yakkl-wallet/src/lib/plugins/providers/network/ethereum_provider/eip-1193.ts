@@ -58,7 +58,7 @@ export class EIP1193Provider extends EventEmitter {
     });
   }
 
-  private handleResponse(response: any) {
+  private async handleResponse(response: any) {
     const { id, result, error } = response;
 
     // Find the pending request
@@ -84,28 +84,48 @@ export class EIP1193Provider extends EventEmitter {
     } else {
       // Update provider state if needed
       const { method } = pendingRequest;
+      let finalResult = result;
 
       // Cache the results for these methods
       if (method === 'eth_chainId') {
-        this.chainId = result;
-        this.emit('chainChanged', result);
+        this.chainId = finalResult;
+        this.emit('chainChanged', finalResult);
         log.debug('EIP1193: Cached chainId:', false, {
-          chainId: result
+          chainId: finalResult
         });
       } else if (method === 'eth_accounts' || method === 'eth_requestAccounts') {
-        this.cachedAccounts = result;
-        this.emit('accountsChanged', result);
-        if (result && result.length > 0) {
-          this._isConnected = true;
-          this.emit('connect', { chainId: this.chainId });
+        // For eth_requestAccounts, use the EIP-6963 implementation
+        if (method === 'eth_requestAccounts') {
+          try {
+            // Import the handleRequestAccounts function from eip-6963.ts
+            const { handleRequestAccounts } = await import('../../../../extensions/chrome/eip-6963');
+
+            // Use the EIP-6963 implementation to handle the request
+            finalResult = await handleRequestAccounts();
+
+            // Update cached accounts and emit events
+            this.cachedAccounts = finalResult;
+            this.emit('accountsChanged', finalResult);
+            if (finalResult && finalResult.length > 0) {
+              this._isConnected = true;
+              this.emit('connect', { chainId: this.chainId });
+            }
+            log.debug('EIP1193: Cached accounts:', false, {
+              accounts: finalResult
+            });
+          } catch (error) {
+            log.error('Error using EIP-6963 implementation for eth_requestAccounts:', false, error);
+            // Don't fallback to original implementation - let the error propagate
+            throw error;
+          }
+        } else {
+          // For eth_accounts, use cached accounts if available
+          finalResult = this.cachedAccounts || [];
         }
-        log.debug('EIP1193: Cached accounts:', false, {
-          accounts: result
-        });
       } else if (method === 'net_version') {
-        this.networkVersion = result;
+        this.networkVersion = finalResult;
         log.debug('EIP1193: Cached networkVersion:', false, {
-          networkVersion: result
+          networkVersion: finalResult
         });
       } else if (method === 'wallet_switchEthereumChain') {
         // After switching chains, update chainId
@@ -113,11 +133,11 @@ export class EIP1193Provider extends EventEmitter {
       }
 
       // Resolve with the result
-      pendingRequest.resolve(result);
+      pendingRequest.resolve(finalResult);
       log.debug('EIP1193: Request resolved:', false, {
         method,
         id,
-        result
+        result: finalResult
       });
     }
   }

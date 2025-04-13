@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { browserSvelte } from '$lib/utilities/browserSvelte';
+  import { browserSvelte } from '$lib/common/environment';
   // import { browser as browserSvelte } from '$app/environment';
   import { onDestroy, onMount } from 'svelte';
   import { yakklChatsStore, getYakklChats, setYakklChatsStorage, yakklGPTRunningStore, yakklConnectionStore, yakklGPTKeyStore } from '$lib/common/stores';
@@ -55,7 +55,7 @@
         });
       }
     } catch(e) {
-      log.error('Error in onMount:', e);
+      log.error('Error in onMount:', false, e);
       errorValue = 'Error loading key or chat history. ' + e;
       error = true;
     }
@@ -88,7 +88,7 @@
       // Then store in localStorage
       await setYakklChatsStorage(cleanMessages);
     } catch (e) {
-      log.error('Error storing chats:', e);
+      log.error('Error storing chats:', false, e);
       throw e; // Rethrow if you want to handle it in the calling function
     }
   }

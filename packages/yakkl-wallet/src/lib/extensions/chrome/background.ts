@@ -21,12 +21,16 @@ import { getMemoizedKey, migrateToSecureStorage, SecureStore, getObjectFromLocal
 import { SecurityLevel } from '$lib/permissions/types';
 import { getAlchemyProvider } from '$lib/plugins/providers/network/ethereum_provider/alchemy';
 import { ProviderRpcError } from '$lib/common';
-import type { YakklCurrentlySelected as YakklCurrentlySelectedInterface } from '$lib/common/interfaces';
+import type { PendingRequest, RequestMetadata, YakklCurrentlySelected as YakklCurrentlySelectedInterface, YakklMessage, YakklRequest, YakklResponse } from '$lib/common/interfaces';
 import { STORAGE_YAKKL_CURRENTLY_SELECTED } from '$lib/common/constants';
 import { browser_ext } from '$lib/common/environment';
-import { showDappPopup, showPopup } from './ui';
+import { openPopups } from '$lib/common/reload';
+import { showExtensionPopup } from '$lib/extensions/chrome/ui';
+import { showPopup } from './ui';
+import { generateEipId, ensureEipId } from '$lib/common/id-generator';
 
 type RuntimeSender = Runtime.MessageSender;
+type RuntimePort = Runtime.Port;
 
 // NOTE: This is a workaround for how Chrome handles alarms, listeners, and state changes in the background
 //  It appears that if the extension is suspended, the idle listener may not be triggered
@@ -37,75 +41,31 @@ type RuntimeSender = Runtime.MessageSender;
 // UPDATE: Moved idle timer to the IdleManager plugin and for anything needed to always be active while the UI is active
 // IdleManager is UI context only and is not used in the background context
 
-
 // Export KeyManager for console debugging
 // Use globalThis instead of window to support Service Workers
 (globalThis as any).debugKeyManager = KeyManager.getInstance();
 
-interface YakklRequest {
-  type: string;
-  id: number | string;
-  method: string;
-  params: unknown[];
-  requiresApproval?: boolean;
-}
-
-interface YakklResponse {
-  type: string;
-  id: number | string;
-  method?: string;
-  result?: unknown;
-  error?: {
-    code: number;
-    message: string;
-    data?: unknown;
-  };
-}
-
-interface YakklEvent {
-  type: string;
-  event: string;
-  data: unknown;
-}
-
-type YakklMessage = YakklRequest | YakklResponse | YakklEvent;
-
 // Track connected ports
-const ports: Map<string, chrome.runtime.Port> = new Map();
+const ports: Map<string, RuntimePort> = new Map();
 
-// Define the request metadata type
-interface RequestMetadata {
+// Define the type for pending requests
+type BackgroundPendingRequest = {
+  resolve: (value: any) => void;
+  reject: (reason: any) => void;
   method: string;
   params: any[];
-  metaDataParams: {
-    domain: string;
-    icon: string;
-    title: string;
-    message: string;
-    context: string;
-  };
-}
-
-// Define the pending request type
-interface PendingRequest {
-  method: string;
-  params?: any[];
-  resolve?: (value: any) => void;
-  reject?: (error: any) => void;
   timestamp: number;
-  port?: chrome.runtime.Port;
-  id?: string | number;
-  type?: string;
-}
+  port: RuntimePort;
+};
 
-// Store for pending requests
-const pendingRequests: Map<string, PendingRequest> = new Map();
+// Export the pendingRequests Map
+export const pendingRequests = new Map<string, BackgroundPendingRequest>();
 
 // Store for request metadata
 const requestMetadata: Map<string, RequestMetadata> = new Map();
 
 // Handle port connections
-chrome.runtime.onConnect.addListener((port: chrome.runtime.Port) => {
+browser.runtime.onConnect.addListener((port: RuntimePort) => {
   const portId = port.name || `port-${Date.now()}`;
 
   log.debug('New port connection', false, {
@@ -117,8 +77,8 @@ chrome.runtime.onConnect.addListener((port: chrome.runtime.Port) => {
   ports.set(portId, port);
 
   // Set up message listener
-  port.onMessage.addListener((message: YakklMessage) => {
-    handlePortMessage(message, port);
+  port.onMessage.addListener((message, port: RuntimePort) => {
+    handlePortMessage(message as YakklMessage, port);
   });
 
   // Handle disconnection
@@ -141,7 +101,7 @@ chrome.runtime.onConnect.addListener((port: chrome.runtime.Port) => {
 });
 
 // Handle messages from ports
-async function handlePortMessage(message: YakklMessage, port: chrome.runtime.Port) {
+async function handlePortMessage(message: YakklMessage, port: RuntimePort) {
   if (!message || typeof message !== 'object') {
     log.warn('Invalid message from port', false, message);
     return;
@@ -152,96 +112,141 @@ async function handlePortMessage(message: YakklMessage, port: chrome.runtime.Por
     timestamp: new Date().toISOString()
   });
 
+  // Handle responses from popups
+  if (message.type === 'YAKKL_RESPONSE:EIP6963') {
+    const { id, result, error } = message as YakklResponse;
+    const requestId = ensureEipId(id);
+
+    log.debug('Processing response from popup', false, {
+      id: requestId,
+      result,
+      error,
+      timestamp: new Date().toISOString()
+    });
+
+    // Find the original request
+    const originalRequest = pendingRequests.get(requestId);
+    if (!originalRequest) {
+      log.warn('No original request found for response', false, { id: requestId });
+      return;
+    }
+
+    // Forward the response to the original requester
+    if (originalRequest.port) {
+      log.debug('Forwarding response to original requester', false, {
+        id: requestId,
+        port: originalRequest.port.name,
+        timestamp: new Date().toISOString()
+      });
+      originalRequest.port.postMessage({ ...message, id: requestId });
+      pendingRequests.delete(requestId);
+    } else {
+      log.warn('Original request port not found', false, { id: requestId });
+    }
+    return;
+  }
+
   // Handle requests
   if (message.type === 'YAKKL_REQUEST:EIP6963' || message.type === 'YAKKL_REQUEST:EIP1193') {
     const request = message as YakklRequest;
     const { id, method, params, requiresApproval } = request;
+    const requestId = ensureEipId(id);
+
+    // Get the origin from the port sender if available
+    const origin = port.sender?.url || '';
 
     log.debug('Processing request', false, {
-      id,
+      id: requestId,
       method,
-      type: message.type,
+      params,
       requiresApproval,
+      origin,
       timestamp: new Date().toISOString()
     });
 
-    // Track the request
-    pendingRequests.set(String(id), {
-      id,
-      method,
-      type: message.type,
-      port,
-      timestamp: Date.now()
-    });
-
     try {
-      // Handle the request
-      const result = await handleRequest(request);
+      // For methods that require approval, use the EIP-6963 implementation
+      if (requiresApproval) {
+        try {
+          // Import the showEIP6963Popup function from eip-6963.ts
+          const { showEIP6963Popup } = await import('./eip-6963');
 
-      // Send response
-      const response: YakklResponse = {
-        type: message.type.replace('REQUEST', 'RESPONSE'),
-        id,
-        method,
-        result
-      };
+          // Use the EIP-6963 implementation to handle the request
+          const result = await showEIP6963Popup(method, params || [], requestId);
 
-      log.debug('Sending response', false, {
-        id,
-        method,
-        type: response.type,
-        timestamp: new Date().toISOString()
-      });
+          log.debug('handlePortMessage - EIP-6963 popup result', false, { result, requestId, method, params });
 
-      port.postMessage(response);
+          // Send the response back to the port
+          port.postMessage({
+            type: 'YAKKL_RESPONSE:EIP6963',
+            jsonrpc: '2.0',
+            id: requestId,
+            result
+          });
+          log.info('handlePortMessage - Posted');
+          return;
+        } catch (error) {
+          log.error('Error using EIP-6963 implementation for request:', false, error);
 
-      // Remove from pending requests
-      pendingRequests.delete(String(id));
-    } catch (error: any) {
-      // Send error response
-      const errorResponse: YakklResponse = {
-        type: message.type.replace('REQUEST', 'RESPONSE'),
-        id,
-        method,
-        error: {
-          code: error.code || 4000,
-          message: error.message || 'Unknown error',
-          data: error.data
+          // Fallback to the original implementation if the EIP-6963 implementation fails
+          const result = await handleRequest(method, params || [], origin);
+
+          // Send the response back to the port
+          port.postMessage({
+            type: 'YAKKL_RESPONSE:EIP6963',
+            jsonrpc: '2.0',
+            id: requestId,
+            result
+          });
+          return;
         }
-      };
+      } else {
+        // For methods that don't require approval, use the original implementation
+        const result = await handleRequest(method, params || [], origin);
 
-      log.error('Error handling request', false, {
-        id,
-        method,
-        error,
-        timestamp: new Date().toISOString()
+        // Send the response back to the port
+        port.postMessage({
+          type: 'YAKKL_RESPONSE:EIP6963',
+          jsonrpc: '2.0',
+          id: requestId,
+          result
+        });
+      }
+    } catch (error: any) {
+      log.error('Error processing request', false, error);
+
+      // Send the error back to the port
+      port.postMessage({
+        type: 'YAKKL_RESPONSE:EIP6963',
+        jsonrpc: '2.0',
+        id: requestId,
+        error: {
+          code: -32603,
+          message: error?.message || 'Internal error'
+        }
       });
-
-      port.postMessage(errorResponse);
-
-      // Remove from pending requests
-      pendingRequests.delete(String(id));
     }
   }
 }
 
 // Helper function to get request origin
-function getRequestOrigin(request: any, sender?: Runtime.MessageSender): string {
-  try {
-    if (sender?.url) {
-      return new URL(sender.url).origin;
-    }
-    if (request?.origin) {
-      return request.origin;
-    }
-    return 'unknown-origin';
-  } catch (error) {
-    log.error('Error getting request origin:', false, error);
-    return 'unknown-origin';
-  }
-}
+// function getRequestOrigin(request: any, sender?: Runtime.MessageSender): string {
+//   try {
+//     if (sender?.url) {
+//       return new URL(sender.url).origin;
+//     }
+//     if (request?.origin) {
+//       return request.origin;
+//     }
+//     return 'unknown-origin';
+//   } catch (error) {
+//     log.error('Error getting request origin:', false, error);
+//     return 'unknown-origin';
+//   }
+// }
 
 // Helper function to check if method requires approval
+
 function requiresApproval(method: string): boolean {
   const approvalMethods = [
     'eth_requestAccounts',
@@ -265,67 +270,7 @@ async function getProvider() {
   return getAlchemyProvider();
 }
 
-async function handleRequest(request: any) {
-  try {
-    const { id, method, params = [] } = request;
-    const origin = getRequestOrigin(request);
-
-    log.debug('Handling request:', false, {
-      id,
-      method,
-      params,
-      origin
-    });
-
-    // Check if method requires approval
-    if (requiresApproval(method)) {
-      log.debug('Method requires approval:', false, method);
-
-      // Open popup for approval
-      // const popupUrl = `/sidepanel/dapp/permission?requestId=${id}&origin=${encodeURIComponent(origin)}&method=${encodeURIComponent(method)}&params=${encodeURIComponent(JSON.stringify(params))}`;
-
-      log.info('handleRequest - 293 (background):', false, '/dapp/popups/approve.html?requestId=' + Number(id).toString());
-      await showDappPopup('/dapp/popups/approve.html?requestId=' + Number(id).toString());
-
-
-      log.info('handleRequest - 301 (background):', false, 'waiting for response');
-      // Wait for response from popup
-      return new Promise((resolve, reject) => {
-        const listener = (message: any, _sender: any, _sendResponse: any) => {
-          if (message.type === 'YAKKL_PERMISSION_RESPONSE' && message.requestId === id) {
-            browser.runtime.onMessage.removeListener(listener);
-
-            if (message.approved) {
-              // Process the approved request
-              processRequest(method, params, origin)
-                .then(resolve)
-                .catch(reject);
-            } else {
-              reject(new ProviderRpcError(4001, 'User rejected the request'));
-            }
-          }
-          return Promise.resolve(true);
-        };
-
-        browser.runtime.onMessage.addListener(listener);
-
-        // Set timeout for the request
-        setTimeout(() => {
-          browser.runtime.onMessage.removeListener(listener);
-          reject(new ProviderRpcError(4001, 'Request timed out'));
-        }, 120000); // 2 minute timeout
-      });
-    }
-
-    // For methods that don't require approval
-    return processRequest(method, params, origin);
-  } catch (error) {
-    log.error('Error handling request:', false, error);
-    throw error;
-  }
-}
-
-async function processRequest(method: string, params: any[], origin: string) {
+async function handleRequest(method: string, params: any[], origin: string) {
   const yakklCurrentlySelected = await getObjectFromLocalStorage(STORAGE_YAKKL_CURRENTLY_SELECTED) as YakklCurrentlySelected;
 
   log.debug('Processing request:', false, {
@@ -340,12 +285,10 @@ async function processRequest(method: string, params: any[], origin: string) {
   switch (method) {
     case 'eth_chainId':
       return yakklCurrentlySelected?.shortcuts?.chainId || '0x1';
-
     case 'eth_accounts':
-    case 'eth_requestAccounts': {
-      // Only return address if it exists and is valid
+      // For eth_accounts, use the original implementation
       const address = yakklCurrentlySelected?.shortcuts?.address;
-      log.debug('eth_accounts/eth_requestAccounts:', false, {
+      log.debug('eth_accounts:', false, {
         address,
         yakklCurrentlySelected,
         timestamp: new Date().toISOString()
@@ -354,6 +297,23 @@ async function processRequest(method: string, params: any[], origin: string) {
         return [address];
       }
       // Return empty array if no valid address
+      return [];
+
+    case 'eth_requestAccounts': {
+      // Use the EIP-6963 implementation for handling eth_requestAccounts
+      if (method === 'eth_requestAccounts') {
+        try {
+          log.debug('background - Processing eth_requestAccounts request', false, { method, params });
+          // Import the handleRequestAccounts function from eip-6963.ts
+          const { handleRequestAccounts } = await import('./eip-6963');
+
+          // Use the EIP-6963 implementation to handle the request
+          return await handleRequestAccounts();
+        } catch (error) {
+          log.error('Error using EIP-6963 implementation for eth_requestAccounts:', false, error);
+          throw error; // Let the error propagate to the caller
+        }
+      }
       return [];
     }
 
@@ -372,111 +332,27 @@ async function processRequest(method: string, params: any[], origin: string) {
   return provider.request({ method, params });
 }
 
-// Function to open the approval popup
-// function openApprovalPopup(requestId: string, method: string, params: any[]) {
-//   try {
-//     // Get the current tab using browser API (webextension-polyfill) instead of chrome API
-//     browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
-//       const currentTab = tabs[0];
-//       if (!currentTab) {
-//         log.error('No active tab found', false);
-//         return;
-//       }
-
-//       // Get the tab's URL and favicon
-//       const url = currentTab.url || '';
-//       const favicon = currentTab.favIconUrl || '';
-//       const title = currentTab.title || '';
-
-//       // Determine which popup to open based on the method
-//       let popupPath = '';
-//       let context = '';
-
-//       switch (method) {
-//         case 'eth_requestAccounts':
-//           popupPath = 'approve';
-//           context = 'accounts';
-//           break;
-//         case 'eth_sendTransaction':
-//           popupPath = 'transactions';
-//           context = 'transaction';
-//           break;
-//         case 'eth_sign':
-//         case 'personal_sign':
-//         case 'eth_signTypedData_v4':
-//           popupPath = 'sign';
-//           context = 'signature';
-//           break;
-//         case 'wallet_switchEthereumChain':
-//         case 'wallet_addEthereumChain':
-//           popupPath = 'approve';
-//           context = 'chain';
-//           break;
-//         case 'wallet_watchAsset':
-//           popupPath = 'approve';
-//           context = 'asset';
-//           break;
-//         default:
-//           popupPath = 'approve';
-//           context = 'unknown';
-//       }
-
-//       // Store metadata for the popup
-//       const metaDataParams = {
-//         domain: new URL(url).hostname,
-//         icon: favicon,
-//         title: title,
-//         message: `${title} is requesting permission to ${getMethodDescription(method)}`,
-//         context: context
-//       };
-
-//       log.info('openApprovalPopup - 433 (background):', false, metaDataParams);
-
-//       // Store the metadata for the popup to access
-//       requestMetadata.set(requestId, {
-//         method,
-//         params,
-//         metaDataParams
-//       });
-
-//       // WRONG URL!!!!!!!
-
-//       // Open the popup using browser API
-//       const popupUrl = browser.runtime.getURL(`/routes/(app)/dapp/popups/${popupPath}/+page.html?requestId=${requestId}`);
-
-//       browser.windows.create({
-//         url: popupUrl,
-//         type: 'popup',
-//         width: 400,
-//         height: 600
-//       });
-//     });
-//   } catch (error) {
-//     log.error('Error opening approval popup', false, error);
+// Helper function to get a user-friendly description of a method
+// function getMethodDescription(method: string): string {
+//   switch (method) {
+//     case 'eth_requestAccounts':
+//       return 'connect to your wallet';
+//     case 'eth_sendTransaction':
+//       return 'send a transaction';
+//     case 'eth_sign':
+//     case 'personal_sign':
+//     case 'eth_signTypedData_v4':
+//       return 'sign a message';
+//     case 'wallet_switchEthereumChain':
+//       return 'switch networks';
+//     case 'wallet_addEthereumChain':
+//       return 'add a new network';
+//     case 'wallet_watchAsset':
+//       return 'add a token to your wallet';
+//     default:
+//       return 'perform an action';
 //   }
 // }
-
-// Helper function to get a user-friendly description of a method
-function getMethodDescription(method: string): string {
-  switch (method) {
-    case 'eth_requestAccounts':
-      return 'connect to your wallet';
-    case 'eth_sendTransaction':
-      return 'send a transaction';
-    case 'eth_sign':
-    case 'personal_sign':
-    case 'eth_signTypedData_v4':
-      return 'sign a message';
-    case 'wallet_switchEthereumChain':
-      return 'switch networks';
-    case 'wallet_addEthereumChain':
-      return 'add a new network';
-    case 'wallet_watchAsset':
-      return 'add a token to your wallet';
-    default:
-      return 'perform an action';
-  }
-}
 
 // Send events to all connected ports
 function broadcastEvent(eventName: string, data: any, type: string = 'YAKKL_EVENT:EIP6963') {
@@ -879,3 +755,43 @@ browser.runtime.onMessage.addListener((
   }
   return true; // Keep the message channel open for async response
 });
+
+export async function showDappPopupWithFavicon(request: string) {
+  try {
+    const height = request.includes('approve.html') ? 620 :
+                   request.includes('transactions.html') ? 620 :
+                   request.includes('accounts.html') ? 550 : 500;
+
+    log.info('showDappPopup <<< - 186 (ui-inside):', false, {request, height});
+
+    // Get the active tab to get the favicon
+    const tabs = await browser.tabs.query({ active: true });
+    const activeTab = tabs.find(t => !t.url?.startsWith('chrome-extension://'));
+    const favicon = activeTab?.favIconUrl;
+
+    // Add favicon to the request URL if available
+    if (favicon) {
+      const url = new URL(request, 'chrome-extension://' + browser.runtime.id);
+      url.searchParams.set('favicon', favicon);
+      request = url.pathname + url.search;
+    }
+
+    showExtensionPopup(360, height, request).then(async (window) => {
+      if (window?.id) {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        browser_ext.windows.update(window.id, {drawAttention: true});
+        openPopups.set('popupId', window.id);
+      }
+    }).catch((error) => {
+      log.error('Background - YAKKL:', false, error);
+    });
+  } catch (error) {
+    log.error('Background - showDappPopup:', false, error);
+  }
+}
+
+// Update the showDappPopup function to use showDappPopupWithFavicon
+export async function showDappPopup(request: string) {
+  return showDappPopupWithFavicon(request);
+}

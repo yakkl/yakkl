@@ -27,7 +27,7 @@
   bind:show={show}
   onCancel={onCancel}
   onClose={onClose}
-  title='Registration'
+  title='Registration/Restoration Options'
 >
-  <RegistrationOption {onCreate} title='Options'/>
+  <RegistrationOption {onCreate} {onImport} {onRestore} title='Options'/>
 </Modal>

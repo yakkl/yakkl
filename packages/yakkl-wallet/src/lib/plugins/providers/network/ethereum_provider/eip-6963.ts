@@ -97,10 +97,11 @@ class PostMessageDuplexStream extends Duplex {
           event.data.type === 'YAKKL_REQUEST:EIP6963' ||
           event.data.type === 'YAKKL_RESPONSE:EIP6963' ||
           event.data.type === 'YAKKL_EVENT:EIP6963')) {
-          log.debug('PostMessageDuplexStream pushing valid message', true, event.data);
+          log.debug('PostMessageDuplexStream pushing valid message ---><--- ', true, {event: event, eventData: event.data});
           this.push(event.data);
         } else {
           log.debug('PostMessageDuplexStream ignoring message with invalid type', true, {
+            event: event,
             type: event.data.type
           });
         }

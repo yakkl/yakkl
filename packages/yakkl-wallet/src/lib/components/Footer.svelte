@@ -154,9 +154,10 @@
 <!-- <SwapModal bind:show={showSwap} {fundingAddress} /> -->
 <Swap bind:show={showSwap} {fundingAddress} {provider} {blockchain} {swapManager} {tokenService} />
 <!-- max-w-[{containerWidth}px] -->
-<footer id="{id}" class="visible fixed bg-base-100 mb-2 inset-x-0 bottom-0 mx-2 mt-0 rounded-lg {classParam}">
+<!-- bg-base-100 -->
+<footer id="{id}" class="visible fixed mb-0 inset-x-0 bottom-0 mx-4 mt-0 bg-gradient-to-br from-gray-900 via-gray-800 to-black {classParam}">
 
-  <div class="relative flex items-center justify-between m-2 mb-0 bg-primary/80 text-base-content rounded-lg px-2">
+  <div class="relative flex items-center justify-between my-2 mb-0 bg-primary/80 text-base-content rounded-lg shadow-lg">
     <span class="flex flex-1 justify-evenly max-w-[40%]">
       <!-- HOME -->
       <!-- svelte-ignore a11y_click_events_have_key_events -->

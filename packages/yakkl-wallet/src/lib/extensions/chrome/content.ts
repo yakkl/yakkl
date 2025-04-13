@@ -4,13 +4,14 @@ import { YAKKL_PROVIDER_EIP6963, WALLET_SECURITY_CONFIG } from '$lib/common/cons
 import type { SecurityLevel } from '$lib/permissions/types';
 import { SecurityLevel as SecurityLevelEnum } from '$lib/permissions/types';
 import { SECURITY_LEVEL_DESCRIPTIONS } from '$lib/common/constants';
-import type { Runtime } from 'webextension-polyfill';
+import browser, { type Browser, type Runtime } from 'webextension-polyfill';
 import { log } from '$lib/plugins/Logger';
-import browser from 'webextension-polyfill';
 import { getWindowOrigin, isValidOrigin, getTargetOrigin, safePostMessage } from '$lib/common/origin';
 import { SecurityLevel as PermissionsSecurityLevel } from '$lib/permissions/types';
 import { isFrameAccessible } from '$lib/common/frameInspector';
-import { ProviderRpcError } from "$lib/common";
+import { ProviderRpcError, type YakklEvent, type YakklMessage, type YakklResponse } from "$lib/common";
+import { getIcon } from '$lib/common/icon';
+import { browser_ext } from '$lib/common/environment';
 
 // Chrome types
 declare namespace chrome {
@@ -61,7 +62,8 @@ const MAX_RETRY_ATTEMPTS = 3;
 let isPortOpen = false;
 
 // Initialize connection to background script
-let port: chrome.runtime.Port | null = null;
+let port: RuntimePort | null = null;
+
 let isConnected = false;
 let connectionAttempts = 0;
 const MAX_CONNECTION_ATTEMPTS = 3;
@@ -74,34 +76,6 @@ interface PendingRequest {
   type: string;
   timestamp: number;
 }
-
-// Message interfaces
-interface YakklRequest {
-  type: string;
-  id: number | string;
-  method: string;
-  params: unknown[];
-  requiresApproval?: boolean;
-}
-
-interface YakklResponse {
-  type: string;
-  id: number | string;
-  result?: unknown;
-  error?: {
-    code: number;
-    message: string;
-    data?: unknown;
-  };
-}
-
-interface YakklEvent {
-  type: string;
-  event: string;
-  data: unknown;
-}
-
-type YakklMessage = YakklRequest | YakklResponse | YakklEvent;
 
 const pendingRequests: Map<string | number, PendingRequest> = new Map();
 
@@ -264,6 +238,24 @@ function setupEIP6963Connection() {
     return null;
   }
 }
+
+const handleResponse = (response: any): void => {
+  const standardResponse: YakklResponse = {
+      type: 'YAKKL_RESPONSE:EIP6963',
+      id: response.id
+  };
+
+  if (response.response?.type === 'error' || response.error) {
+      standardResponse.error = {
+          code: response.response?.data?.code || response.error?.code || 4001,
+          message: response.response?.data?.message || response.error?.message || 'Unknown error'
+      };
+  } else {
+      standardResponse.result = response.response?.data?.result || response.result || [];
+  }
+
+  window.postMessage(standardResponse, window.location.origin);
+};
 
 // Modify cleanupConnection to update port state
 function cleanupConnection() {
@@ -587,8 +579,15 @@ function handleInpageMessage(event: MessageEvent) {
 }
 
 // Listen for EIP-6963 events from background
-browser.runtime.onMessage.addListener((message: unknown) => {
+browser.runtime.onMessage.addListener((message: unknown, sender: Runtime.MessageSender, sendResponse: (response?: any) => void) => {
   const yakklEvent = message as { type: string; event: string; data: unknown };
+
+  log.info('handleEIP6963Event ---------------------->>>>>>>>>>>>>>>>', false, {
+    message: message,
+    sender: sender,
+    sendResponse: sendResponse
+  });
+
   if (yakklEvent.type === 'YAKKL_EVENT:EIP6963') {
     log.debug('Content: Received EIP-6963 event from background:', false, {
       event: yakklEvent.event,
@@ -606,25 +605,24 @@ browser.runtime.onMessage.addListener((message: unknown) => {
 });
 
 // Listen for security configuration updates from background
-browser.runtime.onMessage.addListener((message: unknown) => {
+browser.runtime.onMessage.addListener((message: unknown, sender: Runtime.MessageSender, sendResponse: (response?: any) => void) => {
   const configMessage = message as {
     type: string;
-    securityLevel?: PermissionsSecurityLevel;
-    injectIframes?: boolean;
+    securityLevel: SecurityLevel;
+    injectIframes: boolean;
   };
 
-  if (configMessage.type === 'YAKKL_SECURITY_CONFIG_UPDATE') {
-    if (configMessage.securityLevel !== undefined) {
-      securityLevel = configMessage.securityLevel;
-      log.debug('Security level updated:', false, {
-        level: securityLevel,
-        description: getSecurityLevelDescription(securityLevel)
-      });
-    }
-    if (configMessage.injectIframes !== undefined) {
-      injectIframes = configMessage.injectIframes;
-      log.debug('Iframe injection setting updated:', false, { injectIframes });
-    }
+
+  log.info('handleSecurityConfigUpdate', false, {
+    message: message,
+    sender: sender,
+    sendResponse: sendResponse
+  });
+
+  if (configMessage.type === 'SECURITY_CONFIG_UPDATE') {
+    securityLevel = configMessage.securityLevel;
+    injectIframes = configMessage.injectIframes;
+    log.debug('Content: Security configuration updated:', false, { securityLevel, injectIframes });
   }
   return true;
 });
@@ -714,12 +712,6 @@ function shouldInjectIntoFrame(frame: Window): boolean {
     if (!injectIframes) {
       log.debug('Iframe injection is disabled', false);
       return false;
-    }
-
-    // Special handling for test dapp
-    if (frame.location.hostname === 'metamask.github.io') {
-      log.debug('Allowing injection into test dapp frame', false);
-      return true;
     }
 
     // Check security level
@@ -814,7 +806,6 @@ try {
   if (browser) {
     // Always inject into the main window
     if (document.contentType === "text/html") {
-      log.debug('Injecting inpage script into main window...', false);
       const container = document.head || document.documentElement;
       const script = document.createElement("script");
       script.setAttribute("async", "false");
@@ -825,6 +816,15 @@ try {
         script.remove();
       };
       container.prepend(script);
+
+      // Better way is from background script where it uses the favicon from the current tab
+      // Get the favicon for the current page
+      const favicon = getIcon();
+      if (favicon) {
+        log.debug('Got favicon:', false, favicon);
+        // Store the favicon URL for use in popups
+        window.localStorage.setItem('yakkl_dapp_favicon', favicon);
+      }
     }
 
     // Setup initial EIP-6963 connection
@@ -884,11 +884,11 @@ function connectToBackground() {
       maxAttempts: MAX_CONNECTION_ATTEMPTS
     });
 
-    port = chrome.runtime.connect({ name: 'yakkl-wallet-content' });
+    port = browser_ext.runtime.connect({ name: 'yakkl-wallet-content' });
 
     // Set up message listener from background
-    port.onMessage.addListener((message) => {
-      handleBackgroundMessage(message);
+    port.onMessage.addListener((message: unknown) => {
+      handleBackgroundMessage(message, { id: port.sender?.id } as Runtime.MessageSender, () => {});
     });
 
     // Handle disconnection
@@ -920,29 +920,40 @@ function connectToBackground() {
   }
 }
 
-// Handle messages from background script
-function handleBackgroundMessage(message: YakklMessage) {
+// Named message handler for background messages
+function handleBackgroundMessage(
+  message: unknown,
+  sender: Runtime.MessageSender,
+  sendResponse: (response?: any) => void
+): true | Promise<unknown> {
   if (!message || typeof message !== 'object') {
     log.warn('Invalid message from background', false, message);
-    return;
+    return true;
   }
 
+  const yakklMessage = message as YakklMessage;
   log.debug('Received message from background', false, {
-    message,
+    message: yakklMessage,
     timestamp: new Date().toISOString()
   });
 
   // Forward response to webpage
-  if (message.type === 'YAKKL_RESPONSE:EIP6963' || message.type === 'YAKKL_RESPONSE:EIP1193') {
-    const response = message as YakklResponse;
+  if (yakklMessage.type === 'YAKKL_RESPONSE:EIP6963' || yakklMessage.type === 'YAKKL_RESPONSE:EIP1193') {
+    const response = yakklMessage as YakklResponse;
     const { id } = response;
     const pendingRequest = pendingRequests.get(id);
+
+    log.info('handleBackgroundMessage ======================= YAKKL_RESPONSE:EIP6963', false, {
+      message: yakklMessage,
+      pendingRequest: pendingRequest,
+      pendingRequests: Array.from(pendingRequests.keys())
+    });
 
     if (pendingRequest) {
       log.debug('Forwarding response to webpage', false, {
         id,
         method: pendingRequest.method,
-        type: message.type,
+        type: yakklMessage.type,
         timestamp: new Date().toISOString()
       });
 
@@ -950,7 +961,7 @@ function handleBackgroundMessage(message: YakklMessage) {
       pendingRequests.delete(id);
 
       // Forward to webpage
-      safePostMessage(message, getTargetOrigin(), {
+      safePostMessage(yakklMessage, getTargetOrigin(), {
         context: 'content',
         allowRetries: true,
         retryKey: `response-${id}`
@@ -958,39 +969,49 @@ function handleBackgroundMessage(message: YakklMessage) {
     } else {
       log.warn('No pending request found for response', false, {
         id,
-        message,
+        message: yakklMessage,
         pendingRequests: Array.from(pendingRequests.keys())
       });
     }
   }
 
   // Forward events to webpage
-  if (message.type === 'YAKKL_EVENT:EIP6963' || message.type === 'YAKKL_EVENT:EIP1193') {
-    const event = message as YakklEvent;
+  if (yakklMessage.type === 'YAKKL_EVENT:EIP6963' || yakklMessage.type === 'YAKKL_EVENT:EIP1193') {
+    const event = yakklMessage as YakklEvent;
     log.debug('Forwarding event to webpage', false, {
       event: event.event,
-      type: message.type,
+      type: yakklMessage.type,
       timestamp: new Date().toISOString()
     });
 
     // Forward to webpage
-    safePostMessage(message, getTargetOrigin(), {
+    safePostMessage(yakklMessage, getTargetOrigin(), {
       context: 'content',
       allowRetries: true,
       retryKey: `event-${event.event}-${Date.now()}`
     });
   }
+
+  return true;
 }
 
-// Handle messages from webpage
+// Named message handler for webpage messages
 function handleWebpageMessage(event: MessageEvent) {
   // Validate origin
   if (!isValidOrigin(event.origin)) {
+    log.debug('Invalid origin for webpage message', false, {
+      origin: event.origin,
+      timestamp: new Date().toISOString()
+    });
     return;
   }
 
   const message = event.data;
   if (!message || typeof message !== 'object') {
+    log.debug('Invalid message format from webpage', false, {
+      message,
+      timestamp: new Date().toISOString()
+    });
     return;
   }
 
@@ -1044,6 +1065,19 @@ function handleWebpageMessage(event: MessageEvent) {
     }
   }
 }
+
+// Replace anonymous listeners with named ones
+window.removeEventListener('message', handleInpageMessage);
+window.addEventListener('message', handleInpageMessage);
+
+browser.runtime.onMessage.removeListener(handleBackgroundMessage);
+browser.runtime.onMessage.addListener((
+  message: unknown,
+  sender: Runtime.MessageSender,
+  sendResponse: (response?: any) => void
+): true | Promise<unknown> => {
+  return handleBackgroundMessage(message, sender, sendResponse);
+});
 
 // Initialize content script
 function initialize() {

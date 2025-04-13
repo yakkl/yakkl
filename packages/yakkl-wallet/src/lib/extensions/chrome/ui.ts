@@ -118,32 +118,32 @@ export async function showPopup(url: string = ''): Promise<void> {
   }
 }
 
-export async function showPopupDapp(url: string): Promise<void> {
-  try {
-    // Use more appropriate dimensions for dapp popups
-    // Width: 360px is standard for most wallet popups
-    // Height: Varies by type:
-    // - Approval: 500px
-    // - Transaction signing: 600px
-    // - Account selection: 550px
-    const height = url.includes('approve.html') ? 600 :
-                  url.includes('transactions.html') ? 600 :
-                  url.includes('accounts.html') ? 550 : 500;
+// export async function showPopupDapp(url: string): Promise<void> {
+//   try {
+//     // Use more appropriate dimensions for dapp popups
+//     // Width: 360px is standard for most wallet popups
+//     // Height: Varies by type:
+//     // - Approval: 620px
+//     // - Transaction signing: 620px
+//     // - Account selection: 550px
+//     const height = url.includes('approve.html') ? 620 :
+//                   url.includes('transactions.html') ? 620 :
+//                   url.includes('accounts.html') ? 550 : 500;
 
-    log.info('showPopupDapp - 133 (ui):', false, {url, height});
+//     log.info('showPopupDapp >>> - 133 (ui):', false, {url, height});
 
-    showExtensionPopup(360, height, url).then(async (result) => {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      browser_ext.windows.update(result.id, {drawAttention: true});
-      openPopups.set('popupId', result.id);
-    }).catch((error) => {
-      log.error('Background - YAKKL: ' + false, error);
-    });
-  } catch (error) {
-    log.error('Background - showPopupDapp', false, error);
-  }
-}
+//     showExtensionPopup(360, height, url).then(async (result) => {
+//       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+//       // @ts-ignore
+//       browser_ext.windows.update(result.id, {drawAttention: true});
+//       openPopups.set('popupId', result.id);
+//     }).catch((error) => {
+//       log.error('Background - YAKKL: ' + false, error);
+//     });
+//   } catch (error) {
+//     log.error('Background - showPopupDapp', false, error);
+//   }
+// }
 
 export async function showDappSidePanel(request: string) {
   try {
@@ -181,11 +181,11 @@ export async function showDappSidePanel(request: string) {
 
 export async function showDappPopup(request: string) {
   try {
-    const height = request.includes('approve.html') ? 600 :
-                   request.includes('transactions.html') ? 600 :
+    const height = request.includes('approve.html') ? 620 :
+                   request.includes('transactions.html') ? 620 :
                    request.includes('accounts.html') ? 550 : 500;
 
-    log.info('showDappPopup - 186 (ui):', false, {request, height});
+    log.info('showDappPopup <<< - 186 (ui-inside):', false, {request, height});
 
     showExtensionPopup(360, height, request).then(async (result) => {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment

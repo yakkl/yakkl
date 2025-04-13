@@ -1388,10 +1388,10 @@
 						<button
 							id="send"
 							onclick={handleSendRequest}
-							class="inline-block h-10 px-7 md:py-3 py-2 mt-.5 bg-indigo-600 text-gray-300 font-bold
-							text-large leading-snug uppercase rounded-md shadow-md hover:bg-indigo-700
-							hover:shadow-md focus:bg-indogo-700 focus:shadow-md focus:outline-none focus:ring-0
-							active:bg-indigo-800 active:shadow-md transition duration-150 ease-in-out w-full"
+							class="inline-block h-10 px-7 md:py-3 py-2 mt-.5 bg-emerald-400 text-white font-bold
+							text-large leading-snug uppercase rounded-md shadow-md hover:bg-emerald-500
+							hover:shadow-md focus:shadow-md focus:outline-none focus:ring-0
+							transition duration-150 ease-in-out w-full"
 							data-mdb-ripple="true"
 							data-mdb-ripple-color="light">
 							<div class="inline-flex items-center align-middle">

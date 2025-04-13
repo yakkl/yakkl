@@ -49,7 +49,6 @@ export abstract class IdleManagerBase {
               await browser_ext.runtime.sendMessage({type: 'stopPricingChecks'});
               await browser_ext.runtime.sendMessage({type: 'lockdown'});
             } else {
-              // TODO: Will need to revist 'sendMessage' for 'lockdownImminent'
               // Delayed lockdown
               log.warn(`${state} detected, lockdown will occur in ${this.lockDelay/1000} seconds`);
               await browser_ext.runtime.sendMessage({type: 'stopPricingChecks'});
