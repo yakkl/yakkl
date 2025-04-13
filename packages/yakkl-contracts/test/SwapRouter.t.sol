@@ -20,6 +20,7 @@ contract SwapRouterTest is Test {
     function setUp() public {
         vm.createSelectFork(vm.envString("ETH_RPC_URL"));
 
+<<<<<<< Updated upstream:packages/yakkl-contracts/test/SwapRouter.t.sol
         feeManager = new FeeManager(feeRecipient);
         swapRouter = new SwapRouter(
             UNISWAP_ROUTER,
@@ -28,6 +29,16 @@ contract SwapRouterTest is Test {
             address(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6), // Quoter address - mainnet or forked mainnet
             address(0x1F98431c8aD98523631AE4a59f267346ea31F984)  // Factory address - mainnet or forked mainnet 
         );
+=======
+    feeManager = new FeeManager(feeRecipient);
+    swapRouter = new SwapRouter(
+        UNISWAP_ROUTER,
+        WETH9,
+        address(feeManager),
+        address(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6), // Quoter address - mainnet or forked mainnet
+        address(0x1F98431c8aD98523631AE4a59f267346ea31F984)  // Factory address - mainnet or forked mainnet 
+    );
+>>>>>>> Stashed changes:packages/contracts/test/SwapRouter.t.sol
 
         // Reset balances before each test
         vm.deal(address(this), 0);

@@ -4,13 +4,10 @@ import { log } from "$lib/plugins/Logger";
 
 export async function onDappListener(event: any, sender: any): Promise<void> {
   try {
-
-    debug_log('yakkl - background - onDappListener', event, sender);
-
     switch(event?.method) {
       case 'get_warning':
-        if (Number(event?.id) >= 0) {
-          const data = requestsExternal.get(Number(event.id).toString());
+        if (event.id) {
+          const data = requestsExternal.get(event.id);
           if (data) {
             sender.postMessage({method: 'get_warning', data: data});
           } else {
@@ -22,20 +19,21 @@ export async function onDappListener(event: any, sender: any): Promise<void> {
         }
         break;
       case 'get_params':
-        if (Number(event?.id) >= 0) {
-          const data = requestsExternal.get(Number(event.id).toString());
-          if (data) {
-            sender.postMessage({method: 'get_params', data: data});
-          } else {
-            sender.postMessage({method: 'reject'});
-          }
-        } else {
-          throw 'No id is present - rejected';
+        if (!event.id) {
+          log.error('Dapp - get_params - No event ID is present.');
+          return;
         }
+        const data = requestsExternal.get(event.id);
+        if (!data) {
+          // Instead of rejecting, return empty params to indicate no data
+          sender.postMessage({ id: event.id, method: 'get_params', type: 'YAKKL_RESPONSE', result: { params: [] } });
+          return;
+        }
+        sender.postMessage({ id: event.id, method: 'get_params', type: 'YAKKL_RESPONSE', result: data });
         break;
       case 'error':
         {
-          const data = requestsExternal.get(Number(event.id).toString());
+          const data = requestsExternal.get(event.id);
           if (data) {
             const requestData = data.data;
             const sender = (requestData as { sender: any }).sender;
@@ -47,7 +45,11 @@ export async function onDappListener(event: any, sender: any): Promise<void> {
         break;
       default: // Relays to content.ts
         {
-          const data = requestsExternal.get(Number(event.id).toString());
+          const data = requestsExternal.get(event.id);
+
+          log.debug('Dapp - onDappListener - requestExternal', false, requestsExternal);
+          log.debug('Dapp - onDappListener - data', false, data);
+          log.debug('Dapp - onDappListener - event', false, event);
 
           if (data) {
             const requestData = data.data;
@@ -57,8 +59,11 @@ export async function onDappListener(event: any, sender: any): Promise<void> {
             } else {
               throw 'Connection to port has been disconnected - rejected';
             }
+          } else if (event.id) {
+
+            sender.postMessage({id: event.id, 'jsonrpc': '2.0', method: event.method, type: 'YAKKL_RESPONSE:EIP6963', result: event.result});
           } else {
-            throw 'No data is present - rejected';
+            log.warn('Warning - No request ID is present - rejected', false, {event: event});
           }
         }
         break;

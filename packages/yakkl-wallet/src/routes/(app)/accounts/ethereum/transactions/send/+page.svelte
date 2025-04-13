@@ -1,7 +1,6 @@
 <script lang="ts">
   import { browserSvelte } from '$lib/common/environment';
-	import { goto } from "$app/navigation";
-	import { yakklGasTransStore, yakklPricingStore, yakklContactsStore, getYakklContacts, yakklConnectionStore, getProfile, getSettings, getMiscStore, yakklCurrentlySelectedStore, getYakklCurrentlySelected } from '$lib/common/stores';
+	import { yakklGasTransStore, yakklPricingStore, yakklContactsStore, getYakklContacts, yakklConnectionStore, getProfile, getMiscStore, yakklCurrentlySelectedStore, getYakklCurrentlySelected } from '$lib/common/stores';
 	import { decryptData } from '$lib/common/encryption';
 	import { createForm } from 'svelte-forms-lib';
 	import * as yup from 'yup';
@@ -9,7 +8,7 @@
 	import { handleOpenInTab, formatValue, getChainId, deepCopy } from '$lib/utilities/utilities';
 	import { getLengthInBytes, wait } from '$lib/common/utils';
   import { onDestroy, onMount } from 'svelte';
-  import { ETH_BASE_EOA_GAS_UNITS, ETH_BASE_SCA_GAS_UNITS, PATH_LOGOUT, TIMER_CHECK_GAS_PRICE_INTERVAL_TIME } from '$lib/common/constants';
+  import { ETH_BASE_EOA_GAS_UNITS, ETH_BASE_SCA_GAS_UNITS, TIMER_CHECK_GAS_PRICE_INTERVAL_TIME } from '$lib/common/constants';
 	import { startCheckGasPrices, stopCheckGasPrices, debounce } from '$lib/utilities/gas';
 	import ErrorNoAction from '$lib/components/ErrorNoAction.svelte';
 	import Warning from '$lib/components/Warning.svelte';
@@ -34,6 +33,7 @@
 
 // EIP-6969 - A proposal of giving back some of the gas fees to developers.
 // Article in Blockworks - https://blockworks.co/news/ethereum-proposal-developers-revenuers
+
 
 	let wallet: Wallet;
 
@@ -142,7 +142,7 @@
     txStatus: '',
     txHash: '',
     txToAddress: '',
-    txValue: '0.0',
+    txQuantity: '0.0',
     txmaxFeePerGas: '0.0',
     txmaxPriorityFeePerGas: '0.0',
     txGasLimit: 21000n,
@@ -234,11 +234,9 @@
     toastStatus = false;
   }
 
-
   // For tracking down Heisenberg like bug from some 3rd party library
   let mountTime: number;
   let updateCount = 0;
-
 
 	onMount(async () => {
 		try {
@@ -269,12 +267,11 @@
 				transactionState.blockchain = currentlySelected!.shortcuts.network.blockchain;
 				transactionState.address = currentlySelected!.shortcuts.address;
 
-				checkSettings(); // If all good then returns else redirects to logout. This will force a new login.
 				startGasPricingChecks();
 				handleRecycle();
 				loadContacts();
-
 				checkValue();
+
 
 				// May can remove this later if we still want to enable all tabs
 				amountTab = document.getElementById("amount") as HTMLButtonElement;
@@ -311,6 +308,74 @@
 			log.error('Send - onDestroy:', true, e);
 		}
 	});
+
+  function clearValues() {
+		try {
+			clearVerificationValues();
+			toAddressValue = 0n;
+			valueState.valueCrypto = '0.0';
+			valueState.valueUSD = '0.0';
+			$form.toAddress = toAddress =	'';
+			$form.toAddressValue = '';
+			$form.hexData = hexData = '';
+			$form.maxPriorityFeePerGasOverride = (gasState.maxPriorityFeePerGas = 0).toString();
+			$form.maxFeePerGasOverride = (gasState.maxFeePerGas = 0).toString();
+			uiState.amountTabOpen = true;
+			uiState.feesTabOpen = false;
+			uiState.errorFields = false;
+			transactionState.txNetworkTypeName = 'Mainnet';
+			transactionState.txURL = '';
+			transactionState.txHash = '';
+			transactionState.txToAddress = '';
+			transactionState.txQuantity = '0.0';
+			transactionState.txGasPercentIncrease = 0; // This is a percentage increase to the gas fee to aid in unblocking transactions and must be an integer and not a float
+			transactionState.txmaxFeePerGas = '0.0';
+			txmaxPriorityFeePerGas = '0.0';
+			txGasLimit = 21000n;
+			transactionState.txGasLimitIncrease = 0;
+			transactionState.txNonce = 0;
+			transactionState.recipientPays = false;
+			transactionState.txStartTimestamp = '';
+			transactionState.txHistoryTransactions = [];
+			valueState.valueType = 'crypto';
+		} catch(e) {
+			log.error('Send - clearValues', true, e);
+		}
+	}
+
+  	// Simply clear only the popup verfication values
+	function clearVerificationValues() {
+		if (browserSvelte) {
+			try {
+				pincode = '';
+			} catch(e) {
+				log.error('Send - clearVerificationValues', true, e);
+			}
+		}
+	}
+
+	async function checkValue() {
+		try {
+			if (browserSvelte) {
+				try {
+					currentlySelected = $yakklCurrentlySelectedStore;
+					value = currentlySelected!.shortcuts.quantity ?? 0n;
+
+					if (value.valueOf() as bigint <= 0n) {
+						greaterThan0 = false;
+						uiState.error = true;
+						uiState.errorValue = `The current account, ${currentlySelected!.shortcuts.address}, has a 0 balance - there are insufficient funds in this account.`;
+					}
+				} catch (e) {
+					uiState.error = true;
+					uiState.errorValue = e as string;
+				}
+			}
+		} catch(e) {
+			log.error('Send - checkValue', true, e);
+		}
+	}
+
 
   function validateDOMState() {
     // Check for any detached elements or common issues
@@ -357,6 +422,7 @@
 			log.error('Send - onBlur', true, e);
 		}
 	}
+
 
 	const { form, errors, handleChange, handleSubmit } = createForm({
 		initialValues: { toAddress: '', toAddressValue: '', maxPriorityFeePerGasOverride: '0', maxFeePerGasOverride: '0', hexData: '' },
@@ -625,40 +691,6 @@
     }
   }
 
-	async function checkSettings() {
-		try {
-			const yakklSettings = await getSettings();
-			if (yakklSettings === null || yakklSettings === undefined || yakklSettings.init == false || yakklSettings.isLocked === true) {
-					goto(PATH_LOGOUT); // This will reset.
-			}
-		} catch(e) {
-			log.error('Send - checkSettings', true, e);
-			goto(PATH_LOGOUT); // This is a catch all for now
-		}
-	}
-
-	async function checkValue() {
-		try {
-			if (browserSvelte) {
-				try {
-					currentlySelected = $yakklCurrentlySelectedStore;
-					value = currentlySelected!.shortcuts.value ?? 0n;
-
-					if (value.valueOf() as bigint <= 0n) {
-						greaterThan0 = false;
-						uiState.error = true;
-						uiState.errorValue = `The current account, ${currentlySelected!.shortcuts.address}, has a 0 balance - there are insufficient funds in this account.`;
-					}
-				} catch (e) {
-					uiState.error = true;
-					uiState.errorValue = e as string;
-				}
-			}
-		} catch(e) {
-			log.error('Send - checkValue', true, e);
-		}
-	}
-
 	function handleClose() {
 		try {
 			uiState.error=false;
@@ -733,7 +765,7 @@
 				type: 2,
 				from: transactionState.address ? transactionState.address : '',
 				to: cancel === false ? toAddress : currentlySelected!.shortcuts.address, // Allows for sending to yourself to cancel a transaction
-				value: cancel === true ? 0n : EthereumBigNumber.toWei(toAddressValue).value, //parseEther(toAddressValue.toString()), // If cancel is true then set value to 0
+				quantity: cancel === true ? 0n : EthereumBigNumber.toWei(toAddressValue).value, //parseEther(toAddressValue.toString()), // If cancel is true then set value to 0
 				chainId: currentlySelected!.shortcuts.network.chainId,
 				gasLimit: gasLimit,
 				maxPriorityFeePerGas: EthereumBigNumber.toGwei(priorityFeePerGas).value, //parseUnits(priorityFeePerGas.toString(), 'gwei'),   // In gwei
@@ -775,7 +807,7 @@
 			transactionState.txURL = $yakklCurrentlySelectedStore?.shortcuts.network.explorer + '/address/' + transactionState.address;
 			transactionState.txHash = transaction.hash ?? '';
 			transactionState.txToAddress = transaction.to ?? '';
-			transactionState.txValue = transaction.value?.toString() ?? '0.0';
+			transactionState.txQuantity = transaction.quantity?.toString() ?? '0.0';
 			transactionState.txmaxFeePerGas = transaction.maxFeePerGas?.toString() ?? '0';
 			txmaxPriorityFeePerGas = transaction.maxPriorityFeePerGas?.toString() ?? '0';
 			txGasLimit = transaction.gasLimit as bigint;
@@ -901,7 +933,7 @@
 	function handleMax() {
 		// May need to reduce based on estimated fees
 		try {
-			$form.toAddressValue = EthereumBigNumber.toEtherString($yakklCurrentlySelectedStore!.shortcuts.value) ?? '0.0';
+			$form.toAddressValue = EthereumBigNumber.toEtherString($yakklCurrentlySelectedStore!.shortcuts.quantity) ?? '0.0';
 		} catch(e) {
 			log.error('Send - handleMax', true, e);
 			clearVerificationValues();
@@ -913,51 +945,6 @@
       clearValues(); // This resets but not cancels a transaction that is already being processed
 		} catch(e) {
 			log.error('Send - handleCancelReset', true, e);
-		}
-	}
-
-	function clearValues() {
-		try {
-			clearVerificationValues();
-			toAddressValue = 0n;
-			valueState.valueCrypto = '0.0';
-			valueState.valueUSD = '0.0';
-			$form.toAddress = toAddress =	'';
-			$form.toAddressValue = '';
-			$form.hexData = hexData = '';
-			$form.maxPriorityFeePerGasOverride = (gasState.maxPriorityFeePerGas = 0).toString();
-			$form.maxFeePerGasOverride = (gasState.maxFeePerGas = 0).toString();
-			uiState.amountTabOpen = true;
-			uiState.feesTabOpen = false;
-			uiState.errorFields = false;
-			transactionState.txNetworkTypeName = 'Mainnet';
-			transactionState.txURL = '';
-			transactionState.txHash = '';
-			transactionState.txToAddress = '';
-			transactionState.txValue = '0.0';
-			transactionState.txGasPercentIncrease = 0; // This is a percentage increase to the gas fee to aid in unblocking transactions and must be an integer and not a float
-			transactionState.txmaxFeePerGas = '0.0';
-			txmaxPriorityFeePerGas = '0.0';
-			txGasLimit = 21000n;
-			transactionState.txGasLimitIncrease = 0;
-			transactionState.txNonce = 0;
-			transactionState.recipientPays = false;
-			transactionState.txStartTimestamp = '';
-			transactionState.txHistoryTransactions = [];
-			valueState.valueType = 'crypto';
-		} catch(e) {
-			log.error('Send - clearValues', true, e);
-		}
-	}
-
-	// Simply clear only the popup verfication values
-	function clearVerificationValues() {
-		if (browserSvelte) {
-			try {
-				pincode = '';
-			} catch(e) {
-				log.error('Send - clearVerificationValues', true, e);
-			}
 		}
 	}
 
@@ -1250,6 +1237,7 @@
 			log.error('Send - effect', true, e);
 		}
 	});
+
 </script>
 
 <PincodeVerify bind:show={uiState.showVerify} onVerified={handlePin} onRejected={handleReject} className="text-gray-600"/>
@@ -1400,10 +1388,10 @@
 						<button
 							id="send"
 							onclick={handleSendRequest}
-							class="inline-block h-10 px-7 md:py-3 py-2 mt-.5 bg-indigo-600 text-gray-300 font-bold
-							text-large leading-snug uppercase rounded-md shadow-md hover:bg-indigo-700
-							hover:shadow-md focus:bg-indogo-700 focus:shadow-md focus:outline-none focus:ring-0
-							active:bg-indigo-800 active:shadow-md transition duration-150 ease-in-out w-full"
+							class="inline-block h-10 px-7 md:py-3 py-2 mt-.5 bg-emerald-400 text-white font-bold
+							text-large leading-snug uppercase rounded-md shadow-md hover:bg-emerald-500
+							hover:shadow-md focus:shadow-md focus:outline-none focus:ring-0
+							transition duration-150 ease-in-out w-full"
 							data-mdb-ripple="true"
 							data-mdb-ripple-color="light">
 							<div class="inline-flex items-center align-middle">
@@ -1453,7 +1441,7 @@
 
 								<div class="w-full break-all ">
 									<p class="text-sm font-semibold text-white">
-										Sending/Transferring: {transactionState.txValue}
+										Sending/Transferring: {transactionState.txQuantity}
 									</p>
 									<p class="text-sm -mt-1 font-semibold text-white">
 										To:

@@ -62,7 +62,7 @@ export const load = async () => {
     return {};
   }
 
-try {
+  try {
     // Initialize the browser API
     const browser = initializeBrowserAPI();
 

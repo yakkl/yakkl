@@ -70,8 +70,14 @@ class PostMessageDuplexStream extends Duplex {
   _write(message: any, _encoding: string, callback: (error?: Error) => void) {
     try {
       log.debug('PostMessageDuplexStream writing message', true, { message, origin: this._origin });
-      window.postMessage(message, this._origin);
-      callback();
+      if (window && typeof window.postMessage === 'function') {
+        window.postMessage(message, this._origin);
+        callback();
+      } else {
+        const error = new Error('Window context invalid for postMessage');
+        log.error('Error in PostMessageDuplexStream _write', true, error);
+        callback(error);
+      }
     } catch (error) {
       log.error('Error in PostMessageDuplexStream _write', true, error);
       callback(error instanceof Error ? error : new Error(String(error)));
@@ -91,10 +97,11 @@ class PostMessageDuplexStream extends Duplex {
           event.data.type === 'YAKKL_REQUEST:EIP6963' ||
           event.data.type === 'YAKKL_RESPONSE:EIP6963' ||
           event.data.type === 'YAKKL_EVENT:EIP6963')) {
-          log.debug('PostMessageDuplexStream pushing valid message', true, event.data);
+          log.debug('PostMessageDuplexStream pushing valid message ---><--- ', true, {event: event, eventData: event.data});
           this.push(event.data);
         } else {
           log.debug('PostMessageDuplexStream ignoring message with invalid type', true, {
+            event: event,
             type: event.data.type
           });
         }

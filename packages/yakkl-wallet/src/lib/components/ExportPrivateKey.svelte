@@ -1,6 +1,6 @@
 <!-- ExportPrivateKey.svelte -->
 <script lang="ts">
-  import { browserSvelte } from '$lib/utilities/browserSvelte';
+  import { browserSvelte } from '$lib/utilities/browserSvelte.ts.tmp';
   import { getYakklCurrentlySelected, yakklMiscStore } from '$lib/common/stores';
   import { onMount } from 'svelte';
   import { decryptData } from '$lib/common/encryption';

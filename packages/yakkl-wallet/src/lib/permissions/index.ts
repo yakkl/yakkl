@@ -36,6 +36,8 @@ export function initializePermissions(): void {
         if (msg.type === 'WALLET_PERMISSION_RESPONSE' &&
             typeof msg.requestId === 'string') {
 
+          log.info('Received permission response', false, msg);
+
           const requestId = msg.requestId;
           const approved = Boolean(msg.approved);
           const accounts = Array.isArray(msg.accounts) ? msg.accounts : [];

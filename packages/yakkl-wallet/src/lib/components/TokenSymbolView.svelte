@@ -19,12 +19,16 @@
       script.async = true;
       script.src = '../../js/embed-widget-symbol-info.js';
       script.innerHTML = JSON.stringify({
-        width: '392',
+        width: '100%',
+        height: '100%',
         isTransparent: false,
         symbol, // Dynamically set the symbol
         locale: 'en',
         colorTheme: 'light',
       });
+
+      log.info('Script', false, script);
+      log.info('Widget Container', false, widgetContainer);
 
       widgetContainer.appendChild(script);
     } catch (error) {
@@ -51,7 +55,7 @@
 
 <section id="symbol-info">
   <div class="tradingview-widget-container">
-    <div bind:this={widgetContainer} class="tradingview-widget-container__widget"></div>
+    <div bind:this={widgetContainer} class="tradingview-widget-container__widget" style="width: auto; height: 400px; min-height: 400px; max-height: auto;"></div>
     <div class="tradingview-widget-copyright">
       <a
         href={URL}

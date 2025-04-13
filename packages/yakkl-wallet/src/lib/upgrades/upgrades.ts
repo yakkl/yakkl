@@ -6,8 +6,6 @@ import { getObjectFromLocalStorage, removeObjectFromLocalStorage, setObjectInLoc
 import type { Preferences } from '$lib/common';
 import { log } from '$lib/plugins/Logger';
 
-// TODO: Review and update where needed due to global changes for typescript conversion!!
-
 // This list gets updated with each new version
 const yakklUpdateStorage = [
   'yakklAccounts',

@@ -20,7 +20,7 @@
     handle = () => {},
     children
   }: Props = $props();
-  
+
 </script>
 
 
@@ -30,12 +30,12 @@
   {#if path !== ''}
   <div role="button" onclick={() => goto(path)} class="btn {btn} flex-nowrap w-full h-full flex flex-col items-center justify-center border border-transparent font-medium rounded-md {contentClass}">
     {@render children?.()}
-    <span class="text-sm mt-1 text-center">{title}</span>
+    <span class="xs:text-xs sm:text-sm md:text-base mt-1 text-center">{title}</span>
   </div>
   {:else}
   <div role="button"  onclick={handle} class="btn {btn} flex-nowrap w-full h-full flex flex-col items-center justify-center border border-transparent font-medium rounded-md {contentClass}">
     {@render children?.()}
-    <span class="text-sm text-center {titleClass}">{title}</span>
+    <span class="xs:text-xs sm:text-sm md:text-base text-center {titleClass}">{title}</span>
   </div>
   {/if}
 </div>

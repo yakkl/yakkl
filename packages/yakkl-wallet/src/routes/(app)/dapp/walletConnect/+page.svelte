@@ -57,7 +57,10 @@
           if (event.method === 'get_params') {
             domainTitle = requestData?.data?.metaDataParams?.title ?? '';
             domain = requestData?.data?.metaDataParams?.domain ?? '';
-            domainLogo = requestData?.data?.metaDataParams?.icon ?? '';
+            // Get favicon from URL parameters first, fall back to metadata
+            const url = new URL(window.location.href);
+            const favicon = url.searchParams.get('favicon');
+            domainLogo = favicon || (requestData?.data?.metaDataParams?.icon ?? '/images/logoBullLock48x48.png');
             message = requestData?.data?.metaDataParams?.message ?? 'Nothing was passed in explaining the intent of this approval. Be mindful!';
             context = requestData?.data?.metaDataParams?.context ?? 'accounts';
             requestId = !requestId ? requestData.id : requestId;
@@ -67,8 +70,8 @@
               showFailure = true;
             } else {
               // Only enable these if you need to CLEAR everything out for testing!
-              // $yakklConnectedDomainsStore = null;
-              // await setYakklConnectedDomainsStorage(null);
+              // $yakklConnectedDomainsStore = [];
+              // await setYakklConnectedDomainsStorage([]);
               // let yakklAccounts = [];
               // yakklAccounts = await getYakklAccounts();
               // for (const item of yakklAccounts) {

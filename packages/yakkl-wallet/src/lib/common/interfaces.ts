@@ -10,6 +10,78 @@ export interface RequestArguments {
   params?: unknown[] | object;
 }
 
+export interface JsonRpcRequest {
+  jsonrpc: '2.0';
+  id: number | string;
+  method: string;
+  params?: unknown[];
+}
+
+export interface JsonRpcResponse {
+  type: 'YAKKL_RESPONSE:EIP6963';
+  jsonrpc: '2.0';
+  id: number | string;
+  result?: unknown;
+  error?: {
+      code: number;
+      message: string;
+      data?: unknown;
+  };
+}
+
+export interface YakklRequest {
+  type: string;
+  id: number | string;
+  method: string;
+  params: unknown[];
+  requiresApproval?: boolean;
+}
+
+export interface YakklResponse {
+  type: string;
+  id: number | string;
+  method?: string;
+  result?: unknown;
+  error?: {
+    code: number;
+    message: string;
+    data?: unknown;
+  };
+}
+
+export interface YakklEvent {
+  type: string;
+  event: string;
+  data: unknown;
+}
+
+export type YakklMessage = YakklRequest | YakklResponse | YakklEvent;
+
+// Define the request metadata type
+export interface RequestMetadata {
+  method: string;
+  params: any[];
+  metaDataParams: {
+    domain: string;
+    icon: string;
+    title: string;
+    message: string;
+    context: string;
+  };
+}
+
+// Define the pending request type
+export interface PendingRequest {
+  method: string;
+  params?: any[];
+  resolve?: (value: any) => void;
+  reject?: (error: any) => void;
+  timestamp: number;
+  port?: chrome.runtime.Port;
+  id?: string | number;
+  type?: string;
+}
+
 export interface EncryptedData {
   data: string;
   iv: string;
@@ -31,6 +103,7 @@ export interface ActiveTab {
   url?: string;
   title?: string;
   favIconUrl?: string;
+  dateTime?: string;
 }
 
 export interface GetActiveTabResponse {
@@ -214,7 +287,7 @@ export interface BaseTransaction {
   gasLimit?: BigNumberish | null | undefined;
   gasPrice?: BigNumberish | null | undefined;
   data?: BytesLike;
-  value?: BigNumberish | null;
+  quantity?: BigNumberish | null;
   chainId?: BigNumberish;
   r?: string;
   s?: string;
@@ -598,7 +671,7 @@ export interface YakklWatch {
   blockchain: string;
   name: string;
   tags?: string[];
-  value: BigNumberish;
+  quantity?: BigNumberish;
   includeInPortfolio: boolean;
   explorer?: string;
   address: string;
@@ -616,7 +689,7 @@ export interface ProfileData {
   pincode: string;
   sig?: string;
   security?: YakklSecurity;
-  value: BigNumberish;
+  value: BigNumberish; // This is the total value of all the accounts in the portfolio
   accountIndex: number;
   primaryAccounts: YakklPrimaryAccount[];
   importedAccounts: YakklAccount[]; // Independent accounts - These accounts have no relation to any primary or subaccount but do use the account model
@@ -700,7 +773,7 @@ export interface ProfileShort {
 }
 
 export interface Shortcuts {
-  value: BigNumberish; // Account value
+  quantity?: BigNumberish; // Account value
   accountType: AccountTypeCategory; // primary, imported, sub
   accountName: string;
   smartContract: boolean;
@@ -765,15 +838,16 @@ export interface YakklAccount {
   description: string; // Can use this to describe an account associated with an NFT or RWA (Real World Asset) or class
   primaryAccount: YakklPrimaryAccount | null; // If the account is a primary account then this is empty
   data: EncryptedData | AccountData; // anything with 'data' as a property then the content will be encrypted
-  value: BigNumberish; // Value is used as a placeholder and adjusted as needed for display and calculations - dynamic
+  quantity?: BigNumberish; // Value is used as a placeholder and adjusted as needed for display and calculations - dynamic
   class?: string; // Used for enterprise environments
   level?: string; // L1
   isSigner?: boolean;
-  avatar: string; // Default is identityicon but can be changed to user/account avatar
+  avatar?: string; // Default is identityicon but can be changed to user/account avatar
   tags?: string[];
+  chainIds?: number[]; // 1 will be the default for all accounts
+  connectedDomains: string[];
   includeInPortfolio: boolean; // This only applies to the value in this primary account and not any of the derived accounts
   // explorer?: string; // Remove later - moved to network
-  connectedDomains: string[];
   version: string; // Travels with the data for upgrades
   createDate: string;
   updateDate: string;
@@ -807,7 +881,7 @@ export interface YakklPrimaryAccount {
   id: string; // Profile id
   name: string; // account name, address, and keys are here for convenience - they are also in the yakklAccount record
   address: string;
-  value: BigNumberish;  // Value is used as a placeholder and adjusted as needed for display and calculations - dynamic
+  quantity: BigNumberish;  // Value is used as a placeholder and adjusted as needed for display and calculations - dynamic
   index: number; // for primary path account index
   data: EncryptedData | PrimaryAccountData; // anything with 'data' as a property then the content will be encrypted
   account: YakklAccount; // Primary

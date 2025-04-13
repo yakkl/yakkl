@@ -22,6 +22,9 @@
         <!-- <DropdownMenu.Item closeOnSelect={true} onclick={() => onSelect('carousel')} textValue="carousel">
           Carousel
         </DropdownMenu.Item> -->
+        <DropdownMenu.Item closeOnSelect={true} onclick={() => onSelect('chartAdvanced')} textValue="chartAdvanced">
+          Chart Advanced
+        </DropdownMenu.Item>
         <DropdownMenu.Item closeOnSelect={true} onclick={() => onSelect('chart')} textValue="chart">
           Chart
         </DropdownMenu.Item>

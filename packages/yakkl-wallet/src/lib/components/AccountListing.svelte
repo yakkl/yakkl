@@ -2,7 +2,7 @@
 <script lang="ts">
   import type { YakklAccount } from '$lib/common';
   import { onMount } from 'svelte';
-  import { yakklAccountsStore, yakklCurrentlySelectedStore, yakklPrimaryAccountsStore } from '$lib/common/stores';
+  import { yakklAccountsStore, yakklCurrentlySelectedStore, yakklPricingStore, yakklPrimaryAccountsStore } from '$lib/common/stores';
   import AccountForm from './AccountForm.svelte';
   import Confirmation from './Confirmation.svelte';
   import { dateString } from '$lib/common/datetime';
@@ -11,6 +11,8 @@
   import EditControls from './EditControls.svelte';
 	import WalletManager from '$lib/plugins/WalletManager';
   import type { Wallet } from '$lib/plugins/Wallet';
+	import { log } from '$lib/plugins/Logger';
+  import { collectAccountData, type AccountData } from '$lib/utilities/accountData';
 
   interface Props {
     accounts?: YakklAccount[];
@@ -22,10 +24,25 @@
   let editMode = $state(false);
   let showDeleteModal = $state(false);
   let selectedAccount: YakklAccount | null = $state(null);
-  let wallet: Wallet;
+  let wallet: Wallet | null = $state(null);
+  let accountData: AccountData[] = $state([]);
+
+  $effect(() => {
+    (async () => {
+      if (wallet && $yakklPricingStore && accounts.length > 0) {
+        if ($yakklPricingStore.price === $yakklPricingStore.prevPrice) {
+          log.info('Price has not changed.');
+          return;
+        }
+        accountData = await collectAccountData(accounts, wallet);
+      }
+    })();
+  });
 
   onMount(() => {
-    accounts = $yakklAccountsStore;
+    if (!accounts.length) {
+      accounts = $yakklAccountsStore;
+    }
     wallet = WalletManager.getInstance(['Alchemy'], ['Ethereum'], $yakklCurrentlySelectedStore!.shortcuts.chainId ?? 1, import.meta.env.VITE_ALCHEMY_API_KEY_PROD);
   });
 
@@ -130,7 +147,7 @@
 </script>
 
 <ul>
-  {#each accounts as account}
+  {#each accountData as { account, quantityFormatted, totalValueFormatted }}
     <li class="mb-4 relative">
       <button class="w-full flex items-start rounded-lg p-4 transition-colors duration-200 {account.accountType === AccountTypeCategory.PRIMARY ? 'bg-purple-100 hover:bg-purple-200' : account.accountType === AccountTypeCategory.SUB ? 'bg-blue-100 hover:bg-blue-200' : 'bg-green-100 hover:bg-green-200'}" onclick={() => onAccountSelect(account)}>
         <div class="w-8 h-8 flex items-center justify-center rounded-full {account.accountType === AccountTypeCategory.PRIMARY ? 'bg-purple-500' : account.accountType === AccountTypeCategory.SUB ? 'bg-blue-500' : 'bg-green-500'} text-white mr-4 shrink-0">
@@ -138,7 +155,7 @@
             <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
           </svg>
         </div>
-        <div class="flex-1">
+        <div class="flex-1 -ml-2">
           <div class="flex items-center justify-between mb-1">
             <h3 class="text-md font-bold">{account.accountType === AccountTypeCategory.PRIMARY ? 'PORTFOLIO' : account.accountType === AccountTypeCategory.SUB ? 'SUB-PORTFOLIO' : 'IMPORTED'}</h3>
           </div>
@@ -147,6 +164,16 @@
           <span class="text-xs text-gray-500 mt-1">Derived from {account.primaryAccount?.name}</span>
           {/if}
           <p class="text-xs text-gray-500 mt-1">{account.address}</p>
+          <div class="flex items-center justify-between mt-2">
+            <div class="flex items-center space-x-2">
+              <span class="text-xs font-medium text-gray-600">Quantity:</span>
+              <span class="text-xs font-semibold">{quantityFormatted} ETH</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="text-xs font-medium text-gray-600">Total Value:</span>
+              <span class="text-xs font-semibold">{totalValueFormatted}</span>
+            </div>
+          </div>
         </div>
       </button>
       <EditControls onEdit={() => handleEdit(account)} onDelete={() => handleDelete(account)} onCopy={() => handleCopy(account)} controls={['copy', 'edit', 'delete']}/>

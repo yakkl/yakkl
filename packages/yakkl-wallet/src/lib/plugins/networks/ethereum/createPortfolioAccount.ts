@@ -11,6 +11,7 @@ import { dateString } from '$lib/common/datetime';
 import { AccountTypeCategory, NetworkType } from '$lib/common/types';
 import { VERSION } from '$lib/common/constants';
 import { log } from '$lib/plugins/Logger';
+import { addressExist } from '$lib/common/utils';
 
 export async function createPortfolioAccount(yakklMiscStore: string, profile: Profile) {
   try {
@@ -75,6 +76,12 @@ export async function createPortfolioAccount(yakklMiscStore: string, profile: Pr
     const randomMnemonic = ethersv6.Mnemonic.fromEntropy(entropy);
     const ethWallet = ethersv6.HDNodeWallet.fromMnemonic(randomMnemonic, derivedPath);
 
+    // Check if address already exists in accounts or primary accounts
+    const { exists, table } = await addressExist(ethWallet.address);
+    if (exists) {
+      throw `The Ethereum Wallet (Portfolio Account) was not able to be created. Address already exists in ${table}. Please try again.`;
+    }
+
     if ( !ethWallet ) {
       throw "The Ethereum Wallet (Portfolio Account) was not able to be created. Please try again.";
     }
@@ -108,7 +115,7 @@ export async function createPortfolioAccount(yakklMiscStore: string, profile: Pr
       description: '',
       primaryAccount: null,  // If subaccount then it must be a valid primaryaccount else undefined
       data: accountData,
-      value: 0n,
+      quantity: 0n,
       class: "Default",  // This is only used for enterprise like environments. It can be used for departments like 'Finance', 'Accounting', '<whatever>'
       level: 'L1',
       isSigner: true,
@@ -142,7 +149,7 @@ export async function createPortfolioAccount(yakklMiscStore: string, profile: Pr
       id: yakklAccount.id,
       name: yakklAccount.name,
       address: yakklAccount.address,
-      value: yakklAccount.value,
+      quantity: yakklAccount.quantity,
       index: index,  // for the primary account path index
       data: yakklPrimaryAccountData,
       account: yakklAccount,  // yakklAccount.primaryAccount is always undefined here since it is the primary account

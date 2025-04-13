@@ -12,32 +12,15 @@
   import Copyright from '$lib/components/Copyright.svelte';
 	import ErrorNoAction from '$lib/components/ErrorNoAction.svelte';
 	import Welcome from '$lib/components/Welcome.svelte';
-	import { RegistrationType, checkAccountRegistration, isEncryptedData, type Preferences, type ProfileData, type Settings, type YakklCurrentlySelected, type YakklPrimaryAccount } from '$lib/common';
+	import { RegistrationType, checkAccountRegistration, isEncryptedData, type Preferences, type PrimaryAccountReturnValues, type ProfileData, type Settings, type YakklAccount, type YakklCurrentlySelected, type YakklPrimaryAccount } from '$lib/common';
 	import { verify } from '$lib/common/security';
 
 	import { deepCopy } from '@ethersproject/properties';
   import { browser_ext, browserSvelte } from '$lib/common/environment';
 	import { setLocks } from '$lib/common/locks';
   import { log } from '$plugins/Logger';
-	import { sendNotificationStartLockIconTimer } from '$lib/common/notifications';
-	// import { updateTokenPrices } from '$lib/common/tokenPriceManager';
-	// import { resetTokenDataStoreValues } from '$lib/common/resetTokenDataStoreValues';
-
-	// import { updateTokenDataCustomBalances } from '$lib/common/tokens';
-	// import RegistrationOptionModal from '$lib/components/RegistrationOptionModal.svelte';
-	// import ImportPrivateKey from '$lib/components/ImportPrivateKey.svelte';
-	// import EmergencyKitModal from '$lib/components/EmergencyKitModal.svelte';
-	// import ImportPhrase from '$lib/components/ImportPhrase.svelte';
-	// import ImportOptionModal from '$lib/components/ImportOptionModal.svelte';
-	// import { stateStore } from '$lib/common/stores/stateStore';
-	// import { setLocks } from '$lib/common/locks';
-	// import { sendNotificationStartLockIconTimer } from '$lib/common/notifications';
-  // import ProgressWaiting from '$lib/components/ProgressWaiting.svelte';
-
-  // let yakklTokenData: TokenData[] = $state([]);
-  // let yakklInstances: [Wallet, Provider, Blockchain, TokenService<any>] | [null, null, null, null] = $state([null, null, null, null]);
-  // let showImportOption = $state(false);
-  // let showImportPhrase = $state(false);
+	import { createPortfolioAccount } from '$lib/plugins/networks/ethereum/createPortfolioAccount';
+	import Import from '$lib/components/Import.svelte';
 
   // Reactive State
   let yakklCurrentlySelected: YakklCurrentlySelected | null = $state(null);
@@ -50,33 +33,30 @@
   let errorValue: any = $state('');
   let registeredType: string = $state('');
   let redirect = PATH_WELCOME;
-  let requestId: string = '';
-  let showProgress = $state(false);
+  let requestId = $state('');
   let pweyeOpen = false;
   let pweyeOpenId: HTMLButtonElement;
   let pweyeClosedId: HTMLButtonElement;
 
   let showRegistrationOption = $state(false);
-  let showEmergencyKit = $state(false);
-  let showImportAccount = $state(false);
+  let showRestoreOption = $state(false);
 
   if (browserSvelte) {
-    requestId = page.url.searchParams.get('requestId') as string ?? '';
-    $yakklDappConnectRequestStore = requestId;
-    if (requestId) {
-      redirect = PATH_DAPP_ACCOUNTS + '.html?requestId=' + requestId;
+    const urlRequestId = page.url.searchParams.get('requestId') as string ?? '';
+    requestId = urlRequestId;
+    if (urlRequestId) {
+      $yakklDappConnectRequestStore = urlRequestId;
+      redirect = PATH_DAPP_ACCOUNTS + '.html?requestId=' + urlRequestId;
+    } else {
+      $yakklDappConnectRequestStore = null;
     }
   }
-
-  $yakklVersionStore = ''; // This will get set AFTER user validation
 
   $effect(() => { yakklCurrentlySelected = $yakklCurrentlySelectedStore; });
   $effect(() => { yakklMisc = $yakklMiscStore; });
   $effect(() => { yakklSettings = $yakklSettingsStore; });
   $effect(() => { yakklPreferences = $yakklPreferencesStore; });
   $effect(() => { yakklPrimaryAccounts = $yakklPrimaryAccountsStore; });
-  // $effect(() => { yakklTokenData = $yakklTokenDataStore; });
-  // $effect(() => { yakklInstances = $yakklInstancesStore; });
 
   onMount(async () => {
     try {
@@ -93,7 +73,12 @@
         setLocks(true);
 
         // Sets the default of 60 seconds but can be changed by setting the properties to another integer.
-        browser_ext.idle.setDetectionInterval(yakklPreferences ? yakklPreferences?.idleDelayInterval ?? 60 : 60); // System idle time is 2 minutes. This adds 1 minute to that. If any movement or activity is detected then it resets.
+        // Most browser type functions exist in the background context but we have this to be more dynamic
+        if (!$yakklDappConnectRequestStore) {
+          browser_ext.idle.setDetectionInterval(yakklPreferences ? yakklPreferences?.idleDelayInterval ?? 60 : 60); // System idle time is 2 minutes. This adds 1 minute to that. If any movement or activity is detected then it resets.
+        } else {
+          log.warn('Login - 105', false, { $yakklDappConnectRequestStore });
+        }
 
         registeredType = yakklSettings.registeredType as string;
         // if (!checkUpgrade()) { // The checkUpgrade is not valid until after user is validated
@@ -151,9 +136,10 @@
           if (!yakklMisc) {
             throw `User [ ${userName} ] was not found OR password is not correct. Please try again or register if not already registered`;
           }
+
           $yakklUserNameStore = userName;
 
-          setLocks(false, registeredType);
+          // setLocks(false, registeredType);
 
           if (isEncryptedData(profile.data)) {
             profile.data = await decryptData(profile.data, yakklMisc);
@@ -197,20 +183,21 @@
           } else {
             await setIconUnlock(); // Set the unlock icon and sync will occur in welcome (next step)
           }
-          showProgress = false;
 
           // Make sure there is at least one Primary or Imported account
           if (await checkAccountRegistration()) {
             // resetTokenDataStoreValues();
             // await updateTokenPrices();
-            await sendNotificationStartLockIconTimer();
+
+            // await sendNotificationStartLockIconTimer();
             goto(redirect, {replaceState: true, invalidateAll: true});
           } else {
-            showRegistrationOption = true;
+            const primaryAccountValues: PrimaryAccountReturnValues = await createPortfolioAccount(yakklMisc, profile)
+            // goto(redirect, {replaceState: true, invalidateAll: true});
+            showRestoreOption = true;
           }
         }
       } catch(e: any) {
-        showProgress = false;
         log.error(`Login: ${e}`, e?.stack);
         errorValue = e;
         error = true;
@@ -240,74 +227,30 @@
     }
   }
 
-  async function onCancelRegistrationOption() {
+  async function onCancelLogin() {
     showRegistrationOption = false;
-    showEmergencyKit = false;
-    showImportAccount = false;
-    goto(PATH_LOGOUT);
+    showRestoreOption = false;
+    error = false;
+    errorValue = '';
+    goto(PATH_LOGOUT); // Added to handle logout after canceling login
   }
 
-  // async function onCompleteImportPrivateKey(account: YakklAccount) {
-  //   showImportAccount = false;
-  //   await goto(PATH_WELCOME)
-  // }
+  async function onCompleteRestore(message: string) {
+    log.warn(message);
+    showRestoreOption = false;
+    goto(redirect, {replaceState: true, invalidateAll: true});
+  }
 
-  // function onCancelImportPrivateKey() {
-  //   showImportAccount = false;
-  //   showRegistrationOption = true;
-  // }
-
-  // async function onCompleteEmergenyKit(success: boolean, message: string) {
-  //   showEmergencyKit = false;
-  //   await goto(PATH_WELCOME)
-  // }
-
-  // function onCancelEmergencyKit() {
-  //   showEmergencyKit = false;
-  //   showRegistrationOption = true;
-  // }
-
-  // function onCancelImportOption() {
-  //   showImportOption = false;
-  //   showEmergencyKit = false;
-  //   showImportAccount = false;
-  //   showImportPhrase = false;
-  //   showRegistrationOption = true; // Go back to the registration option
-  // }
-
-  // function onImportKey() {
-  //   showRegistrationOption = false;
-  //   showImportOption = false;
-  //   showImportPhrase = false;
-  //   showEmergencyKit = false;
-  //   showImportAccount = true;
-  // }
-
-  // function onImportPhrase() {
-  //   showRegistrationOption = false;
-  //   showImportOption = false;
-  //   showEmergencyKit = false;
-  //   showImportAccount = false;
-  //   showImportPhrase = true;
-  // }
-
-  // // May want to add parameters of what changed later but not currently needed
-  // async function onCompleteImportPhrase() {
-  //   showImportPhrase = false;
-  //   await goto(PATH_WELCOME)
-  // }
-
-  // function onCancelImportPhrase() {
-  //   showImportAccount = false;
-  //   showRegistrationOption = true;
-  // }
+  function onCancelRestore() {
+    showRestoreOption = false;
+    showRegistrationOption = true;
+  }
 
   // Here as a reference for ErrorNoAction
 
   function handleCustomAction() {
     errorValue = '';
     error = false;
-    showProgress = false;
   }
 </script>
 
@@ -315,8 +258,8 @@
 	<title>{DEFAULT_TITLE}</title>
 </svelte:head>
 
-<!-- <ProgressWaiting bind:show={showProgress} title="Verifying" value="Credentials and Loading..." /> -->
 <ErrorNoAction bind:show={error} title="ERROR!" value={errorValue} handle={handleCustomAction} />
+<Import bind:show={showRestoreOption} onComplete={onCompleteRestore} onCancel={onCancelRestore} />
 
 <Popover class="text-sm z-10" triggeredBy="#nam-help" placement="left">
   <h3 class="font-semibold">Username</h3>
@@ -355,7 +298,7 @@
         handleSubmit(e);
       }}>
 
-        <div class="mt-5 flex flex-row">
+        <div class="mt-5 flex flex-row justify-center">
           <div class="form-control w-[22rem]">
             <div class="join">
               <input id="userName"
@@ -371,7 +314,7 @@
 
         </div>
 
-        <div class="mt-5 flex flex-row">
+        <div class="mt-5 flex flex-row justify-center">
           <div class="form-control w-[22rem]">
             <input id="password" type="password"
               class="input input-bordered input-primary w-full mt-2"
@@ -389,6 +332,7 @@
               <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
               <path fill-rule="evenodd" d="M1.323 11.447C2.811 6.976 7.028 3.75 12.001 3.75c4.97 0 9.185 3.223 10.675 7.69.12.362.12.752 0 1.113-1.487 4.471-5.705 7.697-10.677 7.697-4.97 0-9.186-3.223-10.675-7.69a1.762 1.762 0 010-1.113zM17.25 12a5.25 5.25 0 11-10.5 0 5.25 5.25 0 0110.5 0z" clip-rule="evenodd" />
             </svg>
+
           </div>
           <svg id="pwd-help" tabindex="-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" class="w-6 h-6 ml-1 mt-4 fill-gray-300">
               <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
@@ -396,8 +340,9 @@
         </div>
 
         <div class="inline-block text-center">
+          <!-- btn btn-primary w-64 rounded-full mt-3 -->
           <button type="submit"
-            class="btn btn-primary w-64 rounded-full mt-3">
+            class="bg-emerald-400 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-full mt-3 w-64">
             <div class="inline-flex items-center align-middle">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 ml-2" fill="none" viewBox="0 0 24 24"
                 stroke="currentColor" stroke-width="2">
@@ -407,8 +352,9 @@
               <span>Unlock</span>
             </div>
           </button>
-          <button type="button" onclick={onCancelRegistrationOption}
-            class="btn btn-secondary w-64 rounded-full mt-3 text-white">
+          <!-- btn btn-secondary -->
+          <button type="button" onclick={onCancelLogin}
+            class="bg-slate-400 hover:bg-slate-500 w-64 rounded-full py-2 px-4 mt-3 font-bold text-white">
             <div class="inline-flex items-center align-middle">
               <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" stroke="currentColor" class="w-6 h-6 mx-2">
                 <path fill-rule="evenodd" d="M3 4.25A2.25 2.25 0 015.25 2h5.5A2.25 2.25 0 0113 4.25v2a.75.75 0 01-1.5 0v-2a.75.75 0 00-.75-.75h-5.5a.75.75 0 00-.75.75v11.5c0 .414.336.75.75.75h5.5a.75.75 0 00.75-.75v-2a.75.75 0 011.5 0v2A2.25 2.25 0 0110.75 18h-5.5A2.25 2.25 0 013 15.75V4.25z" clip-rule="evenodd" />
@@ -423,6 +369,7 @@
 
     </div>
 
+    {#if !requestId}
     <!-- {#if registeredType !== 'Pro'}
     <div id="upgrade" class="w-full mt-10">
       <div class="card bg-base-100 shadow-xl image-full animate-pulse">
@@ -444,6 +391,7 @@
       </div>
     </div>
     <!-- {/if} -->
+     {/if}
 
     <Copyright registeredType={registeredType} />
   </main>

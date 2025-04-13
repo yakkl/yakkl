@@ -5,6 +5,8 @@ import { getObjectFromLocalStorage, setObjectInLocalStorage } from "./storage";
 import { yakklCurrentlySelectedStore, yakklSettingsStore } from "./stores";
 import { log } from "$plugins/Logger";
 
+// Will keep this for now but may want to deprecate it and use the new background script to handle locks
+
 export async function setLocks(locked: boolean = true, registration: string = '') {
   try {
     let dirty = false;

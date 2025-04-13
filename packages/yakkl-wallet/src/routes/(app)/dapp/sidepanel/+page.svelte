@@ -3,6 +3,7 @@
   import DappSidePanel from '$lib/components/DappSidePanel.svelte';
 </script>
 
+<!-- Sidepanel requires a user action to open. It can't be opened programmatically. -->
 <DappSidePanel />
 
 <style>

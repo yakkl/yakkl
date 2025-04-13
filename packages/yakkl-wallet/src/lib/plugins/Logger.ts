@@ -182,6 +182,9 @@ class Logger {
 
   private persistLogLocalStorage(log: LogEntry): void {
     try {
+      // Do not store at this time. localStorage could fail for local environment reasons.
+      return;
+
       if (typeof localStorage !== 'undefined') {
         const logs = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
 
@@ -389,85 +392,35 @@ class Logger {
     ...args: any[]
   ): void {
     try {
-      switch (this.logLevelDirection) {
-        case LogLevelDirection.NONE:
-          return;
-        case LogLevelDirection.CONTAINS:
-          if (!this.logsIncluded.includes(label)) return;
-          break;
-        case LogLevelDirection.GREATERTHAN:
-          if (level > this.logLevel) return;
-          break;
-        case LogLevelDirection.EQUAL:
-          if (level === this.logLevel) return;
-          break;
-        case LogLevelDirection.GREATERTHANOREQUAL:
-          if (level >= this.logLevel) return;
-          break;
-        case LogLevelDirection.LESSTHANOREQUAL:
-          if (level <= this.logLevel) return;
-          break;
-        case LogLevelDirection.LESSTHAN:
-        default:
-          if (level < this.logLevel) return;
-          break;
+      // Always log to console first
+      const { message, stack } = this.normalizeInput(input);
+      const timestamp = this.getTimestamp();
+      const callerInfo = this.getCallerInfo();
+
+      // Force console output for debugging
+      console.log(
+        `%c[${label}] ${timestamp}`,
+        color,
+        message,
+        ...(args || []),
+        '\nCaller:',
+        callerInfo,
+        stack ? '\nStack:' + stack : ''
+      );
+
+      if (persist) {
+        const entry: LogEntry = {
+          timestamp,
+          label,
+          message,
+          callerInfo,
+          stack: includeStack ? stack : undefined,
+          args
+        };
+        this.persistLog(entry);
       }
-    } catch (error) {
-      if (level < this.logLevel) return;
-    }
-
-    const { message, stack } = this.normalizeInput(input);
-    const callerInfo = this.getCallerInfo();
-    const timestamp = this.getTimestamp();
-    const stackTrace = includeStack ? stack || new LoggerError("", "Stack Tracing:").stack : null;
-
-    if (this.logFilterEnabled && !this.logRegEx.test(message)) return;
-
-    const logEntry: LogEntry = {
-      timestamp,
-      label,
-      message,
-      callerInfo,
-      stack: includeStack ? stack : undefined,
-      args: args.length > 0 ? args : undefined,
-    };
-
-    // Logging backends
-    switch (this.backend) {
-      case "indexedDB":
-      case "dexie":
-      case "sqlite":
-      case "background":
-      case "localStorage":
-        if (persist === true) {
-          this.persistLog(logEntry);
-        } // Fall through to console always
-      case "console":
-      default:
-        // if (isBrowser) {
-
-        if (level === LogLevel.TRACE) {
-          console.trace(`%c[${label}] ${timestamp} - ${callerInfo} - ${message}`, color, ...args);
-        } else {
-          if (includeStack) {
-            console.trace(`%c[${label}] ${timestamp} ${callerInfo} - ${message}\n${stackTrace}`, color, ...args);
-          } else {
-            console.log(`%c[${label}] ${timestamp} - ${callerInfo} - ${message}`, color, ...args);
-          }
-        }
-        // } else {
-        //   const colorCode = this.getConsoleColor(label);
-        //   if (level === LogLevel.TRACE) {
-        //     console.trace(`${colorCode}[${label}] ${timestamp} - ${callerInfo} - ${message}\x1b[0m`, ...args);
-        //   } else {
-        //     if (includeStack && stackTrace) {
-        //       console.trace(`${colorCode}[${label}] ${timestamp} - ${callerInfo} - ${message}\n${stackTrace}\x1b[0m`);
-        //     } else {
-        //       console.log(`${colorCode}[${label}] ${timestamp} - ${callerInfo} - ${message}\x1b[0m`, ...args);
-        //     }
-        //   }
-        // }
-        break;
+    } catch (error: any) {
+      this.error('Logging failed:', false, error);
     }
   }
 

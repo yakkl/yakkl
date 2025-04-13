@@ -1,7 +1,8 @@
 // $lib/shared/BrowserAccessor.ts
-import type { Browser, Runtime, Tabs, Alarms } from 'webextension-polyfill';
+import type { Runtime, Tabs, Alarms } from 'webextension-polyfill';
 import { log } from "$plugins/Logger";
 import type { ExtendedBrowser } from '../types/browser-extensions';
+import { browser_ext } from '../environment';
 
 
 // Interfaces for local use (to avoid namespace issues)
@@ -19,7 +20,8 @@ export enum ExtensionContext {
   POPUP = 'popup',
   CONTENT_SCRIPT = 'content_script',
   OPTIONS = 'options',
-  DEVTOOLS = 'devtools'
+  DEVTOOLS = 'devtools',
+  SIDEPANEL = 'sidepanel'
 }
 
 /**
@@ -32,7 +34,6 @@ export class BrowserAccessor {
   private currentContext: ExtensionContext = ExtensionContext.UNKNOWN;
   private initialized = false;
   private initPromise: Promise<ExtendedBrowser | null> | null = null;
-
   /**
    * Private constructor - use getInstance()
    */
@@ -74,7 +75,7 @@ export class BrowserAccessor {
   /**
    * Detect which extension context we're running in
    */
-  private detectContext(): ExtensionContext {
+  private async detectContext(): Promise<ExtensionContext> {
     // Skip if not in a browser
     if (typeof window === 'undefined' && typeof self === 'undefined') {
       return ExtensionContext.UNKNOWN;
@@ -109,6 +110,10 @@ export class BrowserAccessor {
                              hasExtensionApi &&
                              window.location.protocol.startsWith('http');
 
+      if (await this.resolveExecutionContext() === 'sidepanel') {
+        return ExtensionContext.SIDEPANEL;
+      }
+
       if (isServiceWorker && hasExtensionApi) {
         return ExtensionContext.BACKGROUND;
       } else if (isPopup) {
@@ -123,11 +128,29 @@ export class BrowserAccessor {
         // If we can't specifically identify, but have extension APIs
         return ExtensionContext.POPUP; // Default to popup for UI contexts
       }
+
     } catch (error) {
       log.error("Error detecting context:", false, error);
     }
 
     return ExtensionContext.UNKNOWN;
+  }
+
+  async resolveExecutionContext(): Promise<'popup' | 'sidepanel'> {
+    try {
+      const win = await browser_ext.windows.getCurrent();
+      if (!win || !win.type) {
+        return import.meta.env.VITE_YAKKL_TYPE;
+      }
+
+      if (win.type === 'popup') return 'popup';
+      if (win.type === 'normal') return 'sidepanel';
+
+      return import.meta.env.VITE_YAKKL_TYPE;
+    } catch (err) {
+      console.warn('Error resolving execution context:', err);
+      return import.meta.env.VITE_YAKKL_TYPE;
+    }
   }
 
   /**
@@ -155,7 +178,7 @@ export class BrowserAccessor {
     this.initPromise = (async () => {
       try {
         // Detect which context we're in
-        this.currentContext = this.detectContext();
+        this.currentContext = await this.detectContext();
         log.info(`Initializing browser API in ${this.currentContext} context`);
 
         // Try to get browser API based on context
@@ -231,9 +254,9 @@ export class BrowserAccessor {
   /**
    * Get the current extension context
    */
-  public getContext(): ExtensionContext {
+  public async getContext(): Promise<ExtensionContext> {
     if (this.currentContext === ExtensionContext.UNKNOWN) {
-      this.currentContext = this.detectContext();
+      this.currentContext = await this.detectContext();
     }
     return this.currentContext;
   }
@@ -398,10 +421,10 @@ export class BrowserAccessor {
             }
           });
         },
-        open: (): Promise<void> => {
+        open: (options: { tabId: number }): Promise<void> => {
           return new Promise<void>((resolve, reject) => {
             try {
-              chrome.sidePanel.open();
+              chrome.sidePanel.open(options);
               resolve();
             } catch (error) {
               reject(error);

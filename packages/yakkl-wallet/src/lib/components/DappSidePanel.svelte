@@ -1,7 +1,7 @@
 <!-- Unified dapp side panel component -->
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { log } from '$lib/plugins/Logger';
   import { browser } from '$app/environment';
 
@@ -51,6 +51,7 @@
   function handleMessage(event: MessageEvent) {
     if (event.data.type === 'UPDATE_CONTENT') {
       const params = new URLSearchParams(new URL(event.data.url).search);
+      log.info('handleMessage - 54 (DappSidePanel):', false, { params });
       requestId = params.get('requestId') || requestId;
       method = params.get('method') || method;
       currentView = getViewForMethod(method);
@@ -61,12 +62,16 @@
   async function loadComponent(view: string): Promise<{ default: DynamicComponent }> {
     switch (view) {
       case 'accounts':
+        log.info('Loading accounts page:', false, view);
         return import('../../routes/(app)/dapp/popups/accounts/+page.svelte');
       case 'transactions':
+        log.info('Loading transactions page:', false, view);
         return import('../../routes/(app)/dapp/popups/transactions/+page.svelte');
       case 'sign':
+        log.info('Loading sign page:', false, view);
         return import('../../routes/(app)/dapp/popups/sign/+page.svelte');
       default:
+        log.info('Loading approve page:', false, view);
         return import('../../routes/(app)/dapp/popups/approve/+page.svelte');
     }
   }

@@ -1,6 +1,7 @@
 import type { Runtime } from 'webextension-polyfill';
 import browser from 'webextension-polyfill';
 import { log } from '$plugins/Logger';
+import { getWindowOrigin, getTargetOrigin, safePostMessage } from '$lib/common/origin';
 // import { getBrowserExt } from '$lib/browser-polyfill-wrapper';
 // import { browser_ext } from '$lib/common/environment';
 
@@ -37,15 +38,23 @@ export class PortManager {
 
   private onMessageListener(response: any) {
     try {
-      if (response.type === 'YAKKL_RESPONSE') {
-        window.postMessage(response, window.location.origin);
+      if (window && typeof window.postMessage === 'function') {
+        if (response.type === 'YAKKL_RESPONSE') {
+          post(response, getTargetOrigin());
+        }
+      } else {
+        log.error('Window context invalid for postMessage', false, response);
       }
     } catch (error) {
       log.error("Error processing message:", false, error);
-      window.postMessage(
-        { id: response.id, method: response.method, error, type: 'YAKKL_RESPONSE' },
-        window.location.origin
-      );
+      if (window && typeof window.postMessage === 'function') {
+        post(
+          { id: response.id, method: response.method, error, type: 'YAKKL_RESPONSE' },
+          getTargetOrigin()
+        );
+      } else {
+        log.error('Window context invalid for postMessage', false, response);
+      }
     }
   }
 
@@ -70,6 +79,18 @@ export class PortManager {
   }
 }
 
+function post(message: any, targetOrigin: string | null) {
+  safePostMessage(message, targetOrigin, { context: 'ports' });
+}
+
+// Helper function to safely send messages
+// function safePostMessage(message: any, targetOrigin: string | null) {
+//   if (!targetOrigin) {
+//     log.warn('Cannot send message - invalid target origin', false);
+//     return;
+//   }
+//   window.postMessage(message, targetOrigin);
+// }
 
 // Lifecycle Handlers
 export function onConnect(port: RuntimePort) {

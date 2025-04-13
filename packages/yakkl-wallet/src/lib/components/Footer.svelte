@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { PATH_WELCOME, PATH_LOGIN, YEAR, VERSION, PATH_ETHEREUM_TRANSACTIONS_SEND, RegistrationType, type Settings, type SwapPriceProvider } from "$lib/common";
-  import { activeTabUIStore, getYakklCurrentlySelected } from '$lib/common/stores';
+  import { PATH_WELCOME, PATH_LOGIN, YEAR, VERSION, PATH_ETHEREUM_TRANSACTIONS_SEND, RegistrationType, type Settings, type SwapPriceProvider, type ActiveTab } from "$lib/common";
+  import { getYakklCurrentlySelected } from '$lib/common/stores';
   import ChatbotModal from './ChatbotModal.svelte';
 	import Buy from "$lib/components/Buy.svelte";
 	import { onMount } from 'svelte';
@@ -15,11 +15,7 @@
 	import WalletManager from "$lib/plugins/WalletManager";
 	import { getYakklCurrentlySelectedAccountKey } from "$lib/common/security";
 	import { log } from "$lib/plugins/Logger";
-	// import { browserSvelte, browser_ext } from "$lib/common/environment";
-	// import { isTabValid } from "$lib/common/tabs";
-	import { get } from "svelte/store";
-	// import { getActiveTab } from "$lib/extensions/chrome/background";
-
+	import { openSidePanelOnActiveTab } from "$lib/common/sidepanel";
 
   interface Props {
     // Defaults for properties. Can be changed when calling component
@@ -89,8 +85,6 @@
           }
         }
       }
-
-
     } catch (e) {
       log.error(`Footer: onMount - ${e}`);
     }
@@ -123,26 +117,7 @@
   // Used for testing side panel version
   async function handleAI() {
     try {
-      if (!activeTabUIStore) {
-        log.error('No active tab found!');
-        return;
-      }
-      const activeTab = get(activeTabUIStore);
-      log.debug('Active tab:', false, activeTabUIStore, activeTab);
-      if (!activeTab) {
-        log.error('No active tab found!');
-        return;
-      }
-
-      // Get the current active tab
-      // if (typeof chrome !== "undefined") {
-      //   await chrome.sidePanel.open({ tabId: activeTab.tabId }); //tabs[0].id }); // Open side panel on active tab
-      //   await chrome.sidePanel.setOptions({
-      //     tabId: activeTab.tabId,
-      //     path: 'sidepanel.html',
-      //     enabled: true
-      //   });
-      // }
+      openSidePanelOnActiveTab();
     } catch (error) {
       log.error("Error opening side panel:", false, error);
     }
@@ -178,35 +153,36 @@
 
 <!-- <SwapModal bind:show={showSwap} {fundingAddress} /> -->
 <Swap bind:show={showSwap} {fundingAddress} {provider} {blockchain} {swapManager} {tokenService} />
+<!-- max-w-[{containerWidth}px] -->
+<!-- bg-base-100 -->
+<footer id="{id}" class="visible fixed mb-0 inset-x-0 bottom-0 mx-4 mt-0 bg-gradient-to-br from-gray-900 via-gray-800 to-black {classParam}">
 
-<footer id="{id}" class="visible fixed bg-base-100 mb-2 inset-x-0 bottom-0 mx-2 mt-0 rounded-lg max-w-[{containerWidth}px] {classParam}">
-
-  <div class="flex flex-row m-2 mb-0 justify-center bg-primary/80 text-base-content rounded-lg">
-    <span class="inline-grid grid-cols-2 gap-5">
+  <div class="relative flex items-center justify-between my-2 mb-0 bg-primary/80 text-base-content rounded-lg shadow-lg">
+    <span class="flex flex-1 justify-evenly max-w-[40%]">
       <!-- HOME -->
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_interactive_supports_focus -->
       <div role="button" onclick={home}
-        class="m-1 flex flex-col w-[60px] h-[40px] fill-base-content hover:fill-base-300 hover:text-base-300 items-center justify-center"
+        class="m-1 flex flex-col fill-base-content hover:fill-base-300 hover:text-base-300 items-center justify-center"
         data-bs-toggle="tooltip" data-bs-placement="top" title="Welcome Page" aria-label="home">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-{w} h-{h} stroke-primary/5 stroke-[1px]">
           <path d="M11.47 3.84a.75.75 0 011.06 0l8.69 8.69a.75.75 0 101.06-1.06l-8.689-8.69a2.25 2.25 0 00-3.182 0l-8.69 8.69a.75.75 0 001.061 1.06l8.69-8.69z" />
           <path d="M12 5.432l8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 01-.75-.75v-4.5a.75.75 0 00-.75-.75h-3a.75.75 0 00-.75.75V21a.75.75 0 01-.75.75H5.625a1.875 1.875 0 01-1.875-1.875v-6.198a2.29 2.29 0 00.091-.086L12 5.43z" />
         </svg>
-        <span class="text-xs">Home</span>
+        <span class="xs:text-xs sm:text-sm md:text-base">Home</span>
       </div>
-
+<!-- w-[60px] h-[40px] -->
       <!-- Send -->
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_interactive_supports_focus -->
       <div role="button" onclick={send}
-        class="m-1 flex flex-col w-[60px] h-[40px] fill-base-content hover:fill-base-300 hover:text-base-300 items-center justify-center"
+        class="m-1 flex flex-col fill-base-content hover:fill-base-300 hover:text-base-300 items-center justify-center"
         data-bs-toggle="tooltip" data-bs-placement="top" title="Send" aria-label="wallet send">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 font-bold">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
         </svg>
 
-        <span class="text-xs">Send</span>
+        <span class="xs:text-xs sm:text-sm md:text-base">Send</span>
       </div>
     </span>
 
@@ -216,8 +192,8 @@
       <div class="relative bg-gray-300/75 rounded-full m-1 h-[39px] drop-shadow-lg hover:drop-shadow-xl">
         <!-- fill-indigo-700 hover:fill-indigo-400 text-purple-900 hover:text-purple-700 -->
         <!-- svelte-ignore a11y_interactive_supports_focus -->
-        <!-- <div role="button" onclick={() => {showChat=true}} -->
-        <div role="button" onclick={handleAI}
+        <!-- <div role="button" onclick={handleAI} -->
+        <div role="button" onclick={() => {showChat=true}}
           class="relative m-1 w-[40px] h-[40px] fill-primary hover:fill-primary/50 text-primary hover:text-primary/50"
           data-bs-toggle="tooltip" data-bs-placement="top" title="Ring for Help" aria-label="help">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-8 h-8 mt-0.5 -ml-[.05rem]">
@@ -229,32 +205,32 @@
         </div>
       </div>
     </div>
-
-    <span class="inline-grid grid-cols-2 gap-5 ml-2">
+<!-- xs:ml-2 sm:ml-5 md:ml-10 lg:ml-15 xl:ml-20  -->
+    <span class="flex flex-1 justify-evenly max-w-[40%]">
       <!-- Buy -->
       <!-- svelte-ignore a11y_interactive_supports_focus -->
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <div role="button" onclick={buy}
-        class="m-1 flex flex-col w-[60px] h-[40px] fill-base-content hover:fill-base-300 hover:text-base-300 items-center justify-center"
+        class="m-1 flex flex-col fill-base-content hover:fill-base-300 hover:text-base-300 items-center justify-center"
         data-bs-toggle="tooltip" data-bs-placement="top" title="Buy" aria-label="Buy">
 
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
           <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
         </svg>
-        <span class="text-xs">Buy</span>
+        <span class="xs:text-xs sm:text-sm md:text-base">Buy</span>
       </div>
 
       <!-- Swap -->
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_interactive_supports_focus -->
       <div role="button" onclick={swap}
-        class="m-1 flex flex-col w-[60px] h-[40px] fill-base-content hover:fill-base-300 hover:text-base-300 items-center justify-center"
+        class="flex flex-col fill-base-content hover:fill-base-300 hover:text-base-300  items-center justify-center"
         data-bs-toggle="tooltip" data-bs-placement="top" title="Swap" aria-label="swap">
 
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 font-bold">
           <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 00-3.7-3.7 48.678 48.678 0 00-7.324 0 4.006 4.006 0 00-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3l-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 003.7 3.7 48.656 48.656 0 007.324 0 4.006 4.006 0 003.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3l-3 3" />
         </svg>
-        <span class="text-xs">Swap</span>
+        <span class="xs:text-xs sm:text-sm md:text-base">Swap</span>
       </div>
     </span>
   </div>
@@ -264,7 +240,7 @@
     <!-- <a href="https://yakkl.com?utm_source=yakkl"
        class="text-xs hover:text-opacity-75 hover:cursor-pointer"
        style="color: inherit; text-decoration: none; transition: color 0.3s ease, opacity 0.3s ease;"> -->
-      <span style="font-size: 10px;">YAKKL® ©Copyright {YEAR}, Version: {VERSION} {registeredType}</span>
+      <span style="font-size: 10px;">YAKKL® ©Copyright {new Date().getFullYear().toString()}, Version: {VERSION} {registeredType}</span>
     <!-- </a> -->
   </div>
 

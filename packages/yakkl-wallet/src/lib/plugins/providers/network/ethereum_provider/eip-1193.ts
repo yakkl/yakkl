@@ -1,279 +1,314 @@
-import EventEmitter from 'events';
-import { log } from '$lib/plugins/Logger';
-import { EIP1193_ERRORS } from './eip-types';
-import { ProviderRpcError } from '$lib/common';
+import { EventEmitter } from 'events';
 import type { RequestArguments } from '$lib/common';
 import type { Duplex } from 'readable-stream';
+import { getWindowOrigin, safePostMessage, getTargetOrigin } from '$lib/common/origin';
+import { log } from '$lib/plugins/Logger';
+import { EIP1193_ERRORS } from './eip-types';
 
-// EIP-1193 Provider Implementation
 export class EIP1193Provider extends EventEmitter {
-  private _initialized = false;
-  private _chainId = '0x1';
-  private _networkVersion = '1';
-  private _accounts: string[] = [];
-  private _connected = false;
-  private _requestId = 0;
-  private _disposed = false;
-  private _isWalletReady = false;
-  private stream: Duplex;
-  private _pendingRequests = new Map<string, {
-    resolve: (value: unknown) => void;
-    reject: (reason?: any) => void;
-    timeoutId: NodeJS.Timeout;
-  }>();
-  private _queuedRequests: Array<{
-    args: RequestArguments;
-    resolve: (value: unknown) => void;
-    reject: (error: Error) => void;
-  }> = [];
+  private _isConnected: boolean = false;
+  private requestId: number = 0;
+  private pendingRequests: Map<number, {
+    resolve: (value: any) => void;
+    reject: (error: any) => void;
+    method: string;
+    timestamp: number;
+  }> = new Map();
+  private chainId: string | null = null;
+  private networkVersion: string | null = null;
+  private cachedAccounts: string[] | null = null;
+  private stream: Duplex | null = null;
+  private origin: string;
+  private isInitialized: boolean = false;
+  private initPromise: Promise<void> | null = null;
 
-  constructor(stream: Duplex) {
+  constructor(stream?: Duplex) {
     super();
-    this.stream = stream;
-    this.setMaxListeners(100);
-    this._initializeProvider();
+    this.stream = stream || null;
+    this.origin = getWindowOrigin();
+
+    // Set up message listener
+    this.setupMessageListener();
+
+    // Initialize provider
+    this.initPromise = this.initializeFromShortcuts();
   }
 
-  private async _initializeProvider() {
-    try {
-      await this.initializeFromShortcuts();
-    } catch (error) {
-      log.warn('Initial provider initialization failed, will retry when wallet is ready', false, error);
-      // Don't throw here - we'll retry when needed
+  private setupMessageListener() {
+    window.addEventListener('message', (event) => {
+      // Validate origin
+      if (event.origin !== this.origin && event.origin !== getTargetOrigin()) {
+        return;
+      }
+
+      const message = event.data;
+      if (!message || typeof message !== 'object') {
+        return;
+      }
+
+      // Handle responses
+      if (message.type === 'YAKKL_RESPONSE:EIP1193') {
+        this.handleResponse(message);
+      }
+
+      // Handle events
+      if (message.type === 'YAKKL_EVENT:EIP1193') {
+        this.handleEvent(message);
+      }
+    });
+  }
+
+  private async handleResponse(response: any) {
+    const { id, result, error } = response;
+
+    // Find the pending request
+    const pendingRequest = this.pendingRequests.get(id);
+    if (!pendingRequest) {
+      log.warn('EIP1193: No pending request found for response:', false, {
+        id,
+        response
+      });
+      return;
     }
-  }
 
-  public async request(args: RequestArguments): Promise<unknown> {
-    try {
-      const { method, params = [] } = args;
-      log.debug('EIP-1193 provider request', true, { method, params });
+    // Remove the request from pending
+    this.pendingRequests.delete(id);
 
-      // Handle read-only methods that don't require initialization
+    // Handle the response
+    if (error) {
+      pendingRequest.reject({
+        code: error.code,
+        message: error.message,
+        data: error.data
+      });
+    } else {
+      // Update provider state if needed
+      const { method } = pendingRequest;
+      let finalResult = result;
+
+      // Cache the results for these methods
       if (method === 'eth_chainId') {
-        log.debug('Returning chainId', true, { chainId: this._chainId });
-        return this._chainId;
-      }
-
-      if (method === 'net_version') {
-        log.debug('Returning network version', true, { networkVersion: this._networkVersion });
-        return this._networkVersion;
-      }
-
-      if (method === 'eth_accounts') {
-        const activeAccount = this._accounts[0];
-        log.debug('Returning account', true, { account:activeAccount });
-        return activeAccount ? [activeAccount] : [];
-      }
-
-      // For methods requiring initialization, queue if not ready
-      if (!this._initialized || !this._isWalletReady) {
+        this.chainId = finalResult;
+        this.emit('chainChanged', finalResult);
+        log.debug('EIP1193: Cached chainId:', false, {
+          chainId: finalResult
+        });
+      } else if (method === 'eth_accounts' || method === 'eth_requestAccounts') {
+        // For eth_requestAccounts, use the EIP-6963 implementation
         if (method === 'eth_requestAccounts') {
-          // For eth_requestAccounts, try to initialize immediately
           try {
-            await this.initializeFromShortcuts();
+            // Import the handleRequestAccounts function from eip-6963.ts
+            const { handleRequestAccounts } = await import('../../../../extensions/chrome/eip-6963');
+
+            // Use the EIP-6963 implementation to handle the request
+            finalResult = await handleRequestAccounts();
+
+            // Update cached accounts and emit events
+            this.cachedAccounts = finalResult;
+            this.emit('accountsChanged', finalResult);
+            if (finalResult && finalResult.length > 0) {
+              this._isConnected = true;
+              this.emit('connect', { chainId: this.chainId });
+            }
+            log.debug('EIP1193: Cached accounts:', false, {
+              accounts: finalResult
+            });
           } catch (error) {
-            log.warn('Wallet not ready, showing initialization message', false);
-            throw new ProviderRpcError(4001, 'Please open the wallet extension to initialize');
+            log.error('Error using EIP-6963 implementation for eth_requestAccounts:', false, error);
+            // Don't fallback to original implementation - let the error propagate
+            throw error;
           }
         } else {
-          // For other methods, queue the request
-          return new Promise((resolve, reject) => {
-            this._queuedRequests.push({ args, resolve, reject });
-            log.debug('Request queued until wallet is ready', false, { method });
-          });
+          // For eth_accounts, use cached accounts if available
+          finalResult = this.cachedAccounts || [];
         }
+      } else if (method === 'net_version') {
+        this.networkVersion = finalResult;
+        log.debug('EIP1193: Cached networkVersion:', false, {
+          networkVersion: finalResult
+        });
+      } else if (method === 'wallet_switchEthereumChain') {
+        // After switching chains, update chainId
+        this.updateChainState();
       }
 
-      // Handle eth_requestAccounts
-      if (method === 'eth_requestAccounts') {
-        log.debug('Requesting accounts - requires user permission', true);
-        const response = await this._sendRequest(method, params as unknown[]);
-        if (Array.isArray(response)) {
-          this.handleAddressChange(response);
-          log.debug('eth_requestAccounts response handled', true, { accounts: response });
-        }
-        return response;
-      }
-
-      // All other methods
-      return this._sendRequest(method, params as unknown[]);
-    } catch (e) {
-      log.error('Error in provider request', true, e);
-      throw e;
+      // Resolve with the result
+      pendingRequest.resolve(finalResult);
+      log.debug('EIP1193: Request resolved:', false, {
+        method,
+        id,
+        result: finalResult
+      });
     }
+  }
+
+  private handleEvent(event: any) {
+    const { event: eventName, data } = event;
+
+    // Update state based on event
+    switch (eventName) {
+      case 'accountsChanged':
+        this.cachedAccounts = data;
+        this.emit('accountsChanged', data);
+        break;
+      case 'chainChanged':
+        this.chainId = data;
+        this.emit('chainChanged', data);
+        // Also emit networkChanged for backwards compatibility
+        if (data) {
+          const networkVersion = parseInt(data, 16).toString();
+          this.networkVersion = networkVersion;
+          this.emit('networkChanged', networkVersion);
+        }
+        break;
+      case 'connect':
+        this._isConnected = true;
+        this.emit('connect', { chainId: this.chainId || '0x1' });
+        break;
+      case 'disconnect':
+        this._isConnected = false;
+        this.emit('disconnect', { code: 1000, reason: 'Disconnected' });
+        break;
+      case 'message':
+        this.emit('message', data);
+        break;
+    }
+  }
+
+  private async updateChainState(): Promise<void> {
+    try {
+      // Get chain ID
+      const chainId = await this.request({ method: 'eth_chainId', params: [] });
+      if (typeof chainId === 'string' && chainId !== this.chainId) {
+        this.chainId = chainId;
+        this.emit('chainChanged', chainId);
+      }
+
+      // Get network version
+      const networkVersion = await this.request({ method: 'net_version', params: [] });
+      if (typeof networkVersion === 'string' && networkVersion !== this.networkVersion) {
+        this.networkVersion = networkVersion;
+        this.emit('networkChanged', networkVersion);
+      }
+    } catch (error) {
+      log.error('Error updating chain state:', false, error);
+    }
+  }
+
+  async request(args: RequestArguments): Promise<unknown> {
+    // Ensure provider is initialized
+    if (!this.isInitialized && this.initPromise) {
+      await this.initPromise;
+    }
+
+    const { method, params = [] } = args;
+    const id = ++this.requestId;
+
+    log.debug('EIP1193: Sending request:', false, {
+      method,
+      params,
+      id
+    });
+
+    // Handle special methods with cached values
+    if (method === 'eth_requestAccounts') {
+      // If we already have accounts, return them immediately
+      if (this.cachedAccounts && this.cachedAccounts.length > 0) {
+        log.debug('EIP1193: Using cached accounts for eth_requestAccounts:', false, {
+          accounts: this.cachedAccounts
+        });
+        return this.cachedAccounts;
+      }
+      // Otherwise, we need to make the request
+      log.debug('EIP1193: No cached accounts, making eth_requestAccounts request', false);
+    } else if (method === 'eth_chainId' && this.chainId) {
+      log.debug('EIP1193: Using cached chainId:', false, {
+        chainId: this.chainId
+      });
+      return this.chainId;
+    } else if (method === 'net_version' && this.networkVersion) {
+      log.debug('EIP1193: Using cached networkVersion:', false, {
+        networkVersion: this.networkVersion
+      });
+      return this.networkVersion;
+    } else if (method === 'eth_accounts' && this.cachedAccounts) {
+      log.debug('EIP1193: Using cached accounts:', false, {
+        accounts: this.cachedAccounts
+      });
+      return this.cachedAccounts;
+    }
+
+    return new Promise((resolve, reject) => {
+      // Store the request with its resolve/reject callbacks
+      this.pendingRequests.set(id, {
+        resolve,
+        reject,
+        method,
+        timestamp: Date.now()
+      });
+
+      // Send the request
+      const requestMessage = {
+        type: 'YAKKL_REQUEST:EIP1193',
+        id,
+        method,
+        params,
+        requiresApproval: this.requiresApproval(method)
+      };
+
+      safePostMessage(requestMessage, getTargetOrigin(), {
+        context: 'content',
+        allowRetries: true,
+        retryKey: `${method}-${id}`
+      });
+
+      // Set a timeout for the request
+      setTimeout(() => {
+        const request = this.pendingRequests.get(id);
+        if (request) {
+          request.reject({
+            code: EIP1193_ERRORS.TIMEOUT.code,
+            message: EIP1193_ERRORS.TIMEOUT.message
+          });
+          this.pendingRequests.delete(id);
+        }
+      }, 30000); // 30 second timeout
+    });
+  }
+
+  private requiresApproval(method: string): boolean {
+    const approvalMethods = [
+      'eth_requestAccounts',
+      'eth_sendTransaction',
+      'eth_signTransaction',
+      'eth_sign',
+      'personal_sign',
+      'eth_signTypedData',
+      'eth_signTypedData_v1',
+      'eth_signTypedData_v3',
+      'eth_signTypedData_v4',
+      'wallet_addEthereumChain',
+      'wallet_switchEthereumChain',
+      'wallet_watchAsset'
+    ];
+    return approvalMethods.includes(method);
+  }
+
+  isConnected(): boolean {
+    return this._isConnected;
   }
 
   private async initializeFromShortcuts(): Promise<void> {
     try {
-      // Send request through content script using window.postMessage
-      window.postMessage({
-        id: (this._requestId++).toString(),
-        type: 'YAKKL_REQUEST:EIP6963',
-        method: 'eth_chainId'
-      }, window.location.origin);
+      // No longer proactively requesting initial state
+      // We'll only cache these values when they're first requested by the dapp
 
-      // Wait for the chain ID response from content script
-      const chainIdResponse = await new Promise((resolve, reject) => {
-        const handler = (event: MessageEvent) => {
-          if (event.origin !== window.location.origin) return;
-          if (event.data?.type !== 'YAKKL_RESPONSE:EIP6963') return;
-
-          window.removeEventListener('message', handler);
-          if (event.data.error) {
-            reject(new Error(event.data.error.message));
-            return;
-          }
-          resolve(event.data.result);
-        };
-        window.addEventListener('message', handler);
-      });
-
-      // Get accounts through content script
-      window.postMessage({
-        id: (this._requestId++).toString(),
-        type: 'YAKKL_REQUEST:EIP6963',
-        method: 'eth_accounts'
-      }, window.location.origin);
-
-      // Wait for the accounts response from content script
-      const accountsResponse = await new Promise((resolve, reject) => {
-        const handler = (event: MessageEvent) => {
-          if (event.origin !== window.location.origin) return;
-          if (event.data?.type !== 'YAKKL_RESPONSE:EIP6963') return;
-
-          window.removeEventListener('message', handler);
-          if (event.data.error) {
-            reject(new Error(event.data.error.message));
-            return;
-          }
-          resolve(event.data.result);
-        };
-        window.addEventListener('message', handler);
-      });
-
-      // Extract the data
-      const chainId = parseInt(chainIdResponse as string || '0x1', 16);
-      const accounts = Array.isArray(accountsResponse) ? accountsResponse : [];
-      const address = accounts.length > 0 ? accounts[0] : null;
-
-      // Set provider state
-      this._chainId = `0x${chainId.toString(16)}`;
-      this._networkVersion = chainId.toString();
-      this._accounts = accounts;
-      this._connected = Boolean(address);
-      this._initialized = true;
-      this._isWalletReady = true;
-
-      log.debug('Provider state initialized', true, {
-        chainId: this._chainId,
-        networkVersion: this._networkVersion,
-        accounts: this._accounts,
-        connected: this._connected
-      });
-
-      // Process any queued requests
-      this._processQueuedRequests();
-
-    } catch (e) {
-      log.error('Error initializing from content script', true, e);
-      // Set default values on error
-      this._chainId = '0x1';
-      this._networkVersion = '1';
-      this._accounts = [];
-      this._connected = false;
-      this._initialized = true;
-      this._isWalletReady = false;
-      throw e;
-    }
-  }
-
-  private async _processQueuedRequests(): Promise<void> {
-    while (this._queuedRequests.length > 0) {
-      const request = this._queuedRequests.shift();
-      if (request) {
-        try {
-          const result = await this.request(request.args);
-          request.resolve(result);
-        } catch (error) {
-          request.reject(error instanceof Error ? error : new Error(String(error)));
-        }
-      }
-    }
-  }
-
-  private _sendRequest(method: string, params: unknown[]): Promise<unknown> {
-    return new Promise((resolve, reject) => {
-      const id = (this._requestId++).toString();
-      const timeoutId = setTimeout(() => {
-        this._pendingRequests.delete(id);
-        reject(new ProviderRpcError(EIP1193_ERRORS.TIMEOUT.code, EIP1193_ERRORS.TIMEOUT.message));
-      }, 30000);
-
-      this._pendingRequests.set(id, { resolve, reject, timeoutId });
-
-      // Send request through content script
-      window.postMessage({
-        type: 'YAKKL_REQUEST:EIP6963',
-        id,
-        method,
-        params
-      }, window.location.origin);
-
-      log.debug('Sent request through content script', true, { id, method, params });
-    });
-  }
-
-  public isConnected(): boolean {
-    return this._connected;
-  }
-
-  public dispose(): void {
-    this._disposed = true;
-    this.removeAllListeners();
-
-    // Clear all pending requests with a provider disconnected error
-    for (const [id, { reject, timeoutId }] of this._pendingRequests.entries()) {
-      clearTimeout(timeoutId);
-      reject(new Error('Provider is disconnected'));
-      this._pendingRequests.delete(id);
-    }
-
-    if (this.stream) {
-      try {
-        // @ts-ignore: This method may exist on the stream
-        if (typeof this.stream.destroy === 'function') {
-          this.stream.destroy();
-        }
-      } catch (error) {
-        log.error('Error destroying stream during provider disposal', false, error);
-      }
-    }
-  }
-
-  private handleAddressChange(addresses: Array<string>): void {
-    try {
-      if (!this._accounts || this._accounts[0] !== addresses[0]) {
-        this._accounts = [addresses[0]]; // Only store the active account
-        this.emit("accountsChanged", this._accounts);
-        log.debug('Updated active account', true, { account: addresses[0] });
-      }
-    } catch (e) {
-      log.error('Error handling address change', true, e);
-    }
-  }
-
-  private handleChainIdChange(chainId: string): void {
-    try {
-      const chainIdNum = parseInt(chainId, 16);
-      if (this._chainId !== chainId) {
-        this._chainId = chainId;
-        this._networkVersion = chainIdNum.toString();
-        this.emit("chainChanged", chainId);
-        this.emit("networkChanged", chainIdNum);
-        log.debug('Updated chainId', true, { chainId, networkVersion: this._networkVersion });
-      }
-    } catch (e) {
-      log.error('Error handling chain change', true, e);
+      this.isInitialized = true;
+      log.debug('EIP1193: Provider initialized', false);
+    } catch (error) {
+      log.error('EIP1193: Error initializing provider:', false, error);
+      // Still mark as initialized to prevent hanging
+      this.isInitialized = true;
     }
   }
 }

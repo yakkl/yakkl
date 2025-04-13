@@ -32,17 +32,7 @@
         await setIconLock();
         await setLocks(true);
 
-        // Reset items
-        // removeTimers();
-        // removeListeners();
         setMiscStore('');
-        // resetTokenDataStoreValues();
-        // setYakklTokenDataCustomStorage($yakklTokenDataCustomStore); // Zero out values in custom token storage
-        // resetStores();
-        // await syncStorageToStore();
-
-        // Navigate to the login screen
-        // goto(PATH_LOGIN, { replaceState: true, invalidateAll: true });
 
         // For security reasons, we force a logout. If the customer wants to continue, they must log in again.
         goto(PATH_LOGOUT);

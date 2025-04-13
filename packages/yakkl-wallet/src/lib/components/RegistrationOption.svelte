@@ -6,15 +6,15 @@
     /// <reference types="svelte" />
     title?: string;
     onCreate: () => void;
-    // onImport: () => void;  // NOTE: import and restore will not work if there is no account created first. Need to either create a tmp account and restore or move this to another component.
-    // onRestore: () => void;
+    onImport: () => void;  // NOTE: import and restore will not work if there is no account created first. Need to either create a tmp account and restore or move this to another component.
+    onRestore: () => void;
   }
 
   let {
-    title = 'Registration Options',
+    title = 'Registration/Restoration Options',
     onCreate,
-    // onImport,
-    // onRestore
+    onImport = () => void {},
+    onRestore = () => void {},
   }: Props = $props();
 </script>
 
@@ -42,19 +42,19 @@
     <div class="my-4 border-t border-neutral-dark dark:border-neutral-light"></div>
 
     <!-- Import Existing Account Button -->
-    <!-- <button
+    <button
       onclick={onImport}
       class="w-full py-2 px-4 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75 transition duration-200 ease-in-out"
     >
       Import Existing Account(s)
-    </button> -->
+    </button>
 
     <!-- Restore from Emergency Kit Button -->
-    <!-- <button
+    <button
       onclick={onRestore}
       class="w-full py-2 px-4 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75 transition duration-200 ease-in-out"
     >
       Restore from Emergency Kit
-    </button> -->
+    </button>
   </div>
 </div>

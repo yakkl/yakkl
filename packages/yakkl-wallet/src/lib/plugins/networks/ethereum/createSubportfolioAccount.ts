@@ -9,6 +9,7 @@ import type { AccountData, CurrentlySelectedData, EncryptedData, PrimaryAccountD
 import { AccountTypeCategory, NetworkType } from '$lib/common/types';
 import { dateString } from '$lib/common/datetime';
 import { log } from '$lib/plugins/Logger';
+import { addressExist } from '$lib/common/utils';
 
 // TODO: May want to have all of the .data encrypted in the catch block or final block to ensure that the data is encrypted before returning it. This requires moving the variables to here instead of the try block.
 
@@ -109,6 +110,13 @@ export async function createSubportfolioAccount(yakklMiscStore: string, currentl
 
     const mnemonic = (yakklPrimaryAccount.data as PrimaryAccountData).mnemonic;
     let ethWallet = ethersv6.HDNodeWallet.fromPhrase(mnemonic as string, undefined, derivedPath);
+
+    // Check if address already exists in accounts or primary accounts
+    const { exists, table } = await addressExist(ethWallet.address);
+    if (exists) {
+      throw `The Ethereum Wallet (Portfolio Account) was not able to be created. Address already exists in ${table}. Please try again.`;
+    }
+
     if ( !ethWallet ) {
       throw "The subportfolio account was not able to be created. Please try again.";
     }
@@ -148,7 +156,7 @@ export async function createSubportfolioAccount(yakklMiscStore: string, currentl
       description: '',
       primaryAccount: yakklPrimaryAccount,  // If subaccount then it must be a valid primaryaccount else undefined
       data: accountData,
-      value: 0n,
+      quantity: 0n,
       class: "Default",  // This is only used for enterprise like environments. It can be used for departments like 'Finance', 'Accounting', '<whatever>'
       level: 'L1',
       isSigner: true,
@@ -207,7 +215,7 @@ export async function createSubportfolioAccount(yakklMiscStore: string, currentl
     currentlySelected.shortcuts.showTestNetworks = preferences.showTestNetworks as boolean;
     currentlySelected.shortcuts.profile.name = (profile.data as ProfileData).name;
     currentlySelected.shortcuts.profile.email = (profile.data as ProfileData).email;
-    currentlySelected.shortcuts.value = 0n;
+    currentlySelected.shortcuts.quantity = 0n;
     currentlySelected.shortcuts.address = yakklAccountEnc.address;
     currentlySelected.shortcuts.primary = yakklPrimaryAccount;
     currentlySelected.shortcuts.accountName = yakklAccountEnc.name;

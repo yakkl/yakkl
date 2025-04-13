@@ -38,6 +38,9 @@ export function encodeJSON<T>(obj: T): string {
       return value.toString() + 'n';
     }
     if (typeof value === "object" && value !== null && Object.keys(value).length === 0) {
+      if (Array.isArray(value)) {
+        return [];
+      }
       return "{}";
     }
     return value;

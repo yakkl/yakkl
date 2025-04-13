@@ -48,7 +48,7 @@
 
 <section id="advanced-chart">
   <div class="tradingview-widget-container">
-    <div bind:this={widgetContainer} class="tradingview-widget-container__widget"></div>
+    <div bind:this={widgetContainer} class="tradingview-widget-container__widget" style="width: auto; height: 400px; min-height: 400px; max-height: auto;"></div>
     <div class="tradingview-widget-copyright">
       <a href={import.meta.env.VITE_TRADING_VIEW_LINK} rel="noopener nofollow" target="_blank">
         <span class="blue-text">Track all markets on TradingView</span>

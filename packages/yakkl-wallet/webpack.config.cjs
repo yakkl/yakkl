@@ -4,6 +4,24 @@ const path = require('path');
 const TerserPlugin = require('terser-webpack-plugin');
 const webpack = require('webpack');
 const CopyPlugin = require('copy-webpack-plugin');
+const { config } = require('dotenv');
+const fs = require('fs');
+
+config();
+
+function getEnvKeys() {
+  const env = process.env;
+  const stringifiedEnv = {};
+
+  for (const key of Object.keys(env)) {
+    // Ensure only non-null and non-undefined values are processed
+    if (env[key] !== undefined) {
+      stringifiedEnv[`process.env.${key}`] = JSON.stringify(env[key]);
+    }
+  }
+
+  return stringifiedEnv;
+}
 
 module.exports = {
   entry: {
@@ -12,23 +30,26 @@ module.exports = {
     inpage: ['./src/lib/extensions/chrome/inpage.ts'],
     sandbox: ['./src/lib/extensions/chrome/sandbox.ts'],
   },
-  mode: 'production',
+  mode: process.env.NODE_ENV || 'development',
+  devtool: process.env.NODE_ENV === 'development' ? 'source-map' : false,
   output: {
     filename: '[name].js',
     path: path.resolve(__dirname, 'static/ext'),
     publicPath: '/'
   },
   optimization: {
-    minimize: true, //false
+    minimize: true,
     minimizer: [
       new TerserPlugin({
         terserOptions: {
-          mangle: true, //true, -
+          mangle: {
+            reserved: ['browser'],
+          },
           compress: false,
           keep_classnames: true,
           keep_fnames: true,
           output: {
-            beautify: false, //true,
+            beautify: false,
             indent_level: 2,
           },
         },
@@ -69,8 +90,8 @@ module.exports = {
     ],
     extensions: ['.tsx', '.ts', '.js'],
     alias: {
-      'process/browser': require.resolve( 'process/browser' ),
-      'webextension-polyfill': path.resolve(__dirname, 'node_modules/webextension-polyfill/dist/browser-polyfill.js'),
+      'process/browser': require.resolve('process/browser'),
+      'webextension-polyfill': require.resolve('webextension-polyfill'),
       '$lib': path.resolve(__dirname, 'src/lib'),
       '$lib/common': path.resolve(__dirname, 'src/lib/common'),
       '$plugins': path.resolve(__dirname, 'src/lib/plugins'),
@@ -85,8 +106,14 @@ module.exports = {
     },
   },
   plugins: [
+    new webpack.DefinePlugin(
+      getEnvKeys(),
+      {
+        DEV_MODE: JSON.stringify(process.env.NODE_ENV !== 'production')
+      }
+    ),
     new webpack.ProvidePlugin({
-      browser: 'webextension-polyfill', // browser_ext: ['$lib/browser-polyfill-wrapper', 'browser_ext'],
+      browser: ['webextension-polyfill', 'default'],
       process: 'process/browser',
       Buffer: ['buffer', 'Buffer']
     }),

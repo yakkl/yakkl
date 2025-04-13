@@ -5,14 +5,13 @@ const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 function updateMode(mediaQuery) {
 
     try {
-        // if (localStorage.theme === 'dark' || (!('theme' in localStorage) && mediaQuery.matches)) {
         // Default to darkMode
         if (mediaQuery.matches || !('theme' in localStorage) || (!('theme' in localStorage) && mediaQuery.matches)){
             setDark();
         } else {
             setLight();
         }
-    } catch (_) {}		  
+    } catch (_) {}
 }
 
 function setDark() {

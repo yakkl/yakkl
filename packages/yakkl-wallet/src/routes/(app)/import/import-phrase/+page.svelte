@@ -1,7 +1,6 @@
 <!-- @migration-task Error while migrating Svelte code: can't migrate `let error = false;` to `$state` because there's a variable named state.
      Rename the variable and try again or migrate by hand. -->
 <script lang="ts">
-  import { browserSvelte } from '$lib/utilities/browserSvelte';
   import { ethers as ethersv6 } from 'ethers-v6';
   import { createForm } from "svelte-forms-lib";
   import * as yup from 'yup';
@@ -18,8 +17,9 @@
   import { DEFAULT_DERIVED_PATH_ETH, PATH_WELCOME, PATH_ACCOUNTS_ETHEREUM_CREATE_PRIMARY, YAKKL_ZERO_ADDRESS } from '$lib/common/constants';
   import Cancel from '$lib/components/Cancel.svelte';
   import ErrorNoAction from '$lib/components/ErrorNoAction.svelte';
-	import { AccountTypeCategory, isEncryptedData, type CurrentlySelectedData, type PrimaryAccountData, type Profile, type ProfileData, type YakklAccount, type YakklCurrentlySelected, type YakklPrimaryAccount } from '$lib/common';
+	import { AccountTypeCategory, addressExist, isEncryptedData, type CurrentlySelectedData, type PrimaryAccountData, type Profile, type ProfileData, type YakklAccount, type YakklCurrentlySelected, type YakklPrimaryAccount } from '$lib/common';
 	import { dateString } from '$lib/common/datetime';
+	import { browserSvelte } from '$lib/common/environment';
 
   let currentlySelected: YakklCurrentlySelected;
 
@@ -136,6 +136,12 @@
           // ethWallet = ethersv6.Wallet.fromMnemonic(mnemonic, derivedPath);
         }
 
+        // Check if address already exists in accounts or primary accounts
+        const { exists, table } = await addressExist(ethWallet.address);
+        if (exists) {
+          throw `The Ethereum Wallet (Portfolio Account) was not able to be created. Address already exists in ${table}. Please try again.`;
+        }
+
         if ( !ethWallet ) {
           throw "The Ethereum Wallet (Portfolio Account) was not able to be created. Please try again.";
         }
@@ -170,7 +176,7 @@
             chainCode: ethWallet.chainCode,
             assignedTo: [],    // Who are the parties that have responsibility for this account
           },
-          value: 0n,
+          quantity: 0n,
           class: "Default",  // This is only used for enterprise like environments. It can be used for departments like 'Finance', 'Accounting', '<whatever>'
           level: 'L1',
           isSigner: true,
@@ -187,7 +193,7 @@
           id: yakklAccount.id,
           name: yakklAccount.name,
           address: yakklAccount.address,
-          value: yakklAccount.value,
+          quantity: yakklAccount.quantity,
           index: index,  // for the primary account path index
           data: {
             privateKey: ethWallet.privateKey,
@@ -358,7 +364,7 @@
                   chainCode: ethWallet.chainCode,
                   assignedTo: [],    // Who are the parties that have responsibility for this account
                 },
-                value: 0n,
+                quantity: 0n,
                 class: "Default",  // This is only used for enterprise like environments. It can be used for departments like 'Finance', 'Accounting', '<whatever>'
                 level: 'L1',
                 isSigner: true,

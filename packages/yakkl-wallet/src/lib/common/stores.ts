@@ -179,7 +179,7 @@ export const yakklGPTRunningStore = writable(false); // Single indicator for GPT
 export const yakklGPTKeyStore = writable<string>(undefined); // Single indicator for GPT Key
 
 export const yakklConnectionStore = writable<boolean>(true); // All fetch or api calls need to validate that the yakklConnectionStore is true before accessing the internet
-export const yakklDappConnectRequestStore = writable<string | null>(undefined);
+export const yakklDappConnectRequestStore = writable<string | null>(null);
 
 export const priceStore = writable<MarketPriceData | null>(null); // This is for the trading pairs that change every so often
 export const sessionInitialized = writable(false);
@@ -870,7 +870,7 @@ export async function getYakklCurrentlySelected(): Promise<YakklCurrentlySelecte
       return {
         id: '',
         shortcuts: {
-          value: 0n,
+          quantity: 0n,
           accountType: AccountTypeCategory.PRIMARY,
           accountName: 'YAKKL_ZERO_ACCOUNT',
           smartContract: false,

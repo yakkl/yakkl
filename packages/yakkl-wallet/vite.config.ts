@@ -10,6 +10,13 @@ import mockBrowserPolyfill from './vite-plugin-mock-browser-polyfill';
 
 const htmlContent = fs.readFileSync( path.resolve( 'static/snippet-terms.html' ), 'utf-8' );
 
+// Ensure NODE_ENV is set
+if (!process.env.NODE_ENV) {
+  process.env.NODE_ENV = 'development';
+  console.log('NODE_ENV not set, defaulting to development in Vite config');
+}
+console.log('Vite building with NODE_ENV:', process.env.NODE_ENV);
+
 export default defineConfig( {
   plugins: [
     replace( {
@@ -50,9 +57,12 @@ export default defineConfig( {
     },
   },
   define: {
-    'process.env': {},
+    'process.env': {
+      DEV_MODE: JSON.stringify(process.env.NODE_ENV !== 'production'), // This is used to determine if we are in development mode to flush out non-production code
+      NODE_ENV: JSON.stringify(process.env.NODE_ENV || 'development'),
+    },
     __version__: JSON.stringify( process.env.npm_package_version ),
-    'process.env.DEV_DEBUG': process.env.DEV_DEBUG || false,
+    'process.env.DEV_MODE': process.env.DEV_MODE || false,
   },
   optimizeDeps: {
     exclude: [

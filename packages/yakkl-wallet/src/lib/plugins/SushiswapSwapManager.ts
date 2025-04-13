@@ -274,7 +274,7 @@ export class SushiSwapManager<T extends BaseTransaction> extends SwapManager {
         from: await signer.getAddress(),
         to: '',//this.router.address,
         data,
-        value: tokenIn.isNative ? amountIn : 0,
+        quantity: tokenIn.isNative ? amountIn : 0n,
         chainId: this.provider.getChainId()
       } );
 
@@ -284,7 +284,7 @@ export class SushiSwapManager<T extends BaseTransaction> extends SwapManager {
     return {
       to: '',//this.router.address,
       data,
-      value: tokenIn.isNative ? amountIn : 0,
+      quantity: tokenIn.isNative ? amountIn : 0n,
       from: await this.provider.getSigner()!.getAddress(),
       chainId: this.provider.getChainId()
     };

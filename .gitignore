@@ -72,5 +72,5 @@ packages/yakkl-wallet/src/lib/**/*.tmp
 **/anvil-state
 
 # Lock files
-pnpm-lock.yaml
-package-lock.json
+# pnpm-lock.yaml
+# package-lock.json
