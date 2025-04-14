@@ -25,12 +25,14 @@
   // let requestData: any;
   // let method: string;
   let requestId: string | null = null;
+  let method: string | null = null;
   let message;  // This gets passed letting the user know what the intent is
   let context;
 
   if (browserSvelte) {
     try {
       requestId = page.url.searchParams.get('requestId');
+      method = page.url.searchParams.get('method');
       $yakklDappConnectRequestStore = requestId;
     } catch(e) {
       log.error(e);
@@ -44,9 +46,9 @@
     try {
       let yakklSettings = await getSettings();
       if (yakklSettings.isLocked === true) {
-        return await goto(PATH_LOGIN + '.html?requestId=' + requestId); // May force login auth every time so all of the checks would not be needed!
+        return await goto(PATH_LOGIN + '.html?requestId=' + requestId + '&method=' + method); // May force login auth every time so all of the checks would not be needed!
       } else {
-        return await goto(PATH_DAPP_ACCOUNTS + '.html?requestId=' + requestId);
+        return await goto(PATH_DAPP_ACCOUNTS + '.html?requestId=' + requestId + '&method=' + method);
       }
     } catch(e) {
       errorValue = e as string;
@@ -56,6 +58,7 @@
 
   async function onMessageListener(event: any) {
     try {
+      // TODO: Add a logo with an X with the text 'NO LOGO'
       if (!domainLogo) domainLogo = '/images/logoBullLock48x48.png'; // Set default logo but change if favicon is present
       if (event.method === 'get_params') {
         // Get metadata from the event data
@@ -284,7 +287,7 @@
 
     <div class="bg-base-200 rounded-lg p-4 mb-8 flex-shrink-0">
       <p class="text-sm text-base-content/70">
-        By connecting, you agree to allow this site to view your public address. This does not give permission to move funds.
+        By connecting, you agree to allow this site to view your public address. Any signing or transaction requests will have an additional approval step.
       </p>
     </div>
   </div>

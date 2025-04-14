@@ -17,6 +17,7 @@
 
   import type { Runtime } from 'webextension-polyfill';
 	import { verify } from '$lib/common/security';
+  import type { YakklRequest, YakklResponse } from '$lib/common/interfaces';
 
   type RuntimePort = Runtime.Port;
 
@@ -71,7 +72,11 @@
       if (browserSvelte) {
         currentlySelected = await getYakklCurrentlySelected();
         yakklMiscStore = getMiscStore();
-        yakklDappConnectRequest = getDappConnectRequestStore(); // Not required any longer but keep for now
+        yakklDappConnectRequest = getDappConnectRequestStore();
+        method = page.url.searchParams.get('method') as string ?? '';
+
+        log.debug('Sign: yakklDappConnectRequest', false, yakklDappConnectRequest);
+
         yakklDappConnectRequest = requestId = page.url.searchParams.get('requestId') as string;
         setDappConnectRequestStore(yakklDappConnectRequest);
         chainId = currentlySelected.shortcuts.chainId as number;
@@ -80,24 +85,27 @@
 
         port = browser_ext.runtime.connect({name: YAKKL_DAPP});
         if (port) {
-          port.onMessage.addListener(async(event: any) => {
-            if (!event?.data) return;
+          port.onMessage.addListener(async(message: unknown) => {
+            const event = message as YakklRequest;
+            if (!event?.params) return;
             method = context;
-            requestData = event.data;
+            requestData = event.params;
 
             if (event.method === 'get_params') {
-              domainTitle = requestData?.data?.metaDataParams?.title ?? '';
-              domain = requestData?.data?.metaDataParams?.domain ?? '';
+              domainTitle = requestData?.metaDataParams?.title ?? '';
+              domain = requestData?.metaDataParams?.domain ?? '';
               // Get favicon from URL parameters first, fall back to metadata
               const url = new URL(window.location.href);
               const favicon = url.searchParams.get('favicon');
-              domainLogo = favicon || (requestData?.data?.metaDataParams?.icon ?? '/images/logoBullLock48x48.png');
-              message = requestData?.data?.metaDataParams?.message ?? 'Nothing was passed in explaining the intent of this approval. Be mindful!';
-              context = requestData?.data?.metaDataParams?.context ?? 'sign';
-              params = requestData?.data?.metaDataParams?.transaction ?? [];
+              domainLogo = favicon || (requestData?.metaDataParams?.icon ?? '/images/logoBullLock48x48.png');
+              message = requestData?.metaDataParams?.message ?? 'Nothing was passed in explaining the intent of this approval. Be mindful!';
+              context = requestData?.metaDataParams?.context ?? 'eth_signTypedData_v4';
+              params = requestData?.metaDataParams?.transaction ?? [];
 
-              if (!requestId) requestId = requestData.id;
+              if (!requestId) requestId = event.id.toString();
               let data;
+
+              log.debug('Sign: method', false, {context, params, requestData, event});
 
               switch(context) {
                 case 'personal_sign':
@@ -105,7 +113,7 @@
                   personal_sign.address = addressToCheck = params[1];
                   personal_sign.description = message = params[2];
                   break;
-                case 'eth_signTypedData_v3':
+                // case 'eth_signTypedData_v3': // Not currently used but keep for now
                 case 'eth_signTypedData_v4':
                   signTypedData_v3v4.address = addressToCheck = params[0];
                   signTypedData_v3v4.dataToSign = params[1];
@@ -120,13 +128,19 @@
                   messageValue = 'No message request was passed in. Error.';
                   break;
               }
-
             }
           });
         }
 
-        if (port)
-          port.postMessage({method: 'get_params', id: requestId}); // request is not currently used but we may want to later
+        if (port) {
+          const request: YakklRequest = {
+            type: 'YAKKL_REQUEST:EIP6963',
+            method: 'get_params',
+            id: requestId,
+            params: []
+          };
+          port.postMessage(request);
+        }
       }
     } catch(e) {
       log.error(e);
@@ -158,9 +172,16 @@ async function handleReject() {
 async function bail() {
   try {
     if (port) {
-      port.postMessage({method: method, response: {type: 'YAKKL_RESPONSE', data: {name: 'ProviderRPCError', code: 4001, message: 'User rejected the request.'}}, requestData: requestData});
+      const response: YakklResponse = {
+        type: 'YAKKL_RESPONSE:EIP6963',
+        id: requestId,
+        error: {
+          code: 4001,
+          message: 'User rejected the request.'
+        }
+      };
+      port.postMessage(response);
       port.disconnect();
-      // port.onMessage.removeListener();
       port = undefined;
     }
   } catch(e) {
@@ -276,9 +297,13 @@ async function handleSignTypedData(account: YakklAccount) {
 async function handleClose() {
   try {
     if (port) {
-      port.postMessage({id: requestId, method: method, type: 'YAKKL_RESPONSE', result: signedData });
+      const response: YakklResponse = {
+        type: 'YAKKL_RESPONSE:EIP6963',
+        id: requestId,
+        result: signedData
+      };
+      port.postMessage(response);
       port.disconnect();
-      // port.onMessage.removeListener();
       port = undefined;
     }
     showSuccess = false;

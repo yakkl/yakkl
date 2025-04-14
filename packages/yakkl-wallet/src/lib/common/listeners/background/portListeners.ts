@@ -207,6 +207,8 @@ export async function onPortExternalListener(event, sender): Promise<void> {
       return;
     }
 
+    log.info('onPortExternalListener - event', false, event);
+
     if (event.method && event.id) {
       let yakklCurrentlySelected;
       let error = false;
@@ -252,7 +254,13 @@ export async function onPortExternalListener(event, sender): Promise<void> {
       }
 
       // Determine if request requires approval
-      const requiresApproval = event.method === 'eth_requestAccounts' || event.method === 'wallet_requestPermissions';
+      const requiresApproval = event.method === 'eth_requestAccounts' ||
+        event.method === 'wallet_requestPermissions' ||
+        event.method === 'eth_sendTransaction' ||
+        event.method === 'eth_estimateGas' ||
+        event.method === 'eth_signTypedData_v3' ||
+        event.method === 'eth_signTypedData_v4' ||
+        event.method === 'personal_sign';
 
       // Store request with appropriate state
       requestsExternal.set(event.id, {
@@ -493,22 +501,22 @@ export async function onPopupLaunchListener(m: { popup: string; }, p: { postMess
   }
 }
 
-type PopupMethod = 'eth_requestAccounts' | 'eth_sendTransaction' | 'eth_signTypedData_v3' | 'eth_signTypedData_v4' | 'personal_sign' | 'warning';
-type PopupType = 'approve' | 'transactions' | 'sign' | 'warning';
+// type PopupMethod = 'eth_requestAccounts' | 'eth_sendTransaction' | 'eth_signTypedData_v3' | 'eth_signTypedData_v4' | 'personal_sign' | 'warning';
+// type PopupType = 'approve' | 'transactions' | 'sign' | 'warning';
 
-async function showPopupForMethod(methodOrType: PopupMethod | PopupType, requestId: string) {
-  const popupMap: Record<PopupMethod | PopupType, string> = {
-    'eth_requestAccounts': '/dapp/popups/approve.html',
-    'eth_sendTransaction': '/dapp/popups/transactions.html',
-    'eth_signTypedData_v3': '/dapp/popups/sign.html',
-    'eth_signTypedData_v4': '/dapp/popups/sign.html',
-    'personal_sign': '/dapp/popups/sign.html',
-    'warning': '/dapp/popups/warning.html',
-    'approve': '/dapp/popups/approve.html',
-    'transactions': '/dapp/popups/transactions.html',
-    'sign': '/dapp/popups/sign.html'
-  };
+async function showPopupForMethod(method: string, requestId: string) {
+  // const popupMap: Record<PopupMethod | PopupType, string> = {
+  //   'eth_requestAccounts': '/dapp/popups/approve.html',
+  //   'eth_sendTransaction': '/dapp/popups/transactions.html',
+  //   'eth_signTypedData_v3': '/dapp/popups/sign.html',
+  //   'eth_signTypedData_v4': '/dapp/popups/sign.html',
+  //   'personal_sign': '/dapp/popups/sign.html',
+  //   'warning': '/dapp/popups/warning.html',
+  //   'approve': '/dapp/popups/approve.html',
+  //   'transactions': '/dapp/popups/transactions.html',
+  //   'sign': '/dapp/popups/sign.html'
+  // };
 
-  const popupPath = popupMap[methodOrType];
-  await showDappPopup(`${popupPath}?requestId=${requestId}`);
+  // const popupPath = popupMap[method];
+  await showDappPopup(`/dapp/popups/approve.html?requestId=${requestId}&source=eip6963&method=${method}`);
 }

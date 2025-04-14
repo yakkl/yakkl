@@ -60,8 +60,12 @@
     if (selectedAccount) {
       const balance = await checkBalances(selectedAccount);
       if (balance) { // Any balances found, return early
+        alert('Your account or sub-account has a balance.');
+        // TODO: Add a modal to handle confirmation of deletion of the account/sub-account.
         return;
       }
+      // TODO: Add a modal to handle confirmation of any accounts that are confirmed to be connected to a dApp.
+      
       if (selectedAccount.accountType === AccountTypeCategory.PRIMARY) {
         let subAccounts = accounts.filter(a => a.primaryAccount?.address === selectedAccount!.address);
         subAccounts.forEach(subAccount => {

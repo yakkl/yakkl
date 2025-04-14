@@ -766,14 +766,15 @@ export async function showEIP6963Popup(method: string, params: any[], requestId?
       log.warn('Showing EIP-6963 popup', false, { method, params, requestId });
 
       // Show the appropriate popup based on the method
+      // approve is the default popup for all methods and forwards to the appropriate popup based on the method
       let popupUrl = `/dapp/popups/approve.html?requestId=${id}&source=eip6963&method=${method}`;
-      if (method === 'eth_sendTransaction') {
-        popupUrl = `/dapp/popups/transactions.html?requestId=${id}&source=eip6963&method=${method}`;
-      } else if (['eth_signTypedData_v3', 'eth_signTypedData_v4', 'personal_sign'].includes(method)) {
-        popupUrl = `/dapp/popups/sign.html?requestId=${id}&source=eip6963&method=${method}`;
-      } else if (method === 'wallet_addEthereumChain' || method === 'wallet_switchEthereumChain') {
-        popupUrl = `/dapp/popups/network.html?requestId=${id}&source=eip6963&method=${method}`;
-      }
+      // if (method === 'eth_sendTransaction') {
+      //   popupUrl = `/dapp/popups/transactions.html?requestId=${id}&source=eip6963&method=${method}`;
+      // } else if (['eth_signTypedData_v3', 'eth_signTypedData_v4', 'personal_sign'].includes(method)) {
+      //   popupUrl = `/dapp/popups/sign.html?requestId=${id}&source=eip6963&method=${method}`;
+      // } else if (method === 'wallet_addEthereumChain' || method === 'wallet_switchEthereumChain') {
+      //   popupUrl = `/dapp/popups/network.html?requestId=${id}&source=eip6963&method=${method}`;
+      // }
 
       // Show the popup
       log.info('showEIP6963Popup - Showing popup', false, { popupUrl });

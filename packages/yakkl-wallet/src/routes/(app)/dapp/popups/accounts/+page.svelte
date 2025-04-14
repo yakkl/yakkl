@@ -338,6 +338,7 @@
             try {
               requestData = event.data;
 
+              // TODO: Add a logo with an X with the text 'NO LOGO'
               if (!domainLogo) domainLogo = '/images/logoBullLock48x48.png'; // Set default logo but change if favicon is present
 
               if (event.method === 'get_params') {

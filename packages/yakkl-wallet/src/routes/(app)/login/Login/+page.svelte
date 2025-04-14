@@ -34,6 +34,8 @@
   let registeredType: string = $state('');
   let redirect = PATH_WELCOME;
   let requestId = $state('');
+  let method: string = '';
+  let url: string = '/dapp/popups/approve.html';
   let pweyeOpen = false;
   let pweyeOpenId: HTMLButtonElement;
   let pweyeClosedId: HTMLButtonElement;
@@ -44,9 +46,32 @@
   if (browserSvelte) {
     const urlRequestId = page.url.searchParams.get('requestId') as string ?? '';
     requestId = urlRequestId;
+    method = page.url.searchParams.get('method') as string ?? '';
     if (urlRequestId) {
       $yakklDappConnectRequestStore = urlRequestId;
-      redirect = PATH_DAPP_ACCOUNTS + '.html?requestId=' + urlRequestId;
+      if (method) {
+        switch (method) {
+          case 'eth_requestAccounts':
+            url = '/dapp/popups/accounts.html';
+            break;
+          case 'eth_sendTransaction':
+            url = '/dapp/popups/transactions.html';
+            break;
+          case 'eth_signTypedData_v3':
+          case 'eth_signTypedData_v4':
+          case 'personal_sign':
+            url = '/dapp/popups/sign.html';
+            break;
+          case 'wallet_addEthereumChain':
+          case 'wallet_switchEthereumChain':
+            url = '/dapp/popups/network.html';
+            break;
+          default:
+            url = '/dapp/popups/approve.html';
+            break;
+        }
+      }
+      redirect = url + '?requestId=' + urlRequestId + '&method=' + method;
     } else {
       $yakklDappConnectRequestStore = null;
     }

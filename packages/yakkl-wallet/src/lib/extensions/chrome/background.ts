@@ -20,14 +20,13 @@ import { KeyManager } from '$lib/plugins/KeyManager';
 import { getMemoizedKey, migrateToSecureStorage, SecureStore, getObjectFromLocalStorage } from '$lib/common/backgroundSecuredStorage';
 import { SecurityLevel } from '$lib/permissions/types';
 import { getAlchemyProvider } from '$lib/plugins/providers/network/ethereum_provider/alchemy';
-import { ProviderRpcError } from '$lib/common';
-import type { PendingRequest, RequestMetadata, YakklCurrentlySelected as YakklCurrentlySelectedInterface, YakklMessage, YakklRequest, YakklResponse } from '$lib/common/interfaces';
+import type { RequestMetadata, YakklMessage, YakklRequest, YakklResponse } from '$lib/common/interfaces';
 import { STORAGE_YAKKL_CURRENTLY_SELECTED } from '$lib/common/constants';
 import { browser_ext } from '$lib/common/environment';
 import { openPopups } from '$lib/common/reload';
 import { showExtensionPopup } from '$lib/extensions/chrome/ui';
 import { showPopup } from './ui';
-import { generateEipId, ensureEipId } from '$lib/common/id-generator';
+import { ensureEipId } from '$lib/common/id-generator';
 
 type RuntimeSender = Runtime.MessageSender;
 type RuntimePort = Runtime.Port;

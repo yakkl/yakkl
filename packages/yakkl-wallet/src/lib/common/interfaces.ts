@@ -3,6 +3,7 @@ import type { AccessList, Log, Transaction } from '$lib/common/evm';
 import type { AccountTypeCategory, BytesLike, NetworkType, RegistrationType, SystemTheme, URL } from '$lib/common/types';
 import type { BigNumberish } from '$lib/common/bignumber';
 import type { Token } from '$lib/plugins/Token';
+import type { Runtime } from 'webextension-polyfill';
 
 // Ethereum JSON-RPC request arguments
 export interface RequestArguments {
@@ -71,14 +72,14 @@ export interface RequestMetadata {
 }
 
 // Define the pending request type
-export interface PendingRequest {
+export interface PendingRequestData {
+  id: string;
   method: string;
   params?: any[];
-  resolve?: (value: any) => void;
+  resolve?: (result: any) => void;
   reject?: (error: any) => void;
   timestamp: number;
-  port?: chrome.runtime.Port;
-  id?: string | number;
+  port?: Runtime.Port;
   type?: string;
 }
 
