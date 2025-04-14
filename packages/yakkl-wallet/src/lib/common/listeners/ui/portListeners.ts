@@ -1,5 +1,5 @@
-import { openPopups, openWindows } from "$lib/common/reload";
-import { updateScreenPreferences } from "$lib/extensions/chrome/ui";
+import { openWindows } from "$lib/common/reload";
+import { openPopups, updateScreenPreferences } from "$lib/extensions/chrome/ui";
 import { setIconLock } from "$lib/utilities/utilities";
 
 export async function onPortInternalListener(event: any): Promise<void> {

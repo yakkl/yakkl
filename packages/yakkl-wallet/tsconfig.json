@@ -36,7 +36,7 @@
       "vite/client",
       "node",
       "@sveltejs/kit"
-    ],
+    ]
   },
   "include": [
     "src",

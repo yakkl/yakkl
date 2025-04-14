@@ -79,6 +79,7 @@ export function getTargetOrigin(): string | null {
   }
 }
 
+// NOTE: This is used in the content script and inpage script only.
 // Example: safePostMessage(msg, origin, { targetWindow: iframe.contentWindow });
 // Use this format when needing to send a message to a specific iframe (parent or child). Otherwise, use the default format below.
 // Note: Cleaning up pending messages is handled in the content script

@@ -164,13 +164,7 @@
   onMount(async () => {
     try {
       if (browserSvelte) {
-        try {
-          if (!browser_ext.runtime.onMessage.hasListener(handleOnMessageForPricing)) {
-            browser_ext.runtime.onMessage.addListener(handleOnMessageForPricing);
-          }
-        } catch (error) {
-          log.error('Card - onMount - onMessage error. Continuing', false, error);
-        }
+        await browser_ext.runtime.sendMessage({ type: 'clientReady' }); // Safeguard to ensure the client is ready before sending messages
 
         startPricingChecks();
         await updateTokenPrices(); // Initial token price update

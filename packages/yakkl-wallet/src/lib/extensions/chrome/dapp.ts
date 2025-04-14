@@ -1,21 +1,18 @@
-import { debug_log } from "$lib/common/debug-error";
-import { requestsExternal } from "$lib/common/listeners/background/portListeners";
+import { requestManager } from "$lib/extensions/chrome/eip-6963";
 import { log } from "$lib/plugins/Logger";
+import { verifyDomainConnected } from "$lib/extensions/chrome/verifyDomainConnected";
 
 export async function onDappListener(event: any, sender: any): Promise<void> {
   try {
+    log.info('Dapp - onDappListener - event: Starting', false, {event, sender});
+
     switch(event?.method) {
       case 'get_warning':
-        if (event.id) {
-          const data = requestsExternal.get(event.id);
-          if (data) {
-            sender.postMessage({method: 'get_warning', data: data});
-          } else {
-            // post a message to close the popup
-            // send to content.ts an error!!
-          }
+        const warningData = requestManager.getRequest(event.id);
+        if (warningData) {
+            sender.postMessage({method: 'get_warning', data: warningData});
         } else {
-          throw 'No id is present - rejected';
+            // Handle missing data
         }
         break;
       case 'get_params':
@@ -23,55 +20,83 @@ export async function onDappListener(event: any, sender: any): Promise<void> {
           log.error('Dapp - get_params - No event ID is present.');
           return;
         }
-        const data = requestsExternal.get(event.id);
-        if (!data) {
-          // Instead of rejecting, return empty params to indicate no data
-          sender.postMessage({ id: event.id, method: 'get_params', type: 'YAKKL_RESPONSE', result: { params: [] } });
-          return;
+        const request = requestManager.getRequest(event.id);
+        if (request) {
+          const isConnected = await verifyDomainConnected(request.data.metaData.metaData.domain);
+          log.info('Dapp - get_params - isConnected:', false, {isConnected});
+          request.data.metaData.metaData.isConnected = isConnected;
+          sender.postMessage({
+            id: event.id,
+            jsonrpc: '2.0',
+            method: 'get_params',
+            type: 'YAKKL_RESPONSE:EIP6963',
+            result: request
+          });
+        } else {
+          sender.postMessage({
+            id: event.id,
+            jsonrpc: '2.0',
+            method: 'get_params',
+            type: 'YAKKL_RESPONSE:EIP6963',
+            result: { params: [] }
+          });
         }
-        sender.postMessage({ id: event.id, method: 'get_params', type: 'YAKKL_RESPONSE', result: data });
         break;
       case 'error':
-        {
-          const data = requestsExternal.get(event.id);
-          if (data) {
-            const requestData = data.data;
-            const sender = (requestData as { sender: any }).sender;
-            if (sender) {
-              sender.postMessage({id: event.id, method: event.method, type: 'YAKKL_RESPONSE', data: event.response.data});
-            }
-          }
+        if (sender) {
+           sender.postMessage({
+             id: event.id,
+             jsonrpc: '2.0',
+             method: event.method,
+             type: 'YAKKL_RESPONSE:EIP6963',
+             error: event.response.data
+           });
+        } else {
+           log.error('Dapp - Error case: Sender port is invalid.');
         }
         break;
-      default: // Relays to content.ts
-        {
-          const data = requestsExternal.get(event.id);
+      default:
+        if (sender) {
+            log.info('Dapp - onDappListener - default case', false, {event, sender});
 
-          log.debug('Dapp - onDappListener - requestExternal', false, requestsExternal);
-          log.debug('Dapp - onDappListener - data', false, data);
-          log.debug('Dapp - onDappListener - event', false, event);
+            if (event.id) {
+               log.info('Dapp - Default case forwarding:', false, {id: event.id, result: event.result, method: event.method});
 
-          if (data) {
-            const requestData = data.data;
-            const sender = (requestData as { sender: any }).sender;
-            if (sender) {
-              sender.postMessage(event);
+               // For EIP-1193/EIP-6963 compliance, only send the result or error
+               if (event.error) {
+                 sender.postMessage({
+                   id: event.id,
+                   type: event.type,
+                   method: event.method,
+                   error: event.error
+                 });
+               } else {
+                 sender.postMessage({
+                   id: event.id,
+                   type: event.type,
+                   method: event.method,
+                   result: event.result
+                 });
+               }
             } else {
-              throw 'Connection to port has been disconnected - rejected';
+               log.warn('Dapp - Default case: No request ID to forward response.', false, {event});
             }
-          } else if (event.id) {
-
-            sender.postMessage({id: event.id, 'jsonrpc': '2.0', method: event.method, type: 'YAKKL_RESPONSE:EIP6963', result: event.result});
-          } else {
-            log.warn('Warning - No request ID is present - rejected', false, {event: event});
-          }
+        } else {
+           log.error('Dapp - Default case: Sender port is invalid.');
         }
         break;
     }
-
   } catch (error) {
-    log.error(error);
-    sender.postMessage({id: event.id, method: event.method, type: 'YAKKL_RESPONSE', data: {code: -1, message: error}});
+    log.error('Dapp - Error in onDappListener:', false, error);
+    if (sender) {
+      sender.postMessage({
+        id: event?.id,
+        jsonrpc: '2.0',
+        method: event?.method,
+        type: 'YAKKL_RESPONSE:EIP6963',
+        error: { code: -1, message: error instanceof Error ? error.message : 'Unknown error occurred' }
+      });
+    }
   }
 }
 

@@ -1,7 +1,7 @@
 import { getBrowserExt } from "$lib/browser-polyfill-wrapper";
 import { log } from "$lib/plugins/Logger";
 import type { Runtime } from "webextension-polyfill";
-import type { StorageRequest, StorageResponse } from "./storage-types";
+import type { StorageRequest, StorageResponse } from "./storageTypes";
 
 // storage-port.ts
 export class StoragePort {

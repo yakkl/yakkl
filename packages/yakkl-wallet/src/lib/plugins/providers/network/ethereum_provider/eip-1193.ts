@@ -64,7 +64,7 @@ export class EIP1193Provider extends EventEmitter {
     // Find the pending request
     const pendingRequest = this.pendingRequests.get(id);
     if (!pendingRequest) {
-      log.warn('EIP1193: No pending request found for response:', false, {
+      log.info('EIP1193: No pending request found for response:', false, {
         id,
         response
       });
@@ -101,7 +101,7 @@ export class EIP1193Provider extends EventEmitter {
             const { handleRequestAccounts } = await import('../../../../extensions/chrome/eip-6963');
 
             // Use the EIP-6963 implementation to handle the request
-            finalResult = await handleRequestAccounts();
+            finalResult = await handleRequestAccounts(null, id.toString());
 
             // Update cached accounts and emit events
             this.cachedAccounts = finalResult;
@@ -110,9 +110,6 @@ export class EIP1193Provider extends EventEmitter {
               this._isConnected = true;
               this.emit('connect', { chainId: this.chainId });
             }
-            log.debug('EIP1193: Cached accounts:', false, {
-              accounts: finalResult
-            });
           } catch (error) {
             log.error('Error using EIP-6963 implementation for eth_requestAccounts:', false, error);
             // Don't fallback to original implementation - let the error propagate
@@ -124,9 +121,6 @@ export class EIP1193Provider extends EventEmitter {
         }
       } else if (method === 'net_version') {
         this.networkVersion = finalResult;
-        log.debug('EIP1193: Cached networkVersion:', false, {
-          networkVersion: finalResult
-        });
       } else if (method === 'wallet_switchEthereumChain') {
         // After switching chains, update chainId
         this.updateChainState();
@@ -134,11 +128,6 @@ export class EIP1193Provider extends EventEmitter {
 
       // Resolve with the result
       pendingRequest.resolve(finalResult);
-      log.debug('EIP1193: Request resolved:', false, {
-        method,
-        id,
-        result: finalResult
-      });
     }
   }
 
@@ -204,12 +193,6 @@ export class EIP1193Provider extends EventEmitter {
     const { method, params = [] } = args;
     const id = ++this.requestId;
 
-    log.debug('EIP1193: Sending request:', false, {
-      method,
-      params,
-      id
-    });
-
     // Handle special methods with cached values
     if (method === 'eth_requestAccounts') {
       // If we already have accounts, return them immediately
@@ -220,21 +203,11 @@ export class EIP1193Provider extends EventEmitter {
         return this.cachedAccounts;
       }
       // Otherwise, we need to make the request
-      log.debug('EIP1193: No cached accounts, making eth_requestAccounts request', false);
     } else if (method === 'eth_chainId' && this.chainId) {
-      log.debug('EIP1193: Using cached chainId:', false, {
-        chainId: this.chainId
-      });
       return this.chainId;
     } else if (method === 'net_version' && this.networkVersion) {
-      log.debug('EIP1193: Using cached networkVersion:', false, {
-        networkVersion: this.networkVersion
-      });
       return this.networkVersion;
     } else if (method === 'eth_accounts' && this.cachedAccounts) {
-      log.debug('EIP1193: Using cached accounts:', false, {
-        accounts: this.cachedAccounts
-      });
       return this.cachedAccounts;
     }
 
@@ -283,9 +256,6 @@ export class EIP1193Provider extends EventEmitter {
       'eth_signTransaction',
       'eth_sign',
       'personal_sign',
-      'eth_signTypedData',
-      'eth_signTypedData_v1',
-      'eth_signTypedData_v3',
       'eth_signTypedData_v4',
       'wallet_addEthereumChain',
       'wallet_switchEthereumChain',
@@ -302,9 +272,7 @@ export class EIP1193Provider extends EventEmitter {
     try {
       // No longer proactively requesting initial state
       // We'll only cache these values when they're first requested by the dapp
-
       this.isInitialized = true;
-      log.debug('EIP1193: Provider initialized', false);
     } catch (error) {
       log.error('EIP1193: Error initializing provider:', false, error);
       // Still mark as initialized to prevent hanging

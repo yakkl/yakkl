@@ -8,7 +8,7 @@ import { log } from '$lib/plugins/Logger';
 
 const browser_ext = browser;
 
-export const contentListenerManager = new ListenerManager();
+export const contentListenerManager = new ListenerManager('content');
 
 // Register contentListenerManager globally
 globalListenerManager.registerContext('content', contentListenerManager);

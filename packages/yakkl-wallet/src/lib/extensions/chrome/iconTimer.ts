@@ -11,6 +11,8 @@ import { log } from "$plugins/Logger";
 
 export function startLockIconTimer() {
   try {
+    log.info('startLockIconTimer:===========================:::: 1111', false);
+
     timerManager.addTimer('iconTimer_lockIcon', async () => {
       try {
         const yakklSettings = await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS) as Settings;
@@ -25,6 +27,7 @@ export function startLockIconTimer() {
         if (yakklSettings.isLocked) {
           await setIconLock();
           if ( browser_ext) {
+            log.info('startLockIconTimer:===========================:::: 2222', false);
             await browser_ext.runtime.sendMessage({ type: 'lockdown' });
           }
         } else {

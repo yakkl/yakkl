@@ -2,28 +2,32 @@
 import { ListenerManager } from '$lib/plugins/ListenerManager';
 import browser from 'webextension-polyfill';
 import type { Runtime } from 'webextension-polyfill';
-import { openPopups, openWindows } from '$lib/common/reload';
+import { openWindows } from '$lib/common/reload';
 import { initializeDatabase } from '$lib/extensions/chrome/database';
 import { yakklStoredObjects } from '$lib/models/dataModels';
 import { setObjectInLocalStorage } from '$lib/common/storage';
 import { setLocalObjectStorage } from '$lib/extensions/chrome/storage';
 import { loadDefaultTokens } from '$lib/plugins/tokens/loadDefaultTokens';
 import { VERSION } from '$lib/common/constants';
-import { onRuntimeMessageListener } from './runtimeListeners';
+// import { onRuntimeMessageListener } from './runtimeListeners';
 import { onPortConnectListener, onPortDisconnectListener } from './portListeners';
 import { onTabActivatedListener, onTabRemovedListener, onTabUpdatedListener, onWindowsFocusChangedListener } from './tabListeners';
 import { globalListenerManager } from '$lib/plugins/GlobalListenerManager';
 import { log } from '$lib/plugins/Logger';
-
-const browser_ext = browser;
+// import { onSigningRequestListener } from '$lib/extensions/chrome/signingHandler';
+import { openPopups } from '$lib/extensions/chrome/ui';
+// import { onSecureMessageListener } from './secureListener';
+// import { onRuntimeMessageBackgroundListener } from '$lib/extensions/chrome/background';
+// import { onEIP6963MessageListener } from '$lib/extensions/chrome/eip-6963';
+import { onUnifiedMessageListener } from './unifiedMessageHandler';
 
 type RuntimePlatformInfo = Runtime.PlatformInfo;
 
-export const backgroundListenerManager = new ListenerManager();
+export const backgroundListenerManager = new ListenerManager('background');
 
 export async function onInstalledUpdatedListener( details: Runtime.OnInstalledDetailsType ): Promise<void> {
   try {
-    if (!browser_ext) return;
+    // This portion only works in Chrome
     if (typeof chrome !== "undefined" && chrome.sidePanel) {
       // Set the panel behavior to NOT open on action click
       chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false }); // Default to false
@@ -34,15 +38,16 @@ export async function onInstalledUpdatedListener( details: Runtime.OnInstalledDe
       }
 
       chrome.runtime.onMessage.addListener((message: any, _sender: any, _sendResponse: any  ) => {
-      if (message.type === "SET_PANEL_BEHAVIOR") {
-        chrome.sidePanel.setPanelBehavior({
-          openPanelOnActionClick: !!message.open
-        });
-      }
+        if (message.type === "SET_PANEL_BEHAVIOR") {
+          chrome.sidePanel.setPanelBehavior({
+            openPanelOnActionClick: !!message.open
+          });
+        }
+        return false;
       });
     }
 
-    const platform: RuntimePlatformInfo = await browser_ext.runtime.getPlatformInfo();
+    const platform: RuntimePlatformInfo = await browser.runtime.getPlatformInfo();
 
     openWindows.clear();
     openPopups.clear();
@@ -59,12 +64,12 @@ export async function onInstalledUpdatedListener( details: Runtime.OnInstalledDe
 
       await initializeDatabase(false);
 
-      await browser_ext.runtime.setUninstallURL(encodeURI("https://yakkl.com?userName=&utm_source=yakkl&utm_medium=extension&utm_campaign=uninstall&utm_content=" + `${VERSION}` + "&utm_term=extension"));
+      await browser.runtime.setUninstallURL(encodeURI("https://yakkl.com?userName=&utm_source=yakkl&utm_medium=extension&utm_campaign=uninstall&utm_content=" + `${VERSION}` + "&utm_term=extension"));
       await setLocalObjectStorage(platform, false);
     }
 
     if (details && details.reason === "update") {
-      if (details.previousVersion !== browser_ext.runtime.getManifest().version) {
+      if (details.previousVersion !== browser.runtime.getManifest().version) {
         await initializeDatabase(true); // This will clear the db and then import again
         await setLocalObjectStorage(platform, false); // After 1.0.0, upgrades will be handled.
       }
@@ -88,25 +93,45 @@ export function onEthereumListener(event: any) {
 // Register backgroundListenerManager globally
 globalListenerManager.registerContext('background', backgroundListenerManager);
 
-// TODO: Review these against background.ts
 export function addBackgroundListeners() {
-  if (!browser_ext) return;
-
   // These check to see if already added and if so, remove and re-add
-  backgroundListenerManager.add(browser_ext.runtime.onMessage, onRuntimeMessageListener);
-  backgroundListenerManager.add(browser_ext.runtime.onInstalled, onInstalledUpdatedListener);
-  backgroundListenerManager.add(browser_ext.runtime.onConnect, onPortConnectListener);
-  backgroundListenerManager.add(browser_ext.runtime.onConnect, onPortDisconnectListener);
+  backgroundListenerManager.add(browser.runtime.onMessage, onUnifiedMessageListener);
+  // Comment out individual handlers as they are now handled by the unified handler
+  // backgroundListenerManager.add(browser.runtime.onMessage, onSecureMessageListener);
+  // backgroundListenerManager.add(browser.runtime.onMessage, onSigningRequestListener);
+  // backgroundListenerManager.add(browser.runtime.onMessage, onRuntimeMessageBackgroundListener);
+  // backgroundListenerManager.add(browser.runtime.onMessage, onRuntimeMessageListener);
+  // backgroundListenerManager.add(browser.runtime.onMessage, onEIP6963MessageListener);
 
-  backgroundListenerManager.add(browser_ext.tabs.onActivated, onTabActivatedListener);
-  backgroundListenerManager.add(browser_ext.tabs.onUpdated, onTabUpdatedListener);
-  backgroundListenerManager.add(browser_ext.tabs.onRemoved, onTabRemovedListener);
-  backgroundListenerManager.add(browser_ext.windows.onFocusChanged, onWindowsFocusChangedListener);
+  backgroundListenerManager.add(browser.runtime.onInstalled, onInstalledUpdatedListener);
+  backgroundListenerManager.add(browser.runtime.onConnect, onPortConnectListener);
+  backgroundListenerManager.add(browser.runtime.onConnect, onPortDisconnectListener);
 
-  // These are now handled in the UI due to the new architecture
-  // backgroundListenerManager.add(browser_ext.alarms.onAlarm, onAlarmListener);
-  // backgroundListenerManager.add(browser_ext.idle.onStateChanged, onStateChangedListener);
+  backgroundListenerManager.add(browser.tabs.onActivated, onTabActivatedListener);
+  backgroundListenerManager.add(browser.tabs.onUpdated, onTabUpdatedListener);
+  backgroundListenerManager.add(browser.tabs.onRemoved, onTabRemovedListener);
+  backgroundListenerManager.add(browser.windows.onFocusChanged, onWindowsFocusChangedListener);
 }
+
+// Decide if this is needed
+// browser.runtime.onMessage.addListener((
+//   message: unknown,
+//   sender: Runtime.MessageSender,
+//   sendResponse: (response?: unknown) => void
+// ): any => {
+//   const typedMessage = message as { type: string; url: string };
+//   if (typedMessage.type === 'UPDATE_SIDEPANEL_CONTENT') {
+//     // Get all views of type 'side_panel'
+//     browser.extension.getViews({ type: 'tab' }).forEach((view: Window) => {
+//       // Send the update message to each side panel view
+//       view.postMessage({
+//         type: 'UPDATE_CONTENT',
+//         url: typedMessage.url
+//       }, '*');
+//     });
+//   }
+//   return false;
+// });
 
 export function removeBackgroundListeners() {
   backgroundListenerManager.removeAll();

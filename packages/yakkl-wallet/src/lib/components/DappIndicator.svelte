@@ -17,7 +17,7 @@
 
   onMount(async () => {
 		try {
-      if (browserSvelte) browser_ext.runtime.onMessage.addListener(handleOnMessage);
+      // if (browserSvelte) browser_ext.runtime.onMessage.addListener(handleOnMessage);
     } catch(e) {
       log.error(e);
     }
@@ -25,7 +25,7 @@
 
   onDestroy(() => {
 		try {
-			if (browserSvelte) browser_ext.runtime.onMessage.removeListener(handleOnMessage);
+			// if (browserSvelte) browser_ext.runtime.onMessage.removeListener(handleOnMessage);
       show = false;
       dapp = '';
     } catch(e) {
@@ -35,19 +35,20 @@
 
   export function handleOnMessage(
     request: any,
-    sender: any, //browser.Runtime.MessageSender
-  ): true | Promise<unknown> {
+    sender: any,
+    sendResponse: (response?: unknown) => void
+  ): any {
     try {
       if (request?.method === 'yak_dappsite') {
         log.error(request)
         dapp = 'DAPP';
         show = true;
-        return true;
+        return false;
       }
-      return Promise.resolve(); // Correct TypeScript return type
+      return false;
     } catch (e) {
       log.error('Error handling message:', false, e);
-      return Promise.resolve(); // Ensure a valid return type
+      return false;
     }
   }
 

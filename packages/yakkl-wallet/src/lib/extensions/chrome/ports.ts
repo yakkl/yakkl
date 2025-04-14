@@ -1,9 +1,7 @@
 import type { Runtime } from 'webextension-polyfill';
 import browser from 'webextension-polyfill';
 import { log } from '$plugins/Logger';
-import { getWindowOrigin, getTargetOrigin, safePostMessage } from '$lib/common/origin';
-// import { getBrowserExt } from '$lib/browser-polyfill-wrapper';
-// import { browser_ext } from '$lib/common/environment';
+import { getTargetOrigin, safePostMessage } from '$lib/common/origin';
 
 type RuntimePort = Runtime.Port;
 const browser_ext = browser;
@@ -59,7 +57,6 @@ export class PortManager {
   }
 
   private async onDisconnectListener() {
-    log.info("Port disconnected.");
     if (this.port) {
       this.port.onMessage.removeListener(this.onMessageListener);
       this.port.onDisconnect.removeListener(this.onDisconnectListener.bind(this));
@@ -114,7 +111,6 @@ export function onConnect(port: RuntimePort) {
 export function onDisconnect(port: RuntimePort) {
     if (mainPort === port) mainPort = undefined;
     // Remove from other collections as necessary
-    log.info(`Port ${port.name} disconnected.`);
 }
 
 export function broadcastToPorts(ports: RuntimePort[], message: any) {

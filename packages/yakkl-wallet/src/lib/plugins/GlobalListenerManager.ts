@@ -7,6 +7,10 @@ export type ListenerContext = 'background' | 'content' | 'ui' | 'inpage';
 export class GlobalListenerManager {
   private contextManagers: Map<ListenerContext, ListenerManager> = new Map();
 
+  hasContext(context: ListenerContext): boolean {
+    return this.contextManagers.has(context);
+  }
+
   registerContext(context: ListenerContext, manager: ListenerManager) {
     if (!this.contextManagers.has(context)) {
       this.contextManagers.set(context, manager);
@@ -44,7 +48,6 @@ export class GlobalListenerManager {
 
   removeAll() {
     this.contextManagers.forEach((manager, context) => {
-      log.info(`Removing all listeners from context: ${context}`);
       manager.removeAll();
     });
   }

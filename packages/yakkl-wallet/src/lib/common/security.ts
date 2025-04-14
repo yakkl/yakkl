@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { decryptData, digestMessage } from '$lib/common/encryption';
-import type { AccountData, CurrentlySelectedData, Profile, ProfileData } from '$lib/common/interfaces';
+import type { AccountData, CurrentlySelectedData, Profile, ProfileData, SessionToken } from '$lib/common/interfaces';
 import { isEncryptedData } from '$lib/common/misc';
 import { getProfile, setMiscStore, getYakklCurrentlySelected, getMiscStore } from '$lib/common/stores';
 import { log } from '$plugins/Logger';
+import { storeEncryptedHash, storeSessionToken } from './auth/session';
 
 export interface AccountKey {
   address: string;
@@ -23,7 +24,14 @@ export async function verify(id: string): Promise<Profile | undefined> {
       if (isEncryptedData(profile.data)) {
         const profileData = await decryptData(profile.data, digest) as ProfileData;
         if (profileData) {
-          setMiscStore(digest);
+          setMiscStore(digest); // Works for client side
+
+          const sessionToken: SessionToken = await storeEncryptedHash(digest); // Works for background context
+
+          if (sessionToken) {
+            storeSessionToken(sessionToken.token, sessionToken.expiresAt);
+          }
+          log.info('verify - sessionToken', false, sessionToken);
         } else {
           throw 'Verification failed!';
         }
@@ -31,8 +39,7 @@ export async function verify(id: string): Promise<Profile | undefined> {
       return profile;
     }
   } catch(e) {
-    // console.log('[ERROR]:', e);
-    log.error(e);
+    log.error('Verification failed!', false, e);
     throw `Verification failed! - ${e}`;
   }
 }
@@ -77,3 +84,28 @@ export async function getYakklCurrentlySelectedAccountKey(): Promise<AccountKey 
     throw `Error getting account key - ${e}`;
   }
 }
+
+export function extractSecureDomain(url: string): string | null {
+  try {
+    // Parse the URL
+    const parsedUrl = new URL(url);
+
+    // Check if the protocol is secure (https) or if it's a special case
+    const isSecure = parsedUrl.protocol === 'https:';
+    const isLocalhost = parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1';
+    const isChromeExtension = parsedUrl.protocol === 'chrome:';
+
+    if (!isSecure && !isLocalhost && !isChromeExtension) {
+      throw new Error('Insecure protocol detected. Only HTTPS, localhost, and chrome:// are allowed.');
+    }
+
+    // Return just the hostname (domain)
+    return parsedUrl.hostname;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(`Invalid URL or security violation: ${error.message}`);
+    }
+    throw new Error('Invalid URL format');
+  }
+}
+

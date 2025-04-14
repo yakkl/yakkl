@@ -29,7 +29,7 @@ export const clearObjectsFromLocalStorage = async (): Promise<void> => {
 //   }
 // };
 
-export const getObjectFromLocalStorage = async <T>(key: string, timeoutMs = 2000): Promise<T | null> => {
+export const getObjectFromLocalStorage = async <T>(key: string, timeoutMs = 1000): Promise<T | null> => {
   try {
     if (!browser_ext) {
       return null;

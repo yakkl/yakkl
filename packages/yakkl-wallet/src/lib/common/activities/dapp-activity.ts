@@ -1,3 +1,4 @@
+import { log } from '$lib/plugins/Logger';
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from '../storage';
 
 export interface DAppActivity {
@@ -33,10 +34,13 @@ const STORAGE_KEY = 'yakklDappActivity';
 export async function addDAppActivity(activity: DAppActivity): Promise<void> {
   try {
     const history = await getDAppActivityHistory();
+
+    log.info('addDAppActivity - history', false, history);
+
     history.activities.push(activity);
     await setObjectInLocalStorage(STORAGE_KEY, history);
   } catch (error) {
-    console.error('Failed to add DApp activity:', error);
+    log.error('Failed to add DApp activity:', false, error);
   }
 }
 
@@ -54,7 +58,7 @@ export async function getDAppActivityHistory(): Promise<DAppActivityHistory> {
     }
     return history;
   } catch (error) {
-    console.error('Failed to get DApp activity history:', error);
+    log.error('Failed to get DApp activity history:', false,error);
     return {
       activities: [],
       settings: {
@@ -82,7 +86,7 @@ export async function cleanupDAppActivityHistory(options?: {
 
     await setObjectInLocalStorage(STORAGE_KEY, history);
   } catch (error) {
-    console.error('Failed to cleanup DApp activity history:', error);
+    log.error('Failed to cleanup DApp activity history:', false, error);
   }
 }
 
@@ -98,7 +102,7 @@ export async function updateActivitySettings(settings: {
     };
     await setObjectInLocalStorage(STORAGE_KEY, history);
   } catch (error) {
-    console.error('Failed to update activity settings:', error);
+    log.error('Failed to update activity settings:', false, error);
   }
 }
 

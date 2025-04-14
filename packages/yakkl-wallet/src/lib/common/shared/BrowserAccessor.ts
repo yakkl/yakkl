@@ -194,9 +194,9 @@ export class BrowserAccessor {
             if (this.currentContext === ExtensionContext.BACKGROUND) {
               // In background context, we can directly import
               try {
+                log.info("Loaded browser API via dynamic import in background");
                 const polyfill = await import('webextension-polyfill');
                 this.browserApi = polyfill.default as ExtendedBrowser;
-                log.info("Loaded browser API via dynamic import in background");
               } catch (e) {
                 log.error("Failed to import polyfill in background:", false, e);
                 // Fallback to chrome APIs if needed
@@ -347,13 +347,13 @@ export class BrowserAccessor {
       };
 
       // Add event listeners
-      if (chrome.runtime.onMessage) {
-        browser.runtime.onMessage = {
-          addListener: chrome.runtime.onMessage.addListener.bind(chrome.runtime.onMessage),
-          removeListener: chrome.runtime.onMessage.removeListener.bind(chrome.runtime.onMessage),
-          hasListener: chrome.runtime.onMessage.hasListener.bind(chrome.runtime.onMessage)
-        };
-      }
+      // if (chrome.runtime.onMessage) {
+      //   browser.runtime.onMessage = {
+      //     addListener: chrome.runtime.onMessage.addListener.bind(chrome.runtime.onMessage),
+      //     removeListener: chrome.runtime.onMessage.removeListener.bind(chrome.runtime.onMessage),
+      //     hasListener: chrome.runtime.onMessage.hasListener.bind(chrome.runtime.onMessage)
+      //   };
+      // }
     }
 
     // Add storage API if available

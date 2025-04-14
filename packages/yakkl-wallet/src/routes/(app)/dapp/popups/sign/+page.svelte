@@ -1,51 +1,47 @@
 <script lang="ts">
   import { browser_ext, browserSvelte } from '$lib/common/environment';
   import { page } from '$app/state';
-
-  import { getYakklCurrentlySelected, getYakklAccounts, getMiscStore, getDappConnectRequestStore, setDappConnectRequestStore } from '$lib/common/stores';
-  import { isEncryptedData, type AccountData, type YakklAccount, type YakklCurrentlySelected } from '$lib/common';
-  import { YAKKL_DAPP } from '$lib/common/constants';
-  import { onMount, onDestroy } from 'svelte';
-  import { wait } from '$lib/common/utils';
-  import { decryptData } from '$lib/common/encryption';
-  import { Spinner } from 'flowbite-svelte';
-  import WalletManager from '$lib/plugins/WalletManager';
-  import type { Wallet } from '$lib/plugins/Wallet';
+  import { getYakklCurrentlySelected, getMiscStore, yakklDappConnectRequestStore } from '$lib/common/stores';
+  import { type YakklCurrentlySelected } from '$lib/common';
+  import { DEFAULT_TITLE, YAKKL_DAPP } from '$lib/common/constants';
+  import { onMount } from 'svelte';
   import { log } from '$plugins/Logger';
-
-  let wallet: Wallet;
-
   import type { Runtime } from 'webextension-polyfill';
-	import { verify } from '$lib/common/security';
+  import type { JsonRpcResponse, SessionInfo, YakklResponse } from '$lib/common/interfaces';
+  import type { BackgroundPendingRequest } from '$lib/extensions/chrome/background';
+	import Confirmation from '$lib/components/Confirmation.svelte';
+	import { requestSigning } from '$lib/extensions/chrome/signingClient';
+	import Copyright from '$lib/components/Copyright.svelte';
+	import Warning from '$lib/components/Warning.svelte';
+	import Failed from '$lib/components/Failed.svelte';
+	import { createPortManagerWithStream, PortManagerWithStream } from '$lib/plugins/PortManagerWithStream';
+	import type { PortDuplexStream } from '$lib/plugins/PortStreamManager';
+	import { sessionToken, verifySessionToken } from '$lib/common/auth/session';
+	import { safeLogout } from '$lib/common/safeNavigate';
 
-  type RuntimePort = Runtime.Port;
+  type RuntimePort = Runtime.Port | undefined;
 
   let currentlySelected: YakklCurrentlySelected;
   let yakklMiscStore: string;
-  let yakklDappConnectRequest: string | null;
 
   let showConfirm = $state(false);
   let showSuccess = $state(false);
   let showFailure = $state(false);
-  let showSpinner = $state(false);
   let errorValue = $state('No domain/site name was found. Access to YAKKL® is denied.');
-  let port: RuntimePort | undefined;
 
   let domain: string = $state('');
   let domainLogo: string = $state('');
   let domainTitle: string = $state('');
-  let requestData: any;
+  let title: string = $state(DEFAULT_TITLE);
+  let request: BackgroundPendingRequest;
   let method: string;
   let requestId: string | null;
-  let userName: string = $state('');
-  let password: string = $state('');
-  let message;  // This gets passed letting the user know what the intent is
-  let context: any;
-  let addressToCheck: string;
+  let message: any = $state('');  // This gets passed letting the user know what the intent is
+  let address: string = $state('');
   let signedData: any;
-  let chainId: number;
 
   let params: any[] = $state([]);
+
   let personal_sign = {
     dataToSign: '',   // Only used for personal_sign
     address: '',
@@ -65,240 +61,223 @@
   }
 
   let messageValue; // Used to display non-hex data that matches transaction or message
+  let pass = false;
+
+  let portManager: PortManagerWithStream | null = null;
+  let stream: PortDuplexStream | null = null;
+
+  if (browserSvelte) {
+    try {
+      requestId = page.url.searchParams.get('requestId');
+      method = page.url.searchParams.get('method') as string ?? '';
+      $yakklDappConnectRequestStore = requestId as string;
+
+      if (requestId) {
+        pass = true;
+      }
+      // NOTE: The internal check now makes sure the requestId is valid
+    } catch(e) {
+      log.error(e);
+      handleReject('No requestId or method was found. Access to YAKKL® is denied.');
+    }
+  }
+
+  // We no longer need to do get_params since we can access the request data directly
+  async function onMessageListener(event: any) {
+    try {
+      if (!domainLogo) domainLogo = '/images/failIcon48x48.png'; // Set default logo but change if favicon is present
+
+      if (event.method === 'get_params') {
+        request = event.result;
+        if (!request || !request.data) {
+          return await handleReject('No request was found. Access to YAKKL® is denied.');
+        }
+
+        const requestData = request.data;
+        if (!requestData || !requestData.params || !requestData.params[0] || !requestData.metaData) {
+          return await handleReject('Invalid request data. Access to YAKKL® is denied.');
+        }
+
+        if (!requestData.metaData.metaData.isConnected) {
+          return await handleReject('Domain is not connected. Connect to {domain} first via requestAccounts. Access to YAKKL® is denied.');
+        }
+
+        // These needs to be fixed upstream
+        domainTitle = requestData.metaData.metaData.title;
+        domain = requestData.metaData.metaData.domain;
+        domainLogo = requestData.metaData.metaData.icon;
+        message = requestData.metaData.metaData.message ?? 'Nothing was passed to explain the intent of this approval. Be mindful of this request!';
+        params = requestData.params ?? [];
+        // Make sure params is an array
+        if (!Array.isArray(params)) {
+          params = [params];
+        }
+
+        if (!requestId) requestId = requestData?.id ?? null;
+        if (!requestId) {
+          return await handleReject('No request ID was found. Access to YAKKL® is denied.');
+        }
+
+        // Set the page title
+        title = domainTitle || domain || DEFAULT_TITLE;
+
+        let data;
+        switch(method) {
+          case 'personal_sign':
+            personal_sign.dataToSign = params[0];
+            personal_sign.address = address = params[1];
+            personal_sign.description = message;
+            log.info('Sign: personal_sign:', false, personal_sign);
+            break;
+          case 'eth_signTypedData_v4':
+            log.info('Sign: eth_signTypedData_v4:', false, params);
+            signTypedData_v3v4.address = address = params[0];
+            signTypedData_v3v4.dataToSign = params[1];
+            if (typeof signTypedData_v3v4.dataToSign === 'string') {
+              data = JSON.parse(signTypedData_v3v4.dataToSign);
+            } else {
+              data = signTypedData_v3v4.dataToSign;
+            }
+            message = data?.message?.contents || data;
+            log.info('Sign: eth_signTypedData_v4:', false, {data, message});
+            break;
+          default:
+            messageValue = 'No message request was passed in. Error.';
+            break;
+        }
+      }
+    } catch(e) {
+      log.error(e);
+      await handleReject('An error occurred while processing the request. Access to YAKKL® is denied.');
+    }
+  }
 
   onMount(async () => {
     try {
       if (browserSvelte) {
         currentlySelected = await getYakklCurrentlySelected();
         yakklMiscStore = getMiscStore();
-        yakklDappConnectRequest = getDappConnectRequestStore(); // Not required any longer but keep for now
-        yakklDappConnectRequest = requestId = page.url.searchParams.get('requestId') as string;
-        setDappConnectRequestStore(yakklDappConnectRequest);
-        chainId = currentlySelected.shortcuts.chainId as number;
 
-        wallet = WalletManager.getInstance(['Alchemy'], ['Ethereum'], currentlySelected.shortcuts.chainId ?? 1, import.meta.env.VITE_ALCHEMY_API_KEY_PROD);
+        // Since we're 1:1 we can attach to the known port name
+        const sessionInfo = await browser_ext.runtime.sendMessage({
+            type: 'REQUEST_SESSION_PORT',
+            requestId
+          }) as SessionInfo;
 
-        port = browser_ext.runtime.connect({name: YAKKL_DAPP});
-        if (port) {
-          port.onMessage.addListener(async(event: any) => {
-            if (!event?.data) return;
-            method = context;
-            requestData = event.data;
+        log.info('Received session info:', false, sessionInfo);
 
-            if (event.method === 'get_params') {
-              domainTitle = requestData?.data?.metaDataParams?.title ?? '';
-              domain = requestData?.data?.metaDataParams?.domain ?? '';
-              // Get favicon from URL parameters first, fall back to metadata
-              const url = new URL(window.location.href);
-              const favicon = url.searchParams.get('favicon');
-              domainLogo = favicon || (requestData?.data?.metaDataParams?.icon ?? '/images/logoBullLock48x48.png');
-              message = requestData?.data?.metaDataParams?.message ?? 'Nothing was passed in explaining the intent of this approval. Be mindful!';
-              context = requestData?.data?.metaDataParams?.context ?? 'sign';
-              params = requestData?.data?.metaDataParams?.transaction ?? [];
-
-              if (!requestId) requestId = requestData.id;
-              let data;
-
-              switch(context) {
-                case 'personal_sign':
-                  personal_sign.dataToSign = params[0];
-                  personal_sign.address = addressToCheck = params[1];
-                  personal_sign.description = message = params[2];
-                  break;
-                case 'eth_signTypedData_v3':
-                case 'eth_signTypedData_v4':
-                  signTypedData_v3v4.address = addressToCheck = params[0];
-                  signTypedData_v3v4.dataToSign = params[1];
-                  if (typeof signTypedData_v3v4.dataToSign === 'string') {
-                    data = JSON.parse(signTypedData_v3v4.dataToSign);
-                  } else {
-                    data = signTypedData_v3v4.dataToSign;
-                  }
-                  message = data.message?.contents;
-                  break;
-                default:
-                  messageValue = 'No message request was passed in. Error.';
-                  break;
-              }
-
-            }
-          });
+        // Guard against null response
+        if (!sessionInfo || !sessionInfo.success) {
+          errorValue = 'Failed to verify session. No response received.';
+          showFailure = true;
+          return;
         }
 
-        if (port)
-          port.postMessage({method: 'get_params', id: requestId}); // request is not currently used but we may want to later
+        // Create port manager with the original port name
+        portManager = createPortManagerWithStream(sessionInfo?.portName ?? YAKKL_DAPP);
+        portManager.setRequestId(requestId);
+
+        const success = await portManager.createPort();
+        if (!success) {
+          errorValue = 'Failed to connect to session port.';
+          showFailure = true;
+          return;
+        }
+
+        // Connect to existing port
+        stream = portManager.getStream();
+        if (!stream) {
+          errorValue = 'Stream is not available.';
+          showFailure = true;
+          return;
+        }
+        stream.on('data', onMessageListener);
+        stream.write({ method: 'get_params', id: requestId });
       }
     } catch(e) {
       log.error(e);
+      errorValue = 'Port setuperror occurred while processing the request. Access to YAKKL® is denied.';
+      showFailure = true;
     }
   });
 
-  onDestroy( () => {
-    if (browserSvelte) {
-      if (port) {
-        port.disconnect();
-        // port.onMessage.removeListener();
-        port = undefined;
+  async function handleReject(message: string = 'User rejected the request.') {
+    try {
+      if (browserSvelte) {
+        showConfirm = false;
+        showFailure = false;
+        showSuccess = false;
+        if (stream) {
+          stream.write({
+            type: 'YAKKL_RESPONSE:EIP6963',
+            jsonrpc: '2.0',
+            id: requestId,
+            error: {
+              code: 4001,
+              message
+            }
+          });
+        }
       }
-      showSpinner = false;
-    }
-  });
-
-async function handleReject() {
-  try {
-    showConfirm = false;
-    showFailure = false;
-    showSuccess = false;
-    await bail();
-  } catch(e) {
-    log.error(e);
-  }
-}
-
-async function bail() {
-  try {
-    if (port) {
-      port.postMessage({method: method, response: {type: 'YAKKL_RESPONSE', data: {name: 'ProviderRPCError', code: 4001, message: 'User rejected the request.'}}, requestData: requestData});
-      port.disconnect();
-      // port.onMessage.removeListener();
-      port = undefined;
-    }
-  } catch(e) {
-    log.error(e);
-  } finally {
-    if (browserSvelte) {
-      if (port) {
-        port.disconnect();
-        // port.onMessage.removeListener();
-      }
-      await wait(2000);
-      showSpinner = false;
-      window.close();
+    } catch(e) {
+      log.error(e);
+    } finally {
+      close();
     }
   }
-}
 
-async function handleApprove() {
+async function handleProcess() {
   try {
-    showConfirm = false;
-    if (!userName || !password || !userName.trim() || !password.trim())
-      bail();
-
-    let profile = await verify(userName.toLowerCase().trim().replace('.nfs.id', '')+'.nfs.id'+password);
-    if (!profile)
-      bail();
-
-    showSpinner = true;
-
-    let accounts: YakklAccount[] = [];
-    accounts = await getYakklAccounts();
-    if (!accounts)
-      bail();
-    const accountFind = accounts.find(element => {
-      if (element.address === addressToCheck)
-        return element;
-    });
-
-    if (!accountFind) await bail();
-
-    const account: YakklAccount = accountFind as YakklAccount;
-    if (isEncryptedData(account.data)) {
-      await decryptData(account.data, yakklMiscStore).then(result => {
-        account.data = result as AccountData;
-      });
+    if (!browserSvelte) {
+      await handleReject();
     }
-    if (!(account.data as AccountData).privateKey)
-      await bail();
 
-    if ( context === 'personal_sign' ) {
-      await handlePersonalSign(account);
-    } else if ( context === 'eth_signTypedData_v3' || context === 'eth_signTypedData_v4' ) {
-      await handleSignTypedData(account);
-    } else {
-      await bail();
+    if (!verifySessionToken($sessionToken)) {
+      await handleReject("Session token is invalid. Login again.");
     }
-    showSuccess = false; //true;
-    handleClose();
+
+    // Use signingClient to handle the signing request
+    const response = await requestSigning(requestId, method, params, $sessionToken);
+    if (!response) {
+      await handleReject("Request failed due to no response from the signing request.");
+    }
+
+    if (response.error) {
+      await handleReject(response.error.message || "Signing request failed");
+    }
+
+    // Send response to dapp
+    if (stream) {
+      const jsonRpcResponse: JsonRpcResponse = {
+        type: 'YAKKL_RESPONSE:EIP6963',
+        jsonrpc: '2.0',
+        id: requestId,
+        result: response.result
+      };
+      stream.write(jsonRpcResponse);
+      log.info('Sign: handleProcess - response:', false, {jsonRpcResponse});
+    }
+    else {
+      await handleReject("Request failed to send to dapp due to connection port not found.");
+    }
+    close();
   } catch(e) {
     log.error(e);
-    errorValue = e as string;
+    errorValue = e instanceof Error ? e.message : 'Unknown error occurred';
     showFailure = true;
   }
 }
 
-async function handlePersonalSign(account: YakklAccount) {
-  return new Promise(async (resolve, reject) => {
-    try {
-      if (!personal_sign.dataToSign || !personal_sign.address)
-        reject('No message to sign or address to sign with was found.');
-
-      // const wallet = new ethersv6.Wallet(account.data.privateKey);
-      // account.data.privateKey = null; // Remove private key from memory
-      // signedData = await wallet.signMessage(personal_sign.dataToSign);
-      const blockchain = wallet.getBlockchain();
-      signedData = await blockchain.getProvider().signMessage(personal_sign.dataToSign);
-      resolve(signedData);
-    } catch(e) {
-      reject(e);
-    }
-  });
-}
-
-async function handleSignTypedData(account: YakklAccount) {
-  return new Promise(async (resolve, reject) => {
-    try {
-      if (!signTypedData_v3v4.dataToSign || !signTypedData_v3v4.address)
-        reject('No data to sign or address to sign with was found.');
-
-      // const signer = new ethersv6.providers.JsonRpcSigner(account.data.privateKey, provider);
-      // account.data.privateKey = null; // Remove private key from memory
-      // signedData = await signer._signTypedData(signTypedData_v3v4.dataToSign.domain, signTypedData_v3v4.dataToSign.types, signTypedData_v3v4.dataToSign.message);
-     //console.log('signTypedData_v3v4 --->', signTypedData_v3v4, account);
-      const blockchain = wallet.getBlockchain();
-
-
-
-
-      // TODO: Verify this!
-      //@ts-ignore
-      signedData = await blockchain.signTypedData(signTypedData_v3v4.dataToSign.domain, signTypedData_v3v4.dataToSign.types, signTypedData_v3v4.dataToSign.message);
-
-
-
-
-      resolve(signedData);
-    } catch(e) {
-      reject(e);
-    }
-  });
-}
-
-async function handleClose() {
-  try {
-    if (port) {
-      port.postMessage({id: requestId, method: method, type: 'YAKKL_RESPONSE', result: signedData });
-      port.disconnect();
-      // port.onMessage.removeListener();
-      port = undefined;
-    }
-    showSuccess = false;
-    if (browserSvelte) {
-      // if (port) {
-        // port.disconnect();
-        // port.onMessage.removeListener();
-      // }
-    }
-  } catch(e) {
-    log.error(e);
-  } finally {
-    await close();
-  }
-}
-
 async function close() {
-  await wait(1000);
-  showSpinner = false;
-  window.close();
+  if (browserSvelte) {
+    try {
+      await portManager.waitForIdle(1500);
+    } catch (e) {
+      log.warn('Port did not go idle in time', false, e);
+    }
+    portManager.disconnect();
+    safeLogout();
+  }
 }
 
 function handleConfirm() {
@@ -308,142 +287,89 @@ function handleConfirm() {
 </script>
 
 <svelte:head>
-	<title>YAKKL® Smart Wallet</title>
+	<title>{title}</title>
 </svelte:head>
 
-<div class="modal" class:modal-open={showConfirm}>
-  <div class="modal-box relative">
-    <div class="border border-base-content rounded-md m-2 text-center p-1">
-      <h1 class="font-bold">Approval Request - Confirmation</h1>
-      <p class="pt-4">This will approve the signing of the transaction or message for <span class="font-bold underline">{domain}</span>! If you are NOT 100% certain about this request, then REJECT. If uncertain, research and/or verify more, and then try again. Do you wish to continue?</p>
-    </div>
-    <div class="form-control w-[22rem]">
-      <input id="userName"
-        type="text"
-        class="input input-bordered input-primary w-full"
-        placeholder="Username" autocomplete="off" bind:value="{userName}" required />
-    </div>
-    <div class="form-control w-[22rem]">
-      <input id="password" type="password"
-        class="input input-bordered input-primary w-full mt-2"
-        placeholder="Password" autocomplete="off" bind:value="{password}" required />
-    </div>
-    <div class="modal-action">
-      <button class="btn" onclick={handleReject}>Reject</button>
-      <button class="btn" onclick={handleApprove}>Yes, Approved</button>
-    </div>
-  </div>
-</div>
+<Warning bind:show={showFailure} title="Error" value={errorValue} />
+<Failed bind:show={showFailure} title="Failed!" content={errorValue} handleReject={handleReject}/>
+<Confirmation bind:show={showConfirm} title="Connect to {domain}" message="This will connect {domain} to {address} and sign the transaction or message! Do you wish to continue?" onConfirm={handleProcess}/>
 
-<div class="modal" class:modal-open={showSuccess}>
-  <div class="modal-box relative">
-    <h3 class="text-lg font-bold">Signing for {domain} - Success!</h3>
-    <p class="py-4">Success! The signing request you approved has been signed! Click close.</p>
-    <div class="modal-action">
-      <button class="btn" onclick={handleClose}>Close</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal" class:modal-open={showFailure}>
-  <div class="modal-box relative">
-    <h3 class="text-lg font-bold">Failed!</h3>
-    <p class="py-4">{errorValue}</p>
-    <div class="modal-action">
-      <button class="btn" onclick={handleReject}>Close</button>
-    </div>
-  </div>
-</div>
-
-{#await params}
-<div class="w-[96%] text-center justify-center m-2 flex flex-col absolute top-[250px]">
-  <div class="text-primary-content text-2xl font-bold flex flex-col">
-    {domainTitle ?? ''}
-    <br>
-    <div class="text-primary-content text-2xl font-bold flex flex-col mt-4">Wants to get your approval for signing the transaction or message:</div>
-  </div>
-  <div class="text-primary-content text-2xl font-bold flex flex-col mt-3">
-    Connect with YAKKL®
-  </div>
-  <div class="justify-center mt-5">
-    <div class="rounded-badge inline-flex w-fit p-2 bg-secondary text-base-content font-semibold">
-      <div class="flex flex-row w-10 h-10">
-        <img crossorigin="anonymous" src={domainLogo} alt="Dapp logo" />
+<div class="flex flex-col h-full max-h-screen overflow-hidden">
+  <!-- Header -->
+  <div class="p-4 border-b border-base-300 flex-shrink-0">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2 min-w-0">
+        <img id="dappImageId" crossorigin="anonymous" src={domainLogo} alt="Dapp logo" class="w-8 h-8 rounded-full flex-shrink-0" />
+        <span class="font-semibold truncate" title={domainTitle || domain}>{domainTitle || domain}</span>
       </div>
-      <div class="animate-pulse flex flex-row">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-8 h-8 fill-gray-100">
-          <path fill-rule="evenodd" d="M15.97 2.47a.75.75 0 011.06 0l4.5 4.5a.75.75 0 010 1.06l-4.5 4.5a.75.75 0 11-1.06-1.06l3.22-3.22H7.5a.75.75 0 010-1.5h11.69l-3.22-3.22a.75.75 0 010-1.06zm-7.94 9a.75.75 0 010 1.06l-3.22 3.22H16.5a.75.75 0 010 1.5H4.81l3.22 3.22a.75.75 0 11-1.06 1.06l-4.5-4.5a.75.75 0 010-1.06l4.5-4.5a.75.75 0 011.06 0z" clip-rule="evenodd" />
-        </svg>
-      </div>
-      <div class="flex flex-row w-10 h-10">
-        <img src="/images/logoBullFav48x48.png" alt="yakkl logo" />
-      </div>
-    </div>
-  </div>
-</div>
-{:then _}
-<div class="w-[96%] text-center justify-center m-2 flex flex-col absolute top-[225px]">
-  <!-- <Beta /> -->
-  <div class="text-primary-content text-2xl font-bold flex flex-col">
-    {domainTitle ?? ''}
-    <br>
-    <div class="text-primary-content text-2xl font-bold flex flex-col mt-4">Wants to get your approval for signing the transaction or message:</div>
-  </div>
-  <div class="text-primary-content text-2xl font-bold flex flex-col mt-3">
-    Connect with YAKKL®
-  </div>
-  <div class="justify-center mt-5">
-    <div class="rounded-badge inline-flex w-fit p-2 bg-secondary text-base-content font-semibold">
-      <div class="flex flex-row w-10 h-10">
-        <img src={domainLogo} alt="Dapp logo" />
-      </div>
-      <div class="animate-pulse flex flex-row">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-8 h-8 fill-gray-100">
-          <path fill-rule="evenodd" d="M15.97 2.47a.75.75 0 011.06 0l4.5 4.5a.75.75 0 010 1.06l-4.5 4.5a.75.75 0 11-1.06-1.06l3.22-3.22H7.5a.75.75 0 010-1.5h11.69l-3.22-3.22a.75.75 0 010-1.06zm-7.94 9a.75.75 0 010 1.06l-3.22 3.22H16.5a.75.75 0 010 1.5H4.81l3.22 3.22a.75.75 0 11-1.06 1.06l-4.5-4.5a.75.75 0 010-1.06l4.5-4.5a.75.75 0 011.06 0z" clip-rule="evenodd" />
-        </svg>
-      </div>
-      <div class="flex flex-row w-10 h-10">
-        <img src="/images/logoBullFav48x48.png" alt="yakkl logo" />
-      </div>
-    </div>
-  </div>
-
-  <div class="text-left mt-4 border border-gray-900 bg-black text-base-content rounded-md">
-    <div class="m-2">
-      <h4>Signing of Message requesting permission to execute: PLEASE be mindful and know what you are doing. There is no cancel or return option! Be 100% sure or REJECT this transaction and research more before trying again.</h4>
-      <div class="mt-1">
-        <!-- {#each jsonKeys as key}
-        <p>{key}: <span class="font-bold">{transactionValue[key]}</span></p>
-        {/each} -->
-      </div>
-    </div>
-  </div>
-
-  <div class="my-4">
-    <div class="flex space-x-2 justify-center">
-      {#if !showSpinner}
       <button
-        onclick={handleReject}
-        class="btn-sm btn-accent uppercase rounded-full"
-        aria-label="Cancel">
+        onclick={() => handleReject()}
+        class="btn btn-ghost btn-sm flex-shrink-0"
+        aria-label="Close">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Content-->
+  <div class="flex-1 p-6 flex flex-col max-w-[428px]">
+    <div class="text-center mb-4 flex-shrink-0 border-2 border-red-500 rounded-md p-2">
+      <p class="text-md font-extrabold animate-pulse mb-2">Important!:</p>
+      <span class="text-sm font-bold mb-2">Signing of Message requesting permission to execute: PLEASE be mindful and know what you are doing.</span>
+      <span class="text-sm font-bold mb-2">There is no cancel or return option! Be 100% sure or REJECT this transaction and research more before trying again.</span>
+    </div>
+
+    <div class="overflow-auto flex-1 min-h-0 mb-4">
+      <span class="text-sm">Data to sign:</span>
+      <pre class="text-md border-2 border-blue-500 rounded-md p-2 bg-opacity-25">{message}</pre>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="p-4 border-t border-base-300 flex-shrink-0">
+    <div class="flex gap-4 justify-end">
+      <button onclick={() => handleReject()} class="btn btn-outline">
         Reject
       </button>
-
-      <button
-        type="submit"
-        id="recover"
-        onclick={handleConfirm}
-        class="btn-sm btn-primary uppercase rounded-full ml-2"
-        aria-label="Confirm">
+      <button onclick={handleConfirm} class="btn btn-primary">
         Approve
       </button>
-      {:else}
-      <Spinner class="w-10 h-10" />
-      <h3 class="mt-2 font-bold animate-pulse">Signing - please wait...</h3>
-      {/if}
     </div>
   </div>
 
 </div>
 
-{/await}
+<Copyright />
+
+<style>
+  /* Smooth transitions */
+  .btn {
+    transition: all 0.2s ease;
+  }
+
+  .btn:hover {
+    transform: translateY(-1px);
+  }
+
+  /* Custom scrollbar */
+  /* .overflow-y-auto {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--p)) transparent;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--p));
+    border-radius: 3px;
+  } */
+</style>
+

@@ -3,24 +3,23 @@
   import { createForm } from "svelte-forms-lib";
   import { setProfileStorage, yakklDappConnectRequestStore, yakklCurrentlySelectedStore, yakklSettingsStore, yakklPreferencesStore, yakklPrimaryAccountsStore, syncStorageToStore, yakklMiscStore, getMiscStore, yakklCombinedTokenStore } from '$lib/common/stores';
   import { yakklVersionStore, yakklUserNameStore } from '$lib/common/stores';
-  import { goto } from '$app/navigation';
   import { Popover } from 'flowbite-svelte';
-  import { PATH_WELCOME, PATH_REGISTER, PATH_DAPP_ACCOUNTS, DEFAULT_TITLE, PATH_LOGOUT, PATH_LEGAL } from '$lib/common/constants';
+  import { PATH_WELCOME, PATH_REGISTER, DEFAULT_TITLE, PATH_LEGAL } from '$lib/common/constants';
   import { setIconLock, setIconUnlock } from '$lib/utilities/utilities';
   import { decryptData, encryptData } from '$lib/common/encryption';
   import { onMount } from 'svelte';
   import Copyright from '$lib/components/Copyright.svelte';
 	import ErrorNoAction from '$lib/components/ErrorNoAction.svelte';
 	import Welcome from '$lib/components/Welcome.svelte';
-	import { RegistrationType, checkAccountRegistration, isEncryptedData, type Preferences, type PrimaryAccountReturnValues, type ProfileData, type Settings, type YakklAccount, type YakklCurrentlySelected, type YakklPrimaryAccount } from '$lib/common';
+	import { RegistrationType, checkAccountRegistration, isEncryptedData, type Preferences, type PrimaryAccountReturnValues, type ProfileData, type Settings, type YakklCurrentlySelected, type YakklPrimaryAccount } from '$lib/common';
 	import { verify } from '$lib/common/security';
-
 	import { deepCopy } from '@ethersproject/properties';
   import { browser_ext, browserSvelte } from '$lib/common/environment';
 	import { setLocks } from '$lib/common/locks';
   import { log } from '$plugins/Logger';
 	import { createPortfolioAccount } from '$lib/plugins/networks/ethereum/createPortfolioAccount';
 	import Import from '$lib/components/Import.svelte';
+  import { safeLogout, safeNavigate } from '$lib/common/safeNavigate';
 
   // Reactive State
   let yakklCurrentlySelected: YakklCurrentlySelected | null = $state(null);
@@ -34,6 +33,8 @@
   let registeredType: string = $state('');
   let redirect = PATH_WELCOME;
   let requestId = $state('');
+  let method: string = '';
+  let url: string = '/dapp/popups/approve';
   let pweyeOpen = false;
   let pweyeOpenId: HTMLButtonElement;
   let pweyeClosedId: HTMLButtonElement;
@@ -44,9 +45,34 @@
   if (browserSvelte) {
     const urlRequestId = page.url.searchParams.get('requestId') as string ?? '';
     requestId = urlRequestId;
+    method = page.url.searchParams.get('method') as string ?? '';
     if (urlRequestId) {
       $yakklDappConnectRequestStore = urlRequestId;
-      redirect = PATH_DAPP_ACCOUNTS + '.html?requestId=' + urlRequestId;
+      if (method) {
+        switch (method) {
+          case 'eth_requestAccounts':
+            url = '/dapp/popups/accounts';
+            break;
+          case 'eth_sendTransaction':
+            url = '/dapp/popups/transactions';
+            break;
+          case 'eth_signTypedData_v4':
+          case 'personal_sign':
+            url = '/dapp/popups/sign';
+            break;
+          // Unsupported - security risk
+          // case 'wallet_addEthereumChain':
+          //   url = '/dapp/popups/walletNetworkAdd';
+          //   break;
+          // case 'wallet_switchEthereumChain':
+          //   url = '/dapp/popups/wallet';
+          //   break;
+          default:
+            url = '/dapp/popups/approve';
+            break;
+        }
+      }
+      redirect = url + '?requestId=' + urlRequestId + '&source=eip6963:Login&method=' + method;
     } else {
       $yakklDappConnectRequestStore = null;
     }
@@ -61,23 +87,14 @@
   onMount(async () => {
     try {
       if (browserSvelte) {
-        yakklCombinedTokenStore.set([]); // Reset the token store - ????
+        await browser_ext.runtime.sendMessage({ type: 'clientReady' }); // Safeguard to ensure the client is ready before sending messages
+
+        yakklCombinedTokenStore.set([]); // Reset the token store
         if (!yakklSettings || !yakklSettings.legal.termsAgreed) {
-          return await goto(PATH_LEGAL);
+          return await safeNavigate(PATH_LEGAL);
         }
         if (yakklSettings.init === false) {
-          return await goto(PATH_REGISTER);
-        }
-
-        await setIconLock(); // Make sure it shows locked and is locked
-        setLocks(true);
-
-        // Sets the default of 60 seconds but can be changed by setting the properties to another integer.
-        // Most browser type functions exist in the background context but we have this to be more dynamic
-        if (!$yakklDappConnectRequestStore) {
-          browser_ext.idle.setDetectionInterval(yakklPreferences ? yakklPreferences?.idleDelayInterval ?? 60 : 60); // System idle time is 2 minutes. This adds 1 minute to that. If any movement or activity is detected then it resets.
-        } else {
-          log.warn('Login - 105', false, { $yakklDappConnectRequestStore });
+          return await safeNavigate(PATH_REGISTER);
         }
 
         registeredType = yakklSettings.registeredType as string;
@@ -126,7 +143,6 @@
   async function login(userName: string, password: string): Promise<void> {
     if (browserSvelte) {
       try {
-        // showProgress = true;
         let profile = await verify(userName.toLowerCase().trim().replace('.nfs.id', '')+'.nfs.id'+password);
         if (!profile) {
           throw `User [ ${userName} ] was not found OR password is not correct OR no primary account was not found. Please try again or register if not already registered`;
@@ -139,7 +155,12 @@
 
           $yakklUserNameStore = userName;
 
-          // setLocks(false, registeredType);
+          // Set up idle detection and locks after successful login
+          if (!$yakklDappConnectRequestStore && yakklPreferences?.idleAutoLock) {
+            browser_ext.idle.setDetectionInterval(yakklPreferences.idleDelayInterval ?? 60);
+            await setIconLock();
+            setLocks(true);
+          }
 
           if (isEncryptedData(profile.data)) {
             profile.data = await decryptData(profile.data, yakklMisc);
@@ -171,9 +192,6 @@
           await setProfileStorage(profile);
 
           if (redirect !== PATH_WELCOME) {
-
-            log.debug('Login: Redirecting dapp to:', false, redirect);
-
             // Must be a dapp - now doing load in +page.ts
             if (requestId) { // Don't want to truely unlock with dapps
               if (yakklSettings && yakklSettings.init === true) {
@@ -190,10 +208,16 @@
             // await updateTokenPrices();
 
             // await sendNotificationStartLockIconTimer();
-            goto(redirect, {replaceState: true, invalidateAll: true});
+            if (redirect.includes('dapp/popups')) {
+              safeNavigate(redirect); // This should maintain the current state
+            } else {
+              safeNavigate(redirect, 0, {replaceState: true, invalidateAll: true});
+            }
           } else {
-            const primaryAccountValues: PrimaryAccountReturnValues = await createPortfolioAccount(yakklMisc, profile)
-            // goto(redirect, {replaceState: true, invalidateAll: true});
+            const primaryAccountValues: PrimaryAccountReturnValues = await createPortfolioAccount(yakklMisc, profile);
+            // Create a basic EOA
+            // Show the restore option
+            //// goto(redirect, {replaceState: true, invalidateAll: true});
             showRestoreOption = true;
           }
         }
@@ -232,13 +256,13 @@
     showRestoreOption = false;
     error = false;
     errorValue = '';
-    goto(PATH_LOGOUT); // Added to handle logout after canceling login
+    safeLogout(); // Added to handle logout after canceling login
   }
 
   async function onCompleteRestore(message: string) {
-    log.warn(message);
+    log.info(message);
     showRestoreOption = false;
-    goto(redirect, {replaceState: true, invalidateAll: true});
+    safeNavigate(redirect, 0, {replaceState: true, invalidateAll: true});
   }
 
   function onCancelRestore() {
@@ -291,7 +315,7 @@
     <div class="mt-5">
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_interactive_supports_focus -->
-      <!-- <div id="register" role="button" on:click={() => goto("/register/Register.html")} class="text-md uppercase underline font-bold">Click if NOT registered</div> -->
+      <!-- <div id="register" role="button" on:click={() => goto("/register/Register")} class="text-md uppercase underline font-bold">Click if NOT registered</div> -->
 
       <form onsubmit={(e) => {
         e.preventDefault();

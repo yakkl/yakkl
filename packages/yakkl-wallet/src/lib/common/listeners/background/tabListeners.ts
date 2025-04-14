@@ -17,9 +17,6 @@ const browser_ext = browser;
 export async function onTabActivatedListener(activeInfo: Tabs.OnActivatedActiveInfoType) {
   try {
     if (!browser_ext) return;
-
-    log.debug('onTabActivatedListener', false, activeInfo);
-
     const activeTab = { tabId: activeInfo.tabId, windowId: activeInfo.windowId, windowType: '', url: '', title: '', favIconUrl: '', dateTime: new Date().toISOString() };
     const tab = await browser_ext.tabs.get(activeInfo.tabId);
     if (tab) {
@@ -32,8 +29,6 @@ export async function onTabActivatedListener(activeInfo: Tabs.OnActivatedActiveI
         activeTab.windowType = window.type;
       }
 
-      log.debug('onTabActivatedListener - Active tab:', false, activeTab);
-
       if (activeTab.windowType === 'normal') {
         activeTabBackgroundStore.set(activeTab);
         activeTabUIStore.set(activeTab);
@@ -41,7 +36,7 @@ export async function onTabActivatedListener(activeInfo: Tabs.OnActivatedActiveI
           await backgroundManager.sendMessage(MessageType.ACTIVE_TAB_CHANGED, activeTab);
           await setObjectInLocalStorage('activeTabBackground', activeTab); // Not sure if this is needed
         } catch (error) {
-          // silent
+          log.warn('Error sending active tab changed message:', false, error);
         }
       }
     }
@@ -103,14 +98,12 @@ export async function onTabUpdatedListener(tabId: number, changeInfo: any, tabTa
 }
 
 // Handles tabs.onRemoved
-// TODO: Review portsExternal and portsInternal
 export async function onTabRemovedListener(tabId: number, removeInfo: Tabs.OnRemovedRemoveInfoType) {
   try {
     const tab = get(activeTabBackgroundStore);
     if (tab) {
       if (tab.tabId === tabId) {
         activeTabBackgroundStore.set(null);
-        log.info('Tab removed:', false, tabId);
         try {
           await backgroundManager.sendMessage(MessageType.TAB_REMOVED, null);
           await setObjectInLocalStorage('activeTabBackground', null); // Not sure if this is needed
@@ -130,7 +123,6 @@ export async function onTabRemovedListener(tabId: number, removeInfo: Tabs.OnRem
 export async function onWindowsFocusChangedListener(windowId: number) {
   try {
     if (!browser_ext) return;
-
     if (windowId !== browser_ext.windows.WINDOW_ID_NONE) {
       const window = await browser_ext.windows.get(windowId);
       const data: WindowFocusData = {
@@ -150,7 +142,6 @@ export async function onWindowsFocusChangedListener(windowId: number) {
           if (activeTab.tabId > 0) {
             activeTabBackgroundStore.set(activeTab);
             activeTabUIStore.set(activeTab); // ??
-            log.debug('Window focused changed:', false, activeTab);
             await backgroundManager.sendMessage(MessageType.WINDOW_FOCUSED, data);
             await setObjectInLocalStorage('activeTabBackground', activeTab); // Not sure if this is needed
           }

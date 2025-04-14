@@ -12,15 +12,16 @@
   import type { Wallet } from '$lib/plugins/Wallet';
   import { log } from '$plugins/Logger';
 
-  let wallet: Wallet;
-
   import type { Runtime } from 'webextension-polyfill';
   import { verify } from '$lib/common/security';
 	import { page } from '$app/state';
 
   type RuntimePort = Runtime.Port | undefined;
 
+  // NOTE: Need to transition to using new format for dapp connections. WIP=
+
   let currentlySelected: YakklCurrentlySelected;
+  let wallet: Wallet;
 
   let showConfirm = $state(false);
   let showSuccess = $state(false);
@@ -280,7 +281,7 @@
     try {
       if (tx?.hash) {
         if (port) {
-          port.postMessage({id: requestId, method: 'eth_sendTransaction', type: 'YAKKL_RESPONSE', result: tx.hash});
+          port.postMessage({id: requestId, method: 'eth_sendTransaction', type: 'YAKKL_RESPONSE:EIP6963', result: tx.hash});
         }
       }
       showSuccess = false;

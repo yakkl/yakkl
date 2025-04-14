@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from "svelte";
   import { sessionInitialized } from "$lib/common/stores";
-  import { DEFAULT_POPUP_HEIGHT, DEFAULT_TITLE, DEFAULT_POPUP_WIDTH, PATH_LOGIN, PATH_REGISTER, PATH_LEGAL, PATH_LOCK, PATH_LOGOUT } from '$lib/common';
+  import { DEFAULT_POPUP_HEIGHT, DEFAULT_TITLE, DEFAULT_POPUP_WIDTH } from '$lib/common';
   import Header from '$components/Header.svelte';
   import Footer from '$components/Footer.svelte';
   import { blockContextMenu, blockWindowResize } from '$lib/utilities';
@@ -15,7 +15,7 @@
 
   let { children }: Props = $props();
 
-  const EXCLUDED_PATHS = [PATH_LOGIN, PATH_REGISTER, PATH_LEGAL, PATH_LOCK, PATH_LOGOUT, '/', '/index.html'];
+  // const EXCLUDED_PATHS = [PATH_LOGIN, PATH_REGISTER, PATH_LEGAL, PATH_LOCK, PATH_LOGOUT, '/', '/index.html'];
 
   // UI State
   let popupWidth: number = $state(DEFAULT_POPUP_WIDTH);
