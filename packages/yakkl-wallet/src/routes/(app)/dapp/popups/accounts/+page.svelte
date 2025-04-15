@@ -8,7 +8,7 @@
   import { navigating, page } from '$app/state'; // NOTE: address
   import { wait } from '$lib/common/utils';
 	import ProgressWaiting from '$lib/components/ProgressWaiting.svelte';
-	import type { AccountAddress, JsonRpcResponse, YakklAccount, YakklConnectedDomain, YakklCurrentlySelected } from '$lib/common';
+	import { getIcon, type AccountAddress, type JsonRpcResponse, type YakklAccount, type YakklConnectedDomain, type YakklCurrentlySelected } from '$lib/common';
 
   import type { Runtime } from 'webextension-polyfill';
 	import { dateString } from '$lib/common/datetime';
@@ -94,17 +94,20 @@
         }
       }
 
+      log.info('navigating:', false, navigating, navigating?.from?.url?.pathname);
+
       if (pass !== true) {
         if (requestId) {
           pass = true;
         } else {
           if (browserSvelte) {
-            goto(PATH_LOGIN);
+            throw new Error('Did not navigate from approved source and/or requestId not found');
           }
         }
       }
     } catch(e) {
       log.error(e);
+      throw e;
     }
   }
 
@@ -168,7 +171,7 @@
     showProgress = value === 'showProgress' ? true : false;
   }
 
-  async function handleReject() {
+  async function handleReject(message: string = 'User rejected the request.') {
     try {
       resetValuesExcept(''); // Reset all values
 
@@ -179,7 +182,7 @@
           id: requestId,
           error: {
             code: 4001,
-            message: 'User rejected the request.'
+            message: message
           }
         });
       }
@@ -213,7 +216,7 @@
       }
 
       // Get selected addresses from filteredAddressesArray
-      accounts = filteredAddressesArray
+      const accounts = filteredAddressesArray
         .filter(addr => addr.selected)
         .map(addr => ({
           address: addr.address,
@@ -223,6 +226,10 @@
           chainId: addr.chainId
         }));
 
+      let addresses = filteredAddressesArray
+        .filter(addr => addr.selected)
+        .map(addr => addr.address);
+
       accountsPicked = accounts.length;
       log.info('accounts selected:', false, accounts);
 
@@ -230,11 +237,9 @@
         throw 'No accounts were selected. Please select at least one account.';
       }
 
-      if (!Array.isArray(accounts)) {
-        accounts = Object.values(accounts);
+      if (!Array.isArray(addresses)) {
+        addresses = Object.values(addresses);
       }
-
-      showProgress = true;
 
       // Update the connected domains store
       const existingDomainIndex = yakklConnectedDomainsStore.findIndex(d => d.domain === domain);
@@ -310,14 +315,12 @@
           type: 'YAKKL_RESPONSE:EIP6963',
           jsonrpc: '2.0',
           id: requestId,
-          result: accounts.map(acc => acc.address)
+          result: addresses
         };
         port.postMessage(response);
+      } else {
+        handleReject("Request failed to send to dapp due to connection port not found.");
       }
-
-      showProgress = false;
-      showConfirm = false;
-      showSuccess = false;
 
       await close();
     } catch (error: any) {
@@ -337,6 +340,7 @@
           port.onMessage.addListener(async (event: any) => {
             try {
               requestData = event.data;
+              log.info('Dapp - accounts - requestData', false, requestData);
 
               // TODO: Add a logo with an X with the text 'NO LOGO'
               if (!domainLogo) domainLogo = '/images/logoBullLock48x48.png'; // Set default logo but change if favicon is present
@@ -347,6 +351,7 @@
                 // Get favicon from URL parameters first, fall back to metadata
                 const url = new URL(window.location.href);
                 const favicon = url.searchParams.get('favicon');
+                // Need to add getIcon() in inpage or content script
                 domainLogo = favicon ?? requestData?.data?.metaDataParams?.icon ?? '/images/logoBullLock48x48.png';
                 domain = domain.trim();
 
@@ -398,8 +403,10 @@
 
   async function close() {
     // goto(PATH_LOGOUT);
-    await wait(1000); // Wait for the port to disconnect and message to go through
-    window.close();
+    if (browserSvelte) {
+      await wait(1000); // Wait for the port to disconnect and message to go through
+      window.close();
+    }
   }
 
 </script>
@@ -408,15 +415,8 @@
 	<title>{DEFAULT_TITLE}</title>
 </svelte:head>
 
-<ProgressWaiting bind:show={showProgress} title="Processing" value="Verifying selected accounts..."/>
-
+<!-- <ProgressWaiting bind:show={showProgress} title="Processing" value="Verifying selected accounts..."/> -->
 <Confirmation bind:show={showConfirm} title="Connect to {domain}" message="This will connect {domain} to {accountsPicked} of your addresses! Do you wish to continue?" onConfirm={handleProcess}/>
-
-<!-- <Warning bind:show={showWarning} title="Warning!" content={warningValue}/>
-
-<Failed bind:show={showFailure} title="Failed!" content={errorValue} handleReject={() => {window.close()}}/>
-
-<Success bind:show={showSuccess} title="Success!" content="{domain} is now connected to YAKKL®" handleConfirm={() => {window.close()}}/> -->
 
 {#if showConfirm}
 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
@@ -449,7 +449,7 @@
       <div class="flex justify-end">
         <button
           class="btn btn-primary"
-          onclick={handleReject}
+          onclick={() => handleReject()}
         >
           Close
         </button>
@@ -466,7 +466,7 @@
           <span class="font-semibold truncate" title={domainTitle || domain}>{domainTitle || domain}</span>
         </div>
         <button
-          onclick={handleReject}
+          onclick={() => handleReject()}
           class="btn btn-ghost btn-sm flex-shrink-0"
           aria-label="Close">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -518,7 +518,7 @@
   <!-- Footer -->
   <div class="p-4 border-t border-base-300 flex-shrink-0">
     <div class="flex gap-4 justify-end">
-      <button onclick={handleReject} class="btn btn-outline">
+      <button onclick={() => handleReject()} class="btn btn-outline">
         Reject
       </button>
       <button onclick={() => { showConfirm=true; }} class="btn btn-primary">
@@ -528,6 +528,7 @@
   </div>
 </div>
 {/if}
+
 <style>
   /* Smooth transitions */
   .btn {

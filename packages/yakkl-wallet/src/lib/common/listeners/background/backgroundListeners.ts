@@ -14,6 +14,7 @@ import { onPortConnectListener, onPortDisconnectListener } from './portListeners
 import { onTabActivatedListener, onTabRemovedListener, onTabUpdatedListener, onWindowsFocusChangedListener } from './tabListeners';
 import { globalListenerManager } from '$lib/plugins/GlobalListenerManager';
 import { log } from '$lib/plugins/Logger';
+import { signingRequestListener } from '$lib/extensions/chrome/signingHandler';
 
 const browser_ext = browser;
 
@@ -94,6 +95,7 @@ export function addBackgroundListeners() {
 
   // These check to see if already added and if so, remove and re-add
   backgroundListenerManager.add(browser_ext.runtime.onMessage, onRuntimeMessageListener);
+  backgroundListenerManager.add(browser_ext.runtime.onMessage, signingRequestListener);
   backgroundListenerManager.add(browser_ext.runtime.onInstalled, onInstalledUpdatedListener);
   backgroundListenerManager.add(browser_ext.runtime.onConnect, onPortConnectListener);
   backgroundListenerManager.add(browser_ext.runtime.onConnect, onPortDisconnectListener);

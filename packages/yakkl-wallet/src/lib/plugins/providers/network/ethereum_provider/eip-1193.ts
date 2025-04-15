@@ -101,7 +101,7 @@ export class EIP1193Provider extends EventEmitter {
             const { handleRequestAccounts } = await import('../../../../extensions/chrome/eip-6963');
 
             // Use the EIP-6963 implementation to handle the request
-            finalResult = await handleRequestAccounts();
+            finalResult = await handleRequestAccounts(null, id.toString());
 
             // Update cached accounts and emit events
             this.cachedAccounts = finalResult;

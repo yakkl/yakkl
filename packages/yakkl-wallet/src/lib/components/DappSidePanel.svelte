@@ -17,7 +17,7 @@
     if (browser) {
       // Get URL parameters
       const params = new URLSearchParams(window.location.search);
-      requestId = params.get('requestId') || '';
+      requestId = params.get('id') || '';
       method = params.get('method') || '';
 
       // Set the appropriate view based on the method

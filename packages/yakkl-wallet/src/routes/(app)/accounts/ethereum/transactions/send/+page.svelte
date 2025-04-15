@@ -1312,10 +1312,10 @@
 
 							<div class="flex flex-row mt-2">
 								<div class="flex-col w-full">
-									<span class="text-xs text-gray-100 font-bold mb-1 mr-1">Send Amount</span>
-									<span class="text-xs text-gray-100 mb-1 mr-1">(Show as ETH</span>
+									<span class="text-xs text-gray-100 font-bold mb-1 mr-[2px]">Send Amount</span>
+									<span class="text-xs text-gray-100 mb-1">(Show as ETH</span>
 									<input id="showCrypto" type="radio" name="show_how" class="radio radio-primary radio-xs mb-1" onclick={handleSetCryptoValue} />
-									<span class="text-xs text-gray-100 mb-1 mx-1">Show as {valueState.currencyLabel}</span>
+									<span class="text-xs text-gray-100 mb-1">Show as {valueState.currencyLabel}</span>
 									<input id="showUSD" type="radio" name="show_how" class="radio radio-primary radio-xs mb-1" onclick={handleSetFiatValue} />
 									<span class="text-xs text-gray-100 mb-1">)</span>
 									<div class="flex flex-row">

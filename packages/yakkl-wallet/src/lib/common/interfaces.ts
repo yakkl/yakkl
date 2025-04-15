@@ -13,7 +13,7 @@ export interface RequestArguments {
 
 export interface JsonRpcRequest {
   jsonrpc: '2.0';
-  id: number | string;
+  id: string;
   method: string;
   params?: unknown[];
 }
@@ -21,7 +21,7 @@ export interface JsonRpcRequest {
 export interface JsonRpcResponse {
   type: 'YAKKL_RESPONSE:EIP6963';
   jsonrpc: '2.0';
-  id: number | string;
+  id: string;
   result?: unknown;
   error?: {
       code: number;
@@ -32,7 +32,7 @@ export interface JsonRpcResponse {
 
 export interface YakklRequest {
   type: string;
-  id: number | string;
+  id: string;
   method: string;
   params: unknown[];
   requiresApproval?: boolean;
@@ -40,7 +40,7 @@ export interface YakklRequest {
 
 export interface YakklResponse {
   type: string;
-  id: number | string;
+  id: string;
   method?: string;
   result?: unknown;
   error?: {
@@ -81,6 +81,7 @@ export interface PendingRequestData {
   timestamp: number;
   port?: Runtime.Port;
   type?: string;
+  requiresApproval?: boolean;
 }
 
 export interface EncryptedData {

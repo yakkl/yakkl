@@ -34,10 +34,13 @@ const STORAGE_KEY = 'yakklDappActivity';
 export async function addDAppActivity(activity: DAppActivity): Promise<void> {
   try {
     const history = await getDAppActivityHistory();
+
+    log.info('addDAppActivity - history', false, history);
+
     history.activities.push(activity);
     await setObjectInLocalStorage(STORAGE_KEY, history);
   } catch (error) {
-    console.error('Failed to add DApp activity:', error);
+    log.error('Failed to add DApp activity:', false, error);
   }
 }
 

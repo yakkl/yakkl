@@ -85,8 +85,6 @@ export async function onRuntimeMessageListener(
           sendResponse({ success: true, message: 'Unlock icon set.' });
         return true;
       }
-      // case 'showDappPopup': {
-      // }
       default: {
         sendResponse({ success: false, error: 'Unknown message type.' });
         return true;

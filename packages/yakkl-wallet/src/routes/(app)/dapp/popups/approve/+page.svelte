@@ -97,7 +97,7 @@
               if (element.domain === domain) {
                 const accounts = element.addresses;
                 if (port)
-                  port.postMessage({method: 'eth_requestAccounts', id: requestId, type: 'YAKKL_RESPONSE', result: accounts});
+                  port.postMessage({method: 'eth_requestAccounts', id: requestId, type: 'YAKKL_RESPONSE:EIP6963', result: accounts});
                 return;
               }
             });

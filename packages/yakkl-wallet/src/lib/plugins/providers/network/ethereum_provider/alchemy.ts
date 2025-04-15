@@ -7,7 +7,9 @@ import { getYakklCurrentlySelected } from '$lib/common/stores';
 function getAlchemyApiKey(chainId: string = '0x1'): string {
   // In a real implementation, this would get the API key from environment variables
   // or a secure storage mechanism based on the chain ID
-  const apiKey = import.meta.env.VITE_ALCHEMY_API_KEY_PROD || process.env.VITE_ALCHEMY_API_KEY_PROD || '';
+  const apiKey = process.env.ALCHEMY_API_KEY_PROD ||
+              process.env.VITE_ALCHEMY_API_KEY_PROD ||
+              import.meta.env.VITE_ALCHEMY_API_KEY_PROD;
 
   if (!apiKey) {
     log.warn('No Alchemy API key found', false);
@@ -62,6 +64,8 @@ function getAlchemyRpcUrl(chainId: string = '0x1'): string {
 async function makeAlchemyRequest(method: string, params: any[], chainId: string = '0x1'): Promise<any> {
   const url = getAlchemyRpcUrl(chainId);
   const apiKey = getAlchemyApiKey(chainId);
+
+  console.trace('makeAlchemyRequest', {url, chainId, apiKey});
 
   if (!apiKey) {
     throw new Error('No Alchemy API key available');
@@ -484,7 +488,12 @@ class AlchemyProvider extends EventEmitter {
         default:
           // For other methods, try to make a direct request to Alchemy
           try {
-            return await makeAlchemyRequest(method, params, this.chainId);
+            log.info('Alchemy provider request', false, {method, params, chainId: this.chainId});
+
+            const result = await makeAlchemyRequest(method, params, this.chainId);
+            
+            log.info('Alchemy provider request result', false, {result});
+            return result;
           } catch (error) {
             throw {
               code: EIP1193_ERRORS.UNSUPPORTED_METHOD.code,

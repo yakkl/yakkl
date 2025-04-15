@@ -145,45 +145,52 @@ export async function showPopup(url: string = ''): Promise<void> {
 //   }
 // }
 
-export async function showDappSidePanel(request: string) {
-  try {
-    // Check if the side panel is already open
-    log.info('showDappSidePanel - 149 (ui):', false, request);
+// export async function showDappSidePanel(request: string) {
+//   try {
+//     // Check if the side panel is already open
+//     log.info('showDappSidePanel - 149 (ui):', false, request);
 
-    const views = browser_ext.extension.getViews({ type: 'tab' });
-    if (views.length > 0) {
-      log.info('showDappSidePanel - 151 (ui):', false, views);
-      // Side panel is already open, send message to update content
-      views[0].postMessage({
-        type: 'UPDATE_CONTENT',
-        url: request
-      }, '*');
-      return;
-    }
+//     const views = browser_ext.extension.getViews({ type: 'tab' });
+//     if (views.length > 0) {
+//       log.info('showDappSidePanel - 151 (ui):', false, views);
+//       // Side panel is already open, send message to update content
+//       views[0].postMessage({
+//         type: 'UPDATE_CONTENT',
+//         url: request
+//       }, '*');
+//       return;
+//     }
 
-    // Try to use side panel if available
-    if (browser_ext.sidePanel) {
-      await browser_ext.sidePanel.open({
-        url: request,
-        width: 360 // Standard width for wallet interfaces
-      });
-    } else {
-      // Fallback to popup if side panel is not available
-      await showDappPopup(request);
-    }
+//     // Try to use side panel if available
+//     if (browser_ext.sidePanel) {
+//       await browser_ext.sidePanel.open({
+//         url: request,
+//         width: 360 // Standard width for wallet interfaces
+//       });
+//     } else {
+//       // Fallback to popup if side panel is not available
+//       await showDappPopup(request);
+//     }
 
-  } catch (error) {
-    log.error('Background - showDappSidePanel error:', false, error);
-    // Fallback to popup if side panel fails
-    await showDappPopup(request);
-  }
-}
+//   } catch (error) {
+//     log.error('Background - showDappSidePanel error:', false, error);
+//     // Fallback to popup if side panel fails
+//     await showDappPopup(request);
+//   }
+// }
 
 export async function showDappPopup(request: string) {
   try {
+    // Place approved html height here
     const height = request.includes('approve.html') ? 620 :
                    request.includes('transactions.html') ? 620 :
-                   request.includes('accounts.html') ? 550 : 500;
+                   request.includes('sign.html') ? 550 :
+                   request.includes('accounts.html') ? 550 : 0; // NOTE: This is not approved html height
+
+    if (height === 0) {
+      log.error('showDappPopup - 186 (ui-inside - not approved html):', false, {request, height});
+      return;
+    }
 
     log.info('showDappPopup <<< - 186 (ui-inside):', false, {request, height});
 

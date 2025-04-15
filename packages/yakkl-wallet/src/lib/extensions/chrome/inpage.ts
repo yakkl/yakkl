@@ -10,7 +10,7 @@ import { type EIP6963ProviderDetail, type EIP6963Provider, type EIP6963ProviderI
 import type { RequestArguments } from '$lib/common';
 import { EventEmitter } from 'events';
 import { getWindowOrigin, isValidOrigin, getTargetOrigin, safePostMessage } from '$lib/common/origin';
-import { generateEipId, ensureEipId } from '$lib/common/id-generator';
+import { generateEipId } from '$lib/common/id-generator';
 
 class ProviderRpcError extends Error {
   code: number;

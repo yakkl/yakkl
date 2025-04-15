@@ -54,19 +54,42 @@ export class Alchemy extends AbstractProvider {
     if (!this.config) {
       throw new Error(`Invalid chain ID: ${chainId}`);
     }
+
+    // Check if we're in a background context
+    const isBackgroundContext = typeof window === 'undefined' || !window.document;
+
+    if (isBackgroundContext) {
+      // In background context, use a simpler RPC provider
+      const url = `https://eth-mainnet.g.alchemy.com/v2/${this.config.apiKey}`;
+      this.provider = new ethersv6.JsonRpcProvider(url);
+      return null as any; // Return null since we're not using the full Alchemy API
+    }
+
     // Clean up the old instance (if any)
     if (this.alchemy) {
-      // Optionally, you can call any cleanup methods if the API provides them
       this.alchemy = null;
     }
-    this.alchemy = new AlchemyAPI( this.config );
+    this.alchemy = new AlchemyAPI(this.config);
     return this.alchemy;
   }
 
   async getProviderURL() {
-    await this.getAlchemy( this.chainId ); // Ensure the provider is connected
-    if ( !this.alchemy ) {
-      throw new Error( "No Alchemy set" );
+    // Check if we're in a background context
+    const isBackgroundContext = typeof window === 'undefined' || !window.document;
+
+    if (isBackgroundContext) {
+      // In background context, construct the URL directly
+      const config = getConfig(this.chainId);
+      if (!config?.apiKey) {
+        throw new Error("No Alchemy API key found");
+      }
+      return `https://eth-mainnet.g.alchemy.com/v2/${config.apiKey}`;
+    }
+
+    // In non-background context, use the Alchemy SDK
+    await this.getAlchemy(this.chainId);
+    if (!this.alchemy) {
+      throw new Error("No Alchemy set");
     }
     const provider = await this.alchemy.config.getProvider();
     if (provider) {
@@ -172,15 +195,11 @@ export class Alchemy extends AbstractProvider {
    */
   async getBlockNumber(): Promise<number> {
     try {
-      await this.getAlchemy(); // Ensure the provider is connected
-      if ( !this.alchemy ) {
-        throw new Error( "No Alchemy set" );
-      }
-      const blockNumber = await this.alchemy.core.getBlockNumber();
+      const result = await this.makeRpcCall('eth_blockNumber', []);
+      const blockNumber = parseInt(result, 16);
       eventManager.emit('blockNumber', { blockNumber });
       return blockNumber;
     } catch (error) {
-      // log.error('Alchemy:', false, error);
       eventManager.emit('error', { provider: this.name, method: 'getBlockNumber', error });
       throw error;
     }
@@ -192,15 +211,11 @@ export class Alchemy extends AbstractProvider {
    */
   async getGasPrice(): Promise<bigint> {
     try {
-      await this.getAlchemy(); // Ensure the provider is connected
-      if ( !this.alchemy ) {
-        throw new Error( "No Alchemy set" );
-      }
-      const price = await this.alchemy.core.getGasPrice();
-      eventManager.emit('gasPrice', { price: price.toBigInt() });
-      return price.toBigInt(); // as unknown as bigint;
+      const result = await this.makeRpcCall('eth_gasPrice', []);
+      const price = BigInt(result);
+      eventManager.emit('gasPrice', { price });
+      return price;
     } catch (error) {
-      // log.error('Alchemy:', false, error);
       eventManager.emit('error', { provider: this.name, method: 'getGasPrice', error });
       throw error;
     }
@@ -230,18 +245,13 @@ export class Alchemy extends AbstractProvider {
    */
   async getBalance(addressOrName: string, blockTag: CustomBlockTag | Promise<CustomBlockTag> = 'latest'): Promise<bigint> {
     try {
-      await this.getAlchemy( this.chainId ); // Ensure the provider is connected
-      if ( !this.alchemy ) {
-        throw new Error( "No Alchemy set" );
-      }
-      const address: string = addressOrName as string;
-      const blockTagish = BigNumber.from(await blockTag).toHex();
-      const balance = await this.alchemy.core.getBalance(addressOrName, blockTagish);
-      eventManager.emit('balanceFetched', { address, balance });
-      return balance.toBigInt(); // as unknown as bigint;
+      const resolvedBlockTag = await blockTag;
+      const result = await this.makeRpcCall('eth_getBalance', [addressOrName, resolvedBlockTag]);
+      const balance = BigInt(result);
+      eventManager.emit('balanceFetched', { address: addressOrName, balance });
+      return balance;
     } catch (error) {
       eventManager.emit('error', { provider: this.name, method: 'getBalance', error });
-      // log.error('Alchemy:', false, error);
       throw error;
     }
   }
@@ -599,15 +609,29 @@ export class Alchemy extends AbstractProvider {
    */
   async request(method: string, params: any[]): Promise<any> {
     try {
-      await this.getAlchemy( this.chainId ); // Ensure the provider is connected
-      if ( !this.alchemy ) {
-        throw new Error( "No Alchemy set" );
+      await this.getAlchemy(this.chainId); // Ensure the provider is connected
+
+      // Check if we're in a background context
+      const isBackgroundContext = typeof window === 'undefined' || !window.document;
+
+      if (isBackgroundContext) {
+        // In background context, use the RPC provider directly
+        if (!this.provider) {
+          throw new Error("No provider set");
+        }
+        const result = await this.provider.send(method, params);
+        eventManager.emit('requestMade', { provider: this.name, method, params, result });
+        return result;
+      }
+
+      // In non-background context, use the full Alchemy API
+      if (!this.alchemy) {
+        throw new Error("No Alchemy set");
       }
       const result = await this.alchemy.core.send(method, params);
       eventManager.emit('requestMade', { provider: this.name, method, params, result });
       return result;
     } catch (error) {
-      // log.error('Alchemy:', false, error);
       eventManager.emit('error', { provider: this.name, method, error });
       throw error;
     }
@@ -647,6 +671,39 @@ export class Alchemy extends AbstractProvider {
     // Custom logic here
     // return super.on(eventName, listener);
   // }
+
+  private isBackgroundContext(): boolean {
+    return typeof window === 'undefined' || !window.document;
+  }
+
+  private async ensureProvider(): Promise<void> {
+    if (this.isBackgroundContext()) {
+      if (!this.provider) {
+        const url = await this.getProviderURL();
+        this.provider = new ethersv6.JsonRpcProvider(url);
+      }
+    } else {
+      await this.getAlchemy(this.chainId);
+      if (!this.alchemy) {
+        throw new Error("No Alchemy set");
+      }
+    }
+  }
+
+  private async makeRpcCall(method: string, params: any[]): Promise<any> {
+    await this.ensureProvider();
+    if (this.isBackgroundContext()) {
+      if (!this.provider) {
+        throw new Error("No provider set");
+      }
+      return this.provider.send(method, params);
+    } else {
+      if (!this.alchemy) {
+        throw new Error("No Alchemy set");
+      }
+      return this.alchemy.core.send(method, params);
+    }
+  }
 }
 
 /**
@@ -657,41 +714,46 @@ export class Alchemy extends AbstractProvider {
  */
 function getConfig(chainId: number, kval: any = undefined): AlchemySettings | undefined {
   try {
-    let api = kval ?? import.meta.env.VITE_ALCHEMY_API_KEY_PROD;  // Set defaults
+    const apiKey = process.env.ALCHEMY_API_KEY_PROD ||
+              process.env.VITE_ALCHEMY_API_KEY_PROD ||
+              import.meta.env.VITE_ALCHEMY_API_KEY_PROD;
+
+    let api = kval ?? apiKey;  // Set defaults
     let network = AlchemyNetwork.ETH_MAINNET;
 
+    // TODO: Check the other chains
     switch (chainId) {
-      case 10: // Optimism mainnet
-        api = kval ?? import.meta.env.VITE_ALCHEMY_API_KEY_OPTIMISM_PROD;
-        network = AlchemyNetwork.OPT_MAINNET;
-        break;
-      case 69: // Optimism testnet - TODO: Check chainId
-        api = kval ?? import.meta.env.VITE_ALCHEMY_API_KEY_OPTIMISM;
-        network = AlchemyNetwork.OPT_SEPOLIA;
-        break;
-      case 137: // Polygon mainnet
-        api = kval ?? import.meta.env.VITE_ALCHEMY_API_KEY_POLYGON_PROD;
-        network = AlchemyNetwork.MATIC_MAINNET;
-        break;
-      case 80001: // Polygon testnet
-        api = kval ?? import.meta.env.VITE_ALCHEMY_API_KEY_POLYGON;
-        network = AlchemyNetwork.MATIC_MAINNET;
-        break;
-      case 42161: // Arbitrum mainnet
-        api = kval ?? import.meta.env.VITE_ALCHEMY_API_KEY_ARBITRUM_PROD;
-        network = AlchemyNetwork.ARB_MAINNET;
-        break;
-      case 421611: // Arbitrum testnet - TODO: Check chainId
-        api = kval ?? import.meta.env.VITE_ALCHEMY_API_KEY_ARBITRUM;
-        network = AlchemyNetwork.ARB_SEPOLIA;
-        break;
+      // case 10: // Optimism mainnet
+      //   api = kval ?? import.meta.env.VITE_ALCHEMY_API_KEY_OPTIMISM_PROD;
+      //   network = AlchemyNetwork.OPT_MAINNET;
+      //   break;
+      // case 69: // Optimism testnet - TODO: Check chainId
+      //   api = kval ?? import.meta.env.VITE_ALCHEMY_API_KEY_OPTIMISM;
+      //   network = AlchemyNetwork.OPT_SEPOLIA;
+      //   break;
+      // case 137: // Polygon mainnet
+      //   api = kval ?? import.meta.env.VITE_ALCHEMY_API_KEY_POLYGON_PROD;
+      //   network = AlchemyNetwork.MATIC_MAINNET;
+      //   break;
+      // case 80001: // Polygon testnet
+      //   api = kval ?? import.meta.env.VITE_ALCHEMY_API_KEY_POLYGON;
+      //   network = AlchemyNetwork.MATIC_MAINNET;
+      //   break;
+      // case 42161: // Arbitrum mainnet
+      //   api = kval ?? import.meta.env.VITE_ALCHEMY_API_KEY_ARBITRUM_PROD;
+      //   network = AlchemyNetwork.ARB_MAINNET;
+      //   break;
+      // case 421611: // Arbitrum testnet - TODO: Check chainId
+      //   api = kval ?? import.meta.env.VITE_ALCHEMY_API_KEY_ARBITRUM;
+      //   network = AlchemyNetwork.ARB_SEPOLIA;
+      //   break;
       case 11155111: // Ethereum Sepolia
-        api = kval ?? import.meta.env.VITE_ALCHEMY_API_KEY_ETHEREUM;
+        api = kval ?? apiKey; // May want to use a different api key for sepolia
         network = AlchemyNetwork.ETH_SEPOLIA;
         break;
       case 1: // Default - Ethereum mainnet
       default:
-        api = kval ?? import.meta.env.VITE_ALCHEMY_API_KEY_PROD;
+        api = kval ?? apiKey;
         network = AlchemyNetwork.ETH_MAINNET;
         break;
     }

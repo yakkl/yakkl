@@ -318,6 +318,13 @@ function setupMessageHandling(stream: PortDuplexStream) {
         method: data.method
       };
 
+      // Log the request ID for debugging
+      log.info('Content: Processing request with ID:', false, {
+        requestId: message.id,
+        method: message.method,
+        timestamp: new Date().toISOString()
+      });
+
       // Handle array responses (like eth_accounts)
       if (Array.isArray(data)) {
         message.result = data;

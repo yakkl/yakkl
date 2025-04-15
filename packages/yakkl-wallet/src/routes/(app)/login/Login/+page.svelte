@@ -71,10 +71,11 @@
             break;
         }
       }
-      redirect = url + '?requestId=' + urlRequestId + '&method=' + method;
+      redirect = url + '?requestId=' + urlRequestId + '&source=eip6963:Login&method=' + method;
     } else {
       $yakklDappConnectRequestStore = null;
     }
+    log.info('Login - 105', false, { $yakklDappConnectRequestStore, urlRequestId, method, redirect });
   }
 
   $effect(() => { yakklCurrentlySelected = $yakklCurrentlySelectedStore; });
@@ -102,7 +103,7 @@
         if (!$yakklDappConnectRequestStore) {
           browser_ext.idle.setDetectionInterval(yakklPreferences ? yakklPreferences?.idleDelayInterval ?? 60 : 60); // System idle time is 2 minutes. This adds 1 minute to that. If any movement or activity is detected then it resets.
         } else {
-          log.warn('Login - 105', false, { $yakklDappConnectRequestStore });
+          log.info('Login - 105', false, { $yakklDappConnectRequestStore });
         }
 
         registeredType = yakklSettings.registeredType as string;

@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Background actions for the extension...
 
-import { initializeEIP6963 } from './eip-6963';
+import { initializeEIP6963, handleRequestAccounts } from './eip-6963';
 
 import { addBackgroundListeners } from '$lib/common/listeners/background/backgroundListeners';
 import { globalListenerManager } from '$lib/plugins/GlobalListenerManager';
@@ -20,13 +20,15 @@ import { KeyManager } from '$lib/plugins/KeyManager';
 import { getMemoizedKey, migrateToSecureStorage, SecureStore, getObjectFromLocalStorage } from '$lib/common/backgroundSecuredStorage';
 import { SecurityLevel } from '$lib/permissions/types';
 import { getAlchemyProvider } from '$lib/plugins/providers/network/ethereum_provider/alchemy';
-import type { RequestMetadata, YakklMessage, YakklRequest, YakklResponse } from '$lib/common/interfaces';
+import type { PendingRequestData, RequestMetadata, YakklMessage, YakklRequest, YakklResponse } from '$lib/common/interfaces';
 import { STORAGE_YAKKL_CURRENTLY_SELECTED } from '$lib/common/constants';
 import { browser_ext } from '$lib/common/environment';
 import { openPopups } from '$lib/common/reload';
 import { showExtensionPopup } from '$lib/extensions/chrome/ui';
 import { showPopup } from './ui';
 import { ensureEipId } from '$lib/common/id-generator';
+import { signingManager } from './signingManager';
+import { requestManager } from './requestManager';
 
 type RuntimeSender = Runtime.MessageSender;
 type RuntimePort = Runtime.Port;
@@ -48,13 +50,11 @@ type RuntimePort = Runtime.Port;
 const ports: Map<string, RuntimePort> = new Map();
 
 // Define the type for pending requests
-type BackgroundPendingRequest = {
+export type BackgroundPendingRequest = {
   resolve: (value: any) => void;
   reject: (reason: any) => void;
-  method: string;
-  params: any[];
-  timestamp: number;
   port: RuntimePort;
+  data: PendingRequestData;
 };
 
 // Export the pendingRequests Map
@@ -170,8 +170,39 @@ async function handlePortMessage(message: YakklMessage, port: RuntimePort) {
           // Import the showEIP6963Popup function from eip-6963.ts
           const { showEIP6963Popup } = await import('./eip-6963');
 
+          // Add request to pendingRequests before showing popup
+          pendingRequests.set(requestId, {
+            resolve: (result) => {
+              port.postMessage({
+                type: 'YAKKL_RESPONSE:EIP6963',
+                jsonrpc: '2.0',
+                id: requestId,
+                result
+              });
+            },
+            reject: (error) => {
+              port.postMessage({
+                type: 'YAKKL_RESPONSE:EIP6963',
+                jsonrpc: '2.0',
+                id: requestId,
+                error: {
+                  code: -32603,
+                  message: error?.message || 'Internal error'
+                }
+              });
+            },
+            port,
+            data: {
+              id: requestId,
+              method,
+              params,
+              requiresApproval: true,
+              timestamp: Date.now()
+            }
+          });
+
           // Use the EIP-6963 implementation to handle the request
-          const result = await showEIP6963Popup(method, params || [], requestId);
+          const result = await showEIP6963Popup(method, params || [], port, requestId);
 
           log.debug('handlePortMessage - EIP-6963 popup result', false, { result, requestId, method, params });
 
@@ -188,7 +219,7 @@ async function handlePortMessage(message: YakklMessage, port: RuntimePort) {
           log.error('Error using EIP-6963 implementation for request:', false, error);
 
           // Fallback to the original implementation if the EIP-6963 implementation fails
-          const result = await handleRequest(method, params || [], origin);
+          const result = await handleRequest(method, params || [], origin, port, requestId);
 
           // Send the response back to the port
           port.postMessage({
@@ -201,7 +232,7 @@ async function handlePortMessage(message: YakklMessage, port: RuntimePort) {
         }
       } else {
         // For methods that don't require approval, use the original implementation
-        const result = await handleRequest(method, params || [], origin);
+        const result = await handleRequest(method, params || [], origin, port, requestId);
 
         // Send the response back to the port
         port.postMessage({
@@ -269,7 +300,7 @@ async function getProvider() {
   return getAlchemyProvider();
 }
 
-async function handleRequest(method: string, params: any[], origin: string) {
+async function handleRequest(method: string, params: any[], origin: string, port?: Runtime.Port, requestId?: string) {
   const yakklCurrentlySelected = await getObjectFromLocalStorage(STORAGE_YAKKL_CURRENTLY_SELECTED) as YakklCurrentlySelected;
 
   log.debug('Processing request:', false, {
@@ -299,21 +330,13 @@ async function handleRequest(method: string, params: any[], origin: string) {
       return [];
 
     case 'eth_requestAccounts': {
-      // Use the EIP-6963 implementation for handling eth_requestAccounts
-      if (method === 'eth_requestAccounts') {
-        try {
-          log.debug('background - Processing eth_requestAccounts request', false, { method, params });
-          // Import the handleRequestAccounts function from eip-6963.ts
-          const { handleRequestAccounts } = await import('./eip-6963');
-
-          // Use the EIP-6963 implementation to handle the request
-          return await handleRequestAccounts();
-        } catch (error) {
-          log.error('Error using EIP-6963 implementation for eth_requestAccounts:', false, error);
-          throw error; // Let the error propagate to the caller
-        }
+      try {
+        log.debug('background - Processing eth_requestAccounts request', false, { method, params });
+        return await handleRequestAccounts(port, requestId);
+      } catch (error) {
+        log.error('Error using EIP-6963 implementation for eth_requestAccounts:', false, error);
+        throw error;
       }
-      return [];
     }
 
     case 'net_version': {
@@ -420,11 +443,11 @@ function initialize() {
     const now = Date.now();
     for (const [id, request] of pendingRequests.entries()) {
       // Remove requests older than 30 seconds
-      if (now - request.timestamp > 30000) {
+      if (now - request?.data?.timestamp > 30000) {
         log.warn('Removing stale request', false, {
           id,
-          method: request.method,
-          age: now - request.timestamp
+          method: request.data.method,
+          age: now - request.data.timestamp
         });
         pendingRequests.delete(id);
       }
@@ -755,13 +778,13 @@ browser.runtime.onMessage.addListener((
   return true; // Keep the message channel open for async response
 });
 
-export async function showDappPopupWithFavicon(request: string) {
+export async function showDappPopup(request: string) {
   try {
-    const height = request.includes('approve.html') ? 620 :
-                   request.includes('transactions.html') ? 620 :
-                   request.includes('accounts.html') ? 550 : 500;
-
-    log.info('showDappPopup <<< - 186 (ui-inside):', false, {request, height});
+    // Validate the request URL
+    if (!request || !request.startsWith('/dapp/popups/') || !request.endsWith('.html')) {
+      log.error('Invalid popup request URL', false, { request });
+      return;
+    }
 
     // Get the active tab to get the favicon
     const tabs = await browser.tabs.query({ active: true });
@@ -774,6 +797,11 @@ export async function showDappPopupWithFavicon(request: string) {
       url.searchParams.set('favicon', favicon);
       request = url.pathname + url.search;
     }
+
+    // Show the popup with appropriate dimensions based on the type
+    const height = request.includes('approve.html') ? 620 :
+                   request.includes('transactions.html') ? 620 :
+                   request.includes('accounts.html') ? 550 : 500;
 
     showExtensionPopup(360, height, request).then(async (window) => {
       if (window?.id) {
@@ -790,7 +818,41 @@ export async function showDappPopupWithFavicon(request: string) {
   }
 }
 
-// Update the showDappPopup function to use showDappPopupWithFavicon
-export async function showDappPopup(request: string) {
-  return showDappPopupWithFavicon(request);
+// Update the handleSigningRequest function
+async function handleSigningRequest(
+  requestId: string,
+  method: string,
+  params: any[],
+  port: Runtime.Port
+): Promise<void> {
+  try {
+    const result = await signingManager.handleSigningRequest(requestId, method, params);
+    const request = requestManager.getRequest(requestId);
+    if (request) {
+      request.resolve(result);
+      requestManager.removeRequest(requestId);
+    }
+  } catch (error) {
+    const request = requestManager.getRequest(requestId);
+    if (request) {
+      request.reject(error);
+      requestManager.removeRequest(requestId);
+    }
+  }
 }
+
+// Update the onMessage listener
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'SIGNING_REQUEST') {
+    const requestId = message.id;
+    const request: BackgroundPendingRequest = {
+      resolve: sendResponse,
+      reject: (error) => sendResponse({ error }),
+      port: sender as Runtime.Port,
+      data: message.data
+    };
+    requestManager.addRequest(requestId, request);
+    handleSigningRequest(requestId, message.method, message.params, sender as Runtime.Port);
+    return true; // Keep the message channel open for async response
+  }
+});
