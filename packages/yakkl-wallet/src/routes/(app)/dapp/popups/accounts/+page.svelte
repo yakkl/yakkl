@@ -1,25 +1,16 @@
 <script lang="ts">
   import { browser_ext, browserSvelte } from '$lib/common/environment';
-  import { goto } from '$app/navigation';
   import { getYakklAccounts, setYakklConnectedDomainsStorage, setYakklAccountsStorage, yakklDappConnectRequestStore, getYakklCurrentlySelected, getYakklConnectedDomains } from '$lib/common/stores';
-  import { deepCopy } from "$lib/utilities/utilities";
-  import { PATH_LOGIN, YAKKL_DAPP, DEFAULT_TITLE, PATH_LOGOUT } from '$lib/common/constants';
+  import { YAKKL_DAPP, DEFAULT_TITLE } from '$lib/common/constants';
   import { onMount, onDestroy } from 'svelte';
   import { navigating, page } from '$app/state'; // NOTE: address
   import { wait } from '$lib/common/utils';
-	import ProgressWaiting from '$lib/components/ProgressWaiting.svelte';
-	import { getIcon, type AccountAddress, type JsonRpcResponse, type YakklAccount, type YakklConnectedDomain, type YakklCurrentlySelected } from '$lib/common';
-
+	import { type AccountAddress, type JsonRpcResponse, type YakklAccount, type YakklConnectedDomain, type YakklCurrentlySelected } from '$lib/common';
   import type { Runtime } from 'webextension-polyfill';
 	import { dateString } from '$lib/common/datetime';
 	import { log } from '$lib/plugins/Logger';
   import Confirmation from '$lib/components/Confirmation.svelte';
-  // import Failed from '$lib/components/Failed.svelte';
-  // import { writable, get } from 'svelte/store';
-  // import type { Readable } from 'svelte/store';
-
-  // import type { YakklPrimaryAccount } from '$lib/common/interfaces';
-
+  import type { BackgroundPendingRequest } from '$lib/extensions/chrome/background';
   type RuntimePort = Runtime.Port | undefined;
 
   // Define the ConnectedDomainAddress interface locally
@@ -57,28 +48,21 @@
   let yakklAccountsStore: YakklAccount[] = [];
   let yakklConnectedDomainsStore: YakklConnectedDomain[] = [];
 
-  // let searchTerm = $state('');
-  // let addresses: Map<string, ConnectedDomainAddress> = new Map();  // Complete list
-  // let filteredAddresses: Map<string, ConnectedDomainAddress> = $state(new Map());  // Filtered list
   let accounts: AccountAddress [] = [];
-  // let accountNumber = 0; // Number of accounts
   let accountsPicked = $state(0);
   let showConfirm = $state(false);
-  let showSuccess = $state(false);
   let showFailure = $state(false);
-  let showWarning = $state(false);
-  let showProgress = $state(false);
-  let warningValue = $state('No accounts were selected. Access to YAKKL® is denied.');
   let errorValue = $state('No domain/site name was found. Access to YAKKL® is denied.');
   let port: RuntimePort;
   let domain: string = $state('');
   let domainLogo: string = $state('');
   let domainTitle: string = $state('');
   let requestId: string | null;
-  let requestData: any;
   let pass = false;
   let filteredAddressesArray: AddressWithSelection[] = $state([]);
   let currentlySelectedAddress: string = $state('');
+  let request: BackgroundPendingRequest;
+  let title: string = $state(DEFAULT_TITLE);
 
   if (browserSvelte) {
     try {
@@ -120,7 +104,7 @@
       // Get primary accounts
       const accounts = await getYakklAccounts();
       if (!accounts || accounts.length === 0) {
-        throw new Error('No accounts available');
+        await handleReject('No accounts available');
       }
 
       yakklAccountsStore = accounts;
@@ -163,18 +147,8 @@
     }
   }
 
-  function resetValuesExcept(value: string) {
-    showConfirm = value === 'showConfirm' ? true : false;
-    showSuccess = value === 'showSuccess' ? true : false;
-    showFailure = value === 'showFailure' ? true : false;
-    showWarning = value === 'showWarning' ? true : false;
-    showProgress = value === 'showProgress' ? true : false;
-  }
-
   async function handleReject(message: string = 'User rejected the request.') {
     try {
-      resetValuesExcept(''); // Reset all values
-
       if (port) {
         port.postMessage({
           type: 'YAKKL_RESPONSE:EIP6963',
@@ -186,7 +160,6 @@
           }
         });
       }
-
     } catch(e) {
       log.error(e);
     } finally {
@@ -212,7 +185,7 @@
   async function handleProcess() {
     try {
       if (!domain) {
-        throw 'No domain name is present.';
+        await handleReject('No domain name is present.');
       }
 
       // Get selected addresses from filteredAddressesArray
@@ -234,7 +207,7 @@
       log.info('accounts selected:', false, accounts);
 
       if (accounts.length === 0) {
-        throw 'No accounts were selected. Please select at least one account.';
+        await handleReject('No accounts were selected. Please select at least one account.');
       }
 
       if (!Array.isArray(addresses)) {
@@ -319,14 +292,54 @@
         };
         port.postMessage(response);
       } else {
-        handleReject("Request failed to send to dapp due to connection port not found.");
+        await handleReject("Request failed to send to dapp due to connection port not found.");
       }
 
       await close();
     } catch (error: any) {
       log.error('Dapp - accounts process error:', true, error);
       errorValue = error as string;
-      resetValuesExcept('showFailure');
+    }
+  }
+
+  // We no longer need to do get_params since we can access the request data directly
+  async function onMessageListener(event: any) {
+    try {
+      if (!domainLogo) domainLogo = '/images/failIcon48x48.png'; // Set default logo but change if favicon is present
+
+      if (event.method === 'get_params') {
+        request = event.result;
+        log.info('Accounts: event: ====>>', false, event, event.method, event.result);
+
+        if (!request || !request.data) {
+          await handleReject('No requested data was found. Access to YAKKL® is denied.');
+        }
+
+        const requestData = request.data;
+        if (!requestData || !requestData.metaData) {
+          await handleReject('Invalid request data. Access to YAKKL® is denied.');
+        }
+
+        // These needs to be fixed upstream
+        domainTitle = requestData.metaData.metaData.title;
+        domain = requestData.metaData.metaData.domain;
+        domainLogo = requestData.metaData.metaData.icon;
+
+        // Set the page title
+        title = domainTitle || domain || DEFAULT_TITLE;
+
+        if (!requestId) requestId = requestData?.id ?? null;
+        if (!requestId) {
+          showFailure = true;
+          errorValue = 'No request ID was found. Access to YAKKL® is denied.';
+        } else {
+          // Call getAccounts to handle domain checking and account setup
+          await getAccounts();
+        }
+      }
+    } catch(e) {
+      log.error(e);
+      handleReject('An error occurred while processing the request. Access to YAKKL® is denied.');
     }
   }
 
@@ -337,49 +350,7 @@
 
         port = browser_ext.runtime.connect({name: YAKKL_DAPP});
         if (port) {
-          port.onMessage.addListener(async (event: any) => {
-            try {
-              requestData = event.data;
-              log.info('Dapp - accounts - requestData', false, requestData);
-
-              // TODO: Add a logo with an X with the text 'NO LOGO'
-              if (!domainLogo) domainLogo = '/images/logoBullLock48x48.png'; // Set default logo but change if favicon is present
-
-              if (event.method === 'get_params') {
-                domainTitle = requestData?.data?.metaDataParams?.title ?? '';
-                domain = requestData?.data?.metaDataParams?.domain ?? '';
-                // Get favicon from URL parameters first, fall back to metadata
-                const url = new URL(window.location.href);
-                const favicon = url.searchParams.get('favicon');
-                // Need to add getIcon() in inpage or content script
-                domainLogo = favicon ?? requestData?.data?.metaDataParams?.icon ?? '/images/logoBullLock48x48.png';
-                domain = domain.trim();
-
-                // Ensure we have a valid domain for the store and localStorage
-                if (!domain) {
-                  // If domain is empty, try to extract from the URL
-                  try {
-                    const origin = new URL(requestData?.data?.metaDataParams?.origin || window.location.href).origin;
-                    domain = origin.replace(/^https?:\/\//, '');
-                  } catch (e) {
-                    // If all else fails, use a default value
-                    domain = 'unknown-domain';
-                  }
-                }
-
-                if (!requestId) requestId = requestData?.id ?? null;
-                if (!requestId) {
-                  showFailure = true;
-                  errorValue = 'No request ID was found. Access to YAKKL® is denied.';
-                } else {
-                  // Call getAccounts to handle domain checking and account setup
-                  await getAccounts();
-                }
-              }
-            } catch(e) {
-              log.error(e);
-            }
-          });
+          port.onMessage.addListener(onMessageListener);
           port.postMessage({method: 'get_params', id: requestId});
         }
       }
@@ -412,10 +383,9 @@
 </script>
 
 <svelte:head>
-	<title>{DEFAULT_TITLE}</title>
+	<title>{title}</title>
 </svelte:head>
 
-<!-- <ProgressWaiting bind:show={showProgress} title="Processing" value="Verifying selected accounts..."/> -->
 <Confirmation bind:show={showConfirm} title="Connect to {domain}" message="This will connect {domain} to {accountsPicked} of your addresses! Do you wish to continue?" onConfirm={handleProcess}/>
 
 {#if showConfirm}
@@ -463,7 +433,7 @@
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2 min-w-0">
           <img id="dappImageId" crossorigin="anonymous" src={domainLogo} alt="Dapp logo" class="w-8 h-8 rounded-full flex-shrink-0" />
-          <span class="font-semibold truncate" title={domainTitle || domain}>{domainTitle || domain}</span>
+          <span class="font-semibold truncate">{title}</span>
         </div>
         <button
           onclick={() => handleReject()}
@@ -477,42 +447,42 @@
     </div>
 
     <!-- Content -->
-    <div class="flex-1 p-6 overflow-hidden flex flex-col min-w-[360px] max-w-[426px]">
+    <div class="flex-1 p-6 overflow-hidden flex flex-col max-w-[428px]">
       <div class="text-center mb-4 flex-shrink-0">
         <h2 class="text-xl font-bold mb-2">Select Accounts</h2>
         <p class="text-base-content/80">Choose which accounts to connect to {domain}</p>
       </div>
 
-    <div class="overflow-y-auto flex-1 min-h-0 mb-4">
-      {#each filteredAddressesArray as address}
-        {#if address.address === currentlySelectedAddress}
-          <!-- Column layout for currentlySelectedAddress -->
-          <div class="flex items-start gap-3 p-3 bg-base-200 rounded-lg mb-2">
-            <input
-              type="checkbox"
-              class="checkbox checkbox-primary w-5 h-5 flex-shrink-0 text-2xl"
-              checked={address.checked}
-              onchange={() => toggleAddress(address.address)}
-            />
-            <div class="flex flex-col">
-              <span class="font-mono text-sm truncate" title={address.address}>{address.address}</span>
-              <span class="badge badge-primary text-xs mt-1">Default account</span>
+      <div class="overflow-y-auto flex-1 min-h-0 mb-4">
+        {#each filteredAddressesArray as address}
+          {#if address.address === currentlySelectedAddress}
+            <!-- Column layout for currentlySelectedAddress -->
+            <div class="flex items-start gap-3 p-3 bg-base-200 rounded-lg mb-2">
+              <input
+                type="checkbox"
+                class="checkbox checkbox-primary w-5 h-5 flex-shrink-0 text-2xl"
+                checked={address.checked}
+                onchange={() => toggleAddress(address.address)}
+              />
+              <div class="flex flex-col">
+                <span class="font-mono text-sm truncate" title={address.address}>{address.address}</span>
+                <span class="badge badge-primary text-xs mt-1">Default account</span>
+              </div>
             </div>
-          </div>
-        {:else}
-          <!-- Row layout for other addresses -->
-          <div class="flex items-center gap-3 p-3 bg-base-200 rounded-lg mb-2">
-            <input
-              type="checkbox"
-              class="checkbox checkbox-primary w-5 h-5 flex-shrink-0 text-2xl"
-              checked={address.checked}
-              onchange={() => toggleAddress(address.address)}
-            />
-            <span class="font-mono text-sm truncate" title={address.address}>{address.address}</span>
-          </div>
-        {/if}
-      {/each}
-    </div>
+          {:else}
+            <!-- Row layout for other addresses -->
+            <div class="flex items-center gap-3 p-3 bg-base-200 rounded-lg mb-2">
+              <input
+                type="checkbox"
+                class="checkbox checkbox-primary w-5 h-5 flex-shrink-0 text-2xl"
+                checked={address.checked}
+                onchange={() => toggleAddress(address.address)}
+              />
+              <span class="font-mono text-sm truncate" title={address.address}>{address.address}</span>
+            </div>
+          {/if}
+        {/each}
+      </div>
     </div>
 
   <!-- Footer -->

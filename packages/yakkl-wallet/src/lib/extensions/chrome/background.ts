@@ -29,6 +29,8 @@ import { showPopup } from './ui';
 import { ensureEipId } from '$lib/common/id-generator';
 import { signingManager } from './signingManager';
 import { requestManager } from './requestManager';
+import { extractSecureDomain } from '$lib/common/security';
+import { verifyDomainConnected } from '$lib/extensions/chrome/verifyDomainConnected';
 
 type RuntimeSender = Runtime.MessageSender;
 type RuntimePort = Runtime.Port;
@@ -130,6 +132,8 @@ async function handlePortMessage(message: YakklMessage, port: RuntimePort) {
       return;
     }
 
+    log.debug('handlePortMessage - response - originalRequest:>>>>>>>>>>>>>>>>>>>>---------', false, {originalRequest, message});
+
     // Forward the response to the original requester
     if (originalRequest.port) {
       log.debug('Forwarding response to original requester', false, {
@@ -158,6 +162,7 @@ async function handlePortMessage(message: YakklMessage, port: RuntimePort) {
       id: requestId,
       method,
       params,
+      port,
       requiresApproval,
       origin,
       timestamp: new Date().toISOString()
@@ -170,8 +175,37 @@ async function handlePortMessage(message: YakklMessage, port: RuntimePort) {
           // Import the showEIP6963Popup function from eip-6963.ts
           const { showEIP6963Popup } = await import('./eip-6963');
 
-          // Add request to pendingRequests before showing popup
-          pendingRequests.set(requestId, {
+          const activeTab = get(activeTabBackgroundStore);
+          const url = activeTab?.url || '';
+          const domain = url ? extractSecureDomain(url) : 'NO DOMAIN - NOT ALLOWED';
+
+          // Ensure params is an array and properly typed
+          const typedParams = Array.isArray(params) ? params : [params];
+          const message = method === 'personal_sign' && typedParams[0] ? String(typedParams[0]) : 'Not Available';
+
+          // Create the request data without non-serializable properties
+          const requestData: Omit<PendingRequestData, 'resolve' | 'reject' | 'port'> = {
+            id: requestId,
+            method,
+            params: typedParams,
+            requiresApproval: true,
+            timestamp: Date.now(),
+            metaData: {
+              method: method,
+              params: typedParams,
+              metaData: {
+                domain: domain,
+                isConnected: await verifyDomainConnected(domain),
+                icon: activeTab?.favIconUrl || '/images/failIcon48x48.png',
+                title: activeTab?.title || 'Not Available',
+                origin: url,
+                message: message
+              }
+            }
+          };
+
+          // Create the full request with non-serializable properties
+          const fullRequest: BackgroundPendingRequest = {
             resolve: (result) => {
               port.postMessage({
                 type: 'YAKKL_RESPONSE:EIP6963',
@@ -191,15 +225,11 @@ async function handlePortMessage(message: YakklMessage, port: RuntimePort) {
                 }
               });
             },
-            port,
-            data: {
-              id: requestId,
-              method,
-              params,
-              requiresApproval: true,
-              timestamp: Date.now()
-            }
-          });
+            port: port as Runtime.Port,
+            data: requestData as PendingRequestData
+          };
+
+          pendingRequests.set(requestId, fullRequest);
 
           // Use the EIP-6963 implementation to handle the request
           const result = await showEIP6963Popup(method, params || [], port, requestId);
@@ -827,6 +857,9 @@ async function handleSigningRequest(
 ): Promise<void> {
   try {
     const result = await signingManager.handleSigningRequest(requestId, method, params);
+
+    log.info('Background - handleSigningRequest:', false, {result});
+
     const request = requestManager.getRequest(requestId);
     if (request) {
       request.resolve(result);
@@ -843,16 +876,22 @@ async function handleSigningRequest(
 
 // Update the onMessage listener
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === 'SIGNING_REQUEST') {
-    const requestId = message.id;
+  if (message.type === 'SIGNING_REQUEST' || (message.type && message.type.includes('personal_sign'))) {
+
+    log.info('Background - onMessage - SIGNING_REQUEST: 1', false, {message});
+
+    const requestId = message.requestId || message.id;
     const request: BackgroundPendingRequest = {
       resolve: sendResponse,
       reject: (error) => sendResponse({ error }),
       port: sender as Runtime.Port,
       data: message.data
     };
+
+    log.info('Background - onMessage - SIGNING_REQUEST: 2', false, {requestId, request});
+
     requestManager.addRequest(requestId, request);
-    handleSigningRequest(requestId, message.method, message.params, sender as Runtime.Port);
+    handleSigningRequest(requestId, message.type, message.params, sender as Runtime.Port);
     return true; // Keep the message channel open for async response
   }
 });

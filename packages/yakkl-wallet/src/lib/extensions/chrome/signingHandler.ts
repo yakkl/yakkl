@@ -4,7 +4,7 @@ import type { Runtime } from 'webextension-polyfill';
 import browser from 'webextension-polyfill';
 
 export type SigningRequest = {
-  type: 'personal_sign' | 'eth_signTypedData_v4';
+  type: string; //'personal_sign' | 'eth_signTypedData_v4';
   params: any[];
   requestId: string;
 };
@@ -40,11 +40,18 @@ export async function signingRequestListener(
     );
 
     // Send response back through port
-    sendResponse({
-      type: 'SIGNING_RESPONSE',
-      requestId: request.requestId,
-      result: result.result
-    } as SigningResponse);
+    if (result.error) {
+      sendResponse({
+        error: {
+          code: result.error.code,
+          message: result.error.message
+        }
+      });
+    } else {
+      sendResponse({
+        result: result.result
+      });
+    }
 
     return true;
   } catch (error) {
@@ -52,13 +59,11 @@ export async function signingRequestListener(
 
     // Send error response back through port
     sendResponse({
-      type: 'SIGNING_RESPONSE',
-      requestId: (message as SigningRequest).requestId,
       error: {
         code: -32603,
         message: error instanceof Error ? error.message : 'Unknown error occurred'
       }
-    } as SigningResponse);
+    });
 
     return true;
   }

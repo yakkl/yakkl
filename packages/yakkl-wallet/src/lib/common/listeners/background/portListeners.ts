@@ -283,6 +283,7 @@ export async function onPortExternalListener(event, sender): Promise<void> {
 
     // Add initial activity record
     await addDAppActivity(activity);
+    log.info('onPortExternalListener - activity', false, {activity});
 
     // if (externalData?.metaDataParams) {
     //   switch (event.method) {

@@ -1,21 +1,19 @@
 <script lang="ts">
   import { browser_ext, browserSvelte } from '$lib/common/environment';
   import { navigating, page } from '$app/state';
-  import { getYakklCurrentlySelected, getYakklAccounts, getMiscStore, getDappConnectRequestStore, setDappConnectRequestStore, yakklDappConnectRequestStore } from '$lib/common/stores';
-  import { isEncryptedData, type AccountData, type YakklAccount, type YakklCurrentlySelected } from '$lib/common';
-  import { YAKKL_DAPP } from '$lib/common/constants';
+  import { getYakklCurrentlySelected, getYakklAccounts, getMiscStore, setDappConnectRequestStore, yakklDappConnectRequestStore } from '$lib/common/stores';
+  import { type YakklCurrentlySelected } from '$lib/common';
+  import { DEFAULT_TITLE, YAKKL_DAPP } from '$lib/common/constants';
   import { onMount, onDestroy } from 'svelte';
-  import { wait } from '$lib/common/utils';
-  import { decryptData } from '$lib/common/encryption';
   import { log } from '$plugins/Logger';
   import type { Runtime } from 'webextension-polyfill';
-  import type { JsonRpcResponse, YakklRequest } from '$lib/common/interfaces';
+  import type { JsonRpcResponse } from '$lib/common/interfaces';
+  import type { BackgroundPendingRequest } from '$lib/extensions/chrome/background';
 	import Confirmation from '$lib/components/Confirmation.svelte';
 	import { requestSigning } from '$lib/extensions/chrome/signingClient';
+	import Copyright from '$lib/components/Copyright.svelte';
 
   type RuntimePort = Runtime.Port | undefined;
-
-  // let wallet: Wallet;
 
   let currentlySelected: YakklCurrentlySelected;
   let yakklMiscStore: string;
@@ -24,21 +22,22 @@
   let showConfirm = $state(false);
   let showSuccess = $state(false);
   let showFailure = $state(false);
-  let showSpinner = $state(false);
+  // let showSpinner = $state(false);
   let errorValue = $state('No domain/site name was found. Access to YAKKL® is denied.');
   let port: RuntimePort | undefined;
 
   let domain: string = $state('');
   let domainLogo: string = $state('');
   let domainTitle: string = $state('');
-  let requestData: any;
+  let title: string = $state(DEFAULT_TITLE);
+  let request: BackgroundPendingRequest;
   let method: string;
   let requestId: string | null;
   let message: any = $state('');  // This gets passed letting the user know what the intent is
-  let context: any;
+  // let context: any;
   let address: string = $state('');
   let signedData: any;
-  let chainId: number;
+  let dataToSign: any;
 
   let params: any[] = $state([]);
 
@@ -66,6 +65,7 @@
   if (browserSvelte) {
     try {
       requestId = page.url.searchParams.get('requestId');
+      method = page.url.searchParams.get('method') as string ?? '';
       $yakklDappConnectRequestStore = requestId as string;
 
       if (navigating) {
@@ -84,13 +84,91 @@
           pass = true;
         } else {
           if (browserSvelte) {
-            throw new Error('Did not navigate from approved source and/or requestId not found');
+            handleReject('Did not navigate from approved source and/or requestId not found');
           }
         }
       }
     } catch(e) {
       log.error(e);
-      throw e;
+      handleReject('No requestId or method was found. Access to YAKKL® is denied.');
+    }
+  }
+
+  // We no longer need to do get_params since we can access the request data directly
+  async function onMessageListener(event: any) {
+    try {
+      if (!domainLogo) domainLogo = '/images/failIcon48x48.png'; // Set default logo but change if favicon is present
+
+      if (event.method === 'get_params') {
+        request = event.result;
+        log.info('Sign: event: ====>>', false, event, event.method, event.result);
+
+        if (!request || !request.data) {
+          await handleReject('No request was found. Access to YAKKL® is denied.');
+        }
+
+        const requestData = request.data;
+        if (!requestData || !requestData.params || !requestData.params[0] || !requestData.metaData) {
+          await handleReject('Invalid request data. Access to YAKKL® is denied.');
+        }
+
+        if (!requestData.metaData.metaData.isConnected) {
+          await handleReject('Domain is not connected. Connect to {domain} first via requestAccounts. Access to YAKKL® is denied.');
+        }
+
+        log.info('Sign: requestData:', false, requestData);
+
+        // These needs to be fixed upstream
+        domainTitle = requestData.metaData.metaData.title;
+        domain = requestData.metaData.metaData.domain;
+        domainLogo = requestData.metaData.metaData.icon;
+        message = requestData.metaData.metaData.message ?? 'Nothing was passed to explain the intent of this approval. Be mindful of this request!';
+        params = requestData.params ?? [];
+        // Make sure params is an array
+        if (!Array.isArray(params)) {
+          params = [params];
+        }
+
+        log.info('Sign: domain:', false, domain, domainTitle, domainLogo, message);
+
+        if (!requestId) requestId = requestData?.id ?? null;
+        if (!requestId) {
+          await handleReject('No request ID was found. Access to YAKKL® is denied.');
+        }
+
+        // Set the page title
+        title = domainTitle || domain || DEFAULT_TITLE;
+
+        log.debug('Sign: method', false, {method, params, requestData, event, message});
+
+        let data;
+        switch(method) {
+          case 'personal_sign':
+            personal_sign.dataToSign = params[0];
+            personal_sign.address = address = params[1];
+            personal_sign.description = message; //= params[2];
+            log.info('Sign: personal_sign:', false, personal_sign);
+            break;
+          // case 'eth_signTypedData_v3': // Not currently used but keep for now
+          case 'eth_signTypedData_v4':
+            log.info('Sign: eth_signTypedData_v4:', false, params);
+            signTypedData_v3v4.address = address = params[0];
+            signTypedData_v3v4.dataToSign = params[1];
+            if (typeof signTypedData_v3v4.dataToSign === 'string') {
+              data = JSON.parse(signTypedData_v3v4.dataToSign);
+            } else {
+              data = signTypedData_v3v4.dataToSign;
+            }
+            message = data?.message?.contents || data;
+            break;
+          default:
+            messageValue = 'No message request was passed in. Error.';
+            break;
+        }
+      }
+    } catch(e) {
+      log.error(e);
+      await handleReject('An error occurred while processing the request. Access to YAKKL® is denied.');
     }
   }
 
@@ -99,99 +177,11 @@
       if (browserSvelte) {
         currentlySelected = await getYakklCurrentlySelected();
         yakklMiscStore = getMiscStore();
-        yakklDappConnectRequest = getDappConnectRequestStore();
-        method = page.url.searchParams.get('method') as string ?? '';
-        yakklDappConnectRequest = requestId = page.url.searchParams.get('requestId') as string;
         setDappConnectRequestStore(yakklDappConnectRequest);
-        chainId = currentlySelected.shortcuts.chainId as number;
 
         port = browser_ext.runtime.connect({name: YAKKL_DAPP});
         if (port) {
-          port.onMessage.addListener(async(event: any) => {
-            requestData = event.data;
-            // method = context;
-
-            log.info('Sign: event: ====>>', false, event, event.method, event.params);
-
-            // TODO: Add a logo with an X with the text 'NO LOGO'
-            if (!domainLogo) domainLogo = '/images/logoBullLock48x48.png'; // Set default logo but change if favicon is present
-
-            if (event.method === 'get_params') {
-              domainTitle = requestData?.data?.metaDataParams?.title ?? '';
-              domain = requestData?.data?.metaDataParams?.domain ?? '';
-              // Get favicon from URL parameters first, fall back to metadata
-              const url = new URL(window.location.href);
-              const favicon = url.searchParams.get('favicon');
-              // Need to add getIcon() in inpage or content script
-              domainLogo = favicon ?? requestData?.data?.metaDataParams?.icon ?? '/images/logoBullLock48x48.png';
-              message = requestData?.data?.metaDataParams?.message ?? 'Nothing was passed in explaining the intent of this approval. Be mindful!';
-              context = requestData?.data?.metaDataParams?.context ?? 'eth_signTypedData_v4';
-              params = requestData?.data?.metaDataParams?.transaction ?? [];
-
-              // Ensure we have a valid domain for the store and localStorage
-              if (!domain) {
-                // If domain is empty, try to extract from the URL
-                try {
-                  const origin = new URL(requestData?.data?.metaDataParams?.origin || window.location.href).origin;
-                  domain = origin.replace(/^https?:\/\//, '');
-                } catch (e) {
-                  // If all else fails, use a default value
-                  domain = 'unknown-domain';
-                }
-              }
-
-              log.info('Sign: domain:', false, domain, domainTitle, domainLogo, message);
-
-              if (!requestId) requestId = requestData?.id ?? null;
-              if (!requestId) {
-                  showFailure = true;
-                  errorValue = 'No request ID was found. Access to YAKKL® is denied.';
-                  throw errorValue;
-              }
-              let data;
-
-              log.debug('Sign: method', false, {context, params, requestData, event, message});
-
-              switch(context) {
-                case 'personal_sign':
-                  personal_sign.dataToSign = params[0];
-                  personal_sign.address = address = params[1];
-                  personal_sign.description = message = params[2];
-                  log.info('Sign: personal_sign:', false, personal_sign);
-                  break;
-                // case 'eth_signTypedData_v3': // Not currently used but keep for now
-                case 'eth_signTypedData_v4':
-                  log.info('Sign: eth_signTypedData_v4:', false, params);
-                  signTypedData_v3v4.address = address = params[0];
-                  signTypedData_v3v4.dataToSign = params[1];
-                  if (typeof signTypedData_v3v4.dataToSign === 'string') {
-                    data = JSON.parse(signTypedData_v3v4.dataToSign);
-                  } else {
-                    data = signTypedData_v3v4.dataToSign;
-                  }
-                  message = data.message?.contents;
-                  break;
-                default:
-                  messageValue = 'No message request was passed in. Error.';
-                  break;
-              }
-            }
-          });
-        }
-
-        if (port) {
-          // const request: YakklRequest = {
-          //   type: 'YAKKL_REQUEST:EIP6963',
-          //   method: 'get_params',
-          //   id: requestId,
-          //   params: []
-          // };
-          // port.postMessage(request);
-
-          // log.info('Sign: get_params request sent', false, request);
-
-          log.info('Sign: get_params request sent', false, {method: 'get_params', id: requestId});
-
+          port.onMessage.addListener(onMessageListener);
           port.postMessage({method: 'get_params', id: requestId});
         }
       }
@@ -241,11 +231,10 @@
 async function handleProcess() {
   try {
     if (!browserSvelte) {
-      handleReject();
+      await handleReject();
     }
-    let accounts: YakklAccount[] = [];
-    accounts = await getYakklAccounts();
-    if (!accounts) handleReject();
+    let accounts = await getYakklAccounts();
+    if (!accounts) await handleReject();
 
     log.info('Sign: handleProcess:', false, {accounts, address});
 
@@ -254,23 +243,23 @@ async function handleProcess() {
         return element;
     });
 
-    if (!accountFound) handleReject();
+    if (!accountFound) await handleReject();
 
-    const account: YakklAccount = accountFound as YakklAccount;
+    // const account: YakklAccount = accountFound as YakklAccount;
 
-    log.info('Sign: handleProcess:', false, {account});
+    // log.info('Sign: handleProcess:', false, {account});
 
-    if (isEncryptedData(account.data)) {
-      await decryptData(account.data, yakklMiscStore).then(result => {
-        account.data = result as AccountData;
-      });
-    }
-    if (!(account.data as AccountData).privateKey) handleReject();
+    // if (isEncryptedData(account.data)) {
+    //   await decryptData(account.data, yakklMiscStore).then(result => {
+    //     account.data = result as AccountData;
+    //   });
+    // }
+    // if (!(account.data as AccountData).privateKey) handleReject();
 
-    log.info('Sign: handleProcess:', false, {context, params, requestId});
+    log.info('Sign: handleProcess:', false, {method, params, requestId});
 
     // Use signingClient to handle the signing request
-    signedData = await requestSigning(context, params, requestId);
+    signedData = await requestSigning(method, params, requestId);
 
     log.info('Sign: handleProcess:', false, {signedData, port});
 
@@ -284,7 +273,7 @@ async function handleProcess() {
       };
       port.postMessage(response);
     } else {
-      handleReject("Request failed to send to dapp due to connection port not found.");
+      await handleReject("Request failed to send to dapp due to connection port not found.");
     }
     close();
   } catch(e) {
@@ -308,7 +297,7 @@ function handleConfirm() {
 </script>
 
 <svelte:head>
-	<title>YAKKL® Smart Wallet</title>
+	<title>{title}</title>
 </svelte:head>
 
 <Confirmation bind:show={showConfirm} title="Connect to {domain}" message="This will connect {domain} to {address} and sign the transaction or message! Do you wish to continue?" onConfirm={handleProcess}/>
@@ -333,15 +322,16 @@ function handleConfirm() {
   </div>
 
   <!-- Content-->
-  <div class="flex-1 p-6 overflow-hidden flex flex-col min-w-[360px] max-w-[426px]">
-    <div class="text-center mb-4 flex-shrink-0">
-      <span class="text-md font-bold mb-2">Signing of Message requesting permission to execute: PLEASE be mindful and know what you are doing. There is no cancel or return option! Be 100% sure or REJECT this transaction and research more before trying again.</span>
+  <div class="flex-1 p-6 flex flex-col max-w-[428px]">
+    <div class="text-center mb-4 flex-shrink-0 border-2 border-red-500 rounded-md p-2">
+      <p class="text-md font-extrabold animate-pulse mb-2">Important!:</p>
+      <span class="text-sm font-bold mb-2">Signing of Message requesting permission to execute: PLEASE be mindful and know what you are doing.</span>
+      <span class="text-sm font-bold mb-2">There is no cancel or return option! Be 100% sure or REJECT this transaction and research more before trying again.</span>
     </div>
 
     <div class="overflow-auto flex-1 min-h-0 mb-4">
-      <span class="text-sm">
-        Data to sign: {message}
-      </span>
+      <span class="text-sm">Data to sign:</span>
+      <pre class="text-md border-2 border-blue-500 rounded-md p-2 bg-opacity-25">{message}</pre>
     </div>
   </div>
 
@@ -358,6 +348,8 @@ function handleConfirm() {
   </div>
 
 </div>
+
+<Copyright />
 
 <style>
   /* Smooth transitions */

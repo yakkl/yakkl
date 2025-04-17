@@ -35,7 +35,7 @@ export class SigningManager {
                     import.meta.env.VITE_ALCHEMY_API_KEY_PROD;
 
       if (!apiKey) {
-        throw new Error('Alchemy API key not found in environment variables');
+        throw new Error('API key not found in environment variables');
       }
 
       this.walletManager = WalletManager.getInstance(
@@ -72,6 +72,17 @@ export class SigningManager {
     this.address = address;
   }
 
+  private getSigningAddress(method: string, params: any[]): string {
+    switch (method) {
+      case 'personal_sign':
+        return params[1]; // address is second param
+      case 'eth_signTypedData_v4':
+        return params[0]; // address is first param
+      default:
+        throw new Error(`Unsupported signing method: ${method}`);
+    }
+  }
+
   public async handleSigningRequest(
     requestId: string,
     method: string,
@@ -80,6 +91,7 @@ export class SigningManager {
     try {
       // Get credentials
       const yakklMisc = getMiscStore();
+      log.info('SigningManager - handleSigningRequest:', false, {yakklMisc});
       if (!yakklMisc) {
         return {
           type: 'YAKKL_RESPONSE:EIP6963',
@@ -93,6 +105,7 @@ export class SigningManager {
 
       // Get accounts
       const accounts = await getYakklAccounts();
+      log.info('SigningManager - handleSigningRequest: 2', false, {accounts});
       if (!accounts) {
         return {
           type: 'YAKKL_RESPONSE:EIP6963',
@@ -104,19 +117,30 @@ export class SigningManager {
         };
       }
 
-      // Get currently selected account if not set by caller
-      if (!this.address) {
-        const currentlySelected = await getYakklCurrentlySelected();
-        this.address = currentlySelected.shortcuts.address;
-      }
-      const account = accounts.find(acc => acc.address === this.address);
-      if (!account) {
+      // Get the address from the signing request params
+      const signingAddress = this.getSigningAddress(method, params);
+      log.info('SigningManager - handleSigningRequest: 3', false, {signingAddress});
+      if (!signingAddress) {
         return {
           type: 'YAKKL_RESPONSE:EIP6963',
           id: requestId,
           error: {
             code: 4001,
-            message: 'Account not found'
+            message: 'No signing address found in request'
+          }
+        };
+      }
+
+      // Find the account that matches the signing address
+      const account = accounts.find(acc => acc.address.toLowerCase() === signingAddress.toLowerCase());
+      log.info('SigningManager - handleSigningRequest: 4', false, {account});
+      if (!account || !account.data) {
+        return {
+          type: 'YAKKL_RESPONSE:EIP6963',
+          id: requestId,
+          error: {
+            code: 4001,
+            message: 'Account not found for signing address'
           }
         };
       }
@@ -128,17 +152,21 @@ export class SigningManager {
         });
       }
 
+      log.info('SigningManager - handleSigningRequest: 5', false, {account});
       if (!(account.data as AccountData).privateKey) {
         return {
           type: 'YAKKL_RESPONSE:EIP6963',
           id: requestId,
           error: {
             code: 4001,
-            message: 'No private key found'
+            message: 'No private key found for account'
           }
         };
       }
 
+      // Set the address for the signer
+      this.setAddress(account.address);
+      log.info('SigningManager - handleSigningRequest: 6', false, {account});
       // Perform signing based on method
       let signedData: string;
       switch (method) {
@@ -159,6 +187,7 @@ export class SigningManager {
           };
       }
 
+      log.info('SigningManager - handleSigningRequest: 7', false, {signedData});
       return {
         type: 'YAKKL_RESPONSE:EIP6963',
         id: requestId,
@@ -180,26 +209,34 @@ export class SigningManager {
 
   private async handlePersonalSign(account: YakklAccount, params: any[]): Promise<string> {
     const [message, address] = params;
+    log.info('SigningManager - handlePersonalSign: 1', false, {message, address});
     if (!message || !address) {
       throw new Error('Invalid parameters for personal_sign');
     }
 
     const blockchain = this.walletManager.getBlockchain();
-    return await blockchain.getProvider().signMessage(message);
+    log.info('SigningManager - handlePersonalSign: 2', false, {blockchain});
+    const signedMessage = await blockchain.getProvider().signMessage(message);
+    log.info('SigningManager - handlePersonalSign: 3', false, {signedMessage});
+    return signedMessage;
   }
 
   private async handleSignTypedData(account: YakklAccount, params: any[]): Promise<string> {
     const [address, typedData] = params;
+    log.info('SigningManager - handleSignTypedData: 1', false, {address, typedData});
     if (!address || !typedData) {
       throw new Error('Invalid parameters for eth_signTypedData_v4');
     }
 
     const blockchain = this.walletManager.getBlockchain();
-    // @ts-ignore - TODO: Add proper typing for signTypedData
-    return await blockchain.signTypedData({
+    log.info('SigningManager - handleSignTypedData: 2', false, {blockchain});
+    // @ts-ignore 
+    const signedMessage = await blockchain.signTypedData({
       data: JSON.stringify(typedData),
       type: 1 // EIP-712 type
     });
+    log.info('SigningManager - handleSignTypedData: 3', false, {signedMessage});
+    return signedMessage;
   }
 }
 

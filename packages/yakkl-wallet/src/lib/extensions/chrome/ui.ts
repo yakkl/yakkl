@@ -194,7 +194,7 @@ export async function showDappPopup(request: string) {
 
     log.info('showDappPopup <<< - 186 (ui-inside):', false, {request, height});
 
-    showExtensionPopup(360, height, request).then(async (result) => {
+    showExtensionPopup(428, height, request).then(async (result) => {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
       browser_ext.windows.update(result.id, {drawAttention: true});

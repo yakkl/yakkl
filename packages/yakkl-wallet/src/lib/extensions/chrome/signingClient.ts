@@ -3,7 +3,7 @@ import { log } from '$lib/plugins/Logger';
 import { browser_ext, browserSvelte } from '$lib/common/environment';
 
 export async function requestSigning(
-  type: 'personal_sign' | 'eth_signTypedData_v4',
+  type: string, //'personal_sign' | 'eth_signTypedData_v4',
   params: any[],
   requestId: string
 ): Promise<string> {
@@ -12,7 +12,7 @@ export async function requestSigning(
       if (!browserSvelte) {
         reject(new Error('Not supported in Svelte'));
       }
-      
+
       log.info('Sending signing request', false, { type, params,requestId });
 
       // Create the request
@@ -22,9 +22,13 @@ export async function requestSigning(
         requestId
       };
 
+      log.info('Signing request', false, {request});
       // Send the request to the background context
       browser_ext.runtime.sendMessage(request).then((response: unknown) => {
         const typedResponse = response as SigningResponse;
+
+        log.info('Signing response', false, {typedResponse, response});
+
         if (typedResponse.error) {
           reject(new Error(typedResponse.error.message));
         } else if (typedResponse.result) {

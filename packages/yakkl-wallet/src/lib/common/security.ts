@@ -4,6 +4,7 @@ import type { AccountData, CurrentlySelectedData, Profile, ProfileData } from '$
 import { isEncryptedData } from '$lib/common/misc';
 import { getProfile, setMiscStore, getYakklCurrentlySelected, getMiscStore } from '$lib/common/stores';
 import { log } from '$plugins/Logger';
+import { storeEncryptedHash } from './auth/session';
 
 export interface AccountKey {
   address: string;
@@ -23,7 +24,8 @@ export async function verify(id: string): Promise<Profile | undefined> {
       if (isEncryptedData(profile.data)) {
         const profileData = await decryptData(profile.data, digest) as ProfileData;
         if (profileData) {
-          setMiscStore(digest);
+          setMiscStore(digest); // Works for client side
+          storeEncryptedHash(digest); // Works for background context
         } else {
           throw 'Verification failed!';
         }
@@ -77,3 +79,28 @@ export async function getYakklCurrentlySelectedAccountKey(): Promise<AccountKey 
     throw `Error getting account key - ${e}`;
   }
 }
+
+export function extractSecureDomain(url: string): string | null {
+  try {
+    // Parse the URL
+    const parsedUrl = new URL(url);
+
+    // Check if the protocol is secure (https) or if it's a special case
+    const isSecure = parsedUrl.protocol === 'https:';
+    const isLocalhost = parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1';
+    const isChromeExtension = parsedUrl.protocol === 'chrome:';
+
+    if (!isSecure && !isLocalhost && !isChromeExtension) {
+      throw new Error('Insecure protocol detected. Only HTTPS, localhost, and chrome:// are allowed.');
+    }
+
+    // Return just the hostname (domain)
+    return parsedUrl.hostname;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(`Invalid URL or security violation: ${error.message}`);
+    }
+    throw new Error('Invalid URL format');
+  }
+}
+

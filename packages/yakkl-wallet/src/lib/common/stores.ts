@@ -40,7 +40,7 @@ import {
 
 import { encryptData, decryptData } from '$lib/common/encryption';
 import { isEncryptedData } from '$lib/common/misc';
-import { type PricingStore } from '$lib/common/types';	;
+import { type PricingStore, type SessionToken } from '$lib/common/types';	;
 import { isEqual } from 'lodash-es';
 
 import type {
@@ -804,14 +804,14 @@ export async function getYakklWalletProviders(): Promise<string[]> {
   }
 }
 
-export async function getYakklConnectedDomains(): Promise<YakklConnectedDomain[]> {
+export async function getYakklConnectedDomains(): Promise<YakklConnectedDomain[] | null> {
   try {
     const value = await getObjectFromLocalStorage<YakklConnectedDomain[]>(STORAGE_YAKKL_CONNECTED_DOMAINS);
 		if (typeof value === 'string') {
       // Handle the case where value is a string, which shouldn't happen in this context
       throw new Error('Unexpected string value received from local storage');
     }
-    return value || []; // Return an empty array or provide a default value if necessary
+    return value || null; // Return an empty array or provide a default value if necessary
   } catch (error) {
     log.error('Error in getYakklConnectedDomains:', false, error);
     throw error;

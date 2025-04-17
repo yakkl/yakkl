@@ -41,7 +41,7 @@ export async function onTabActivatedListener(activeInfo: Tabs.OnActivatedActiveI
           await backgroundManager.sendMessage(MessageType.ACTIVE_TAB_CHANGED, activeTab);
           await setObjectInLocalStorage('activeTabBackground', activeTab); // Not sure if this is needed
         } catch (error) {
-          // silent
+          log.warn('Error sending active tab changed message:', false, error);
         }
       }
     }
@@ -150,7 +150,7 @@ export async function onWindowsFocusChangedListener(windowId: number) {
           if (activeTab.tabId > 0) {
             activeTabBackgroundStore.set(activeTab);
             activeTabUIStore.set(activeTab); // ??
-            log.debug('Window focused changed:', false, activeTab);
+            log.debug('Window focused changed: [tabListeners]', false, activeTab);
             await backgroundManager.sendMessage(MessageType.WINDOW_FOCUSED, data);
             await setObjectInLocalStorage('activeTabBackground', activeTab); // Not sure if this is needed
           }

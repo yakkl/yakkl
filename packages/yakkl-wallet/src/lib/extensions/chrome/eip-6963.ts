@@ -14,6 +14,10 @@ import { KeyManager } from '$lib/plugins/KeyManager';
 import { estimateGas as estimateGasLegacy } from './legacy';
 import { requestManager } from './requestManager';
 import type { PendingRequestData } from '$lib/common/interfaces';
+import { activeTabBackgroundStore } from "$lib/common/stores";
+import { get } from 'svelte/store';
+import { extractSecureDomain } from "$lib/common/security";
+import { verifyDomainConnected } from "$lib/extensions/chrome/verifyDomainConnected";
 
 export { requestManager };
 
@@ -513,7 +517,7 @@ function validateParams(method: string, params: any[]): boolean {
       case 'eth_sign':
         return params.length === 2 && typeof params[0] === 'string' && typeof params[1] === 'string';
       case 'personal_sign':
-        return params.length === 3 && typeof params[0] === 'string' && typeof params[1] === 'string';
+        return params.length === 2 && typeof params[0] === 'string' && typeof params[1] === 'string';
       case 'eth_signTypedData_v4':
       case 'eth_signTypedData_v3':
         return params.length === 2 && typeof params[0] === 'string' && typeof params[1] === 'string';
@@ -688,10 +692,10 @@ export function broadcastToEIP6963Ports(event: string, data: any, requestId?: st
 
 export async function showEIP6963Popup(
   method: string,
-  params: unknown[],
+  params: any[],
   port: RuntimePort,
   requestId?: string
-): Promise<string | string[] | null> {
+): Promise<any> {
   // Clear any existing requests to prevent duplicates
   const eipId = requestId || crypto.randomUUID();
   log.info(`Showing EIP-6963 popup for method: ${method}`, false, { requestId: eipId });
@@ -700,47 +704,74 @@ export async function showEIP6963Popup(
   const existingRequest = requestManager.getRequest(eipId);
   if (existingRequest) {
     log.info(`Reusing existing request for ID: ${eipId}`, false, {});
-    return new Promise<string | string[] | null>((resolve, reject) => {
+    return new Promise<any>((resolve, reject) => {
       existingRequest.resolve = resolve;
       existingRequest.reject = reject;
     });
   }
 
+  const activeTab = get(activeTabBackgroundStore);
+  const url = activeTab?.url || '';
+  const domain = url ? extractSecureDomain(url) : 'NO DOMAIN - NOT ALLOWED';
+
+  // Ensure params is an array and contains the correct data
+  const requestParams = Array.isArray(params) ? params : [params];
+
+  // For personal_sign, ensure we have the correct parameter order: [message, address]
+  if (method === 'personal_sign') {
+    if (requestParams.length === 1) {
+      // If only one param is provided, it should be the message
+      // We need both message and address, so this is an invalid request
+      throw new Error('personal_sign requires both message and address parameters');
+    }
+    // If two params are provided, they should be in the order [message, address]
+    // We don't modify them as the dapp provides the correct address to sign with
+  }
+
   const requestData: PendingRequestData = {
     id: eipId,
     method,
-    params,
-    timestamp: Date.now()
+    params: requestParams,
+    timestamp: Date.now(),
+    requiresApproval: true,
+    metaData: {
+      method: method,
+      params: requestParams,
+      metaData: {
+        domain: domain,
+        isConnected: await verifyDomainConnected(domain),
+        icon: activeTab?.favIconUrl || '/images/failIcon48x48.png',
+        title: activeTab?.title || 'Not Available',
+        origin: url,
+        message: method === 'personal_sign' ? String(requestParams[0]) : 'Not Available'
+      }
+    }
   };
 
-  const request = {
-    data: requestData,
-    resolve: (value: string | string[] | null) => {
-      // Forward the response to the original port
-      if (port) {
-        port.postMessage({
-          type: 'YAKKL_RESPONSE:EIP6963',
-          id: eipId,
-          result: value
-        });
-      }
+  // Add the request to the request manager
+  requestManager.addRequest(eipId, {
+    resolve: (result) => {
+      port.postMessage({
+        type: 'YAKKL_RESPONSE:EIP6963',
+        jsonrpc: '2.0',
+        id: eipId,
+        result
+      });
     },
-    reject: (error: Error) => {
-      // Forward the error to the original port
-      if (port) {
-        port.postMessage({
-          type: 'YAKKL_RESPONSE:EIP6963',
-          id: eipId,
-          error: {
-            code: -32603,
-            message: error.message
-          }
-        });
-      }
+    reject: (error) => {
+      port.postMessage({
+        type: 'YAKKL_RESPONSE:EIP6963',
+        jsonrpc: '2.0',
+        id: eipId,
+        error: {
+          code: -32603,
+          message: error?.message || 'Internal error'
+        }
+      });
     },
-    port
-  };
-  requestManager.addRequest(eipId, request);
+    port: port as Runtime.Port,
+    data: requestData
+  });
 
   requestId = eipId;
   // Show popup based on method
@@ -752,9 +783,12 @@ export async function showEIP6963Popup(
   showDappPopup(popupUrl);
 
   // Return a promise that resolves when the user approves or rejects
-  return new Promise<string | string[] | null>((resolve, reject) => {
-    request.resolve = resolve;
-    request.reject = reject;
+  return new Promise<any>((resolve, reject) => {
+    const request = requestManager.getRequest(eipId);
+    if (request) {
+      request.resolve = resolve;
+      request.reject = reject;
+    }
   });
 }
 

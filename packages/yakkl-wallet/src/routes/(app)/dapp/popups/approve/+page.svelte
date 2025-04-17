@@ -2,7 +2,7 @@
   import { browser_ext, browserSvelte } from '$lib/common/environment';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
-  import { yakklConnectedDomainsStore, getSettings, yakklDappConnectRequestStore, setYakklConnectedDomainsStorage, getYakklAccounts, yakklAccountsStore, setYakklAccountsStorage } from '$lib/common/stores';
+  import { getSettings, yakklDappConnectRequestStore } from '$lib/common/stores';
   import { PATH_LOGIN, YAKKL_DAPP, PATH_DAPP_ACCOUNTS, DEFAULT_TITLE } from '$lib/common/constants';
   import { onMount, onDestroy } from 'svelte';
 	import { wait } from '$lib/common/utils';
@@ -22,12 +22,10 @@
   let domain: string = $state('');
   let domainLogo: string = $state('');
   let domainTitle: string = $state('');
-  // let requestData: any;
-  // let method: string;
+  let title: string = $state(DEFAULT_TITLE);
   let requestId: string | null = null;
   let method: string | null = null;
   let message;  // This gets passed letting the user know what the intent is
-  let context;
 
   if (browserSvelte) {
     try {
@@ -36,13 +34,14 @@
       $yakklDappConnectRequestStore = requestId;
     } catch(e) {
       log.error(e);
+      handleReject('No requestId or methodwas found. Access to YAKKL® is denied.');
     }
   }
 
-  if (!requestId) requestId = ''; // May want to auto reject if this is not valid
+  // NOTE: domains will be added (if not already there at the next step - if accounts)
+  async function handleProcess() {
+    if (!browserSvelte) return;
 
-  // NOTE: domains will be added (if not already there at the next step - accounts)
-  async function handleIsLocked() {
     try {
       let yakklSettings = await getSettings();
       if (yakklSettings.isLocked === true) {
@@ -56,62 +55,54 @@
     }
   }
 
+  // We no longer need to do get_params since we can access the request data directly
   async function onMessageListener(event: any) {
+    if (!browserSvelte) return;
+
     try {
-      // TODO: Add a logo with an X with the text 'NO LOGO'
-      if (!domainLogo) domainLogo = '/images/logoBullLock48x48.png'; // Set default logo but change if favicon is present
+      if (!domainLogo) domainLogo = '/images/failIcon48x48.png'; // Set default logo but change if favicon is present
+
       if (event.method === 'get_params') {
-        // Get metadata from the event data
-        const metadata = event.data?.data?.metaDataParams || {};
+        log.info('onMessageListener - 66 (approve):', false, {event}, event.result);
+        const requestData = event.result.data;
+        if (!requestData || !requestData.metaData) {
+          await handleReject('No request data was found. Access to YAKKL® is denied.');
+        }
 
-        // Get favicon from URL parameters first, fall back to metadata
-        const url = new URL(window.location.href);
-        const favicon = url.searchParams.get('favicon');
+        log.info('onMessageListener - 70 (approve):', false, {requestData});
 
-        // Set domain information with proper fallbacks
-        domainTitle = metadata.title || metadata.name || '';
-        domain = metadata.domain || '';
-        domainLogo = favicon || metadata.icon || '/images/logoBullLock48x48.png';
-        message = metadata.message || 'Nothing was passed in explaining the intent of this approval! Be mindful!';
-        context = metadata.context || 'accounts';
-        requestId = !requestId ? event.data.id : requestId;
+        domainTitle = requestData.metaData.metaData.title;
+        domain = requestData.metaData.metaData.domain;
+        domainLogo = requestData.metaData.metaData.icon ?? '/images/failIcon48x48.png';
+        message = requestData.metaData.metaData.message ?? 'Nothing was passed to explain the intent of this approval. Be mindful of this request!';
 
-        // Ensure we have a valid domain
-        if (!domain) {
-          try {
-            const origin = new URL(metadata.origin || window.location.href).origin;
-            domain = origin.replace(/^https?:\/\//, '');
-          } catch (e) {
-            domain = 'unknown-domain';
-          }
+        if (!requestId) requestId = requestData?.id ?? null;
+        if (!requestId) {
+          await handleReject('No request ID was found. Access to YAKKL® is denied.');
         }
 
         // Set the page title
-        document.title = domainTitle || domain || DEFAULT_TITLE;
+        title = domainTitle || domain || DEFAULT_TITLE;
 
-        log.info('onMessageListener - 61 (approve):', false, {domain, domainTitle, domainLogo, message, context, requestId});
+        log.info('onMessageListener - 86 (approve):', false, {domain, domainTitle, domainLogo, message, requestId});
 
-        if (domain) {
-          if ($yakklConnectedDomainsStore) {
-            $yakklConnectedDomainsStore.find(element => {
-              if (element.domain === domain) {
-                const accounts = element.addresses;
-                if (port)
-                  port.postMessage({method: 'eth_requestAccounts', id: requestId, type: 'YAKKL_RESPONSE:EIP6963', result: accounts});
-                return;
-              }
-            });
-          } else {
-            log.info('onMessageListener - 97 (approve):', false, 'No connected domains found');
-            $yakklConnectedDomainsStore = [];
-            await setYakklConnectedDomainsStorage([]);
-          }
-        }
+        // if (domain) {
+        //   if ($yakklConnectedDomainsStore) {
+        //     $yakklConnectedDomainsStore.find(element => {
+        //       if (element.domain === domain) {
+        //         const accounts = element.addresses;
+        //         if (port)
+        //           port.postMessage({method: 'eth_requestAccounts', id: requestId, type: 'YAKKL_RESPONSE:EIP6963', result: accounts});
+        //         return;
+        //       }
+        //     });
+        //   } else {
+        //     log.info('onMessageListener - 97 (approve):', false, 'No connected domains found');
+        //     $yakklConnectedDomainsStore = [];
+        //     await setYakklConnectedDomainsStorage([]);
+        //   }
+        // }
       }
-
-    if (event?.method === 'reject' || event?.data?.method === 'reject') {
-      handleReject();
-    }
 
     } catch(e) {
       log.error(e);
@@ -146,19 +137,12 @@
       if (browserSvelte) {
         // For testing only!
         // await clearData();
+        domainLogo = '/images/failIcon48x48.png';
 
         port = browser_ext.runtime.connect({name: YAKKL_DAPP});
         if (port) {
           port.onMessage.addListener(onMessageListener);
           port.postMessage({method: 'get_params', id: requestId}); // request is not currently used but we may want to later
-        }
-
-        let img = document.getElementById('dappImageId') as HTMLImageElement;
-        if (img) {
-          img.onerror = function() {
-            this.onerror = null;
-            this.src = '/images/logoBullLock48x48.png';
-          };
         }
       }
     } catch(e) {
@@ -181,7 +165,7 @@
   });
 
   // data must represent ProviderRpcError format
-  async function handleReject() {
+  async function handleReject(message: string = 'User rejected the request.') {
     try {
       showConfirm = false;
       showFailure = false;
@@ -189,7 +173,7 @@
       errorValue = '';
 
       if (port) {
-        port.postMessage({id: requestId, method: 'error', response: {type: 'YAKKL_RESPONSE', data: {name: 'ProviderRpcError', code: 4001, message: 'User rejected the request.'}}});
+        port.postMessage({id: requestId, method: 'error', response: {type: 'YAKKL_RESPONSE', data: {name: 'ProviderRpcError', code: 4001, message: message}}});
       }
 
       // If requestId is not valid then use 0 since we are bailing out anyway
@@ -221,7 +205,7 @@
 </script>
 
 <svelte:head>
-	<title>{domainTitle || domain || DEFAULT_TITLE}</title>
+	<title>{title}</title>
 </svelte:head>
 
 <Failed
@@ -236,8 +220,8 @@
     <h3 class="text-lg font-bold mb-4 truncate" title={domain}>Connect to {domain}</h3>
     <p class="mb-6">This will connect <span class="font-bold text-primary truncate inline-block max-w-[200px]" title={domain}>{domain}</span> to YAKKL®. Do you wish to continue?</p>
     <div class="flex justify-end gap-4">
-      <button class="btn btn-outline" onclick={handleReject}>Reject</button>
-      <button class="btn btn-primary" onclick={handleIsLocked}>Approve</button>
+      <button class="btn btn-outline" onclick={() => handleReject()}>Reject</button>
+      <button class="btn btn-primary" onclick={handleProcess}>Approve</button>
     </div>
   </div>
 </div>
@@ -249,10 +233,10 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-2 min-w-0">
         <img id="dappImageId" crossorigin="anonymous" src={domainLogo} alt="Dapp logo" class="w-8 h-8 rounded-full flex-shrink-0" />
-        <span class="font-semibold truncate" title={domainTitle || domain}>{domainTitle || domain}</span>
+        <span class="font-semibold truncate">{title}</span>
       </div>
       <button
-        onclick={handleReject}
+        onclick={() => handleReject()}
         class="btn btn-ghost btn-sm flex-shrink-0"
         aria-label="Close">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -263,31 +247,38 @@
   </div>
 
   <!-- Content -->
-  <div class="flex-1 p-6 overflow-hidden flex flex-col min-w-[360px] max-w-[426px]">
-    <div class="text-center mb-8 flex-shrink-0">
+  <div class="flex-1 p-4 flex flex-col max-w-[428px]">
+    <div class="text-center mb-4 flex-shrink-0">
       <h2 class="text-xl font-bold mb-2">Connection Request</h2>
       <p class="text-base-content/80">This site would like to:</p>
     </div>
 
-    <div class="space-y-4 mb-6 overflow-y-auto flex-1 min-h-0">
+    <div class="space-y-4 mb-4 overflow-y-auto flex-1 min-h-0">
       <div class="flex items-center gap-3 p-3 bg-base-200 rounded-lg">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        <span>View your wallet addresses</span>
+        <span>1. Request approval to connect to your wallet addresses</span>
       </div>
 
       <div class="flex items-center gap-3 p-3 bg-base-200 rounded-lg">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        <span>Request approval for signing and transactions</span>
+        <span>2. Request approval for signing</span>
+      </div>
+
+      <div class="flex items-center gap-3 p-3 bg-base-200 rounded-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>3. Request approval for sending transactions</span>
       </div>
     </div>
 
-    <div class="bg-base-200 rounded-lg p-4 mb-8 flex-shrink-0">
+    <div class="bg-base-200 rounded-lg p-4 mb-4 flex-shrink-0">
       <p class="text-sm text-base-content/70">
-        By connecting, you agree to allow this site to view your public address. Any signing or transaction requests will have an additional approval step.
+        By connecting, you agree to allow this site to connect to your addresses. Any signing or transaction requests will have an additional approval step.
       </p>
     </div>
   </div>
@@ -295,7 +286,7 @@
   <!-- Footer -->
   <div class="p-4 border-t border-base-300 flex-shrink-0">
     <div class="flex gap-4 justify-end">
-      <button onclick={handleReject} class="btn btn-outline">
+      <button onclick={() => handleReject()} class="btn btn-outline">
         Reject
       </button>
       <button onclick={handleApprove} class="btn btn-primary">
@@ -304,6 +295,8 @@
     </div>
   </div>
 </div>
+
+<Copyright />
 
 <style>
   /* Add smooth transitions */
@@ -335,6 +328,4 @@
     border-radius: 3px;
   }
 </style>
-
-<Copyright />
 

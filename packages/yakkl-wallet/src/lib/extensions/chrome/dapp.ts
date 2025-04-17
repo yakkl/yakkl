@@ -1,5 +1,6 @@
 import { requestManager } from "$lib/extensions/chrome/eip-6963";
 import { log } from "$lib/plugins/Logger";
+import { verifyDomainConnected } from "$lib/extensions/chrome/verifyDomainConnected";
 
 export async function onDappListener(event: any, sender: any): Promise<void> {
   try {
@@ -20,18 +21,39 @@ export async function onDappListener(event: any, sender: any): Promise<void> {
           log.error('Dapp - get_params - No event ID is present.');
           return;
         }
-        const paramsData = requestManager.getRequest(event.id);
-        if (paramsData) {
-          sender.postMessage({ id: event.id, 'jsonrpc': '2.0', method: 'get_params', type: 'YAKKL_RESPONSE:EIP6963', result: paramsData });
+        const request = requestManager.getRequest(event.id); // NOTE: This is the full request object since we're in the background context. When sending, poll, resolve, and reject are not present due to not being serializable.
+        log.info('Dapp - get_params - data', false, {request});
+        if (request) {
+          const isConnected = await verifyDomainConnected(request.data.metaData.metaData.domain);
+          request.data.metaData.metaData.isConnected = isConnected;
+          sender.postMessage({
+            id: event.id,
+            jsonrpc: '2.0',
+            method: 'get_params',
+            type: 'YAKKL_RESPONSE:EIP6963',
+            result: request
+          });
         } else {
-          sender.postMessage({ id: event.id, 'jsonrpc': '2.0', method: 'get_params', type: 'YAKKL_RESPONSE:EIP6963', result: { params: [] } });
+          sender.postMessage({
+            id: event.id,
+            jsonrpc: '2.0',
+            method: 'get_params',
+            type: 'YAKKL_RESPONSE:EIP6963',
+            result: { params: [] }
+          });
         }
         break;
       case 'error':
         // Use the sender parameter directly
         if (sender) {
            // No need to look up requestsExternal just for the sender
-           sender.postMessage({ id: event.id, 'jsonrpc': '2.0', method: event.method, type: 'YAKKL_RESPONSE:EIP6963', data: event.response.data });
+           sender.postMessage({
+             id: event.id,
+             jsonrpc: '2.0',
+             method: event.method,
+             type: 'YAKKL_RESPONSE:EIP6963',
+             data: event.response.data
+           });
         } else {
            log.error('Dapp - Error case: Sender port is invalid.');
         }
@@ -62,7 +84,13 @@ export async function onDappListener(event: any, sender: any): Promise<void> {
 
   } catch (error) {
     log.error(error);
-    sender.postMessage({id: event.id, 'jsonrpc': '2.0', method: event.method, type: 'YAKKL_RESPONSE:EIP6963', error: {code: -1, message: error}});
+    sender.postMessage({
+      id: event.id,
+      jsonrpc: '2.0',
+      method: event.method,
+      type: 'YAKKL_RESPONSE:EIP6963',
+      error: { code: -1, message: error }
+    });
   }
 }
 

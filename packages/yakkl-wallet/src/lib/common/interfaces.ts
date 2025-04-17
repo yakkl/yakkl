@@ -62,12 +62,13 @@ export type YakklMessage = YakklRequest | YakklResponse | YakklEvent;
 export interface RequestMetadata {
   method: string;
   params: any[];
-  metaDataParams: {
+  metaData: {
     domain: string;
-    icon: string;
-    title: string;
-    message: string;
-    context: string;
+    isConnected: boolean;
+    icon?: string;
+    title?: string;
+    message?: string;
+    origin?: string;
   };
 }
 
@@ -75,14 +76,22 @@ export interface RequestMetadata {
 export interface PendingRequestData {
   id: string;
   method: string;
-  params?: any[];
+  params: any[];
   resolve?: (result: any) => void;
   reject?: (error: any) => void;
   timestamp: number;
-  port?: Runtime.Port;
   type?: string;
   requiresApproval?: boolean;
+  metaData?: RequestMetadata;
 }
+
+// Background Pending Request is in the background.ts file
+// export type BackgroundPendingRequest = {
+//   resolve: (value: any) => void;
+//   reject: (reason: any) => void;
+//   port: RuntimePort;
+//   data: PendingRequestData;
+// };
 
 export interface EncryptedData {
   data: string;
@@ -96,6 +105,17 @@ export interface User {
   name: string;
   username?: string;
   authProvider: 'password' | 'google' | 'apple' | 'passkey';
+}
+
+export interface StoreHashResponse {
+  success: boolean;
+  token: string;
+  expiresAt: number;
+}
+
+export interface SessionToken  {
+  token: string;
+  expiresAt: number;
 }
 
 export interface ActiveTab {
