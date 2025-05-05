@@ -807,6 +807,9 @@ export async function getYakklWalletProviders(): Promise<string[]> {
 export async function getYakklConnectedDomains(): Promise<YakklConnectedDomain[]> {
   try {
     const value = await getObjectFromLocalStorage<YakklConnectedDomain[]>(STORAGE_YAKKL_CONNECTED_DOMAINS);
+
+    log.info('getYakklConnectedDomains - value:', false, value);
+
 		if (typeof value === 'string') {
       // Handle the case where value is a string, which shouldn't happen in this context
       throw new Error('Unexpected string value received from local storage');

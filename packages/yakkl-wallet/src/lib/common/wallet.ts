@@ -20,7 +20,11 @@ export async function getInstances(): Promise<[Wallet | null, Provider | null, B
     const chainId = currentlySelected.shortcuts?.chainId ?? 1;
 
     let wallet: Wallet | null = null;
-    wallet = WalletManager.getInstance(['Alchemy'], ['Ethereum'], chainId, import.meta.env.VITE_ALCHEMY_API_KEY_PROD);
+    const apiKey = process.env.ALCHEMY_API_KEY_PROD ||
+                  process.env.VITE_ALCHEMY_API_KEY_PROD ||
+                  import.meta.env.VITE_ALCHEMY_API_KEY_PROD;
+
+    wallet = WalletManager.getInstance(['Alchemy'], ['Ethereum'], chainId, apiKey);
 
     if (wallet) {
       if (!wallet.getSigner()) {

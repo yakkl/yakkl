@@ -36,7 +36,6 @@ export function initializeBrowserAPI(): Browser | null {
     if (window && (window as any).browser) {
       browser_ext = (window as any).browser as Browser;
       initialized = true;
-      log.info("Browser extension API initialized successfully");
     } else {
       log.warn("Browser extension API not found in global scope");
     }

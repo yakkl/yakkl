@@ -1,4 +1,4 @@
-import { Duplex } from 'readable-stream';
+import { Duplex } from 'stream-browserify';
 
 /**
  * This class is a Duplex stream that wraps a WebExtensions Port. It allows for bi-directional communication between the content script and the background script using the stream protocol provided by Node.js. so that it can also be used with Node.js streams. This is useful for integrating WebExtensions with libraries that expect Node.js streams.

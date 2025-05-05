@@ -30,14 +30,17 @@ module.exports = {
     inpage: ['./src/lib/extensions/chrome/inpage.ts'],
     sandbox: ['./src/lib/extensions/chrome/sandbox.ts'],
   },
+  target: 'webworker',
   mode: process.env.NODE_ENV || 'development',
   devtool: process.env.NODE_ENV === 'development' ? 'source-map' : false,
   output: {
     filename: '[name].js',
     path: path.resolve(__dirname, 'static/ext'),
-    publicPath: '/'
+    publicPath: '/',
   },
   optimization: {
+    splitChunks: false,
+    runtimeChunk: false,
     minimize: true,
     minimizer: [
       new TerserPlugin({

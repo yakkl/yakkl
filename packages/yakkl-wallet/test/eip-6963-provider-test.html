@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="shortcut icon" href="favicon.png" />
+  <title>EIP-6963 Provider Test Suite</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .provider-card {
+      transition: all 0.3s ease;
+    }
+
+    .provider-card:hover {
+      transform: translateY(-2px);
+    }
+
+    .active-provider {
+      border: 2px solid #4F46E5;
+      background-color: #EEF2FF;
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+  <div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">EIP-6963 Provider Test Suite</h1>
+    <p class="text-gray-600 mb-8">Testing wallet providers using only the EIP-6963 standard (no window.ethereum)</p>
+
+    <!-- Provider Selection Section -->
+    <div class="mb-8">
+      <h2 class="text-xl font-semibold text-gray-800 mb-4">Available Providers</h2>
+      <div id="providers-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Provider cards will be inserted here -->
+        <div class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+          <p class="text-gray-600">Waiting for providers to announce themselves...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Current Provider Info -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+      <h2 class="text-xl font-semibold text-gray-800 mb-4">Current Provider Info</h2>
+      <div id="current-provider-info" class="space-y-2">
+        <p class="text-gray-600">No provider selected</p>
+      </div>
+    </div>
+
+    <!-- Test Sections -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <!-- Basic Methods -->
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Basic Methods</h2>
+        <div class="space-y-4">
+          <button onclick="getAccounts()"
+            class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">eth_accounts</button>
+          <button onclick="requestAccounts()"
+            class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">eth_requestAccounts</button>
+          <button onclick="getChainId()"
+            class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">eth_chainId</button>
+          <button onclick="getNetworkVersion()"
+            class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">net_version</button>
+        </div>
+      </div>
+
+      <!-- Chain Methods -->
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Chain Methods</h2>
+        <div class="space-y-4">
+          <button onclick="switchEthereumChain('0x1')"
+            class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Switch to Mainnet</button>
+          <button onclick="switchEthereumChain('0xaa36a7')"
+            class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Switch to Sepolia</button>
+          <button onclick="addEthereumChain()"
+            class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Add Ethereum Chain</button>
+        </div>
+      </div>
+
+      <!-- Transaction Methods -->
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Transaction Methods</h2>
+        <div class="space-y-4">
+          <button onclick="sendTransaction()"
+            class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">eth_sendTransaction</button>
+          <button onclick="sendRawTransaction()"
+            class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">eth_sendRawTransaction</button>
+          <button onclick="personalSign()"
+            class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">personal_sign</button>
+          <button onclick="signTypedData()"
+            class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">eth_signTypedData_v4</button>
+        </div>
+      </div>
+
+      <!-- State Methods -->
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">State Methods</h2>
+        <div class="space-y-4">
+          <button onclick="getBalance()"
+            class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">eth_getBalance</button>
+          <button onclick="getBlock()"
+            class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">eth_getBlockByNumber</button>
+          <button onclick="getCode()"
+            class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">eth_getCode</button>
+          <button onclick="estimateGas()"
+            class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">eth_estimateGas</button>
+          <button onclick="getBlockNumber()"
+            class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">eth_blockNumber</button>
+          <button onclick="getTransactionCount()"
+            class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">eth_getTransactionCount</button>
+          <button onclick="getGasPrice()"
+            class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">eth_gasPrice</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Events Section -->
+    <div class="mt-8 bg-white rounded-lg shadow-md p-6">
+      <h2 class="text-xl font-semibold text-gray-800 mb-4">Provider Events</h2>
+      <div id="events-container" class="space-y-2">
+        <p class="text-gray-600">No events yet</p>
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <div class="mt-8 bg-white rounded-lg shadow-md p-6">
+      <h2 class="text-xl font-semibold text-gray-800 mb-4">Results</h2>
+      <pre id="result" class="bg-gray-100 p-4 rounded overflow-auto max-h-96">Select a provider to start testing</pre>
+    </div>
+  </div>
+
+  <script>
+    // Store available providers
+    const providers = new Map();
+    let selectedProvider = null;
+    let selectedProviderInfo = null;
+
+    // Initialize providers
+    function initializeProviders() {
+      // Listen for provider announcements
+      window.addEventListener('eip6963:announceProvider', (event) => {
+        const { info, provider } = event.detail;
+        providers.set(info.uuid, { info, provider });
+        updateProvidersUI();
+      });
+
+      // Request providers
+      window.dispatchEvent(new Event('eip6963:requestProvider'));
+    }
+
+    // Update providers UI
+    function updateProvidersUI() {
+      const container = document.getElementById('providers-container');
+      container.innerHTML = '';
+
+      if (providers.size === 0) {
+        const emptyCard = document.createElement('div');
+        emptyCard.className = 'bg-white rounded-lg shadow-md p-6 border border-gray-200';
+        emptyCard.innerHTML = '<p class="text-gray-600">No EIP-6963 providers detected</p>';
+        container.appendChild(emptyCard);
+        return;
+      }
+
+      providers.forEach(({ info, provider }) => {
+        const card = document.createElement('div');
+        card.className = `provider-card bg-white rounded-lg shadow-md p-6 ${selectedProvider === provider ? 'active-provider' : ''}`;
+
+        const iconImg = document.createElement('img');
+        iconImg.src = info.icon;
+        iconImg.className = 'w-12 h-12 mb-4';
+        iconImg.alt = `${info.name} icon`;
+
+        const name = document.createElement('h3');
+        name.className = 'text-lg font-semibold mb-2';
+        name.textContent = info.name;
+
+        const button = document.createElement('button');
+        button.className = 'bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700';
+        button.textContent = `Select ${info.name}`;
+        button.onclick = () => selectProvider(provider, info);
+
+        card.appendChild(iconImg);
+        card.appendChild(name);
+        card.appendChild(button);
+        container.appendChild(card);
+      });
+    }
+
+    // Select a provider
+    function selectProvider(provider, info) {
+      // First, remove any existing event listeners
+      if (selectedProvider) {
+        removeProviderEventListeners(selectedProvider);
+      }
+
+      selectedProvider = provider;
+      selectedProviderInfo = info;
+
+      // IMPORTANT: No window.ethereum assignment here - we're EIP-6963 only!
+
+      updateProvidersUI();
+      updateCurrentProviderInfo(info);
+      setupProviderEventListeners(provider);
+    }
+
+    // Update current provider info
+    function updateCurrentProviderInfo(info) {
+      const container = document.getElementById('current-provider-info');
+      container.innerHTML = `
+                <p class="text-gray-600"><strong>Name:</strong> ${info.name}</p>
+                <p class="text-gray-600"><strong>RDNS:</strong> ${info.rdns}</p>
+                <p class="text-gray-600"><strong>UUID:</strong> ${info.uuid}</p>
+            `;
+    }
+
+    // Helper function to display results
+    function displayResult(result) {
+      const resultElement = document.getElementById('result');
+      resultElement.textContent = typeof result === 'object' ? JSON.stringify(result, null, 2) : result;
+    }
+
+    // Setup provider event listeners
+    function setupProviderEventListeners(provider) {
+      provider.on('accountsChanged', handleAccountsChanged);
+      provider.on('chainChanged', handleChainChanged);
+      provider.on('connect', handleConnect);
+      provider.on('disconnect', handleDisconnect);
+    }
+
+    // Remove provider event listeners
+    function removeProviderEventListeners(provider) {
+      provider.removeListener('accountsChanged', handleAccountsChanged);
+      provider.removeListener('chainChanged', handleChainChanged);
+      provider.removeListener('connect', handleConnect);
+      provider.removeListener('disconnect', handleDisconnect);
+    }
+
+    // Event handlers
+    function handleAccountsChanged(accounts) {
+      logEvent('accountsChanged', { accounts });
+    }
+
+    function handleChainChanged(chainId) {
+      logEvent('chainChanged', { chainId });
+    }
+
+    function handleConnect(connectInfo) {
+      logEvent('connect', { connectInfo });
+    }
+
+    function handleDisconnect(error) {
+      logEvent('disconnect', { error });
+    }
+
+    // Log event to UI
+    function logEvent(eventName, data) {
+      const eventsContainer = document.getElementById('events-container');
+
+      // Create event element
+      const eventElement = document.createElement('div');
+      eventElement.className = 'bg-gray-100 p-3 rounded mb-2';
+
+      // Add timestamp
+      const timestamp = new Date().toLocaleTimeString();
+
+      // Add event content
+      eventElement.innerHTML = `
+                <p class="font-medium">${timestamp} - Event: ${eventName}</p>
+                <pre class="text-sm">${JSON.stringify(data, null, 2)}</pre>
+            `;
+
+      // If this is the first event, clear the "No events yet" message
+      if (eventsContainer.firstChild && eventsContainer.firstChild.textContent === 'No events yet') {
+        eventsContainer.innerHTML = '';
+      }
+
+      // Add to container
+      eventsContainer.prepend(eventElement);
+    }
+
+    // Check if a provider is selected
+    function ensureProviderSelected() {
+      if (!selectedProvider) {
+        displayResult('Error: No provider selected');
+        return false;
+      }
+      return true;
+    }
+
+    // Basic Methods
+    async function getAccounts() {
+      if (!ensureProviderSelected()) return;
+
+      try {
+        const result = await selectedProvider.request({ method: 'eth_accounts' });
+        displayResult(result);
+      } catch (error) {
+        displayResult(error);
+      }
+    }
+
+    async function requestAccounts() {
+      if (!ensureProviderSelected()) return;
+
+      try {
+        const result = await selectedProvider.request({ method: 'eth_requestAccounts' });
+        displayResult(result);
+      } catch (error) {
+        displayResult(error);
+      }
+    }
+
+    async function getChainId() {
+      if (!ensureProviderSelected()) return;
+
+      try {
+        const result = await selectedProvider.request({ method: 'eth_chainId' });
+        displayResult(result);
+      } catch (error) {
+        displayResult(error);
+      }
+    }
+
+    async function getNetworkVersion() {
+      if (!ensureProviderSelected()) return;
+
+      try {
+        const result = await selectedProvider.request({ method: 'net_version' });
+        displayResult(result);
+      } catch (error) {
+        displayResult(error);
+      }
+    }
+
+    // Chain Methods
+    async function switchEthereumChain(chainId) {
+      if (!ensureProviderSelected()) return;
+
+      try {
+        const result = await selectedProvider.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId }]
+        });
+        displayResult(result);
+      } catch (error) {
+        displayResult(error);
+      }
+    }
+
+    async function addEthereumChain() {
+      if (!ensureProviderSelected()) return;
+
+      try {
+        const result = await selectedProvider.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: '0x89', // Polygon Mainnet
+            chainName: 'Polygon Mainnet',
+            nativeCurrency: {
+              name: 'MATIC',
+              symbol: 'MATIC',
+              decimals: 18
+            },
+            rpcUrls: ['https://polygon-rpc.com'],
+            blockExplorerUrls: ['https://polygonscan.com']
+          }]
+        });
+        displayResult(result);
+      } catch (error) {
+        displayResult(error);
+      }
+    }
+
+    // Transaction Methods
+    async function sendTransaction() {
+      if (!ensureProviderSelected()) return;
+
+      try {
+        const accounts = await selectedProvider.request({ method: 'eth_accounts' });
+        if (!accounts || accounts.length === 0) {
+          displayResult('Error: No accounts available. Please connect first.');
+          return;
+        }
+
+        // NOTE: This is a dummy transaction to the zero address
+        const result = await selectedProvider.request({
+          method: 'eth_sendTransaction',
+          params: [{
+            from: accounts[0],
+            to: '0x0000000000000000000000000000000000000000',
+            value: '0x0',
+            gas: '0x5208',
+            gasPrice: '0x0'
+          }]
+        });
+        displayResult(result);
+      } catch (error) {
+        displayResult(error);
+      }
+    }
+
+    async function sendRawTransaction() {
+      if (!ensureProviderSelected()) return;
+
+      try {
+        // This is a dummy signed transaction - in practice, dApps would sign their own transactions
+        const signedTx = '0xf86c808504a817c8008252089400000000000000000000000000000000000000000080801ca0...';
+        const result = await selectedProvider.request({
+          method: 'eth_sendRawTransaction',
+          params: [signedTx]
+        });
+        displayResult(result);
+      } catch (error) {
+        displayResult(error);
+      }
+    }
+
+    async function personalSign() {
+      if (!ensureProviderSelected()) return;
+
+      try {
+        // const accounts = await selectedProvider.request({ method: 'eth_accounts' });
+        // if (!accounts || accounts.length === 0) {
+        //   displayResult('Error: No accounts available. Please connect first.');
+        //   return;
+        // }
+
+        displayResult(''); //Clear the result
+
+        const message = 'Hello World from EIP-6963 Test Suite';
+        const result = await selectedProvider.request({
+          method: 'personal_sign',
+          params: [message, '0xeF9BdACbf5Cd84BC66DF3a2dC0C8bf22e221CB34'] // Hardcoded an account for testing
+        });
+        displayResult(result);
+      } catch (error) {
+        displayResult(error);
+      }
+    }
+
+    async function signTypedData() {
+      if (!ensureProviderSelected()) return;
+
+      try {
+        // const accounts = await selectedProvider.request({ method: 'eth_accounts' });
+        // if (!accounts || accounts.length === 0) {
+        //   displayResult('Error: No accounts available. Please connect first.');
+        //   return;
+        // }
+
+        const typedData = {
+          domain: {
+            name: 'EIP-6963 Test Suite',
+            version: '1',
+            chainId: 1,
+          },
+          message: {
+            contents: 'Hello World from EIP-6963 Test Suite',
+            from: '0xeF9BdACbf5Cd84BC66DF3a2dC0C8bf22e221CB34' // Hardcoded an account for testing
+          },
+          primaryType: 'Test',
+          types: {
+            Test: [
+              { name: 'contents', type: 'string' },
+              { name: 'from', type: 'address' }
+            ]
+          }
+        };
+        const result = await selectedProvider.request({
+          method: 'eth_signTypedData_v4',
+          params: ['0xeF9BdACbf5Cd84BC66DF3a2dC0C8bf22e221CB34', JSON.stringify(typedData)] // Hardcoded an account for testing
+        });
+        displayResult(result);
+      } catch (error) {
+        displayResult(error);
+      }
+    }
+
+    // State Methods
+    async function getBalance() {
+      if (!ensureProviderSelected()) return;
+
+      try {
+        // const accounts = await selectedProvider.request({ method: 'eth_accounts' });
+        // if (!accounts || accounts.length === 0) {
+        //   displayResult('Error: No accounts available. Please connect first.');
+        //   return;
+        // }
+
+        const result = await selectedProvider.request({
+          method: 'eth_getBalance',
+          params: ['0xeF9BdACbf5Cd84BC66DF3a2dC0C8bf22e221CB34', 'latest'] // Hardcoded an account for testing
+        });
+        displayResult(result);
+      } catch (error) {
+        displayResult(error);
+      }
+    }
+
+    async function getBlock() {
+      if (!ensureProviderSelected()) return;
+
+      try {
+        const result = await selectedProvider.request({
+          method: 'eth_getBlockByNumber',
+          params: ['latest', false]
+        });
+        displayResult(result);
+      } catch (error) {
+        displayResult(error);
+      }
+    }
+
+    async function getCode() {
+      if (!ensureProviderSelected()) return;
+
+      try {
+        const result = await selectedProvider.request({
+          method: 'eth_getCode',
+          params: ['0x0000000000000000000000000000000000000000', 'latest']
+        });
+        displayResult(result);
+      } catch (error) {
+        displayResult(error);
+      }
+    }
+
+    async function estimateGas() {
+      if (!ensureProviderSelected()) return;
+
+      try {
+        // const accounts = await selectedProvider.request({ method: 'eth_accounts' });
+        // if (!accounts || accounts.length === 0) {
+        //   displayResult('Error: No accounts available. Please connect first.');
+        //   return;
+        // }
+
+        const result = await selectedProvider.request({
+          method: 'eth_estimateGas',
+          params: [{
+            from: '0xeF9BdACbf5Cd84BC66DF3a2dC0C8bf22e221CB34', // Hardcoded an account for testing
+            to: '0x0000000000000000000000000000000000000000',
+            value: '0x0'
+          }]
+        });
+        displayResult(result);
+      } catch (error) {
+        displayResult(error);
+      }
+    }
+
+    async function getBlockNumber() {
+      if (!ensureProviderSelected()) return;
+
+      try {
+        const result = await selectedProvider.request({ method: 'eth_blockNumber' });
+        displayResult(result);
+      } catch (error) {
+        displayResult(error);
+      }
+    }
+
+    async function getTransactionCount() {
+      if (!ensureProviderSelected()) return;
+
+      try {
+        const result = await selectedProvider.request({
+          method: 'eth_getTransactionCount',
+          params: ['0xeF9BdACbf5Cd84BC66DF3a2dC0C8bf22e221CB34', 'latest']
+        });
+        displayResult(result);
+      } catch (error) {
+        displayResult(error);
+      }
+    }
+
+    async function getGasPrice() {
+      if (!ensureProviderSelected()) return;
+
+      try {
+        const result = await selectedProvider.request({ method: 'eth_gasPrice' });
+        displayResult(result);
+      } catch (error) {
+        displayResult(error);
+      }
+    }
+
+    // Initialize on load
+    window.addEventListener('load', initializeProviders);
+  </script>
+</body>
+
+</html>

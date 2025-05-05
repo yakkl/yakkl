@@ -2,7 +2,6 @@ import { YAKKL_DAPP, YAKKL_ETH, YAKKL_EXTERNAL, YAKKL_INTERNAL, YAKKL_PROVIDER_E
 import { handleLockDown } from "$lib/common/handlers";
 import type { YakklCurrentlySelected } from "$lib/common/interfaces";
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from "$lib/common/storage";
-import { checkDomain } from "$lib/extensions/chrome/database";
 import { setIconUnlock } from "$lib/utilities/utilities";
 import type { Runtime } from "webextension-polyfill";
 import { showDappPopup, showPopup } from "$lib/extensions/chrome/ui";
@@ -10,14 +9,14 @@ import { estimateGas, getBlock } from "$lib/extensions/chrome/legacy";
 import { supportedChainId } from "$lib/common/utils";
 import { onPortInternalListener } from "$lib/common/listeners/ui/portListeners";
 import { onEthereumListener } from "$lib/common/listeners/background/backgroundListeners";
-import { onEIP6963Listener } from "$lib/extensions/chrome/eip-6963";
+import { onEIP6963PortListener } from "$lib/extensions/chrome/eip-6963";
 import { onDappListener } from "$lib/extensions/chrome/dapp";
 import browser from "webextension-polyfill";
 import { log } from "$lib/plugins/Logger";
-import { addDAppActivity } from '../../interfaces/dapp-activity';
-import type { DAppActivity } from '../../interfaces/dapp-activity';
+import { addDAppActivity } from '../../activities/dapp-activity';
+import type { DAppActivity } from '../../activities/dapp-activity';
 
-interface RequestState {
+export interface RequestState {
   data: unknown;
   status: 'pending' | 'approved' | 'rejected' | 'completed';
   timestamp: number;
@@ -29,10 +28,6 @@ export let requestsExternal = new Map<string, RequestState>();
 
 // Function to clear all external requests
 export function clearAllExternalRequests() {
-  log.info('Clearing all external requests', false, {
-    count: requestsExternal.size,
-    requests: Array.from(requestsExternal.entries())
-  });
   requestsExternal.clear();
   completedRequestsHistory.clear();
 }
@@ -42,15 +37,15 @@ const completedRequestsHistory = new Map<string, RequestState>();
 const HISTORY_EXPIRY = 5 * 60 * 1000; // 5 minutes
 
 // Cleanup function for completed requests
-function cleanupRequest(id: string) {
-  const request = requestsExternal.get(id);
+function cleanupRequest(requestId: string) {
+  const request = requestsExternal.get(requestId);
   if (request) {
     // Always remove from active requests
-    requestsExternal.delete(id);
+    requestsExternal.delete(requestId);
 
     // Only move to history if completed and not rejected
     if (request.status === 'completed') {
-      completedRequestsHistory.set(id, request);
+      completedRequestsHistory.set(requestId, request);
     }
   }
 }
@@ -58,15 +53,15 @@ function cleanupRequest(id: string) {
 // Cleanup expired history entries
 function cleanupExpiredHistory() {
   const now = Date.now();
-  for (const [id, request] of completedRequestsHistory.entries()) {
+  for (const [requestId, request] of completedRequestsHistory.entries()) {
     if (now - request.timestamp > HISTORY_EXPIRY) {
-      completedRequestsHistory.delete(id);
+      completedRequestsHistory.delete(requestId);
     }
   }
 }
 
 // Set up periodic cleanup
-setInterval(cleanupExpiredHistory, 60000); // Run every minute
+setInterval(cleanupExpiredHistory, HISTORY_EXPIRY);
 
 const browser_ext = browser;
 
@@ -85,8 +80,6 @@ export async function onPortConnectListener(port: RuntimePort) {
       throw "Port was undefined for onConnect.";
     }
 
-    log.info('onPortConnectListener - port', false, port);
-
     if (port.sender && port.sender.tab && port.name === YAKKL_EXTERNAL) {
       portsExternal.set(port.sender.tab.id, port);
     }
@@ -100,7 +93,6 @@ export async function onPortConnectListener(port: RuntimePort) {
       }
     }
 
-    // TBD - NOTE: May want to move to .sendMessage for sending popup launch messages!!!!!!!
     // May want to revist this and simplify
     if (!port.onDisconnect.hasListener(onPortDisconnectListener)) {
       port.onDisconnect.addListener(onPortDisconnectListener);
@@ -110,7 +102,7 @@ export async function onPortConnectListener(port: RuntimePort) {
       case "yakkl":
         await setIconUnlock();
         break;
-      case YAKKL_SPLASH:
+      case YAKKL_SPLASH: // NOTE: As of version 1.5.3, this is not used but may be used in the future
         //@ts-ignore
         if (!port.onMessage.hasListener(onPopupLaunchListener)) {
           //@ts-ignore
@@ -148,14 +140,13 @@ export async function onPortConnectListener(port: RuntimePort) {
         }
       break;
       case YAKKL_PROVIDER_EIP6963:
-        log.info('onPortConnectListener - YAKKL_PROVIDER_EIP6963', false, port);
-        if (!port.onMessage.hasListener(onEIP6963Listener)) {
+        if (!port.onMessage.hasListener(onEIP6963PortListener)) {
           //@ts-ignore
-          port.onMessage.addListener(onEIP6963Listener);
+          port.onMessage.addListener(onEIP6963PortListener);
         }
       break;
       default:
-        log.info(`Message ${port.name} is not recognized.`, false, port);
+        log.info(`Message ${port.name} is not recognized. Passing through to the next listener.`, false, port);
         break;
     }
   } catch(error) {
@@ -165,7 +156,6 @@ export async function onPortConnectListener(port: RuntimePort) {
 
 export async function onPortDisconnectListener(port: RuntimePort): Promise<void> {
   if (!browser_ext) return;
-
   try {
     if (browser_ext.runtime?.lastError) {
       log.error('Background - portListeners - lastError', false, browser_ext.runtime.lastError);
@@ -173,7 +163,10 @@ export async function onPortDisconnectListener(port: RuntimePort): Promise<void>
     if (port) {
       if (port.name === "yakkl") {
         await handleLockDown();
+        port.disconnect();
         port.onDisconnect.removeListener(onPortDisconnectListener);
+        port = null;
+        return;
       }
 
       if (port.sender && port.sender.tab && port.name === YAKKL_EXTERNAL) {
@@ -200,261 +193,241 @@ export async function onPortDisconnectListener(port: RuntimePort): Promise<void>
 export async function onPortExternalListener(event, sender): Promise<void> {
   let activity: DAppActivity | null = null;
 
-  try {
-    if (!browser_ext) return;
-    if (!sender || !sender.postMessage) {
-      log.error('Invalid sender in onPortExternalListener', false, sender);
-      return;
+  // Get the port from the sender's tab ID
+  const port = portsExternal.get(sender?.tab?.id);
+  if (!port) {
+    log.error('No port found for sender', false, { sender });
+    return;
+  }
+
+  if (!sender || !sender.tab) {
+    log.error('Invalid sender in onPortExternalListener', false, sender);
+    return;
+  }
+
+  if (event.method && event.id) {
+    let yakklCurrentlySelected;
+    let error = false;
+    const externalData = event;
+    externalData.sender = sender;
+
+    // NOTE: Later, this should be moved to a function that gets the api key based on the chainId and network
+    const apiKey = process.env.ALCHEMY_API_KEY_PROD ||
+                  process.env.VITE_ALCHEMY_API_KEY_PROD ||
+                  import.meta.env.VITE_ALCHEMY_API_KEY_PROD;
+
+    // Track the activity
+    activity = {
+      id: event.id,
+      timestamp: Date.now(),
+      method: event.method,
+      status: 'pending',
+      domain: sender.url || 'unknown',
+      params: event.params
+    };
+
+    yakklCurrentlySelected = await getObjectFromLocalStorage("yakklCurrentlySelected") as YakklCurrentlySelected;
+    if (!yakklCurrentlySelected || yakklCurrentlySelected.shortcuts?.accountName?.trim().length === 0 || yakklCurrentlySelected.shortcuts?.address?.trim().length === 0) {
+      if (error) return;
+      if (!error) {
+        error = true;
+        // Update activity status
+        if (activity) {
+          activity.status = 'rejected';
+          activity.error = {
+            code: 4100,
+            message: 'Account not initialized'
+          };
+          await addDAppActivity(activity);
+        }
+
+        requestsExternal.set(event.id, {
+          data: 'It appears that your currently selected account in Yakkl has not been set or initialized...',
+          status: 'rejected',
+          timestamp: Date.now(),
+          requiresApproval: false
+        });
+
+        await showPopupForMethod('warning', event.id);
+        return;
+      }
     }
 
-    if (event.method && event.id) {
-      let yakklCurrentlySelected;
-      let error = false;
-      const externalData = event;
-      externalData.sender = sender;
+    // Determine if request requires approval
+    const requiresApproval = event.method === 'eth_requestAccounts' ||
+      event.method === 'wallet_requestPermissions' ||
+      event.method === 'eth_sendTransaction' ||
+      event.method === 'eth_signTransaction' ||
+      event.method === 'eth_estimateGas' ||
+      event.method === 'eth_signTypedData_v4' ||
+      event.method === 'personal_sign';
 
-      // Track the activity
-      activity = {
-        id: event.id,
-        timestamp: Date.now(),
-        method: event.method,
-        status: 'pending',
-        domain: sender.url || 'unknown',
-        params: event.params
-      };
+    // Store request with appropriate state
+    requestsExternal.set(event.id, {
+      data: externalData,
+      status: requiresApproval ? 'pending' : 'completed',
+      timestamp: Date.now(),
+      requiresApproval
+    });
 
-      yakklCurrentlySelected = await getObjectFromLocalStorage("yakklCurrentlySelected") as YakklCurrentlySelected;
-      if (!yakklCurrentlySelected || yakklCurrentlySelected.shortcuts?.accountName?.trim().length === 0 || yakklCurrentlySelected.shortcuts?.address?.trim().length === 0) {
-        if (error) return;
-        if (!error) {
-          error = true;
+    await addDAppActivity(activity);
+
+    switch(event.method) {
+      case 'eth_requestAccounts':
+      case 'wallet_requestPermissions':
+        try {
+          const { showEIP6963Popup } = await import('../../../extensions/chrome/eip-6963');
+          await showEIP6963Popup(event.method, event.params || [], port, event.id);
+        } catch (error) {
+          log.error('Error using EIP-6963 implementation for eth_requestAccounts:', false, error);
+          await showPopupForMethod(event.method, event.id);
+        }
+        break;
+      case 'eth_sendTransaction':
+        try {
+          const { showEIP6963Popup } = await import('../../../extensions/chrome/eip-6963');
+          await showEIP6963Popup(event.method, event.params || [], port, event.id);
+        } catch (error) {
+          log.error('Error using EIP-6963 implementation for eth_sendTransaction:', false, error);
+          await showPopupForMethod(event.method, event.id);
+        }
+        break;
+      case 'eth_signTypedData_v4':
+      case 'personal_sign':
+        try {
+          const { showEIP6963Popup } = await import('../../../extensions/chrome/eip-6963');
+          await showEIP6963Popup(event.method, event.params || [], port, event.id);
+        } catch (error) {
+          log.error('Error using EIP-6963 implementation for eth_signTypedData_v4, personal_sign:', false, error);
+          await showPopupForMethod(event.method, event.id);
+        }
+        break;
+      case 'eth_estimateGas':
+        if (yakklCurrentlySelected?.shortcuts?.chainId) {
+          const response = await estimateGas(yakklCurrentlySelected.shortcuts.chainId, event.params, apiKey);
+          sender.postMessage({id: event.id, method: event.method, type: 'YAKKL_RESPONSE', result: response});
 
           // Update activity status
           if (activity) {
-            activity.status = 'rejected';
-            activity.error = {
-              code: 4100,
-              message: 'Account not initialized'
-            };
+            activity.status = 'completed';
+            activity.result = response;
             await addDAppActivity(activity);
           }
 
-          requestsExternal.set(event.id, {
-            data: 'It appears that your currently selected account in Yakkl has not been set or initialized...',
-            status: 'rejected',
-            timestamp: Date.now(),
-            requiresApproval: false
-          });
-
-          await showPopupForMethod('warning', event.id);
-          return;
-        }
-      }
-
-      // Determine if request requires approval
-      const requiresApproval = event.method === 'eth_requestAccounts' || event.method === 'wallet_requestPermissions';
-
-      // Store request with appropriate state
-      requestsExternal.set(event.id, {
-        data: externalData,
-        status: requiresApproval ? 'pending' : 'completed',
-        timestamp: Date.now(),
-        requiresApproval
-      });
-
-      // Add initial activity record
-      if (activity) {
-        await addDAppActivity(activity);
-      }
-
-      if (externalData?.metaDataParams) {
-        switch (event.method) {
-          case 'eth_sendTransaction':
-          case 'eth_estimateGas':
-          case 'eth_signTypedData_v3':
-          case 'eth_signTypedData_v4':
-          case 'personal_sign':
-          case 'wallet_addEthereumChain':
-            break;
-        }
-      }
-
-      switch(event.method) {
-        case 'eth_requestAccounts':
-        case 'wallet_requestPermissions':
-          log.info('eth_requestAccounts - 6963 (portListener):', false, event);
-
-          try {
-            const { showEIP6963Popup } = await import('../../../extensions/chrome/eip-6963');
-            await showEIP6963Popup(event.method, event.params || [], event.id);
-          } catch (error) {
-            log.error('Error using EIP-6963 implementation for eth_requestAccounts:', false, error);
-            await showPopupForMethod('approve', event.id);
-          }
-          break;
-        case 'eth_sendTransaction':
-          try {
-            const { showEIP6963Popup } = await import('../../../extensions/chrome/eip-6963');
-            await showEIP6963Popup(event.method, event.params || [], event.id);
-          } catch (error) {
-            log.error('Error using EIP-6963 implementation for eth_sendTransaction:', false, error);
-            await showPopupForMethod('transactions', event.id);
-          }
-          break;
-        case 'eth_signTypedData_v3':
-        case 'eth_signTypedData_v4':
-        case 'personal_sign':
-          await showPopupForMethod('sign', event.id);
-          break;
-        case 'eth_estimateGas':
-          if (yakklCurrentlySelected?.shortcuts?.chainId) {
-            const response = await estimateGas(yakklCurrentlySelected.shortcuts.chainId, event.params, process.env.VITE_ALCHEMY_API_KEY_PROD);
-            sender.postMessage({id: event.id, method: event.method, type: 'YAKKL_RESPONSE', result: response});
-
-            // Update activity status
-            if (activity) {
-              activity.status = 'completed';
-              activity.result = response;
-              await addDAppActivity(activity);
-            }
-
-            // Mark request as completed
-            const request = requestsExternal.get(event.id);
-            if (request) {
-              request.status = 'completed';
-              cleanupRequest(event.id);
-            }
-          }
-          break;
-        case 'eth_getBlockByNumber':
-          if (yakklCurrentlySelected?.shortcuts?.chainId) {
-            const block = event?.params[0] ?? 'latest';
-            let value;
-            getBlock(yakklCurrentlySelected.shortcuts.chainId, block, process.env.VITE_ALCHEMY_API_KEY_PROD).then(result => {
-              value = result;
-              sender.postMessage({id: event.id, method: event.method, type: 'YAKKL_RESPONSE', result: value});
-              // Mark request as completed
-              const request = requestsExternal.get(event.id);
-              if (request) {
-                request.status = 'completed';
-                cleanupRequest(event.id);
-              }
-            });
-          }
-          break;
-        case 'wallet_addEthereumChain':
-          sender.postMessage({id: event.id, method: event.method, type: 'YAKKL_RESPONSE', result: null});
-          // Mark request as completed
-          const addChainRequest = requestsExternal.get(event.id);
-          if (addChainRequest) {
-            addChainRequest.status = 'completed';
-            cleanupRequest(event.id);
-          }
-          break;
-        case 'wallet_switchEthereumChain':
-          {
-            let value = null;
-            if (event?.params?.length > 0) {
-              const chainId: number = event.params[0];
-              const supported = supportedChainId(chainId);
-              if (supported) {
-                yakklCurrentlySelected = await getObjectFromLocalStorage("yakklCurrentlySelected") as YakklCurrentlySelected;
-                if (yakklCurrentlySelected?.shortcuts?.chainId) {
-                  value = yakklCurrentlySelected.shortcuts.chainId === chainId ? null : chainId;
-                  if (value) {
-                    yakklCurrentlySelected.shortcuts.chainId = chainId;
-                    await setObjectInLocalStorage('yakklCurrentlySelected', yakklCurrentlySelected);
-                  }
-                }
-              }
-            }
-            sender.postMessage({id: event.id, method: event.method, type: 'YAKKL_RESPONSE', result: value});
-            // Mark request as completed
-            const switchChainRequest = requestsExternal.get(event.id);
-            if (switchChainRequest) {
-              switchChainRequest.status = 'completed';
-              cleanupRequest(event.id);
-            }
-          }
-          break;
-        case 'eth_chainId':
-          yakklCurrentlySelected = await getObjectFromLocalStorage("yakklCurrentlySelected") as YakklCurrentlySelected;
-          if (yakklCurrentlySelected?.shortcuts?.chainId) {
-            const value = yakklCurrentlySelected.shortcuts.chainId;
-            sender.postMessage({id: event.id, method: event.method, type: 'YAKKL_RESPONSE', result: value});
-          } else {
-            sender.postMessage({id: event.id, method: event.method, type: 'YAKKL_RESPONSE', result: 1}); // Default to mainnet
-          }
-          // Mark request as completed
-          const chainIdRequest = requestsExternal.get(event.id);
-          if (chainIdRequest) {
-            chainIdRequest.status = 'completed';
-            cleanupRequest(event.id);
-          }
-          break;
-        case 'net_version':
-          yakklCurrentlySelected = await getObjectFromLocalStorage("yakklCurrentlySelected") as YakklCurrentlySelected;
-          if (yakklCurrentlySelected?.shortcuts?.chainId) {
-            const value = yakklCurrentlySelected.shortcuts.chainId.toString();
-            sender.postMessage({id: event.id, method: event.method, type: 'YAKKL_RESPONSE', result: value});
-          }
           // Mark request as completed
           const request = requestsExternal.get(event.id);
           if (request) {
             request.status = 'completed';
             cleanupRequest(event.id);
           }
-          break;
-        default:
-          break;
-      }
-    } else {
-      sender.postMessage({id: event.id, method: event.method, type: 'YAKKL_RESPONSE', error: {code: 4200, message: 'The requested method is not supported by this Ethereum provider.'}});
-
-      // Update activity status
-      if (activity) {
-        activity.status = 'rejected';
-        activity.error = {
-          code: 4200,
-          message: 'The requested method is not supported by this Ethereum provider.'
-        };
-        await addDAppActivity(activity);
-      }
-
-      // Mark request as rejected
-      const request = requestsExternal.get(event.id);
-      if (request) {
-        request.status = 'rejected';
-        cleanupRequest(event.id);
-      }
+        }
+        break;
+      case 'eth_getBlockByNumber':
+        if (yakklCurrentlySelected?.shortcuts?.chainId) {
+          const block = event?.params[0] ?? 'latest';
+          let value;
+          getBlock(yakklCurrentlySelected.shortcuts.chainId, block, apiKey).then(result => {
+            value = result;
+            sender.postMessage({id: event.id, method: event.method, type: 'YAKKL_RESPONSE', result: value});
+            // Mark request as completed
+            const request = requestsExternal.get(event.id);
+            if (request) {
+              request.status = 'completed';
+              cleanupRequest(event.id);
+            }
+          });
+        }
+        break;
+      case 'wallet_addEthereumChain':
+        sender.postMessage({id: event.id, method: event.method, type: 'YAKKL_RESPONSE', result: null});
+        // Mark request as completed
+        const addChainRequest = requestsExternal.get(event.id);
+        if (addChainRequest) {
+          addChainRequest.status = 'completed';
+          cleanupRequest(event.id);
+        }
+        break;
+      case 'wallet_switchEthereumChain':
+        {
+          let value = null;
+          if (event?.params?.length > 0) {
+            const chainId: number = event.params[0];
+            const supported = supportedChainId(chainId);
+            if (supported) {
+              yakklCurrentlySelected = await getObjectFromLocalStorage("yakklCurrentlySelected") as YakklCurrentlySelected;
+              if (yakklCurrentlySelected?.shortcuts?.chainId) {
+                value = yakklCurrentlySelected.shortcuts.chainId === chainId ? null : chainId;
+                if (value) {
+                  yakklCurrentlySelected.shortcuts.chainId = chainId;
+                  await setObjectInLocalStorage('yakklCurrentlySelected', yakklCurrentlySelected);
+                }
+              }
+            }
+          }
+          sender.postMessage({id: event.id, method: event.method, type: 'YAKKL_RESPONSE', result: value});
+          // Mark request as completed
+          const switchChainRequest = requestsExternal.get(event.id);
+          if (switchChainRequest) {
+            switchChainRequest.status = 'completed';
+            cleanupRequest(event.id);
+          }
+        }
+        break;
+      case 'eth_chainId':
+        yakklCurrentlySelected = await getObjectFromLocalStorage("yakklCurrentlySelected") as YakklCurrentlySelected;
+        if (yakklCurrentlySelected?.shortcuts?.chainId) {
+          const value = yakklCurrentlySelected.shortcuts.chainId;
+          sender.postMessage({id: event.id, method: event.method, type: 'YAKKL_RESPONSE', result: value});
+        } else {
+          sender.postMessage({id: event.id, method: event.method, type: 'YAKKL_RESPONSE', result: 1}); // Default to mainnet
+        }
+        // Mark request as completed
+        const chainIdRequest = requestsExternal.get(event.id);
+        if (chainIdRequest) {
+          chainIdRequest.status = 'completed';
+          cleanupRequest(event.id);
+        }
+        break;
+      case 'net_version':
+        yakklCurrentlySelected = await getObjectFromLocalStorage("yakklCurrentlySelected") as YakklCurrentlySelected;
+        if (yakklCurrentlySelected?.shortcuts?.chainId) {
+          const value = yakklCurrentlySelected.shortcuts.chainId.toString();
+          sender.postMessage({id: event.id, method: event.method, type: 'YAKKL_RESPONSE', result: value});
+        }
+        // Mark request as completed
+        const request = requestsExternal.get(event.id);
+        if (request) {
+          request.status = 'completed';
+          cleanupRequest(event.id);
+        }
+        break;
+      default:
+        break;
     }
-  } catch (error) {
-    if (sender && typeof sender.postMessage === 'function') {
-      sender.postMessage({id: event.id, method: event.method, type: 'YAKKL_RESPONSE', error: {code: -1, message: error}});
+  } else {
+    sender.postMessage({id: event.id, method: event.method, type: 'YAKKL_RESPONSE', error: {code: 4200, message: 'The requested method is not supported by this Ethereum provider.'}});
 
-      // Update activity status
-      if (activity) {
-        activity.status = 'rejected';
-        activity.error = {
-          code: -1,
-          message: error instanceof Error ? error.message : String(error)
-        };
-        await addDAppActivity(activity);
-      }
+    // Update activity status
+    if (activity) {
+      activity.status = 'rejected';
+      activity.error = {
+        code: 4200,
+        message: 'The requested method is not supported by this Ethereum provider.'
+      };
+      await addDAppActivity(activity);
+    }
 
-      // Mark request as rejected
-      const request = requestsExternal.get(event.id);
-      if (request) {
-        request.status = 'rejected';
-        cleanupRequest(event.id);
-      }
-    } else {
-      log.error('Cannot send error response - port is invalid', false, error);
+    // Mark request as rejected
+    const request = requestsExternal.get(event.id);
+    if (request) {
+      request.status = 'rejected';
+      cleanupRequest(event.id);
     }
   }
 }
 
 // Has to check the method here too since this function gets called from different places
+// This can be refactored for specific popup types instead of the original use of a splash screen
 export async function onPopupLaunchListener(m: { popup: string; }, p: { postMessage: ( arg0: { popup: string; } ) => void; }) {
   try {
     if (!browser_ext) return;
@@ -493,22 +466,6 @@ export async function onPopupLaunchListener(m: { popup: string; }, p: { postMess
   }
 }
 
-type PopupMethod = 'eth_requestAccounts' | 'eth_sendTransaction' | 'eth_signTypedData_v3' | 'eth_signTypedData_v4' | 'personal_sign' | 'warning';
-type PopupType = 'approve' | 'transactions' | 'sign' | 'warning';
-
-async function showPopupForMethod(methodOrType: PopupMethod | PopupType, requestId: string) {
-  const popupMap: Record<PopupMethod | PopupType, string> = {
-    'eth_requestAccounts': '/dapp/popups/approve.html',
-    'eth_sendTransaction': '/dapp/popups/transactions.html',
-    'eth_signTypedData_v3': '/dapp/popups/sign.html',
-    'eth_signTypedData_v4': '/dapp/popups/sign.html',
-    'personal_sign': '/dapp/popups/sign.html',
-    'warning': '/dapp/popups/warning.html',
-    'approve': '/dapp/popups/approve.html',
-    'transactions': '/dapp/popups/transactions.html',
-    'sign': '/dapp/popups/sign.html'
-  };
-
-  const popupPath = popupMap[methodOrType];
-  await showDappPopup(`${popupPath}?requestId=${requestId}`);
+async function showPopupForMethod(method: string, requestId: string, pinnedLocation: string = 'M') {
+  await showDappPopup(`/dapp/popups/approve.html?requestId=${requestId}&source=eip6963&method=${method}`, requestId, method, pinnedLocation);
 }

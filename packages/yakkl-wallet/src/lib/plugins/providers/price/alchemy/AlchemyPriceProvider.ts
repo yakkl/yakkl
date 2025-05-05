@@ -6,7 +6,9 @@ import { log } from "$lib/plugins/Logger";
 
 export class AlchemyPriceProvider implements PriceProvider {
   getAPIKey(): string {
-    return import.meta.env.VITE_ALCHEMY_API_KEY_PROD;
+    return ( process.env.ALCHEMY_API_KEY_PROD ||
+          process.env.VITE_ALCHEMY_API_KEY_PROD ||
+          import.meta.env.VITE_ALCHEMY_API_KEY_PROD );
   }
 
   getName() {

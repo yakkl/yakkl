@@ -14,6 +14,8 @@ import { log } from "$plugins/Logger";
 export async function handleLockDown() {
   try {
     if (isBrowserEnv()) {
+      log.info('handleLockDown: Setting icon lock...', false);
+      
       await setIconLock();
       const yakklSettings = await getObjectFromLocalStorage('settings') as Settings;
       if (yakklSettings && !yakklSettings.isLocked) {
@@ -30,7 +32,7 @@ export async function handleLockDown() {
       log.info('handleLockDown: Does not believe to be in a browser environment.');
     }
   } catch (error) {
-    log.error('Error in unload handler:', false, error);
+    log.error('Error in lock down handler:', false, error);
   }
 }
 

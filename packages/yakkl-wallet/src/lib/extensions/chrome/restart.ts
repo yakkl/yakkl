@@ -12,7 +12,7 @@ export async function restartExtension() {
     // Open the extension popup after a slight delay
     setTimeout(() => {
       browser.windows.create({
-        url: browser.runtime.getURL('popup.html'),
+        url: browser.runtime.getURL('/popup/popup.html'),
         type: 'popup',
         width: 400,
         height: 600,

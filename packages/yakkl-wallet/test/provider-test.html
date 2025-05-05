@@ -57,7 +57,6 @@
                 <h2 class="text-xl font-semibold text-gray-800 mb-4">Chain Methods</h2>
                 <div class="space-y-4">
                     <button onclick="switchEthereumChain('0x1')" class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Switch to Mainnet</button>
-                    <button onclick="switchEthereumChain('0x5')" class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Switch to Goerli</button>
                     <button onclick="switchEthereumChain('0xaa36a7')" class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Switch to Sepolia</button>
                 </div>
             </div>
@@ -67,7 +66,7 @@
                 <h2 class="text-xl font-semibold text-gray-800 mb-4">Transaction Methods</h2>
                 <div class="space-y-4">
                     <button onclick="sendTransaction()" class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">eth_sendTransaction</button>
-                    <button onclick="signTransaction()" class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">eth_signTransaction</button>
+                    <!-- <button onclick="signTransaction()" class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">eth_signTransaction</button> -->
                     <button onclick="personalSign()" class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">personal_sign</button>
                     <button onclick="signTypedData()" class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">eth_signTypedData_v4</button>
                 </div>
@@ -237,29 +236,30 @@
             }
         }
 
-        async function signTransaction() {
-            try {
-                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-                const result = await window.ethereum.request({
-                    method: 'eth_signTransaction',
-                    params: [{
-                        from: accounts[0],
-                        to: '0x0000000000000000000000000000000000000000',
-                        value: '0x0',
-                        gas: '0x5208',
-                        gasPrice: '0x0'
-                    }]
-                });
-                displayResult(result);
-            } catch (error) {
-                displayResult(error);
-            }
-        }
+        // Deprecated
+        // async function signTransaction() {
+        //     try {
+        //         const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        //         const result = await window.ethereum.request({
+        //             method: 'eth_signTransaction',
+        //             params: [{
+        //                 from: accounts[0],
+        //                 to: '0x0000000000000000000000000000000000000000',
+        //                 value: '0x0',
+        //                 gas: '0x5208',
+        //                 gasPrice: '0x0'
+        //             }]
+        //         });
+        //         displayResult(result);
+        //     } catch (error) {
+        //         displayResult(error);
+        //     }
+        // }
 
         async function personalSign() {
             try {
                 const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-                const message = 'Hello World';
+                const message = 'Hello World from YAKKL Test Suite';
                 const result = await window.ethereum.request({
                     method: 'personal_sign',
                     params: [message, accounts[0]]
@@ -280,7 +280,7 @@
                         chainId: 1,
                     },
                     message: {
-                        contents: 'Hello World',
+                        contents: 'Hello World from YAKKL Test Suite',
                         from: accounts[0]
                     },
                     primaryType: 'Test',

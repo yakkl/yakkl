@@ -36,9 +36,9 @@
       let yakklSettings = await getSettings() as Settings;
 
       if (yakklSettings.init && yakklSettings.isLocked === true) {
-        goto(PATH_LOGIN + '.html?requestId=' + requestId); // May force login auth every time so all of the checks would not be needed!
+        goto(PATH_LOGIN + '?requestId=' + requestId); // May force login auth every time so all of the checks would not be needed!
       } else {
-        goto(PATH_DAPP_ACCOUNTS + '.html?requestId=' + requestId);
+        goto(PATH_DAPP_ACCOUNTS + '?requestId=' + requestId);
       }
     } catch(e) {
       errorValue = e as string;
