@@ -1,7 +1,7 @@
 <script lang="ts">
   import { browser_ext, browserSvelte } from '$lib/common/environment';
   import { getYakklAccounts, setYakklConnectedDomainsStorage, setYakklAccountsStorage, yakklDappConnectRequestStore, getYakklCurrentlySelected, getYakklConnectedDomains } from '$lib/common/stores';
-  import { YAKKL_DAPP, DEFAULT_TITLE } from '$lib/common/constants';
+  import { YAKKL_DAPP, DEFAULT_TITLE, DEFAULT_PERSONA } from '$lib/common/constants';
   import { onMount } from 'svelte';
   import { page } from '$app/state';
 	import { type AccountAddress, type JsonRpcResponse, type SessionInfo, type YakklAccount, type YakklConnectedDomain, type YakklCurrentlySelected } from '$lib/common';
@@ -16,11 +16,14 @@
 	import type { PortDuplexStream } from '$lib/plugins/PortStreamManager';
 	import { safeLogout } from '$lib/common/safeNavigate';
 	import { sessionToken, verifySessionToken } from '$lib/common/auth/session';
+	import { revokeDomainConnection, verifyDomainConnected } from '$lib/extensions/chrome/verifyDomainConnected';
 
   type RuntimePort = Runtime.Port | undefined;
 
   // Define the ConnectedDomainAddress interface locally
   interface ConnectedDomainAddress {
+    id?: string;
+    persona?: string;
     address: string;
     selected: boolean;
     checked: boolean;
@@ -31,6 +34,8 @@
   }
 
   interface FilteredAddress {
+    id?: string;
+    persona?: string;
     address: string;
     name: string;
     alias: string;
@@ -41,6 +46,8 @@
   }
 
   interface AddressWithSelection {
+    id?: string;
+    persona?: string;
     address: string;
     selected?: boolean;
     alias?: string;
@@ -48,6 +55,15 @@
     chainId?: number;
     name?: string;
     checked?: boolean;
+  }
+
+  // DappInterface type definition
+  interface DappInterface {
+    sendResponse: (response: any) => void;
+    sendError: (error: any) => void;
+    method: string;
+    params: any[];
+    origin: string;
   }
 
   let currentlySelected: YakklCurrentlySelected;
@@ -58,7 +74,7 @@
   let accountsPicked = $state(0);
   let showConfirm = $state(false);
   let showFailure = $state(false);
-  let errorValue = $state('No domain/site name was found. Access to YAKKL® is denied.');
+  let errorValue = $state('No domain/site name was found. Access to YAKKL® is rejected.');
   let domain: string = $state('');
   let domainLogo: string = $state('');
   let domainTitle: string = $state('');
@@ -71,6 +87,7 @@
 
   let portManager: PortManagerWithStream | null = null;
   let stream: PortDuplexStream | null = null;
+  let dappInterface: DappInterface | null = null;
 
   if (browserSvelte) {
     try {
@@ -87,16 +104,17 @@
     }
   }
 
+  // NOTE: We need to think through the id and persona for each store and any wrappers and how best to handle them.
   async function getAccounts() {
     try {
       // Get current connected domains
       const connectedDomains = await getYakklConnectedDomains();
-      const domainExists = connectedDomains.find(d => d.domain === domain);
+      const domainExists = connectedDomains.find(d => d.domain === domain); // && d.id === currentlySelected?.id && d.persona === currentlySelected?.persona);
 
       // Get primary accounts
       const accounts = await getYakklAccounts();
       if (!accounts || accounts.length === 0) {
-        await handleReject('No accounts available');
+        await handleReject('No accounts available. Access to YAKKL® is rejected.');
       }
 
       yakklAccountsStore = accounts;
@@ -108,6 +126,8 @@
           account.connectedDomains.includes(domain);
 
         return {
+          id: account.id || '',
+          persona: account.persona || DEFAULT_PERSONA,
           address: account.address,
           name: account.name,
           alias: account.alias || account.address,
@@ -137,7 +157,12 @@
 
   async function handleReject(message: string = 'User rejected the request.') {
     try {
-      if (stream) {
+      if (dappInterface) {
+        dappInterface.sendError({
+          code: 4001,
+          message
+        });
+      } else if (stream) {
         stream.write({
           type: 'YAKKL_RESPONSE:EIP6963',
           jsonrpc: '2.0',
@@ -170,10 +195,10 @@
     accountsPicked = filteredAddressesArray.filter(addr => addr.selected).length;
   }
 
-  async function handleProcess() {
+  async function handleProcess(confirmed: boolean = true) {
     try {
       if (!domain) {
-        await handleReject('No domain name is present.');
+        await handleReject('No domain name is present. Access to YAKKL® is rejected.');
       }
 
       if (!verifySessionToken($sessionToken)) {
@@ -184,6 +209,8 @@
       const accounts = filteredAddressesArray
         .filter(addr => addr.selected)
         .map(addr => ({
+          id: addr.id || '',
+          persona: addr.persona || DEFAULT_PERSONA,
           address: addr.address,
           name: addr.name,
           alias: addr.alias,
@@ -198,7 +225,14 @@
       accountsPicked = accounts.length;
 
       if (accounts.length === 0) {
-        await handleReject('No accounts were selected. Please select at least one account.');
+        // Check if the domain is connected
+        const isConnected = await verifyDomainConnected(domain);
+        if (!isConnected) {
+          await handleReject('No accounts were selected. Access to YAKKL® is rejected.');
+        } else {
+          revokeDomainConnection(domain);
+          await handleReject('The domain is not connected to any accounts. Access to YAKKL® is rejected.');
+        }
       }
 
       if (!Array.isArray(addresses)) {
@@ -206,17 +240,22 @@
       }
 
       // Update the connected domains store
-      const existingDomainIndex = yakklConnectedDomainsStore.findIndex(d => d.domain === domain);
+      const existingDomainIndex = yakklConnectedDomainsStore.findIndex(d => d.domain === domain); // && d.id === currentlySelected?.id && d.persona === currentlySelected?.persona);
 
       if (existingDomainIndex === -1) {
         // Create a new domain entry if it doesn't exist
         const newDomain: YakklConnectedDomain = {
           id: currentlySelected?.id || '',
+          persona: currentlySelected?.persona || DEFAULT_PERSONA,
           domain: domain,
           name: domainTitle || domain,
           icon: domainLogo,
           addresses: accounts,
-          permissions: [],
+          permissions: {}, // We do not set permissions here. This is handled in the permissions page.
+          chainId: currentlySelected?.shortcuts?.chainId || 1,
+          url: domain,
+          status: 'approved', // The status is a first line of defense for incoming requests.
+          revoked: {},
           version: currentlySelected?.version || '',
           createDate: dateString(),
           updateDate: dateString()
@@ -226,11 +265,16 @@
       } else {
         // Update existing domain
         const existingDomain = yakklConnectedDomainsStore[existingDomainIndex];
+        existingDomain.id = currentlySelected?.id || '';
+        existingDomain.persona = currentlySelected?.persona || DEFAULT_PERSONA;
         existingDomain.name = domainTitle || domain;
         existingDomain.icon = domainLogo;
         existingDomain.addresses = accounts;
         existingDomain.updateDate = dateString();
         existingDomain.version = currentlySelected?.version || existingDomain.version;
+        existingDomain.chainId = currentlySelected?.shortcuts?.chainId || 1;
+        existingDomain.url = domain;
+        existingDomain.status = 'approved'; // The status is a first line of defense for incoming requests.
 
         // Update the store with the modified domain
         yakklConnectedDomainsStore = [
@@ -244,7 +288,7 @@
 
       // Update accounts store with connected domains
       for (const account of yakklAccountsStore) {
-        const accountIndex = yakklAccountsStore.findIndex(a => a.address === account.address);
+        const accountIndex = yakklAccountsStore.findIndex(a => a.address === account.address); // && a.id === currentlySelected?.id && a.persona === currentlySelected?.persona);
         if (accountIndex !== -1) {
           const existingAccount = yakklAccountsStore[accountIndex];
           if (!Array.isArray(existingAccount.connectedDomains)) {
@@ -252,7 +296,7 @@
           }
 
           // Check if this account is in the selected accounts
-          const isSelected = accounts.some(acc => acc.address === account.address);
+          const isSelected = accounts.some(acc => acc.address === account.address); // && acc.id === currentlySelected?.id && acc.persona === currentlySelected?.persona);
 
           if (isSelected) {
             // Add domain if not already present
@@ -274,7 +318,25 @@
       await setYakklAccountsStorage(yakklAccountsStore);
 
       // Send response to dapp
-      if (stream) {
+      if (dappInterface) {
+        log.debug('Dapp - accounts process: Sending response to dapp:', false, {
+          requestId,
+          addresses
+        });
+
+        dappInterface.sendResponse({
+          id: requestId,
+          type: 'YAKKL_RESPONSE:EIP6963',
+          jsonrpc: '2.0',
+          result: addresses,
+          method: dappInterface.method
+        });
+      } else if (stream) {
+        log.debug('Dapp - accounts process: Sending response via stream:', false, {
+          requestId,
+          addresses
+        });
+
         const response: JsonRpcResponse = {
           type: 'YAKKL_RESPONSE:EIP6963',
           jsonrpc: '2.0',
@@ -283,7 +345,7 @@
         };
         stream.write(response);
       } else {
-        await handleReject('Request failed to send to dapp due to missing port stream.');
+        await handleReject('Request failed to send to dapp due to missing port stream. Access to YAKKL® is rejected.');
       }
       await close();
     } catch (error: any) {
@@ -300,13 +362,35 @@
       if (event.method === 'get_params') {
         request = event.result;
         if (!request || !request.data) {
-          await handleReject('No requested data was found. Access to YAKKL® is denied.');
+          await handleReject('No requested data was found. Access to YAKKL® is rejected.');
         }
 
         const requestData = request.data;
         if (!requestData || !requestData.metaData) {
-          await handleReject('Invalid request data. Access to YAKKL® is denied.');
+          await handleReject('Invalid request data. Access to YAKKL® is rejected.');
         }
+
+        // Create dappInterface from the request data
+        dappInterface = {
+          sendResponse: (response: any) => {
+            if (stream) {
+              stream.write(response);
+            }
+          },
+          sendError: (error: any) => {
+            if (stream) {
+              stream.write({
+                type: 'YAKKL_RESPONSE:EIP6963',
+                jsonrpc: '2.0',
+                id: requestId,
+                error
+              });
+            }
+          },
+          method: requestData.method || 'eth_requestAccounts',
+          params: requestData.params || [],
+          origin: requestData.metaData?.metaData?.origin || domain
+        };
 
         // These needs to be fixed upstream
         domainTitle = requestData.metaData.metaData.title;
@@ -319,7 +403,7 @@
         if (!requestId) requestId = requestData?.id ?? null;
         if (!requestId) {
           showFailure = true;
-          errorValue = 'No request ID was found. Access to YAKKL® is denied.';
+          errorValue = 'No request ID was found. Access to YAKKL® is rejected.';
         } else {
           // Call getAccounts to handle domain checking and account setup
           await getAccounts();
@@ -327,7 +411,7 @@
       }
     } catch(e) {
       log.error(e);
-      handleReject('An error occurred while processing the request. Access to YAKKL® is denied.');
+      handleReject('An error occurred while processing the request. Access to YAKKL® is rejected.');
     }
   }
 
@@ -342,11 +426,11 @@
             requestId
           }) as SessionInfo;
 
-        log.info('Received session info:', false, sessionInfo);
+        log.info('Received session info:', false, sessionInfo, sessionInfo?.portName);
 
         // Guard against null response
         if (!sessionInfo || !sessionInfo.success) {
-          errorValue = 'Failed to verify session. No response received.';
+          errorValue = 'Failed to verify session. No response received. Access to YAKKL® is rejected.';
           showFailure = true;
           return;
         }
@@ -385,7 +469,6 @@
         log.warn('Port did not go idle in time', false, e);
       }
       portManager.disconnect();
-      // goto(PATH_LOGOUT);
       safeLogout();
     }
   }
@@ -540,4 +623,3 @@
     border-radius: 3px;
   }
 </style>
-

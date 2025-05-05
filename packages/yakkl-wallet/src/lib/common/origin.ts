@@ -1,5 +1,7 @@
+// import type { RuntimePort } from "$lib/extensions/chrome/background";
 import { log } from "$lib/plugins/Logger";
 import { isFrameAccessible } from "./frameInspector";
+// import browser from "webextension-polyfill";
 
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY = 1000; // 1 second
@@ -194,3 +196,30 @@ export function safePostMessage(
     });
   }
 }
+
+// export async function getOriginFromPort(port: RuntimePort): Promise<string> {
+//   // Try to get the origin from the port's sender
+//   if (port.sender?.url) {
+//     try {
+//       const url = new URL(port.sender.url);
+//       return url.origin;
+//     } catch (error) {
+//       log.warn('Invalid sender URL:', false, { url: port.sender.url });
+//     }
+//   }
+
+//   // If that fails, try to get it from the tab
+//   if (port.sender?.tab?.id) {
+//     try {
+//       const tab = await browser.tabs.get(port.sender.tab.id);
+//       if (tab.url) {
+//         const url = new URL(tab.url);
+//         return url.origin;
+//       }
+//     } catch (error) {
+//       log.warn('Failed to get tab info:', false, error);
+//     }
+//   }
+
+//   return '';
+// }

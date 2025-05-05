@@ -11,7 +11,7 @@
   import { fetchGPT4Response } from '$lib/api/api-gpt.js';
   import { apiKeyFetch } from '$lib/api/apis';
   import ClipboardJS from 'clipboard';
-  import { VERSION, type YakklChat } from '$lib/common';
+  import { DEFAULT_PERSONA, VERSION, type YakklChat } from '$lib/common';
 	import { log } from '$lib/plugins/Logger';
 
   let messages = $state<YakklChat[]>([]);
@@ -77,6 +77,7 @@
           timestamp: msg.timestamp || Date.now().toString(),
           usage: msg.usage || {},
           id: msg.id || '',
+          persona: msg.persona || DEFAULT_PERSONA,
           version: msg.version || VERSION,
           createDate: msg.createDate || dateString(),
           updateDate: msg.updateDate || dateString()

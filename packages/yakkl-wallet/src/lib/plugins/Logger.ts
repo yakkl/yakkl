@@ -44,6 +44,7 @@ const COLORS = {
 const MAX_STORED_LOGS = 500; // Maximum number of logs to keep in storage
 const STORAGE_KEY = "yakklLogs"; // Key for localStorage
 
+// TBD - Add id and persona to the log entry??? Not sure
 // Add these interfaces
 export interface LogEntry {
   timestamp: string;

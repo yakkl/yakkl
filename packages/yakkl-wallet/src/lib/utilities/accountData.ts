@@ -4,6 +4,8 @@ import { yakklPricingStore } from '$lib/common/stores';
 import { get } from 'svelte/store';
 
 export interface AccountData {
+  id?: string;
+  persona?: string; // The persona that is associated with the account
   account: YakklAccount;
   quantity: bigint;
   quantityFormatted: string;

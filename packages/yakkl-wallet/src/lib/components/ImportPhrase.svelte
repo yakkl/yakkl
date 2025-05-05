@@ -10,7 +10,7 @@
   import { deepCopy, getSymbol } from '$lib/utilities';
   import { setSettingsStorage, getSettings, yakklMiscStore, setProfileStorage, setYakklCurrentlySelectedStorage, setYakklPrimaryAccountsStorage, getYakklPrimaryAccounts, getYakklAccounts, setYakklAccountsStorage, getProfile } from '$lib/common/stores';
   import { encryptData, decryptData } from '$lib/common/encryption';
-  import { DEFAULT_DERIVED_PATH_ETH, VERSION } from '$lib/common/constants';
+  import { DEFAULT_DERIVED_PATH_ETH, DEFAULT_PERSONA, VERSION } from '$lib/common/constants';
   import { AccountTypeCategory, addressExist, isEncryptedData, type CurrentlySelectedData, type PrimaryAccountData, type Profile, type ProfileData, type YakklAccount, type YakklCurrentlySelected, type YakklPrimaryAccount } from '$lib/common';
   import { dateString } from '$lib/common/datetime';
   import PincodeVerify from './PincodeVerify.svelte';
@@ -305,6 +305,7 @@
 
           yakklCurrentlySelected!.version = VERSION;
           yakklCurrentlySelected!.id = profile.id;
+          yakklCurrentlySelected!.persona = profile?.persona || DEFAULT_PERSONA;
           yakklCurrentlySelected!.preferences.locale = preferences.locale;
           yakklCurrentlySelected!.preferences.currency = preferences.currency;
 

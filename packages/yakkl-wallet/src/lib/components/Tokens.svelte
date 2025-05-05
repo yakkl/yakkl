@@ -13,6 +13,7 @@
   import type { TokenService } from '$lib/plugins/blockchains/evm/TokenService';
   import type { Provider } from '$lib/plugins/Provider';
   import { getTokenBalance } from '$lib/utilities/balanceUtils';
+	import { log } from '$lib/plugins/Logger';
 
   interface Props {
     show?: boolean;
@@ -74,6 +75,7 @@
   function handleTokenUpdate(updatedToken: TokenData) {
     yakklTokenDataCustomStore.update((tokens) => {
       const updatedTokens = tokens.map((t) => (t.address === updatedToken.address ? updatedToken : t));
+      log.info('updatedTokens', false, updatedTokens);
       setYakklTokenDataCustomStorage(updatedTokens);
       return updatedTokens;
     });
