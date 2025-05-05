@@ -18,7 +18,6 @@ export async function initializeStorageDefaults() {
       if (storedData[key] === undefined) {
         try {
           await browser.storage.local.set({ [key]: value });
-          // log.info(`Default stored: ${key}`);
         } catch (error) {
           log.error(`Error setting default for ${key}:`, false, error);
         }
@@ -48,12 +47,9 @@ export async function manageLockedState() {
       } else {
         await browser.action.setIcon({path: {16: "/images/logoBull16x16.png", 32: "/images/logoBull32x32.png", 48: "/images/logoBull48x48.png", 128: "/images/logoBull128x128.png"}});
       }
-
     } else {
       await browser.action.setIcon({path: {16: "/images/logoBullLock16x16.png", 32: "/images/logoBullLock32x32.png", 48: "/images/logoBullLock48x48.png", 128: "/images/logoBullLock128x128.png"}});
     }
-
-    log.warn("Managing locked state", false, yakklSettings, yakklSettings?.isLocked);
   } catch (error) {
     log.error("Error managing locked state:", false, error);
   }
@@ -65,8 +61,6 @@ export async function manageLockedState() {
  * @returns The interval ID
  */
 export async function watchLockedState(ms: number): Promise<NodeJS.Timeout> {
-  log.info(`Setting up locked state watcher with interval: ${ms}ms`);
-
   // Call immediately once
   await manageLockedState();
 

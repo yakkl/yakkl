@@ -1,11 +1,9 @@
 import { STORAGE_YAKKL_PREFERENCES } from '$lib/common/constants';
 import type { Preferences } from '$lib/common/interfaces';
 import type { Windows } from 'webextension-polyfill';
-// import { browser_ext } from '$lib/common/environment';
-// import { browserSvelte } from '$lib/common/environment';
 import browser from 'webextension-polyfill';
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from '$lib/common/storage';
-import { openPopups, openWindows } from '$lib/common/reload';
+import { openWindows } from '$lib/common/reload';
 import { log } from '$lib/plugins/Logger';
 import type { ExtendedBrowser } from '$lib/common/types/browser-extensions';
 
@@ -14,17 +12,20 @@ type WindowsWindow = Windows.Window;
 
 const browser_ext = browser as ExtendedBrowser;
 
+export const openPopups = new Map();
+
 export async function showExtensionPopup(
   popupWidth = 428,
   popupHeight = 926,
-  url: string  // This should be undefined, null or ''
+  url: string,  // This should be undefined, null or ''
+  pinnedLocation: string = '0'
 ): Promise<WindowsWindow> {
   try {
       // Uses the default 'get' here
       const pref = await browser_ext.storage.local.get( STORAGE_YAKKL_PREFERENCES ) as { yakklPreferences: Preferences; };
       const yakkl = pref['yakklPreferences'] as Preferences;
       // eslint-disable-next-line prefer-const, @typescript-eslint/no-unused-vars
-      let { left, top } = await browser_ext.windows.getCurrent(); //w - 1920
+      let { left, top } = await browser_ext.windows.getCurrent();
 
       // Pull from settings and get pin information...
       if ( yakkl && yakkl.wallet ) {
@@ -37,7 +38,7 @@ export async function showExtensionPopup(
         try {
           // eslint-disable-next-line no-constant-condition
           if (yakkl.wallet.pinned) {
-            switch (yakkl.wallet.pinnedLocation) {
+            switch (pinnedLocation === '0' || !pinnedLocation ? yakkl.wallet.pinnedLocation : pinnedLocation) {
               case 'TL':
                 top = 0;
                 left = 0;
@@ -84,7 +85,7 @@ export async function showExtensionPopup(
 
       return browser_ext.windows.create({
         url: `${browser_ext.runtime.getURL((url ? url : "index.html"))}`,
-        type: "panel",
+        type: "popup",
         left: left,
         top: top,
         width: popupWidth,
@@ -99,9 +100,9 @@ export async function showExtensionPopup(
 
 // TBD! - May need to set up a connection between UI and here
 // Check the lastlogin date - todays date = days hash it using dj2 then use as salt to encrypt and send to here and send back on request where it is reversed or else login again
-export async function showPopup(url: string = ''): Promise<void> {
+export async function showPopup(url: string = '', pinnedLocation: string = '0'): Promise<void> {
   try {
-      showExtensionPopup(428, 926, url).then(async (result) => {
+      showExtensionPopup(428, 926, url, pinnedLocation).then(async (result) => {
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         browser_ext.windows.update(result.id, {drawAttention: true});
@@ -118,80 +119,35 @@ export async function showPopup(url: string = ''): Promise<void> {
   }
 }
 
-// export async function showPopupDapp(url: string): Promise<void> {
-//   try {
-//     // Use more appropriate dimensions for dapp popups
-//     // Width: 360px is standard for most wallet popups
-//     // Height: Varies by type:
-//     // - Approval: 620px
-//     // - Transaction signing: 620px
-//     // - Account selection: 550px
-//     const height = url.includes('approve.html') ? 620 :
-//                   url.includes('transactions.html') ? 620 :
-//                   url.includes('accounts.html') ? 550 : 500;
-
-//     log.info('showPopupDapp >>> - 133 (ui):', false, {url, height});
-
-//     showExtensionPopup(360, height, url).then(async (result) => {
-//       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-//       // @ts-ignore
-//       browser_ext.windows.update(result.id, {drawAttention: true});
-//       openPopups.set('popupId', result.id);
-//     }).catch((error) => {
-//       log.error('Background - YAKKL: ' + false, error);
-//     });
-//   } catch (error) {
-//     log.error('Background - showPopupDapp', false, error);
-//   }
-// }
-
-export async function showDappSidePanel(request: string) {
+export async function showDappPopup(request: string, requestId: string, method: string = '', pinnedLocation: string = 'M') {
   try {
-    // Check if the side panel is already open
-    log.info('showDappSidePanel - 149 (ui):', false, request);
+    // Place approved html height here
+    // const height = request.includes('approve.html') ? 620 :
+    //                request.includes('transactions.html') ? 620 :
+    //                request.includes('sign.html') ? 550 :
+    //                request.includes('accounts.html') ? 550 : 0; // NOTE: This is not approved html height
 
-    const views = browser_ext.extension.getViews({ type: 'tab' });
-    if (views.length > 0) {
-      log.info('showDappSidePanel - 151 (ui):', false, views);
-      // Side panel is already open, send message to update content
-      views[0].postMessage({
-        type: 'UPDATE_CONTENT',
-        url: request
-      }, '*');
+    // if (height === 0) {
+    //   log.error('showDappPopup - 186 (ui-inside - not approved html):', false, {request, height});
+    //   return;
+    // }
+
+    // log.info('showDappPopup <<< - 186 (ui-inside):', false, {request, height});
+
+    if (openPopups.has(requestId)) {
+      log.warn('[PopupGuard] Duplicate popup for requestId. This request will be ignored.', false, {requestId, method});
       return;
     }
 
-    // Try to use side panel if available
-    if (browser_ext.sidePanel) {
-      await browser_ext.sidePanel.open({
-        url: request,
-        width: 360 // Standard width for wallet interfaces
-      });
-    } else {
-      // Fallback to popup if side panel is not available
-      await showDappPopup(request);
-    }
+    openPopups.set(requestId, {request, method, createdAt: Date.now()});
 
-  } catch (error) {
-    log.error('Background - showDappSidePanel error:', false, error);
-    // Fallback to popup if side panel fails
-    await showDappPopup(request);
-  }
-}
+    log.info('[APPROVE] New popup received request:', false, {request, requestId, method});
 
-export async function showDappPopup(request: string) {
-  try {
-    const height = request.includes('approve.html') ? 620 :
-                   request.includes('transactions.html') ? 620 :
-                   request.includes('accounts.html') ? 550 : 500;
-
-    log.info('showDappPopup <<< - 186 (ui-inside):', false, {request, height});
-
-    showExtensionPopup(360, height, request).then(async (result) => {
+    showExtensionPopup(428, 620, request, pinnedLocation).then(async (result) => {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
       browser_ext.windows.update(result.id, {drawAttention: true});
-      openPopups.set('popupId', result.id);
+      await browser_ext.storage.session.set({windowId: result.id});
     }).catch((error) => {
       log.error('Background - YAKKL: ' + false, error);
     });

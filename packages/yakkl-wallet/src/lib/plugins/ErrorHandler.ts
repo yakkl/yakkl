@@ -73,7 +73,7 @@ export class ErrorHandler {
     }, 0);
   }
 
-private async initialize(): Promise<void> {
+  private async initialize(): Promise<void> {
     try {
       if (this.isInitialized) return;
 
@@ -86,7 +86,6 @@ private async initialize(): Promise<void> {
       this.checkPreviousError();
 
       this.isInitialized = true;
-      log.info('ErrorHandler initialized');
     } catch (error) {
       log.error('ErrorHandler initialization failed', false, error);
     }
@@ -97,6 +96,10 @@ private async initialize(): Promise<void> {
       ErrorHandler.instance = new ErrorHandler();
     }
     return ErrorHandler.instance;
+  }
+
+  handleError(error: Error): void {
+    log.error('Error handled by ErrorHandler:', false, error);
   }
 
   private initializeErrorHandlers(): void {
@@ -183,7 +186,7 @@ private async initialize(): Promise<void> {
         return true;
       };
 
-window.addEventListener('error', (event) => {
+      window.addEventListener('error', (event) => {
         const errorDetails: GlobalError = {
           message: event.message,
           source: event.filename,
@@ -232,9 +235,11 @@ window.addEventListener('error', (event) => {
         event.preventDefault();
       });
 
-      window.addEventListener('beforeunload', (event) => {
-        this.isClosing = true;
-        const finalSnapshot = this.captureStateSnapshot();
+      try {
+        // @ts-ignore
+        window.addEventListener('beforeunload', (event) => {
+          this.isClosing = true;
+          const finalSnapshot = this.captureStateSnapshot();
 
         try {
           localStorage.setItem('lastStateBeforeClose', JSON.stringify({
@@ -245,8 +250,11 @@ window.addEventListener('error', (event) => {
           }));
         } catch (e) {
           // Ignore storage errors
-        }
-      });
+          }
+        });
+      } catch (e) {
+        // Ignore error
+      }
 
       document.addEventListener('visibilitychange', () => {
         const snapshot = this.captureStateSnapshot();
@@ -469,7 +477,6 @@ private checkPreviousError(): void {
 
       if (lastState) {
         const stateData = JSON.parse(lastState);
-        log.info('Recovered state from previous session', true, stateData);
         localStorage.removeItem('lastStateBeforeClose');
       }
     } catch (e) {

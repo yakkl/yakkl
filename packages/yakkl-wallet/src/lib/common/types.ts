@@ -1,6 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { EventFilter, Addressable, YakklAccount, YakklChat, YakklConnectedDomain, YakklPrimaryAccount, YakklContact, Network, BigNumberish, TokenData, ActiveTab } from '$lib/common';
 
+export type SimulatedTx = {
+  token: string;
+  amount: number;
+  requiresApproval?: boolean;
+};
+
 export type NotificationType = 'basic' | 'image' | 'list' | 'progress';
 
 export interface NotificationBase {

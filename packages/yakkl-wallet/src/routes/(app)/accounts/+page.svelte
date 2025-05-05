@@ -194,17 +194,4 @@
     </svg>
   </ButtonGridItem>
 
-    <!-- TEST -->
-    <!-- <div class="rounded-md shadow h-24"> -->
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_interactive_supports_focus -->
-      <!-- <div role="button" on:click={() => goto('/dapp/popups/approve.html')}
-        class="btn btn-secondary w-full h-full flex flex-col items-center justify-center px-4 py-2 border border-transparent text-base font-medium rounded-md text-white">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-10 h-10 mb-2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-        </svg>
-        <span class="text-sm mt-2 text-center">Test dApp Popup</span>
-      </div> -->
-    <!-- </div> -->
-
 </ButtonGrid>

@@ -5,6 +5,7 @@ import { detectExecutionContext } from '$lib/common/utils';
 import type { Manifest } from 'webextension-polyfill';
 import keyConfig from '../../config/keys.json';
 import { initializeStorageDefaults } from '$lib/common/backgroundUtils';
+import { isBackgroundContext } from '$lib/common/contextCheck';
 
 // Extend the WebExtension manifest type to include environment
 interface ExtendedManifest extends Manifest.WebExtensionManifest {
@@ -73,21 +74,47 @@ interface SecureStorage {
  */
 export class KeyManager {
   private static instance: KeyManager | null = null;
+  private static isInitializing = false;
   private initialized = false;
   private keys: Map<string, string> = new Map();
   private keyConfigs: KeyConfig[] = [];
 
   private constructor() {
     // Initialize with empty key map
+    if (!isBackgroundContext()) {
+      log.error('KeyManager attempted to run outside background context');
+      throw new Error('KeyManager is restricted to background context only');
+    }
   }
 
   /**
    * Get the singleton instance of KeyManager
    */
-  public static getInstance(): KeyManager {
+  public static async getInstance(): Promise<KeyManager> {
     if (!KeyManager.instance) {
       KeyManager.instance = new KeyManager();
     }
+
+    // If not initialized and not currently initializing, initialize
+    if (!KeyManager.instance.initialized && !KeyManager.isInitializing) {
+      try {
+        KeyManager.isInitializing = true;
+        log.debug('KeyManager starting initialization');
+        await KeyManager.instance.initialize();
+        log.debug('KeyManager initialization completed');
+      } finally {
+        KeyManager.isInitializing = false;
+      }
+    } else if (KeyManager.instance.initialized) {
+      log.debug('KeyManager already initialized, returning instance');
+    } else if (KeyManager.isInitializing) {
+      log.debug('KeyManager is currently initializing, waiting for completion');
+      // Wait for initialization to complete
+      while (!KeyManager.instance.initialized) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+
     return KeyManager.instance;
   }
 
@@ -102,7 +129,6 @@ export class KeyManager {
       envKey: envKey || name
     };
     this.keyConfigs.push(config);
-    log.debug(`Registered key config: ${name}`);
   }
 
   /**
@@ -118,6 +144,8 @@ export class KeyManager {
     // AI provider keys
     this.registerKey('OPENAI_API_KEY', 'ai', false);
     this.registerKey('ANTHROPIC_API_KEY', 'ai', false);
+
+    log.info('KeyManager initialized default configs');
   }
 
   /**
@@ -125,12 +153,12 @@ export class KeyManager {
    * Only works in background context
    */
   public async initialize(): Promise<void> {
-    log.debug('KeyManager initialize called');
-
     if (this.initialized) {
-      log.debug('KeyManager already initialized');
+      log.debug('KeyManager already initialized, skipping');
       return;
     }
+
+    log.debug('KeyManager initialize called');
 
     try {
       // Check if we're in a background context using storage defaults
@@ -149,7 +177,7 @@ export class KeyManager {
       this.setupMessageListener();
 
       this.initialized = true;
-      log.info('KeyManager initialized successfully');
+      log.debug('KeyManager initialization completed successfully');
     } catch (error: any) {
       log.error('Failed to initialize KeyManager', error);
       throw error;
@@ -226,19 +254,21 @@ export class KeyManager {
    * Set up message listener for other contexts to request keys
    */
   private setupMessageListener(): void {
-    browser.runtime.onMessage.addListener((message: unknown, sender) => {
-      // Type guard for KeyRequest
-      if (this.isKeyRequest(message)) {
-        // Only respond to extension contexts for security
-        if (!sender.id || sender.id !== browser.runtime.id) {
-          log.warn('Rejected key request from unknown sender', false, sender.id);
-          return Promise.resolve({ error: 'Unauthorized sender' });
-        }
+    // Decide if we need to move this to the secureListener
+    // TODO: Move this to the secureListener maybe or yakkl-security
+    // browser.runtime.onMessage.addListener((message: unknown, sender, sendResponse): any => {
+    //   // Type guard for KeyRequest
+    //   if (this.isKeyRequest(message)) {
+    //     // Only respond to extension contexts for security
+    //     if (!sender.id || sender.id !== browser.runtime.id) {
+    //       log.warn('Rejected key request from unknown sender', false, sender.id);
+    //       return sendResponse({ error: 'Unauthorized sender' });
+    //     }
 
-        return this.handleKeyRequest(message.keyName);
-      }
-      return undefined; // Let other listeners handle other message types
-    });
+    //     return this.handleKeyRequest(message.keyName);
+    //   }
+    //   return false; // Let other listeners handle other message types
+    // });
 
     log.debug('KeyManager message listener set up');
   }

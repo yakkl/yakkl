@@ -179,7 +179,7 @@ startConnectionMonitor();
 
 function handleMessage(message: MessageTypes) {
   try {
-    log.debug('handleMessage:[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]', false, message);
+    log.debug('handleMessage:[connectionStore]', false, message);
 
     switch (message.type) {
       case MessageType.ACTIVE_TAB_CHANGED:
@@ -286,7 +286,7 @@ async function handleWindowFocus(data: WindowFocusData) {
 
         if (activeTab.tabId > 0) {
           activeTabUIStore.set(activeTab);
-          log.debug('Window focused changed:', false, activeTab);
+          log.debug('Window focused changed: [connectionStore]', false, activeTab);
         }
       }
     } else {

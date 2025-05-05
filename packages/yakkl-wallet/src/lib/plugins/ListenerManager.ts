@@ -1,5 +1,5 @@
 // ListenerManager.ts
-// import { log } from "$plugins/Logger";
+import type { ListenerContext } from "./GlobalListenerManager";
 
 type ListenerEntry = {
   event: any; // Event source (e.g., browser.runtime.onMessage)
@@ -8,13 +8,29 @@ type ListenerEntry = {
 
 export class ListenerManager {
   private listeners: Set<ListenerEntry> = new Set();
+  private context: ListenerContext;
+
+  constructor(context: ListenerContext) {
+    this.context = context;
+  }
 
   add(event: any, handler: Function) {
-    if (event.hasListener(handler)) {
-      event.removeListener(handler);
+    const wrappedHandler = async (...args: any[]) => {
+      const [message] = args;
+
+      // Check if message should be handled in this context
+      if (message.targetContext && message.targetContext !== this.context) {
+        return false;
+      }
+
+      return await handler(...args);
+    };
+
+    if (event.hasListener(wrappedHandler)) {
+      event.removeListener(wrappedHandler);
     }
-    event.addListener(handler);
-    this.listeners.add({ event, handler });
+    event.addListener(wrappedHandler);
+    this.listeners.add({ event, handler: wrappedHandler });
   }
 
   remove(event: any, handler: Function) {
@@ -29,6 +45,5 @@ export class ListenerManager {
       event.removeListener(handler);
     });
     this.listeners.clear();
-    // log.info('All listeners removed.');
   }
 }

@@ -99,7 +99,7 @@ export const yakklPreferences: Preferences = {
     autoLockAskTimer: 10, // If autoLockAsk true then this timer will keep the dialog and app open this many more seconds before locking automatically via timeout
     animationLockScreen: false,
     pinned: true,
-    pinnedLocation: 'TL',  // May want 'TL' Top Left, 'TR' Top Right, 'BL', 'BR', 'M' Middle, or 'x,y' coordinates
+    pinnedLocation: 'M',  // May want 'TL' Top Left, 'TR' Top Right, 'BL', 'BR', 'M' Middle, or 'x,y' coordinates
     defaultWallet: true,  // This can be cutoff in preferences/wallet. It allows any reference to 'window.ethereum' or others to only popup Yakkl
   },
   theme: 'yakkl',

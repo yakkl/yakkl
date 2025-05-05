@@ -3,7 +3,7 @@
 // Global shared constants. Network specifics are in the network/<whatever>/contants.js file
 export const VERSION = "1.5.3";
 
-export const YEAR = "2024"; // Instead of computing year since user can change date on system - use a constant
+export const YEAR = "2025"; // Instead of computing year since user can change date on system - use a constant
 
 export const GAS_PER_BLOB = 131072; // 2**17
 

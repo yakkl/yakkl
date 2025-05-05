@@ -4,6 +4,12 @@ import type { AccountTypeCategory, BytesLike, NetworkType, RegistrationType, Sys
 import type { BigNumberish } from '$lib/common/bignumber';
 import type { Token } from '$lib/plugins/Token';
 
+// Session Info is used to check if the session is valid and if the port is open - mainly used for the dapp popups
+export interface SessionInfo {
+  success: boolean;
+  portName: string | null;
+}
+
 // Ethereum JSON-RPC request arguments
 export interface RequestArguments {
   method: string;
@@ -12,7 +18,7 @@ export interface RequestArguments {
 
 export interface JsonRpcRequest {
   jsonrpc: '2.0';
-  id: number | string;
+  id: string;
   method: string;
   params?: unknown[];
 }
@@ -20,7 +26,7 @@ export interface JsonRpcRequest {
 export interface JsonRpcResponse {
   type: 'YAKKL_RESPONSE:EIP6963';
   jsonrpc: '2.0';
-  id: number | string;
+  id: string;
   result?: unknown;
   error?: {
       code: number;
@@ -31,7 +37,7 @@ export interface JsonRpcResponse {
 
 export interface YakklRequest {
   type: string;
-  id: number | string;
+  id: string;
   method: string;
   params: unknown[];
   requiresApproval?: boolean;
@@ -39,7 +45,7 @@ export interface YakklRequest {
 
 export interface YakklResponse {
   type: string;
-  id: number | string;
+  id: string;
   method?: string;
   result?: unknown;
   error?: {
@@ -61,26 +67,37 @@ export type YakklMessage = YakklRequest | YakklResponse | YakklEvent;
 export interface RequestMetadata {
   method: string;
   params: any[];
-  metaDataParams: {
+  metaData: {
     domain: string;
-    icon: string;
-    title: string;
-    message: string;
-    context: string;
+    isConnected: boolean;
+    icon?: string;
+    title?: string;
+    message?: string;
+    origin?: string;
   };
 }
 
 // Define the pending request type
-export interface PendingRequest {
+export interface PendingRequestData {
+  id: string;
   method: string;
-  params?: any[];
-  resolve?: (value: any) => void;
+  params: any[];
+  resolve?: (result: any) => void;
   reject?: (error: any) => void;
   timestamp: number;
-  port?: chrome.runtime.Port;
-  id?: string | number;
   type?: string;
+  requiresApproval?: boolean;
+  metaData?: RequestMetadata;
+  origin?: string;
 }
+
+// Background Pending Request is in the background.ts file
+// export type BackgroundPendingRequest = {
+//   resolve: (value: any) => void;
+//   reject: (reason: any) => void;
+//   port: RuntimePort;
+//   data: PendingRequestData;
+// };
 
 export interface EncryptedData {
   data: string;
@@ -94,6 +111,17 @@ export interface User {
   name: string;
   username?: string;
   authProvider: 'password' | 'google' | 'apple' | 'passkey';
+}
+
+export interface StoreHashResponse {
+  success: boolean;
+  token: string;
+  expiresAt: number;
+}
+
+export interface SessionToken  {
+  token: string;
+  expiresAt: number;
 }
 
 export interface ActiveTab {
@@ -229,10 +257,10 @@ export interface WeightedProvider {
   weight: number;
 }
 
-export interface Signer {
-  signTransaction(transaction: Transaction): Promise<string>;
-  signMessage(message: string): Promise<string>;
-}
+// export interface Signer {
+//   signTransaction(transaction: Transaction): Promise<string>;
+//   signMessage(message: string): Promise<string>;
+// }
 
 /**
  *  The domain for an [[link-eip-712]] payload.

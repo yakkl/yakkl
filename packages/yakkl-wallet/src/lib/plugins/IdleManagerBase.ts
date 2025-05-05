@@ -4,12 +4,13 @@ import type { IdleConfig, IdleState, IdleWidth } from '$lib/common/idle/types';
 import { NotificationService } from '$lib/common/notifications';
 
 export abstract class IdleManagerBase {
-  protected isLockdownInitiated = false;
+  protected isLockdownInitiated: boolean = false;
   protected previousState: IdleState = 'active';
-  protected readonly threshold: number;
-  protected readonly lockDelay: number;
-  protected readonly checkInterval: number;
+  protected threshold: number;
+  protected lockDelay: number;
+  protected checkInterval: number;
   protected stateWidth: IdleWidth;
+  protected isLoginVerified: boolean = false;
 
   constructor(config: IdleConfig) {
     this.threshold = config.threshold;
@@ -22,13 +23,27 @@ export abstract class IdleManagerBase {
     }
   }
 
+  public setLoginVerified(verified: boolean): void {
+    this.isLoginVerified = verified;
+    log.info('setLoginVerified:', false, verified);
+    if (verified) {
+      this.start();
+    } else {
+      this.stop();
+    }
+  }
+
   protected async handleStateChanged(state: IdleState): Promise<void> {
     if (!browser_ext) return;
 
     if (state === this.previousState) return;
 
-    log.info(`${this.stateWidth} idle state changing from ${this.previousState} to ${state}`);
+    log.info(`${this.stateWidth} idle state changing from ${this.previousState} to ${state} - ;;;;;;;;;;;;;`, false);
     this.previousState = state;
+
+    if (!this.isLoginVerified) {
+      return;
+    }
 
     try {
       switch (state) {
@@ -43,6 +58,8 @@ export abstract class IdleManagerBase {
           if (!this.isLockdownInitiated) {
             this.isLockdownInitiated = true;
 
+            log.info('idle/locked state detected, initiating lockdown', false, state);
+            
             if (this.lockDelay <= 0) {
               // Immediate lockdown
               log.warn(`${state} detected, initiating immediate lockdown`);
@@ -84,9 +101,9 @@ export abstract class IdleManagerBase {
     }
   }
 
-  abstract start(): void;
-  abstract stop(): void;
-  abstract checkCurrentState(): Promise<void>;
+  abstract start(): Promise<void>;
+  abstract stop(): Promise<void>;
+  abstract checkCurrentState(): Promise<IdleState>;
 
   getStateWidth(): IdleWidth {
     return this.stateWidth;

@@ -15,13 +15,11 @@ let port: Runtime.Port | undefined;
 // Function to connect port - will only run in browser context during load
 async function connectPort(): Promise<boolean> {
   if (!browser_ext) {
-    log.warn("Browser extension is not available.");
     return false;
   }
 
   try {
     port = browser_ext.runtime.connect({ name: YAKKL_INTERNAL });
-
     if (port) {
       port.onDisconnect.addListener(async (event) => {
         handleLockDown();
@@ -42,9 +40,6 @@ async function connectPort(): Promise<boolean> {
 async function initializeExtension() {
   try {
     let connected = await connectPort();
-
-    log.info('ROOT: (route) +layout.ts - Port connected:', false, connected);
-
     if (!connected) {
       log.info('Port connection failed, retrying in 1 second...');
       await wait(1000);
@@ -65,7 +60,6 @@ export const load = async () => {
   try {
     // Initialize the browser API
     const browser = initializeBrowserAPI();
-
     // Only proceed with extension initialization if we have a browser API
     if (browser) {
       await initializeExtension();

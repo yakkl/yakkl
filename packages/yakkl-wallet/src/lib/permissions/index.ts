@@ -16,51 +16,47 @@ import browser from "webextension-polyfill";
  */
 export function initializePermissions(): void {
   try {
-    log.info('Initializing wallet permissions system');
-
     // Set up message listener for permission responses from popups
-    browser.runtime.onMessage.addListener((
-      message: unknown,
-      sender: browser.Runtime.MessageSender,
-      sendResponse: (response?: any) => void
-    ): true | Promise<unknown> => {
-      try {
-        // Type guard for message
-        if (!message || typeof message !== 'object') {
-          return Promise.resolve(undefined);
-        }
+    // browser.runtime.onMessage.addListener((
+    //   message: unknown,
+    //   sender: browser.Runtime.MessageSender,
+    //   sendResponse: (response?: any) => void
+    // ): any => {
+    //   try {
+    //     // Type guard for message
+    //     if (!message || typeof message !== 'object') {
+    //       return false;
+    //     }
 
-        // Use type assertion with proper checks
-        const msg = message as Record<string, unknown>;
+    //     // Use type assertion with proper checks
+    //     const msg = message as Record<string, unknown>;
 
-        if (msg.type === 'WALLET_PERMISSION_RESPONSE' &&
-            typeof msg.requestId === 'string') {
+    //     if (msg.type === 'WALLET_PERMISSION_RESPONSE' &&
+    //         typeof msg.requestId === 'string') {
 
-          log.info('Received permission response', false, msg);
+    //       const requestId = msg.requestId;
+    //       const approved = Boolean(msg.approved);
+    //       const accounts = Array.isArray(msg.accounts) ? msg.accounts : [];
 
-          const requestId = msg.requestId;
-          const approved = Boolean(msg.approved);
-          const accounts = Array.isArray(msg.accounts) ? msg.accounts : [];
+    //       if (approved) {
+    //         // Resolve the permission request
+    //         resolvePermissionRequest(requestId, { approved, accounts });
+    //       } else {
+    //         // Reject the permission request
+    //         rejectPermissionRequest(requestId, 'User rejected the request');
+    //       }
 
-          if (approved) {
-            // Resolve the permission request
-            resolvePermissionRequest(requestId, { approved, accounts });
-          } else {
-            // Reject the permission request
-            rejectPermissionRequest(requestId, 'User rejected the request');
-          }
+    //       sendResponse({ success: true });
+    //       return true;
+    //     }
 
-          sendResponse({ success: true });
-          return true;
-        }
-
-        // Always return a Promise for unhandled messages
-        return Promise.resolve(undefined);
-      } catch (error) {
-        log.error('Error handling permission response', false, error);
-        return Promise.resolve(undefined);
-      }
-    });
+    //     // Always return a Promise for unhandled messages
+    //     return false;
+    //   } catch (error) {
+    //     log.error('Error handling permission response', false, error);
+    //     return false;
+    //   }
+    // });
 
     // Optional: Clean expired permissions every hour
     setInterval(async () => {

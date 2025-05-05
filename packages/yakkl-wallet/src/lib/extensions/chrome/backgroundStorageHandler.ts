@@ -1,7 +1,7 @@
 // background-storage-handler.ts
 import browser from 'webextension-polyfill';
 import type { Runtime } from 'webextension-polyfill';
-import type { StorageRequest, StorageResponse } from '$lib/common/storage-types';
+import type { StorageRequest, StorageResponse } from '$lib/common/storageTypes';
 
 export class BackgroundStorageHandler {
   private static instance: BackgroundStorageHandler;

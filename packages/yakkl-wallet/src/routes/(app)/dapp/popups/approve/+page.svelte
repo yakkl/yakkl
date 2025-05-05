@@ -1,114 +1,94 @@
 <script lang="ts">
-  import { browser_ext, browserSvelte } from '$lib/common/environment';
-  import { goto } from '$app/navigation';
+  import { browserSvelte } from '$lib/common/environment';
   import { page } from '$app/state';
-  import { yakklConnectedDomainsStore, getSettings, yakklDappConnectRequestStore, setYakklConnectedDomainsStorage, getYakklAccounts, yakklAccountsStore, setYakklAccountsStorage } from '$lib/common/stores';
-  import { PATH_LOGIN, YAKKL_DAPP, PATH_DAPP_ACCOUNTS, DEFAULT_TITLE } from '$lib/common/constants';
-  import { onMount, onDestroy } from 'svelte';
-	import { wait } from '$lib/common/utils';
+  import { yakklDappConnectRequestStore } from '$lib/common/stores';
+  import { PATH_LOGIN, YAKKL_DAPP, DEFAULT_TITLE } from '$lib/common/constants';
+  import { onMount } from 'svelte';
 	import Copyright from '$lib/components/Copyright.svelte';
 	import Failed from '$lib/components/Failed.svelte';
   import { log } from '$plugins/Logger';
 
   import type { Runtime } from 'webextension-polyfill';
+	import Warning from '$lib/components/Warning.svelte';
+	import Confirmation from '$lib/components/Confirmation.svelte';
+	import { createPortManagerWithStream } from '$lib/plugins/PortManagerWithStream';
+  import { safeNavigate, safeLogout } from '$lib/common/safeNavigate';
+	import { safeClientSendMessage } from '$lib/common/safeClientSendMessage';
+
 
   type RuntimePort = Runtime.Port | undefined;
+  // let port: RuntimePort;
 
   let showConfirm = $state(false);
   let showSuccess = false;
   let showFailure = $state(false);
   let errorValue = $state('No domain/site name was found. Access to YAKKL® is denied.');
-  let port: RuntimePort;
   let domain: string = $state('');
   let domainLogo: string = $state('');
   let domainTitle: string = $state('');
-  // let requestData: any;
-  // let method: string;
+  let title: string = $state(DEFAULT_TITLE);
   let requestId: string | null = null;
+  let method: string = $state('');
   let message;  // This gets passed letting the user know what the intent is
-  let context;
+
+  let portManager = createPortManagerWithStream(YAKKL_DAPP);
 
   if (browserSvelte) {
     try {
       requestId = page.url.searchParams.get('requestId');
+      method = page.url.searchParams.get('method');
       $yakklDappConnectRequestStore = requestId;
     } catch(e) {
       log.error(e);
+      handleReject('No requestId or methodwas found. Access to YAKKL® is denied.');
     }
   }
 
-  if (!requestId) requestId = ''; // May want to auto reject if this is not valid
+  // NOTE: domains will be added (if not already there at the next step - if accounts)
+  async function handleProcess() {
+    if (!browserSvelte) return;
 
-  // NOTE: domains will be added (if not already there at the next step - accounts)
-  async function handleIsLocked() {
+    // NOTE: No need to verify session token since we will be redirecting to login
+
     try {
-      let yakklSettings = await getSettings();
-      if (yakklSettings.isLocked === true) {
-        return await goto(PATH_LOGIN + '.html?requestId=' + requestId); // May force login auth every time so all of the checks would not be needed!
-      } else {
-        return await goto(PATH_DAPP_ACCOUNTS + '.html?requestId=' + requestId);
-      }
+      // Store the request info in session storage so it persists after login
+      sessionStorage.setItem('yakklSigningRequest', JSON.stringify({
+        requestId,
+        method
+      }));
+
+      return safeNavigate(PATH_LOGIN + '?requestId=' + requestId + '&method=' + method);
     } catch(e) {
       errorValue = e as string;
       showFailure = true;
     }
   }
 
+  // We no longer need to do get_params since we can access the request data directly
   async function onMessageListener(event: any) {
+    if (!browserSvelte) return;
+
     try {
-      if (!domainLogo) domainLogo = '/images/logoBullLock48x48.png'; // Set default logo but change if favicon is present
+      if (!domainLogo) domainLogo = '/images/failIcon48x48.png'; // Set default logo but change if favicon is present
+
       if (event.method === 'get_params') {
-        // Get metadata from the event data
-        const metadata = event.data?.data?.metaDataParams || {};
-
-        // Get favicon from URL parameters first, fall back to metadata
-        const url = new URL(window.location.href);
-        const favicon = url.searchParams.get('favicon');
-
-        // Set domain information with proper fallbacks
-        domainTitle = metadata.title || metadata.name || '';
-        domain = metadata.domain || '';
-        domainLogo = favicon || metadata.icon || '/images/logoBullLock48x48.png';
-        message = metadata.message || 'Nothing was passed in explaining the intent of this approval! Be mindful!';
-        context = metadata.context || 'accounts';
-        requestId = !requestId ? event.data.id : requestId;
-
-        // Ensure we have a valid domain
-        if (!domain) {
-          try {
-            const origin = new URL(metadata.origin || window.location.href).origin;
-            domain = origin.replace(/^https?:\/\//, '');
-          } catch (e) {
-            domain = 'unknown-domain';
-          }
+        const requestData = event.result.data;
+        if (!requestData || !requestData.metaData) {
+          await handleReject('No request data was found. Access to YAKKL® is denied.');
         }
 
+        domainTitle = requestData.metaData.metaData.title;
+        domain = requestData.metaData.metaData.domain;
+        domainLogo = requestData.metaData.metaData.icon ?? '/images/failIcon48x48.png';
+        message = requestData.metaData.metaData.message ?? 'Nothing was passed to explain the intent of this approval. Be mindful of this request!';
+
+        if (!requestId) requestId = requestData?.id ?? null;
+        if (!requestId) {
+          await handleReject('No request ID was found. Access to YAKKL® is denied.');
+        }
         // Set the page title
-        document.title = domainTitle || domain || DEFAULT_TITLE;
-
-        log.info('onMessageListener - 61 (approve):', false, {domain, domainTitle, domainLogo, message, context, requestId});
-
-        if (domain) {
-          if ($yakklConnectedDomainsStore) {
-            $yakklConnectedDomainsStore.find(element => {
-              if (element.domain === domain) {
-                const accounts = element.addresses;
-                if (port)
-                  port.postMessage({method: 'eth_requestAccounts', id: requestId, type: 'YAKKL_RESPONSE', result: accounts});
-                return;
-              }
-            });
-          } else {
-            log.info('onMessageListener - 97 (approve):', false, 'No connected domains found');
-            $yakklConnectedDomainsStore = [];
-            await setYakklConnectedDomainsStorage([]);
-          }
-        }
+        title = domainTitle || domain || DEFAULT_TITLE;
       }
-
-    if (event?.method === 'reject' || event?.data?.method === 'reject') {
-      handleReject();
-    }
 
     } catch(e) {
       log.error(e);
@@ -141,36 +121,44 @@
   onMount(async () => {
     try {
       if (browserSvelte) {
-        // For testing only!
-        // await clearData();
+        await safeClientSendMessage({ type: 'clientReady' }); // Safeguard to ensure the client is ready before sending messages
 
-        port = browser_ext.runtime.connect({name: YAKKL_DAPP});
-        if (port) {
-          port.onMessage.addListener(onMessageListener);
-          port.postMessage({method: 'get_params', id: requestId}); // request is not currently used but we may want to later
+        // Check if we're returning from login with a session token
+        const storedRequest = sessionStorage.getItem('yakklSigningRequest');
+        if (storedRequest) {
+          const { requestId: storedRequestId, method: storedMethod } = JSON.parse(storedRequest);
+          requestId = storedRequestId;
+          method = storedMethod;
+          sessionStorage.removeItem('yakklSigningRequest');
         }
 
-        let img = document.getElementById('dappImageId') as HTMLImageElement;
-        if (img) {
-          img.onerror = function() {
-            this.onerror = null;
-            this.src = '/images/logoBullLock48x48.png';
-          };
-        }
-      }
-    } catch(e) {
-      log.error(e);
-    }
-  });
+        domainLogo = '/images/failIcon48x48.png';
 
-  onDestroy(async () => {
-    try {
-      if (browserSvelte) {
-        if (port) {
-          port.disconnect();
-          port.onMessage.removeListener(onMessageListener);
-          port = undefined;
+        if (!requestId) {
+          errorValue = 'Missing request ID';
+          showFailure = true;
+          return;
         }
+
+        const ok = await portManager.createPort();
+        if (ok) {
+          const stream = portManager.getStream();
+          stream?.on('data', onMessageListener);
+          stream?.write({ method: 'get_params', id: requestId });
+        }
+
+        // REGISTER SESSION with background
+        log.info('Approve: BEFORE - REGISTER_SESSION_PORT - requestId and port:', false, requestId, portManager.getPort());
+
+        portManager.setRequestId(requestId);
+
+        await safeClientSendMessage({
+          type: 'REGISTER_SESSION_PORT',
+          port: portManager.getPort(),
+          requestId
+        });
+
+        log.info('Approve: AFTER - REGISTER_SESSION_PORT - requestId and port:', false, requestId, portManager.getPort());
       }
     } catch(e) {
       log.error(e);
@@ -178,37 +166,29 @@
   });
 
   // data must represent ProviderRpcError format
-  async function handleReject() {
+  async function handleReject(message: string = 'User rejected the request.') {
     try {
       showConfirm = false;
       showFailure = false;
       showSuccess = false;
       errorValue = '';
 
+      const port = portManager?.getPort();
       if (port) {
-        port.postMessage({id: requestId, method: 'error', response: {type: 'YAKKL_RESPONSE', data: {name: 'ProviderRpcError', code: 4001, message: 'User rejected the request.'}}});
+        port.postMessage({id: requestId, method: 'error', response: {type: 'YAKKL_RESPONSE', data: {name: 'ProviderRpcError', code: 4001, message: message}}});
       }
 
-      // If requestId is not valid then use 0 since we are bailing out anyway
-      // May want to think about putting a slight tick to make sure all queues get flushed
-      //goto(PATH_LOGOUT); // May want to do something else if they are already logged in!
-      if (browserSvelte) {
-        if (port) {
-          port.disconnect();
-          port.onMessage.removeListener(onMessageListener);
-          port = undefined;
-        }
+      try {
+        await portManager.waitForIdle(1500);
+      } catch (e) {
+        log.warn('Port did not go idle in time', false, e);
       }
+      portManager.disconnect();
     } catch(e) {
       log.error(e);
     } finally {
-      await close();
+      safeLogout();
     }
-  }
-
-  async function close() {
-    await wait(1000); // Wait for the port to disconnect and message to go through
-    window.close();
   }
 
   function handleApprove() {
@@ -218,8 +198,13 @@
 </script>
 
 <svelte:head>
-	<title>{domainTitle || domain || DEFAULT_TITLE}</title>
+	<title>{title}</title>
 </svelte:head>
+
+<Warning
+  bind:show={showFailure}
+  title="Error"
+  value={errorValue} />
 
 <Failed
   bind:show={showFailure}
@@ -227,18 +212,13 @@
   content={errorValue}
   handleReject={handleReject}/>
 
-{#if showConfirm}
-<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-  <div class="bg-base-100 rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl">
-    <h3 class="text-lg font-bold mb-4 truncate" title={domain}>Connect to {domain}</h3>
-    <p class="mb-6">This will connect <span class="font-bold text-primary truncate inline-block max-w-[200px]" title={domain}>{domain}</span> to YAKKL®. Do you wish to continue?</p>
-    <div class="flex justify-end gap-4">
-      <button class="btn btn-outline" onclick={handleReject}>Reject</button>
-      <button class="btn btn-primary" onclick={handleIsLocked}>Approve</button>
-    </div>
-  </div>
-</div>
-{/if}
+<Confirmation
+  bind:show={showConfirm}
+  title="Connect to {domain}"
+  message="This will connect {domain} to YAKKL®. Do you wish to continue?"
+  onConfirm={handleProcess}
+  onReject={handleReject}
+/>
 
 <div class="flex flex-col h-full max-h-screen overflow-hidden">
   <!-- Header -->
@@ -246,10 +226,10 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-2 min-w-0">
         <img id="dappImageId" crossorigin="anonymous" src={domainLogo} alt="Dapp logo" class="w-8 h-8 rounded-full flex-shrink-0" />
-        <span class="font-semibold truncate" title={domainTitle || domain}>{domainTitle || domain}</span>
+        <span class="font-semibold truncate">{title}</span>
       </div>
       <button
-        onclick={handleReject}
+        onclick={() => handleReject()}
         class="btn btn-ghost btn-sm flex-shrink-0"
         aria-label="Close">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -260,31 +240,54 @@
   </div>
 
   <!-- Content -->
-  <div class="flex-1 p-6 overflow-hidden flex flex-col min-w-[360px] max-w-[426px]">
-    <div class="text-center mb-8 flex-shrink-0">
-      <h2 class="text-xl font-bold mb-2">Connection Request</h2>
-      <p class="text-base-content/80">This site would like to:</p>
+  <div class="flex-1 p-4 flex flex-col max-w-[428px]">
+    <div class="text-center mb-4 flex-shrink-0">
+      {#if method !== 'eth_requestAccounts' && method !== 'eth_sendTransaction' && method !== 'eth_signTypedData_v4' && method !== 'personal_sign'}
+        <h2 class="text-xl font-bold mb-2">Security Risk</h2>
+      {:else}
+        <h2 class="text-xl font-bold mb-2">Connection Request</h2>
+        <p class="text-base-content/80">This site would like to:</p>
+      {/if}
     </div>
 
-    <div class="space-y-4 mb-6 overflow-y-auto flex-1 min-h-0">
+    <div class="space-y-4 mb-4 overflow-y-auto flex-1 min-h-0">
       <div class="flex items-center gap-3 p-3 bg-base-200 rounded-lg">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        <span>View your wallet addresses</span>
+        {#if method === 'eth_requestAccounts'}
+          <span>1. Request approval to connect to your wallet addresses</span>
+        {:else if method === 'eth_sendTransaction'}
+          <span>1. Request approval to send a transaction</span>
+        {:else if method === 'eth_signTypedData_v4' || method === 'personal_sign'}
+          <span>1. Request approval to sign a message</span>
+        {:else}
+          <span>Request approval for '{method}' but it is not supported by YAKKL® due to security concerns.</span>
+        {/if}
+      </div>
+
+      <!-- <div class="flex items-center gap-3 p-3 bg-base-200 rounded-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>2. Request approval for signing</span>
       </div>
 
       <div class="flex items-center gap-3 p-3 bg-base-200 rounded-lg">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        <span>Request approval for signing and transactions</span>
-      </div>
+        <span>3. Request approval for sending transactions</span>
+      </div> -->
     </div>
 
-    <div class="bg-base-200 rounded-lg p-4 mb-8 flex-shrink-0">
+    <div class="bg-base-200 rounded-lg p-4 mb-4 flex-shrink-0">
       <p class="text-sm text-base-content/70">
-        By connecting, you agree to allow this site to view your public address. This does not give permission to move funds.
+        {#if method !== 'eth_requestAccounts' && method !== 'eth_sendTransaction' && method !== 'eth_signTypedData_v4' && method !== 'personal_sign'}
+        The request is a possible security risk and not allowed!
+        {:else}
+        By connecting, you agree to allow this site to connect to your addresses. Any signing or transaction requests will have an additional approval step.
+        {/if}
       </p>
     </div>
   </div>
@@ -292,15 +295,26 @@
   <!-- Footer -->
   <div class="p-4 border-t border-base-300 flex-shrink-0">
     <div class="flex gap-4 justify-end">
-      <button onclick={handleReject} class="btn btn-outline">
-        Reject
-      </button>
-      <button onclick={handleApprove} class="btn btn-primary">
-        Connect
-      </button>
+      {#if method !== 'eth_requestAccounts' && method !== 'eth_sendTransaction' && method !== 'eth_signTypedData_v4' && method !== 'personal_sign'}
+        <button onclick={() => handleReject('Unsupported method - Security risk: ' + method)} class="btn btn-primary">
+          Reject
+        </button>
+      {:else}
+        <button onclick={handleApprove} class="btn btn-primary">
+          {#if method === 'eth_requestAccounts'}
+            Connect
+        {:else if method === 'eth_sendTransaction'}
+          Approve Transaction
+        {:else if method === 'eth_signTypedData_v4' || method === 'personal_sign'}
+          Approve Message
+        {/if}
+        </button>
+      {/if}
     </div>
   </div>
 </div>
+
+<Copyright />
 
 <style>
   /* Add smooth transitions */
@@ -332,6 +346,4 @@
     border-radius: 3px;
   }
 </style>
-
-<Copyright />
 

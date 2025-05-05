@@ -18,6 +18,9 @@ export class AppWideIdleManager extends IdleManagerBase {
     super({ ...config, width: 'app-wide' });
     this.boundResetTimer = this.resetTimer.bind(this);
     this.checkIdleStatus = this.checkIdleStatus.bind(this);
+    if (typeof window === 'undefined') {
+     throw new Error('AppWideIdleManager must be initialized in client context!');
+    }
   }
 
   private resetTimer(): void {
@@ -69,11 +72,11 @@ export class AppWideIdleManager extends IdleManagerBase {
     }
   }
 
-  start(): void {
+  async start(): Promise<void> {
     try {
       // Clear any existing interval first
       if (this.idleCheckInterval) {
-        this.stop();
+        await this.stop();
       }
 
       // Add event listeners
@@ -107,17 +110,15 @@ export class AppWideIdleManager extends IdleManagerBase {
       );
 
       // Perform initial state check
-      this.checkCurrentState().catch(error =>
-        this.handleError(error as Error, 'Error checking initial state')
-      );
+      await this.checkCurrentState();
     } catch (error) {
       this.handleError(error as Error, 'Error starting app-wide idle manager');
       // Attempt cleanup in case of partial initialization
-      this.stop();
+      await this.stop();
     }
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
     try {
       // Clear interval
       if (this.idleCheckInterval) {
@@ -138,13 +139,15 @@ export class AppWideIdleManager extends IdleManagerBase {
     }
   }
 
-  async checkCurrentState(): Promise<void> {
+  async checkCurrentState(): Promise<IdleState> {
     try {
       const timeSinceLastActivity = Date.now() - this.lastActivity;
       const state: IdleState = timeSinceLastActivity >= this.threshold ? 'idle' : 'active';
       await this.handleStateChanged(state);
+      return state;
     } catch (error) {
       this.handleError(error as Error, 'Error checking current state');
+      return 'active'; // Default to active state on error
     }
   }
 

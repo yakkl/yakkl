@@ -10,118 +10,202 @@ import { globalListenerManager } from '$lib/plugins/GlobalListenerManager';
 import { log } from '$plugins/Logger';
 import { NotificationService } from '$lib/common/notifications';
 import { activeTabUIStore } from '$lib/common/stores';
+import { addWindowListeners, removeWindowListeners } from './windowListeners';
+import { safeLogout, safeNavigate } from '$lib/common/safeNavigate';
 
-export const uiListenerManager = new ListenerManager();
+export const uiListenerManager = new ListenerManager('ui');
 
 // Register uiListenerManager globally
 globalListenerManager.registerContext('ui', uiListenerManager);
 
+// export async function handleOnActiveTabUIChanged(
+//   message: any,
+//   sender: Runtime.MessageSender,
+//   sendResponse: (response?: any) => void
+// ): Promise<boolean | void>  {
+//   try {
+//     switch(message.type) {
+//       case 'setActiveTab': {
+//         try {
+//           activeTabUIStore.set(message.activeTab);
+//           sendResponse({ success: true }); // GetActiveTabResponse format
+//         } catch (error) {
+//           log.error('Error on active tab change:', true, error);
+//           sendResponse({ success: false, error: error });
+//         }
+//         return true; // Keep this line to signal async sendResponse
+//       }
+//       default: {
+//         return false;
+//       }
+//     }
+//   } catch (error: any) {
+//     log.error('Error handling setActiveTab message:', true, error);
+//     if (isBrowserEnv()) sendResponse({ success: false, error: error?.message || 'Unknown error occurred.' });
+//     return true; // Indicate asynchronous response
+//   }
+// }
+
+// // Centralized message handler function - This is only a fallback from the old way of doing things but will continue to work
+// export async function handleOnMessageForExtension(
+//   message: any,
+//   sender: Runtime.MessageSender,
+//   sendResponse: (response?: any) => void
+// ): Promise<boolean | void>  {
+//   try {
+//     if (!browser_ext) return true;
+//     switch(message.type) {
+//       case 'lockdown': {
+//         await browser_ext.runtime.sendMessage({type: 'stopPricingChecks'});
+//         await handleLockDown();  // Correct function call
+//         await NotificationService.sendSecurityAlert('YAKKL Wallet locked due to inactivity. \nTo prevent unauthorized transactions, your wallet has been locked and logged out.', {contextMessage: 'Click extension icon to relaunch'});
+//         sendResponse({ success: true, message: 'Lockdown initiated.' });
+//         // Allow microtask queue to flush before navigating
+//         safeLogout();
+//         return true;  // return type - asynchronous
+//       }
+//       case 'lockdownImminent': {
+//         await NotificationService.sendSecurityAlert('YAKKL Lockdown Imminent. \nFor your protection, YAKKL will be locked soon.', {contextMessage: 'Use YAKKL before timeout to stop lockdown'});
+//         sendResponse({ success: true, message: 'Imminent lockdown notification sent.' });
+//         return true;  // return type - asynchronous
+//       }
+//       default: {
+//         return false;
+//       }
+//     }
+
+//   } catch (e: any) {
+//     log.error('Error handling message:', e);
+//     if (isBrowserEnv()) sendResponse({ success: false, error: e?.message || 'Unknown error occurred.' });
+//     return true; // Indicate asynchronous response
+//   }
+// }
+
+// // Message handler for starting and stopping price checks. This is primarily sent by active, idle, locked states.
+// export async function handleOnMessageForPricing(
+//   message: any,
+//   sender: Runtime.MessageSender,
+//   sendResponse: (response?: any) => void
+// ): Promise<boolean | void>  {
+//   if (!browser_ext) return true;
+//   try {
+//     switch(message.type) {
+//       case 'startPricingChecks': {
+//         startCheckPrices();
+//         sendResponse({ success: true, message: 'Price checks initiated.' });
+//         return true;  // return type - asynchronous
+//       }
+//       case 'stopPricingChecks': {
+//         stopCheckPrices();
+//         sendResponse({ success: true, message: 'Stop price checks initiated.' });
+//         return true;  // return type - asynchronous
+//       }
+//       default: {
+//         return false;
+//       }
+//     }
+//   } catch (e: any) {
+//     log.error('Error handling message:', e);
+//     if (isBrowserEnv()) sendResponse({ success: false, error: e?.message || 'Unknown error occurred.' });
+//     return true; // Indicate asynchronous response
+//   }
+// }
+
 export async function handleOnActiveTabUIChanged(
   message: any,
-  sender: Runtime.MessageSender,
-  sendResponse: (response?: any) => void
-): Promise<boolean | void>  {
+  sender: Runtime.MessageSender
+): Promise<any> {
   try {
-    log.debug('handleOnActiveTabUIChanged:', false, message);
-
     switch(message.type) {
       case 'setActiveTab': {
         try {
           activeTabUIStore.set(message.activeTab);
-          log.debug('<<<<<<<<<<<<<< Active tabs UI:', false, message.activeTab);
-          sendResponse({ success: true }); // GetActiveTabResponse format
+          return { success: true };
         } catch (error) {
           log.error('Error on active tab change:', true, error);
-          sendResponse({ success: false, error: error });
+          return { success: false, error: error };
         }
-        return true; // Keep this line to signal async sendResponse
+      }
+      default: {
+        return undefined; // Let other listeners handle it
       }
     }
   } catch (error: any) {
     log.error('Error handling setActiveTab message:', true, error);
-    if (isBrowserEnv()) sendResponse({ success: false, error: error?.message || 'Unknown error occurred.' });
-    return true; // Indicate asynchronous response
+    return { success: false, error: error?.message || 'Unknown error occurred.' };
   }
 }
 
-// Centralized message handler function - This is only a fallback from the old way of doing things but will continue to work
+// Centralized message handler function
 export async function handleOnMessageForExtension(
   message: any,
-  sender: Runtime.MessageSender,
-  sendResponse: (response?: any) => void
-): Promise<boolean | void>  {
+  sender: Runtime.MessageSender
+): Promise<any> {
   try {
-    if (!browser_ext) return true;
+    if (!browser_ext) return undefined;
 
     switch(message.type) {
       case 'lockdown': {
         await browser_ext.runtime.sendMessage({type: 'stopPricingChecks'});
-        await handleLockDown();  // Correct function call
-        sendResponse({ success: true, message: 'Lockdown initiated.' });
+        await handleLockDown();
         await NotificationService.sendSecurityAlert('YAKKL Wallet locked due to inactivity. \nTo prevent unauthorized transactions, your wallet has been locked and logged out.', {contextMessage: 'Click extension icon to relaunch'});
-        goto(PATH_LOGOUT);
-        return true;  // return type - asynchronous
+
+        // Schedule logout to happen after response is sent
+        setTimeout(() => safeLogout(), 0);
+
+        return { success: true, message: 'Lockdown initiated.' };
       }
       case 'lockdownImminent': {
-        sendResponse({ success: true, message: 'Imminent lockdown notification sent.' });
         await NotificationService.sendSecurityAlert('YAKKL Lockdown Imminent. \nFor your protection, YAKKL will be locked soon.', {contextMessage: 'Use YAKKL before timeout to stop lockdown'});
-        return true;  // return type - asynchronous
+        return { success: true, message: 'Imminent lockdown notification sent.' };
       }
       default: {
-        sendResponse({ success: false, message: 'Unhandled message type' });
-        return true;
+        return undefined; // Let other listeners handle it
       }
     }
-
   } catch (e: any) {
     log.error('Error handling message:', e);
-    if (isBrowserEnv()) sendResponse({ success: false, error: e?.message || 'Unknown error occurred.' });
-    return true; // Indicate asynchronous response
+    return { success: false, error: e?.message || 'Unknown error occurred.' };
   }
 }
 
-// Message handler for starting and stopping price checks. This is primarily sent by active, idle, locked states.
+// Message handler for pricing checks
 export async function handleOnMessageForPricing(
   message: any,
-  sender: Runtime.MessageSender,
-  sendResponse: (response?: any) => void
-): Promise<boolean | void>  {
-  if (!browser_ext) return true;
+  sender: Runtime.MessageSender
+): Promise<any> {
+  if (!browser_ext) return undefined;
+
   try {
     switch(message.type) {
       case 'startPricingChecks': {
         startCheckPrices();
-        sendResponse({ success: true, message: 'Price checks initiated.' });
-        return true;  // return type - asynchronous
+        return { success: true, message: 'Price checks initiated.' };
       }
       case 'stopPricingChecks': {
         stopCheckPrices();
-        sendResponse({ success: true, message: 'Stop price checks initiated.' });
-        return true;  // return type - asynchronous
+        return { success: true, message: 'Stop price checks initiated.' };
+      }
+      default: {
+        return undefined; // Let other listeners handle it
       }
     }
   } catch (e: any) {
     log.error('Error handling message:', e);
-    if (isBrowserEnv()) sendResponse({ success: false, error: e?.message || 'Unknown error occurred.' });
-    return true; // Indicate asynchronous response
+    return { success: false, error: e?.message || 'Unknown error occurred.' };
   }
 }
-
-// function handleButtonClick(event: Event) {
-//   log.info('Button clicked:', event.target);
-// }
-
-// function handlePopupMessage(message: any, sender: any, sendResponse: any) {
-//   log.info('Popup message received:', message);
-// }
 
 export function addUIListeners() {
   if (!browser_ext) return;
   uiListenerManager.add(browser_ext.runtime.onMessage, handleOnActiveTabUIChanged);
   uiListenerManager.add(browser_ext.runtime.onMessage, handleOnMessageForExtension);
   uiListenerManager.add(browser_ext.runtime.onMessage, handleOnMessageForPricing);
+
+  addWindowListeners();
 }
 
 export function removeUIListeners() {
   uiListenerManager.removeAll();
+  removeWindowListeners();
 }

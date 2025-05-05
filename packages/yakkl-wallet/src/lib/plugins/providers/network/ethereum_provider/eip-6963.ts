@@ -60,7 +60,6 @@ class PostMessageDuplexStream extends Duplex {
     this._origin = origin;
     this._onMessageBound = this._onMessage.bind(this);
     window.addEventListener('message', this._onMessageBound, false);
-    log.debug('PostMessageDuplexStream initialized', true, { origin });
   }
 
   _read() {
@@ -69,7 +68,6 @@ class PostMessageDuplexStream extends Duplex {
 
   _write(message: any, _encoding: string, callback: (error?: Error) => void) {
     try {
-      log.debug('PostMessageDuplexStream writing message', true, { message, origin: this._origin });
       if (window && typeof window.postMessage === 'function') {
         window.postMessage(message, this._origin);
         callback();
@@ -86,30 +84,13 @@ class PostMessageDuplexStream extends Duplex {
 
   _onMessage(event: MessageEvent) {
     try {
-      log.debug('PostMessageDuplexStream received message', true, {
-        eventOrigin: event.origin,
-        expectedOrigin: this._origin,
-        data: event.data
-      });
-
       if (event.origin === this._origin && event.data) {
         if (event.data.type && (
           event.data.type === 'YAKKL_REQUEST:EIP6963' ||
           event.data.type === 'YAKKL_RESPONSE:EIP6963' ||
           event.data.type === 'YAKKL_EVENT:EIP6963')) {
-          log.debug('PostMessageDuplexStream pushing valid message ---><--- ', true, {event: event, eventData: event.data});
           this.push(event.data);
-        } else {
-          log.debug('PostMessageDuplexStream ignoring message with invalid type', true, {
-            event: event,
-            type: event.data.type
-          });
         }
-      } else {
-        log.debug('PostMessageDuplexStream ignoring message from wrong origin', true, {
-          received: event.origin,
-          expected: this._origin
-        });
       }
     } catch (error) {
       log.error('Error processing message in PostMessageDuplexStream', true, error);
@@ -118,7 +99,6 @@ class PostMessageDuplexStream extends Duplex {
 
   _destroy(err: Error | null, callback: (error: Error | null) => void) {
     try {
-      log.debug('PostMessageDuplexStream being destroyed', true);
       window.removeEventListener('message', this._onMessageBound, false);
       callback(err);
     } catch (error) {

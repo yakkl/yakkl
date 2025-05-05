@@ -4,53 +4,49 @@ import { browser_ext } from '$lib/common/environment';
 // import { log } from './Logger';
 
 export class SystemWideIdleManager extends IdleManagerBase {
+  private stateChangeListener: ((state: IdleState) => void) | null = null;
+
   constructor(config: IdleConfig) {
-    super({ ...config, width: 'system-wide' });
-    this.handleStateChanged = this.handleStateChanged.bind(this);
-  }
-
-  start(): void {
-    if (!browser_ext) return;
-    
-    try {
-      const detectionIntervalSeconds = Math.floor(this.threshold / 1000);
-
-      browser_ext.idle.setDetectionInterval(detectionIntervalSeconds);
-
-      if (!browser_ext.idle.onStateChanged.hasListener(this.handleStateChanged)) {
-        browser_ext.idle.onStateChanged.addListener(this.handleStateChanged);
-      }
-
-      this.checkCurrentState().catch(error =>
-        this.handleError(error as Error, 'Error checking initial state')
-      );
-    } catch (error) {
-      this.handleError(error as Error, 'Error starting system-wide idle manager');
+    super(config);
+    if (typeof browser_ext === 'undefined') {
+      throw new Error('SystemWideIdleManager must be initialized in background!');
     }
   }
 
-  stop(): void {
-    if (!browser_ext) return;
-    if (browser_ext.idle.onStateChanged.hasListener(this.handleStateChanged)) {
-      browser_ext.idle.onStateChanged.removeListener(this.handleStateChanged);
+  async start(): Promise<void> {
+    if (!this.isLoginVerified) {
+      return;
+    }
+
+    browser_ext.idle.setDetectionInterval(this.threshold);
+    this.stateChangeListener = (state: IdleState) => {
+      this.handleStateChanged(state);
+    };
+    browser_ext.idle.onStateChanged.addListener(this.stateChangeListener);
+  }
+
+  async stop(): Promise<void> {
+    if (this.stateChangeListener) {
+      browser_ext.idle.onStateChanged.removeListener(this.stateChangeListener);
+      this.stateChangeListener = null;
     }
   }
 
-  async checkCurrentState(): Promise<void> {
-    if (!browser_ext) return;
-    try {
-      const detectionIntervalSeconds = Math.floor(this.threshold / 1000);
-      const state = await browser_ext.idle.queryState(detectionIntervalSeconds);
+  async checkCurrentState(): Promise<IdleState> {
+    if (!this.isLoginVerified) {
+      return 'active';
+    }
 
-      // Important: If we're active, ensure any pending lockdown is canceled
-      if (state === 'active' && this.isLockdownInitiated) {
-        this.isLockdownInitiated = false;
-        await browser_ext.alarms.clear("yakkl-lock-alarm");
-      }
+    const state = await browser_ext.idle.queryState(this.threshold);
+    return state === 'idle' ? 'idle' : 'active';
+  }
 
-      await this.handleStateChanged(state as IdleState);
-    } catch (error) {
-      this.handleError(error as Error, 'Error checking current state');
+  setLoginVerified(verified: boolean): void {
+    this.isLoginVerified = verified;
+    if (verified) {
+      this.start();
+    } else {
+      this.stop();
     }
   }
 }

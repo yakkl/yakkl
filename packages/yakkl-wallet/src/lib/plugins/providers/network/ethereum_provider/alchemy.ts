@@ -7,7 +7,9 @@ import { getYakklCurrentlySelected } from '$lib/common/stores';
 function getAlchemyApiKey(chainId: string = '0x1'): string {
   // In a real implementation, this would get the API key from environment variables
   // or a secure storage mechanism based on the chain ID
-  const apiKey = import.meta.env.VITE_ALCHEMY_API_KEY_PROD || process.env.VITE_ALCHEMY_API_KEY_PROD || '';
+  const apiKey = process.env.ALCHEMY_API_KEY_PROD ||
+              process.env.VITE_ALCHEMY_API_KEY_PROD ||
+              import.meta.env.VITE_ALCHEMY_API_KEY_PROD;
 
   if (!apiKey) {
     log.warn('No Alchemy API key found', false);
@@ -119,9 +121,6 @@ const PERMISSION_REQUIRED_METHODS = [
   'eth_signTransaction',
   'eth_sign',
   'personal_sign',
-  'eth_signTypedData',
-  'eth_signTypedData_v1',
-  'eth_signTypedData_v3',
   'eth_signTypedData_v4',
   'wallet_addEthereumChain',
   'wallet_switchEthereumChain',
@@ -168,13 +167,6 @@ class AlchemyProvider extends EventEmitter {
 
       // Emit connect event
       this.emit('connect', { chainId: this.chainId });
-
-      log.debug('Alchemy provider initialized', false, {
-        chainId: this.chainId,
-        networkVersion: this.networkVersion,
-        accounts: this.accounts,
-        isConnected: this.isConnected
-      });
     } catch (error) {
       log.error('Error initializing Alchemy provider', false, error);
       this.isConnected = false;
@@ -403,13 +395,6 @@ class AlchemyProvider extends EventEmitter {
   // Generic request method
   public async request(args: { method: string; params?: any[] }): Promise<any> {
     const { method, params = [] } = args;
-
-    log.debug('Alchemy provider request', false, {
-      method,
-      params,
-      requiresPermission: this.requiresPermission(method)
-    });
-
     try {
       switch (method) {
         case 'eth_chainId':
@@ -484,7 +469,8 @@ class AlchemyProvider extends EventEmitter {
         default:
           // For other methods, try to make a direct request to Alchemy
           try {
-            return await makeAlchemyRequest(method, params, this.chainId);
+            const result = await makeAlchemyRequest(method, params, this.chainId);
+            return result;
           } catch (error) {
             throw {
               code: EIP1193_ERRORS.UNSUPPORTED_METHOD.code,
