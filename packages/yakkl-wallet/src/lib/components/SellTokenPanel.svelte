@@ -10,7 +10,7 @@
   import ToggleSwitch from './ToggleSwitch.svelte';
   import { isUsdModeStore } from '$lib/common/stores/uiStateStore';
   import NumericInput from './NumericInput.svelte';
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
 
   interface Props {
     disabled?: boolean;

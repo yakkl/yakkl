@@ -18,7 +18,7 @@
 	import { getUserId, isEncryptedData } from '$lib/common';
   import { dateString } from '$lib/common/datetime';
 	import { sendNotificationMessage } from '$lib/common/notifications';
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
 	import { updateTokenPrices } from '$lib/common/tokenPriceManager';
 
 	// import RegistrationOptionModal from '$lib/components/RegistrationOptionModal.svelte';

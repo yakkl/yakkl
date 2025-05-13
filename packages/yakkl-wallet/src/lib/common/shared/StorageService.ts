@@ -1,7 +1,7 @@
 // $lib/shared/StorageService.ts
 import type { Browser } from 'webextension-polyfill';
 import { BrowserAccessor } from './BrowserAccessor';
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 /**
  * Service for cross-context storage operations

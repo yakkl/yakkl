@@ -4,7 +4,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { YAKKL_SPLASH, NUM_OF_SPLASH_IMAGES } from '$lib/common/constants';
   import { wait } from '$lib/common/utils';
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
   import type { Runtime } from 'webextension-polyfill';
 
   type RuntimePort = Runtime.Port;
@@ -143,7 +143,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { YAKKL_SPLASH, NUM_OF_SPLASH_IMAGES } from '$lib/common/constants';
   import { wait } from '$lib/common/utils';
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
   import type { Runtime } from 'webextension-polyfill';
 
   type RuntimePort = Runtime.Port;
@@ -164,7 +164,7 @@
       port = browser_ext.runtime.connect({name: YAKKL_SPLASH});
       if (port) {
         log.debug("YAKKL: Splash: Port connected.");
-        
+
         isPortDisconnected = false;
 
         port.onMessage.addListener((m: any) => {
@@ -232,7 +232,7 @@
   import {onDestroy, onMount} from 'svelte';
   import { YAKKL_SPLASH, NUM_OF_SPLASH_IMAGES } from '$lib/common/constants';
 	import { wait } from '$lib/common/utils';
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
 
   // Splash size should be maximum default browser extension size.
   // Note: May want to look into providing a communications window for the user to see what is going on if we need to provide them with an important message.

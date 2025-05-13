@@ -8,7 +8,7 @@
 	import { removeListeners } from '$lib/common/listeners';
 	import { setLocks } from '$lib/common/locks';
 	import { resetTokenDataStoreValues } from '$lib/common/resetTokenDataStoreValues';
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
 
   // Reactive State
   let yakklCurrentlySelected: YakklCurrentlySelected | null = $state(null);

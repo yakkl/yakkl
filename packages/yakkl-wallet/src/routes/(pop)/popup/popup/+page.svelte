@@ -3,7 +3,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { YAKKL_SPLASH, NUM_OF_SPLASH_IMAGES } from '$lib/common/constants';
   import { wait } from '$lib/common/utils';
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
   import type { Runtime } from 'webextension-polyfill';
 
   type RuntimePort = Runtime.Port;

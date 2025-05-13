@@ -3,7 +3,7 @@
 	import { PATH_LEGAL, PATH_LOGIN, PATH_REGISTER } from "$lib/common";
   import { getSettings } from "$lib/common/stores";
 	import { onMount } from "svelte";
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
 
   onMount(async () => {
     try {

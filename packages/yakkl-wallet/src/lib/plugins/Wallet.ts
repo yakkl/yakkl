@@ -22,7 +22,7 @@ import { writable } from 'svelte/store';
 import type { GasEstimate, HistoricalGasData, GasPrediction } from '$lib/common/gas-types';
 import type { Token } from '$plugins/Token';
 import { TokenService } from './blockchains/evm/TokenService';
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { browserSvelte, browser_ext } from '$lib/common/environment';
 
 export const walletStore = writable<Wallet | null>(null);

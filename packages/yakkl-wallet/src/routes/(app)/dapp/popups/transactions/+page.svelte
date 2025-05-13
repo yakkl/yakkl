@@ -1,447 +1,534 @@
 <script lang="ts">
   import { browser_ext, browserSvelte } from '$lib/common/environment';
-  import { getYakklCurrentlySelected, yakklMiscStore, yakklDappConnectRequestStore, getYakklConnectedDomains, getYakklAccounts } from '$lib/common/stores';
-  import { YAKKL_DAPP, ETH_BASE_SCA_GAS_UNITS, ETH_BASE_EOA_GAS_UNITS } from '$lib/common/constants';
-  import { onMount, onDestroy } from 'svelte';
-  import { deepCopy } from '$lib/utilities/utilities';
+  import { getYakklCurrentlySelected, getMiscStore, yakklDappConnectRequestStore, getYakklConnectedDomains, getYakklAccounts } from '$lib/common/stores';
+  import { DEFAULT_TITLE, YAKKL_DAPP, ETH_BASE_SCA_GAS_UNITS, ETH_BASE_EOA_GAS_UNITS } from '$lib/common/constants';
+  import { onMount } from 'svelte';
+  import { page } from '$app/state';
+  import { type AccountData, type BigNumberish, type TransactionRequest, type TransactionResponse, type YakklAccount, type YakklCurrentlySelected, type JsonRpcResponse, type SessionInfo } from '$lib/common';
   import { decryptData } from '$lib/common/encryption';
-  import { wait } from '$lib/common/utils';
-	import { Spinner } from 'flowbite-svelte';
-	import { isEncryptedData, type AccountData, type BigNumberish, type TransactionRequest, type TransactionResponse, type YakklAccount, type YakklCurrentlySelected } from '$lib/common';
+  import { isEncryptedData } from '$lib/common/misc';
   import WalletManager from '$lib/plugins/WalletManager';
   import type { Wallet } from '$lib/plugins/Wallet';
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
+  import { sessionToken, verifySessionToken } from '$lib/common/auth/session';
+  import type { BackgroundPendingRequest } from '$lib/extensions/chrome/background';
+  import Confirmation from '$lib/components/Confirmation.svelte';
+  import Warning from '$lib/components/Warning.svelte';
+  import Failed from '$lib/components/Failed.svelte';
+  import { createPortManagerWithStream, PortManagerWithStream } from '$lib/plugins/PortManagerWithStream';
+  import type { PortDuplexStream } from '$lib/plugins/PortStreamManager';
+  import { safeLogout } from '$lib/common/safeNavigate';
+	import { formatEther } from '$lib/utilities/utilities';
+	import PincodeVerify from '$lib/components/PincodeVerify.svelte';
 
-  import type { Runtime } from 'webextension-polyfill';
-  import { verify } from '$lib/common/security';
-	import { page } from '$app/state';
-
-  type RuntimePort = Runtime.Port | undefined;
-
-  // NOTE: Need to transition to using new format for dapp connections. WIP=
-
+  // State management with Svelte 5 syntax
   let currentlySelected: YakklCurrentlySelected;
   let wallet: Wallet;
+  let yakklMiscStore: string;
 
   let showConfirm = $state(false);
   let showSuccess = $state(false);
   let showFailure = $state(false);
   let showSpinner = $state(false);
+  let showPincode = $state(false);
   let errorValue = $state('No domain/site name was found. Access to YAKKL® is denied.');
-  let port: RuntimePort;
+
   let chainId: number;
   let domain: string = $state('');
   let domainLogo: string = $state('');
   let domainTitle: string = $state('');
-  let requestData: any;
+  let title: string = $state(DEFAULT_TITLE);
   let method: string;
-  let requestId = $yakklDappConnectRequestStore;
-  let userName: string = $state('');
-  let password: string = $state('');
-  let message;  // This gets passed letting the user know what the intent is
-  let context;
-  let smartContract = false;
-  let jsonKeys: (keyof TransactionRequest)[]=$state([]);
-  // let txTransactions = [];
-  let tx: TransactionResponse; // returned transaction
-  let txGasLimitIncrease = 0;
-  let gasLimit: BigNumberish = 0n;
+  let requestId: string | null;
+  let message: string = $state('');
+  let pinCode: string = $state('');
 
-  let transaction: TransactionRequest = $state();
-  // = {  // EIP-1559
-  //   from: '', // Hex
-  //   to: '', // Hex
-  //   value: '', // Hex
-  //   data: '', // Hex - optional - don't forget to add (68 * byte size of data) to gasLimit
-  //   gasLimit: '', // Hex
-  //   maxFeePerGas: '', // Hex
-  //   maxPriorityFeePerGas: '', // Hex
-  //   type: 2, // EIP-1559
-  //   nonce: -1,  // Lets the provider set the nonce
-  // };
+  let transaction: TransactionRequest = $state({} as TransactionRequest);
+  let transactionDisplay: any = $state({});
+  let gasLimit: BigNumberish = $state(0n);
+  let addressApproved = $state(false);
+  let tx: TransactionResponse | null = $state(null);
 
-  let transactionValue: TransactionRequest = $state(); // Used to display on UI
-  let addressApproved = false;
-  let addressToCheck = '';
+  let portManager: PortManagerWithStream | null = null;
+  let stream: PortDuplexStream | null = null;
 
-
-  try {
-    if (browserSvelte) {
-      requestId = page.url.searchParams.get('requestId') ?? '';
-      $yakklDappConnectRequestStore = requestId;
-    }
-  } catch(e) {
-    log.error(e);
-  }
-
-  if (!requestId) requestId = '';
-
-  onMount(async () => {
+  // Extract parameters from URL
+  if (browserSvelte) {
     try {
-      if (browserSvelte && browser_ext) {
-        currentlySelected = await getYakklCurrentlySelected();
-        chainId = currentlySelected.shortcuts.chainId as number; // Maybe we will make hex calls consistent ;)
-        port = browser_ext.runtime.connect({name: YAKKL_DAPP});
+      requestId = page.url.searchParams.get('requestId');
+      method = page.url.searchParams.get('method') || 'eth_sendTransaction';
+      $yakklDappConnectRequestStore = requestId as string;
 
-        if (port) {
-          port.onMessage.addListener(async(event: any) => {
-            if (!event || !event?.method || !event?.data) return;
-            method = event.method;
-            requestData = event.data;
-
-            if (event.method === 'get_params') {
-              domainTitle = requestData?.data?.metaDataParams?.title ?? '';
-              domain = requestData?.data?.metaDataParams?.domain ?? '';
-              // Get favicon from URL parameters first, fall back to metadata
-              const url = new URL(window.location.href);
-              const favicon = url.searchParams.get('favicon');
-              domainLogo = favicon || (requestData?.data?.metaDataParams?.icon ?? '/images/logoBullLock48x48.png');
-              message = requestData?.data?.metaDataParams?.message ?? 'Nothing was passed in explaining the intent of this approval. Be mindful!';
-              context = requestData?.data?.metaDataParams?.context ?? 'transactions';
-              transaction = (requestData?.data?.metaDataParams?.transaction[0] ?? {}) as TransactionRequest;
-
-              if (transaction) {
-                addressToCheck = transaction?.from as string; // This only has one transaction so the 'from' is all that is needed
-                transactionValue = deepCopy(transaction); // This value is used to display wei or even currency amount to UI
-                jsonKeys = Object.keys(transaction) as (keyof TransactionRequest)[];
-
-                // for (const item of jsonKeys) {
-                 //console.log('Transaction key pair', item);
-                  // if (item !== 'from' && item !== 'to' && item !== 'data' && item !== 'result') {
-                    // if (isHexString(transactionValue[item])) {
-                    // }
-                  // }
-                // };
-
-                if (!requestId) requestId = requestData.id;
-                let domains = [];
-                domains = await getYakklConnectedDomains();
-
-                for (const item of domains) {
-                  if (item.addresses.find(address => address.address === addressToCheck)) {
-                    addressApproved = true;
-                    break;
-                  }
-                };
-
-                if (!addressApproved) {
-                  errorValue = 'The address of ' + addressToCheck + ' is not showing approved, so this transaction will not be allowed to go through. Rejected';
-                  showFailure = true;
-                }
-              }
-            }
-          });
-        }
-        if (port) {
-          port.postMessage({method: 'get_params', id: requestId}); // request is not currently used but we may want to later
-
-          // Now setup the wallet
-          wallet = WalletManager.getInstance(['Alchemy'], ['Ethereum'], currentlySelected.shortcuts.chainId ?? 1, import.meta.env.VITE_ALCHEMY_API_KEY_PROD);
-        }
+      if (!requestId) {
+        errorValue = 'No request ID was found. Access to YAKKL® is denied.';
+        showFailure = true;
       }
     } catch(e) {
-      log.error(e);
-    }
-  });
-
-  onDestroy( () => {
-    if (browserSvelte) {
-      if (port) {
-        port.disconnect();
-        // port.onMessage.removeListener();
-        port = undefined;
-      }
-      showSpinner = false;
-    }
-  });
-
-  async function handleReject() {
-    try {
-      showConfirm = false;
-      showFailure = false;
-      showSuccess = false;
-    } catch(e) {
-      log.error(e);
-    } finally {
-      await bail();
-    }
-  }
-
-  async function bail() {
-    try {
-      if (port)
-        port.postMessage({method: method, response: {type: 'YAKKL_RESPONSE', data: {name: 'ProviderRPCError', code: 4001, message: 'User rejected the request.'}}, requestData: requestData});
-    } catch(e) {
-      log.error(e);
-    } finally {
-      if (browserSvelte) {
-        await close();
-      }
-    }
-  }
-
-  async function close() {
-    await wait(1000);
-    if (port) {
-      port.disconnect();
-      // port.onMessage.removeListener();
-      port = undefined;
-    }
-    showSpinner = false;
-    window.close();
-  }
-
-  async function handleApprove() {
-    try {
-      showConfirm = false;
-      if (!userName || !password || !userName.trim() || !password.trim()) bail();
-
-      let profile = await verify(userName.toLowerCase().trim().replace('.nfs.id', '')+'.nfs.id'+password);
-      if (!profile) bail();
-
-      showSpinner = true;
-
-      let accountFrom = transaction.from;
-      let accounts = [];
-      accounts = await getYakklAccounts();
-      if (!accounts) bail();
-
-      const accountFound = accounts.find(element => { element.address === accountFrom});
-      if (!accountFound) bail();
-
-      const account = accountFound as YakklAccount;
-      if (isEncryptedData(account.data)) {
-        await decryptData(account.data, $yakklMiscStore).then(result => {
-          account.data = result as AccountData;
-        });
-      }
-
-      if (!(account.data as AccountData).privateKey) bail();
-
-      // const privateKey = (account.data as AccountData).privateKey;
-
-      const blockchain = wallet.getBlockchain();
-          if (blockchain.isSmartContractSupported()) { // TODO: Look into adding an additional block check for other blockchains that support smart contracts
-            smartContract = await blockchain.isSmartContract(transaction.to as string) ?? false;
-          } else {
-            smartContract = false;
-          }
-
-      // Ethereum specific
-      gasLimit = smartContract === true ? ETH_BASE_SCA_GAS_UNITS : ETH_BASE_EOA_GAS_UNITS;
-
-      if (transaction.data) {
-        handleIncreaseGasLimit(transaction.data.length * 68); // 68 may need to be more dynamic in the future. This is for EOA transactions that have hex data
-      } else {
-        gasLimit = smartContract === true ? ETH_BASE_SCA_GAS_UNITS : ETH_BASE_EOA_GAS_UNITS;
-        txGasLimitIncrease = 0;
-      }
-
-      if (currentlySelected?.shortcuts?.gasLimit)
-        gasLimit = currentlySelected?.shortcuts?.gasLimit;
-      // May want to do the same as we did in send transaction on increasing gasLimit if the data field contains data OR should we let the dApp specify the gasLimit?
-
-      transaction.gasLimit = gasLimit; // 21000 - EOA gasLimit and not SCA
-      transaction.nonce = -1;
-      transaction.type = 2; // EIP-1559
-
-      // TODO: Check the transaction object to see if it has the correct fields and values
-
-      tx = await wallet.sendTransaction(transaction);
-      if (tx) {
-        tx.wait().then(async () => {
-          await handleClose();
-        }).catch((e: any) => {
-          errorValue = `${e}`;
-          showFailure = true;
-          showSpinner = false;
-        });
-      } else {
-        throw 'No transaction was returned. Something went wrong.';
-      }
-    } catch(e) {
-      log.error(e);
-      errorValue = e as string;
+      log.error('Error parsing URL parameters:', false, e);
+      errorValue = 'Invalid request parameters. Access to YAKKL® is denied.';
       showFailure = true;
     }
   }
 
-  function handleIncreaseGasLimit(increase: number) {
+  // Process incoming message from background
+  async function onMessageListener(event: any) {
     try {
-      if (increase > 0) {
-        txGasLimitIncrease = increase;
-        gasLimit = gasLimit as bigint + BigInt(txGasLimitIncrease);
+      if (event.method === 'get_params') {
+        const request = event.result as BackgroundPendingRequest;
+
+        if (!request?.data?.metaData) {
+          await handleReject('Invalid request data. Access to YAKKL® is denied.');
+          return;
+        }
+
+        const requestData = request.data;
+        const metaData = requestData.metaData.metaData;
+
+        // Extract domain information
+        domainTitle = metaData.title || '';
+        domain = metaData.domain || '';
+        domainLogo = metaData.icon || '/images/failIcon48x48.png';
+        message = metaData.message || 'Transaction request from ' + domain;
+        title = domainTitle || domain || DEFAULT_TITLE;
+
+        // Process transaction data
+        if (requestData.params && requestData.params.length > 0) {
+          transaction = requestData.params[0] as TransactionRequest;
+
+          // Format transaction for display
+          await formatTransactionForDisplay();
+
+          // Verify the address is connected
+          await verifyAddressConnection();
+        } else {
+          await handleReject('No transaction data found. Access to YAKKL® is denied.');
+        }
       }
     } catch(e) {
-      log.error(e);
+      log.error('Error processing message:', false, e);
+      await handleReject('An error occurred while processing the request.');
     }
   }
 
-  async function handleClose() {
-    try {
-      if (tx?.hash) {
-        if (port) {
-          port.postMessage({id: requestId, method: 'eth_sendTransaction', type: 'YAKKL_RESPONSE:EIP6963', result: tx.hash});
+  // Format transaction for user-friendly display
+  async function formatTransactionForDisplay() {
+    transactionDisplay = {
+      from: transaction.from,
+      to: transaction.to,
+      value: transaction.quantity ? formatEther(transaction.quantity.toString()) + ' ETH' : '0 ETH',
+      data: transaction.data ? `Data: ${(transaction.data as string).slice(0, 10)}...` : 'No data',
+      gasLimit: 'Will be calculated',
+      estimatedFee: 'Calculating...'
+    };
+
+    // Estimate gas if not provided
+    if (!transaction.gasLimit) {
+      const blockchain = wallet?.getBlockchain();
+      if (blockchain?.isSmartContractSupported()) {
+        const isSmartContract = await blockchain.isSmartContract(transaction.to as string);
+        gasLimit = isSmartContract ? ETH_BASE_SCA_GAS_UNITS : ETH_BASE_EOA_GAS_UNITS;
+
+        // Add extra gas for data
+        if (transaction.data) {
+          const dataLength = (transaction.data as string).length - 2; // Remove '0x'
+          gasLimit = BigInt(gasLimit) + BigInt(dataLength * 68);
+        }
+      } else {
+        gasLimit = ETH_BASE_EOA_GAS_UNITS;
+      }
+
+      // Check for user override
+      if (currentlySelected?.shortcuts?.gasLimit) {
+        gasLimit = currentlySelected.shortcuts.gasLimit;
+      }
+
+      transactionDisplay.gasLimit = gasLimit.toString();
+    }
+  }
+
+  // Verify the sending address is connected to this domain
+  async function verifyAddressConnection() {
+    const addressToCheck = transaction.from as string;
+    const connectedDomains = await getYakklConnectedDomains();
+
+    for (const domainInfo of connectedDomains) {
+      if (domainInfo.domain === domain) {
+        const connectedAddress = domainInfo.addresses.find(addr =>
+          addr.address.toLowerCase() === addressToCheck.toLowerCase()
+        );
+
+        if (connectedAddress) {
+          addressApproved = true;
+          break;
         }
       }
-      showSuccess = false;
+    }
+
+    if (!addressApproved) {
+      errorValue = `The address ${addressToCheck} is not connected to ${domain}. Please connect the address first.`;
+      showFailure = true;
+    }
+  }
+
+  onMount(async () => {
+    try {
       if (browserSvelte) {
-        await wait(1000);
-        if (port) {
-          port.disconnect();
-          // port.onMessage.removeListener();
-          port = undefined;
+        currentlySelected = await getYakklCurrentlySelected();
+        yakklMiscStore = getMiscStore();
+        chainId = currentlySelected.shortcuts.chainId as number;
+
+        // Initialize wallet
+        wallet = WalletManager.getInstance(
+          ['Alchemy'],
+          ['Ethereum'],
+          chainId,
+          import.meta.env.VITE_ALCHEMY_API_KEY_PROD
+        );
+
+        // Request session port
+        const sessionInfo = await browser_ext.runtime.sendMessage({
+          type: 'REQUEST_SESSION_PORT',
+          requestId
+        }) as SessionInfo;
+
+        if (!sessionInfo?.success) {
+          errorValue = 'Failed to establish secure connection. Please try again.';
+          showFailure = true;
+          return;
         }
-        showSpinner = false;
-        window.close();
+
+        // Create port connection
+        portManager = createPortManagerWithStream(sessionInfo.portName || YAKKL_DAPP);
+        portManager.setRequestId(requestId);
+
+        const success = await portManager.createPort();
+        if (!success) {
+          errorValue = 'Failed to connect to background service.';
+          showFailure = true;
+          return;
+        }
+
+        stream = portManager.getStream();
+        if (!stream) {
+          errorValue = 'Communication stream unavailable.';
+          showFailure = true;
+          return;
+        }
+
+        // Set up message listener and request params
+        stream.on('data', onMessageListener);
+        stream.write({ method: 'get_params', id: requestId });
       }
     } catch(e) {
-      log.error(e);
+      log.error('Initialization error:', false, e);
+      errorValue = 'Failed to initialize transaction approval.';
+      showFailure = true;
+    }
+  });
+
+  // Handle user rejection
+  async function handleReject(message: string = 'User rejected the request.') {
+    try {
+      showConfirm = false;
+      showFailure = false;
+      showSuccess = false;
+
+      if (stream) {
+        stream.write({
+          type: 'YAKKL_RESPONSE:EIP6963',
+          jsonrpc: '2.0',
+          id: requestId,
+          error: {
+            code: 4001,
+            message
+          }
+        });
+      }
+    } catch(e) {
+      log.error('Error sending rejection:', false, e);
+    } finally {
+      await close();
+    }
+  }
+
+  // Handle transaction approval
+  async function handleApprove() {
+    try {
+      showConfirm = false;
+
+      // Verify session token
+      if (!verifySessionToken($sessionToken)) {
+        await handleReject("Session expired. Please log in again.");
+        return;
+      }
+
+      // // Verify credentials
+      // if (!pinCode) {
+      //   await handleReject("Please provide your pin code.");
+      //   return;
+      // }
+
+      // const profile = await verify(userName.toLowerCase().trim().replace('.nfs.id', '') + '.nfs.id' + password);
+      // if (!profile) {
+      //   await handleReject("Invalid credentials.");
+      //   return;
+      // }
+
+      showSpinner = true;
+
+      // Get the account's private key
+      const accounts = await getYakklAccounts();
+      const account = accounts.find(acc =>
+        acc.address.toLowerCase() === transaction.from?.toLowerCase()
+      ) as YakklAccount;
+
+      if (!account) {
+        await handleReject("Account not found.");
+        return;
+      }
+
+      // Decrypt account data if needed
+      if (isEncryptedData(account.data)) {
+        account.data = await decryptData(account.data, yakklMiscStore) as AccountData;
+      }
+
+      if (!(account.data as AccountData).privateKey) {
+        await handleReject("Account key not available.");
+        return;
+      }
+
+      // Prepare transaction
+      transaction.gasLimit = gasLimit;
+      transaction.nonce = -1; // Let provider set the nonce
+      transaction.type = 2; // EIP-1559
+      transaction.chainId = chainId;
+
+      // Send transaction
+      tx = await wallet.sendTransaction(transaction);
+
+      if (tx?.hash) {
+        // Send successful response
+        if (stream) {
+          const response: JsonRpcResponse = {
+            type: 'YAKKL_RESPONSE:EIP6963',
+            jsonrpc: '2.0',
+            id: requestId,
+            result: tx.hash
+          };
+          stream.write(response);
+        }
+
+        // Wait for confirmation
+        tx.wait().then(async () => {
+          showSuccess = true;
+          setTimeout(async () => {
+            await close();
+          }, 2000);
+        }).catch((error: any) => {
+          errorValue = `Transaction failed: ${error.message}`;
+          showFailure = true;
+          showSpinner = false;
+        });
+      } else {
+        throw new Error('No transaction hash received');
+      }
+    } catch(e) {
+      log.error('Transaction error:', false, e);
+      errorValue = e instanceof Error ? e.message : 'Transaction failed';
+      showFailure = true;
+      showSpinner = false;
+    }
+  }
+
+  // Close the window
+  async function close() {
+    if (browserSvelte) {
+      if (portManager) {
+        try {
+          await portManager.waitForIdle(1500);
+        } catch (e) {
+          log.warn('Port did not go idle in time', false, e);
+        }
+        portManager.disconnect();
+      }
+      showSpinner = false;
+      safeLogout();
     }
   }
 
   function handleConfirm() {
     showConfirm = true;
   }
-
 </script>
 
 <svelte:head>
-	<title>YAKKL® Smart Wallet</title>
+  <title>{title}</title>
 </svelte:head>
 
-<div class="modal" class:modal-open={showConfirm}>
+<Warning bind:show={showFailure} title="Error" value={errorValue} />
+<Failed bind:show={showFailure} title="Failed!" content={errorValue} handleReject={handleReject}/>
+<Confirmation bind:show={showConfirm} title="Approve Transaction" message="Are you sure you want to send this transaction? This action cannot be undone." onConfirm={handleApprove}/>
+<PincodeVerify bind:show={showPincode} onVerified={handleApprove}/>
+
+<!-- <div class="modal" class:modal-open={showConfirm}>
   <div class="modal-box relative">
     <div class="border border-base-content rounded-md m-2 text-center p-1">
-      <h1 class="font-bold">Approval Request - Confirmation</h1>
-      <p class="pt-4">This approves the transaction <span class="font-bold underline">{domain}</span> wishes to send via YAKKL®! There is NO REFUND/BLOCK/CANCEL for this transaction after you approve!! If you are NOT 100% certain about this request, then REJECT. If uncertain, research and/or verify more, and then try again. Do you wish to continue?</p>
+      <h1 class="font-bold">Transaction Approval</h1>
+      <p class="pt-4">Please enter your pin code to approve this transaction to <span class="font-bold underline">{domain}</span>.</p>
     </div>
-    <div class="form-control w-[22rem]">
-      <input id="userName"
-        type="text"
+    <div class="form-control w-full">
+      <input
+        type="password"
+        placeholder="Pin code"
         class="input input-bordered input-primary w-full"
-        placeholder="Username" autocomplete="off" bind:value="{userName}" required />
-    </div>
-    <div class="form-control w-[22rem]">
-      <input id="password" type="password"
-        class="input input-bordered input-primary w-full mt-2"
-        placeholder="Password" autocomplete="off" bind:value="{password}" required />
+        bind:value={pinCode}
+        autocomplete="off"
+        required
+      />
     </div>
     <div class="modal-action">
-      <button class="btn" onclick={handleReject}>Reject</button>
-      <button class="btn" onclick={handleApprove}>Yes, Approved</button>
+      <button class="btn" onclick={() => { showConfirm = false; }}>Reject</button>
+      <button class="btn btn-primary" onclick={handleApprove}>Approve</button>
     </div>
   </div>
-</div>
+</div> -->
 
 <div class="modal" class:modal-open={showSuccess}>
   <div class="modal-box relative">
-    <h3 class="text-lg font-bold">Transaction for {domain} - Success!</h3>
-    <p class="py-4">Success! The transaction you approved has been submitted to the BLOCKCHAIN! YAKKL® only assisted in helping you sign the transaction with your private key. The Source of Truth for this transaction is the {domain} DAPP! Click close.</p>
+    <h3 class="text-lg font-bold">Transaction Submitted!</h3>
+    <p class="py-4">Your transaction has been submitted to the blockchain.</p>
+    <p class="text-sm">Transaction Hash: {tx?.hash}</p>
     <div class="modal-action">
-      <button class="btn" onclick={handleClose}>Close</button>
+      <button class="btn" onclick={close}>Close</button>
     </div>
   </div>
 </div>
 
-<div class="modal" class:modal-open={showFailure}>
-  <div class="modal-box relative">
-    <h3 class="text-lg font-bold">Failed!</h3>
-    <p class="py-4">{errorValue}</p>
-    <div class="modal-action">
-      <button class="btn" onclick={handleReject}>Close</button>
-    </div>
-  </div>
-</div>
-
-{#await transaction?.from}
-<div class="w-[96%] text-center justify-center m-2 flex flex-col absolute top-[250px]">
-  <div class="text-primary-content text-2xl font-bold flex flex-col">
-    {domainTitle ?? '/images/logoBullLock48x48.png'}
-    <br>
-    <div class="text-primary-content text-2xl font-bold flex flex-col mt-4">Wants to get your approval for the transaction:</div>
-  </div>
-  <div class="text-primary-content text-2xl font-bold flex flex-col mt-3">
-    Connect with YAKKL®
-  </div>
-  <div class="justify-center mt-5">
-    <div class="rounded-badge inline-flex w-fit p-2 bg-secondary text-base-content font-semibold">
-      <div class="flex flex-row w-10 h-10">
-        <img crossorigin="anonymous" src={domainLogo} alt="Dapp logo" />
+{#if !showConfirm && !showSuccess && !showFailure}
+<div class="flex flex-col h-full max-h-screen overflow-hidden">
+  <!-- Header -->
+  <div class="p-4 border-b border-base-300 flex-shrink-0">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2 min-w-0">
+        <img crossorigin="anonymous" src={domainLogo} alt="Dapp logo" class="w-8 h-8 rounded-full flex-shrink-0" />
+        <span class="font-semibold truncate">{domainTitle || domain}</span>
       </div>
-      <div class="animate-pulse flex flex-row">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-8 h-8 fill-gray-100">
-          <path fill-rule="evenodd" d="M15.97 2.47a.75.75 0 011.06 0l4.5 4.5a.75.75 0 010 1.06l-4.5 4.5a.75.75 0 11-1.06-1.06l3.22-3.22H7.5a.75.75 0 010-1.5h11.69l-3.22-3.22a.75.75 0 010-1.06zm-7.94 9a.75.75 0 010 1.06l-3.22 3.22H16.5a.75.75 0 010 1.5H4.81l3.22 3.22a.75.75 0 11-1.06 1.06l-4.5-4.5a.75.75 0 010-1.06l4.5-4.5a.75.75 0 011.06 0z" clip-rule="evenodd" />
-        </svg>
-      </div>
-      <div class="flex flex-row w-10 h-10">
-        <img src="/images/logoBullFav48x48.png" alt="yakkl logo" />
-      </div>
-    </div>
-  </div>
-</div>
-{:then _}
-<div class="w-[96%] text-center justify-center m-2 flex flex-col absolute top-[225px]">
-  <div class="text-primary-content text-2xl font-bold flex flex-col">
-    {domainTitle ?? ''}
-    <br>
-    <div class="text-primary-content text-2xl font-bold flex flex-col mt-4">Wants to get your approval for the transaction:</div>
-  </div>
-  <div class="text-primary-content text-2xl font-bold flex flex-col mt-3">
-    Connect with YAKKL®
-  </div>
-  <div class="justify-center mt-5">
-    <div class="rounded-badge inline-flex w-fit p-2 bg-secondary text-base-content font-semibold">
-      <div class="flex flex-row w-10 h-10">
-        <img src={domainLogo} alt="Dapp logo" />
-      </div>
-      <div class="animate-pulse flex flex-row">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-8 h-8 fill-gray-100">
-          <path fill-rule="evenodd" d="M15.97 2.47a.75.75 0 011.06 0l4.5 4.5a.75.75 0 010 1.06l-4.5 4.5a.75.75 0 11-1.06-1.06l3.22-3.22H7.5a.75.75 0 010-1.5h11.69l-3.22-3.22a.75.75 0 010-1.06zm-7.94 9a.75.75 0 010 1.06l-3.22 3.22H16.5a.75.75 0 010 1.5H4.81l3.22 3.22a.75.75 0 11-1.06 1.06l-4.5-4.5a.75.75 0 010-1.06l4.5-4.5a.75.75 0 011.06 0z" clip-rule="evenodd" />
-        </svg>
-      </div>
-      <div class="flex flex-row w-10 h-10">
-        <img src="/images/logoBullFav48x48.png" alt="yakkl logo" />
-      </div>
-    </div>
-  </div>
-
-  <div class="text-left mt-4 border border-gray-900 bg-black text-base-content rounded-md">
-    <div class="m-2">
-      <h4>Transaction requesting permission to execute: PLEASE be mindful and know what you are doing. There is no cancel or return option! Be 100% sure or REJECT this transaction and research more before trying again.</h4>
-      <div class="mt-1">
-        {#each jsonKeys as key}
-        <p>{key}: <span class="font-bold">{transactionValue[key]}</span></p>
-        {/each}
-      </div>
-    </div>
-  </div>
-
-  <div class="my-4">
-    <div class="flex space-x-2 justify-center">
-      {#if !showSpinner}
       <button
-        onclick={handleReject}
-        class="btn-sm btn-accent uppercase rounded-full"
-        aria-label="Cancel">
-        Reject
+        onclick={() => handleReject()}
+        class="btn btn-ghost btn-sm flex-shrink-0"
+        aria-label="Close">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+        </svg>
       </button>
+    </div>
+  </div>
 
-      <button
-        type="submit"
-        id="recover"
-        onclick={handleConfirm}
-        class="btn-sm btn-primary uppercase rounded-full ml-2"
-        aria-label="Confirm">
-        Approve
-      </button>
-      {:else}
-      <Spinner class="w-10 h-10" />
-      <h3 class="mt-2 font-bold animate-pulse">Processing - please wait...</h3>
+  <!-- Content -->
+  <div class="flex-1 p-6 overflow-hidden flex flex-col">
+    <div class="text-center mb-4 flex-shrink-0">
+      <h2 class="text-xl font-bold mb-2">Transaction Request</h2>
+      <p class="text-base-content/80">{message}</p>
+    </div>
+
+    <div class="overflow-y-auto flex-1 min-h-0 mb-4">
+      <div class="bg-base-200 rounded-lg p-4 space-y-3">
+        <div class="flex justify-between items-center border-b border-base-300 pb-2">
+          <span class="font-medium">From:</span>
+          <span class="font-mono text-sm">{transactionDisplay.from}</span>
+        </div>
+        <div class="flex justify-between items-center border-b border-base-300 pb-2">
+          <span class="font-medium">To:</span>
+          <span class="font-mono text-sm">{transactionDisplay.to}</span>
+        </div>
+        <div class="flex justify-between items-center border-b border-base-300 pb-2">
+          <span class="font-medium">Value:</span>
+          <span class="font-bold text-primary">{transactionDisplay.value}</span>
+        </div>
+        <div class="flex justify-between items-center border-b border-base-300 pb-2">
+          <span class="font-medium">Gas Limit:</span>
+          <span>{transactionDisplay.gasLimit}</span>
+        </div>
+        {#if transaction.data}
+        <div class="flex justify-between items-center">
+          <span class="font-medium">Data:</span>
+          <span class="text-sm truncate max-w-[200px]">{transactionDisplay.data}</span>
+        </div>
+        {/if}
+      </div>
+
+      {#if !addressApproved}
+      <div class="alert alert-error mt-4">
+        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        <span>Address not connected to this domain</span>
+      </div>
       {/if}
     </div>
+
+    {#if showSpinner}
+    <div class="flex flex-col items-center justify-center p-4">
+      <div class="loading loading-spinner loading-lg"></div>
+      <p class="mt-2 font-bold animate-pulse">Processing transaction...</p>
+    </div>
+    {/if}
   </div>
 
+  <!-- Footer -->
+  <div class="p-4 border-t border-base-300 flex-shrink-0">
+    <div class="flex gap-4 justify-end">
+      <button onclick={() => handleReject()} class="btn btn-outline">
+        Reject
+      </button>
+      <button
+        onclick={handleConfirm}
+        class="btn btn-primary"
+        disabled={!addressApproved || showSpinner}
+      >
+        Approve
+      </button>
+    </div>
+  </div>
 </div>
+{/if}
 
-{/await}
+<style>
+  /* Smooth transitions */
+  .btn {
+    transition: all 0.2s ease;
+  }
+
+  .btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  /* Modal backdrop */
+  .modal-open .modal-box {
+    animation: modal-pop 0.3s ease-out;
+  }
+
+  @keyframes modal-pop {
+    0% {
+      transform: scale(0.9);
+      opacity: 0;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  /* Loading animation */
+  .loading {
+    display: inline-block;
+    width: 2rem;
+    height: 2rem;
+    border: 3px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    border-top-color: currentColor;
+    animation: spin 1s ease-in-out infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+</style>

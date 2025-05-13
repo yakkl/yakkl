@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { log } from '$plugins/Logger';
+	import { log } from '$lib/common/logger-wrapper';
   import { onDestroy, onMount } from 'svelte';
   import type { Profile, ProfileData, SwapParams, SwapPriceData, SwapToken } from '$lib/common/interfaces';
   import SellTokenPanel from './SellTokenPanel.svelte';

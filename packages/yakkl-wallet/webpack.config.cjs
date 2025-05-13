@@ -109,12 +109,13 @@ module.exports = {
     },
   },
   plugins: [
-    new webpack.DefinePlugin(
-      getEnvKeys(),
-      {
-        DEV_MODE: JSON.stringify(process.env.NODE_ENV !== 'production')
-      }
-    ),
+    new webpack.DefinePlugin({
+      ...getEnvKeys(),
+      'DEV_MODE': JSON.stringify(process.env.NODE_ENV !== 'production'),
+      '__DEV__': process.env.NODE_ENV !== 'production',
+      '__PROD__': process.env.NODE_ENV === 'production',
+      '__LOG_LEVEL__': process.env.NODE_ENV === 'production' ? '"WARN"' : '"DEBUG"'
+    }),
     new webpack.ProvidePlugin({
       browser: ['webextension-polyfill', 'default'],
       process: 'process/browser',

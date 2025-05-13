@@ -5,7 +5,7 @@ import { YAKKL_INTERNAL } from '$lib/common/constants';
 import { isServerSide, wait } from '$lib/common/utils';
 import type { Runtime } from 'webextension-polyfill';
 import { handleLockDown } from '$lib/common/handlers';
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { initializeBrowserAPI } from '$lib/browser-polyfill-wrapper';
 // Import but don't use at module level
 import { browser_ext, isClient } from '$lib/common/environment';

@@ -9,7 +9,7 @@
   import Import from '$lib/components/Import.svelte';
   import TokenViews from "$lib/components/TokenViews.svelte";
 	import { yakklCombinedTokenStore } from "$lib/common/stores";
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
 	import { goto } from '$app/navigation';
 
   let error = $state(false);

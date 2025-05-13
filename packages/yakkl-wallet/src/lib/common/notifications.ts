@@ -1,7 +1,7 @@
 import type { BasicNotificationOptions, CreateNotificationOptions, ImageNotificationOptions, ListNotificationOptions, NotificationOptions, ProgressNotificationOptions } from './types';
 import { startLockIconTimer, stopLockIconTimer } from '$lib/extensions/chrome/iconTimer';
 import { browser_ext } from './environment';
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 const DEFAULT_ICON = '/images/logoBullLock48x48.png';
 

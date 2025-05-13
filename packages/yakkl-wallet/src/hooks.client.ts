@@ -8,7 +8,7 @@ import { syncStorageToStore } from '$lib/common/stores';
 import { loadTokens } from '$lib/common/stores/tokens';
 import { IdleManager } from '$lib/plugins/IdleManager';
 import { ErrorHandler } from '$lib/plugins/ErrorHandler';
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { addUIListeners, removeUIListeners } from '$lib/common/listeners/ui/uiListeners';
 import { globalListenerManager } from '$lib/plugins/GlobalListenerManager';
 import { uiListenerManager } from '$lib/common/listeners/ui/uiListeners';
@@ -82,7 +82,7 @@ export async function init() {
     if (isInitialized) return;
 
     log.info('init', false, 'Initializing');
-    
+
     // First get the browser API
     const browserApi = getBrowserExt();
 

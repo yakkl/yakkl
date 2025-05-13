@@ -10,7 +10,7 @@
 	// import { removeTimers } from '$lib/common/timers';
 	// import { removeListeners } from '$lib/common/listeners';
 	// import { timerManager } from '$lib/plugins/TimerManager';
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
 	// import { resetTokenDataStoreValues } from '$lib/common/resetTokenDataStoreValues';
 
   // Reactive State

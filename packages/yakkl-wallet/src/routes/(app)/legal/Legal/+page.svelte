@@ -6,7 +6,7 @@
 
 	import { getSettings, setSettingsStorage } from '$lib/common/stores';
 	import { goto } from '$app/navigation';
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
 
   let yakklSettings: Settings | null = null;
 

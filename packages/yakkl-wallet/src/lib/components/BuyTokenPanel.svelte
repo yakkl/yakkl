@@ -8,7 +8,7 @@
   import { ethers as ethersv6 } from 'ethers-v6';
   import { toBigInt } from '$lib/common';
   import NumericInput from './NumericInput.svelte';
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
 
   interface Props {
     disabled?: boolean;

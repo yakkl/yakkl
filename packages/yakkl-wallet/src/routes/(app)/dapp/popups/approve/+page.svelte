@@ -7,7 +7,7 @@
   import { onMount } from 'svelte';
 	import Copyright from '$lib/components/Copyright.svelte';
 	import Failed from '$lib/components/Failed.svelte';
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
 
   import type { Runtime } from 'webextension-polyfill';
 	import Warning from '$lib/components/Warning.svelte';
@@ -37,7 +37,8 @@
   if (browserSvelte) {
     try {
       requestId = page.url.searchParams.get('requestId');
-      method = page.url.searchParams.get('method');
+      const methodParam = page.url.searchParams.get('method');
+      if (methodParam) method = methodParam;
       $yakklDappConnectRequestStore = requestId;
     } catch(e) {
       log.error(e);
@@ -268,7 +269,7 @@
           <span>1. Request approval to connect to your wallet addresses</span>
         {:else if method === 'eth_sendTransaction'}
           <span>1. Request approval to send a transaction</span>
-        {:else if method === 'eth_signTypedData_v4' || method === 'personal_sign'}
+        {:else if (method as string) === 'eth_signTypedData_v4' || (method as string) === 'personal_sign' || (method as string) === 'eth_signTransaction'}
           <span>1. Request approval to sign a message</span>
         {:else if method === 'wallet_requestPermissions' || method === 'wallet_revokePermissions' || method === 'wallet_getPermissions'}
           <!-- wallet_requestPermissions is the only one requiring user approval but added the other two for completeness -->
@@ -295,7 +296,7 @@
 
     <div class="bg-base-200 rounded-lg p-4 mb-4 flex-shrink-0">
       <p class="text-sm text-base-content/70">
-        {#if method !== 'eth_requestAccounts' && method !== 'eth_sendTransaction' && method !== 'eth_signTypedData_v4' && method !== 'personal_sign'}
+        {#if method !== 'eth_requestAccounts' && method !== 'eth_sendTransaction' && method !== 'eth_signTypedData_v4' && method !== 'personal_sign' && method !== 'eth_signTransaction' && method !== 'wallet_requestPermissions' && method !== 'wallet_revokePermissions' && method !== 'wallet_getPermissions'}
         The request is a possible security risk and not allowed!
         {:else}
         By connecting, you agree to allow this site to connect to your addresses. Any signing or transaction requests will have an additional approval step.
@@ -307,7 +308,7 @@
   <!-- Footer -->
   <div class="p-4 border-t border-base-300 flex-shrink-0">
     <div class="flex gap-4 justify-end">
-      {#if method !== 'eth_requestAccounts' && method !== 'eth_sendTransaction' && method !== 'eth_signTypedData_v4' && method !== 'personal_sign' && method !== 'wallet_requestPermissions' && method !== 'wallet_revokePermissions' && method !== 'wallet_getPermissions'}
+      {#if method !== 'eth_requestAccounts' && method !== 'eth_sendTransaction' && method !== 'eth_signTypedData_v4' && method !== 'personal_sign' && method !== 'eth_signTransaction' && method !== 'wallet_requestPermissions' && method !== 'wallet_revokePermissions' && method !== 'wallet_getPermissions'}
         <button onclick={() => handleReject('Unsupported method - Security risk: ' + method)} class="btn btn-primary">
           Reject
         </button>
@@ -317,8 +318,8 @@
           Connect
         {:else if method === 'eth_sendTransaction'}
           Approve Transaction
-        {:else if method === 'eth_signTypedData_v4' || method === 'personal_sign'}
-          Approve Message
+        {:else if (method as string) === 'eth_signTypedData_v4' || (method as string) === 'personal_sign' || (method as string) === 'eth_signTransaction'}
+          Approve Signing
         {:else if method === 'wallet_requestPermissions'}
           Approve Connection
         {:else if method === 'wallet_revokePermissions'}

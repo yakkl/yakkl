@@ -3,7 +3,7 @@
   import { page } from '$app/state';
   import { YAKKL_DAPP } from '$lib/common/constants';
   import { onMount, onDestroy } from 'svelte';
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
 
   import type { Runtime } from 'webextension-polyfill';
 

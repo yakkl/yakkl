@@ -19,7 +19,7 @@
 	import type { BigNumberish } from '$lib/common/bignumber';
 	import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
   import type { TransactionState, GasState, UIState, ValueState, ConfigState } from '$lib/common/stateInterfaces';
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
 
 	// Toast
 	import { Toast } from 'flowbite-svelte';

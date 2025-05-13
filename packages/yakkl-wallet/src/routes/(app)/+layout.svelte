@@ -7,7 +7,8 @@
   import { blockContextMenu, blockWindowResize } from '$lib/utilities';
   import ErrorNoAction from '$lib/components/ErrorNoAction.svelte';
   import { browserSvelte } from "$lib/common/environment";
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
+	import { env } from "process";
 
   interface Props {
     children?: import('svelte').Snippet;
@@ -40,7 +41,7 @@
 
   // Effect: Manage Debug Mode and Blocking Features
   $effect(() => {
-    if (process.env.DEV_MODE) {
+    if (process.env.DEV_MODE || process.env.NODE_ENV === 'development') {
       contextMenu = true;
       resize = true;
     }

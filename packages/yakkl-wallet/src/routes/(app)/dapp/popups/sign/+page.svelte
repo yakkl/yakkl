@@ -1,28 +1,34 @@
 <script lang="ts">
   import { browser_ext, browserSvelte } from '$lib/common/environment';
   import { page } from '$app/state';
-  import { getYakklCurrentlySelected, getMiscStore, yakklDappConnectRequestStore } from '$lib/common/stores';
-  import { type YakklCurrentlySelected } from '$lib/common';
-  import { DEFAULT_TITLE, YAKKL_DAPP } from '$lib/common/constants';
+  import { getYakklCurrentlySelected, getMiscStore, yakklDappConnectRequestStore, getYakklAccounts } from '$lib/common/stores';
+  import { type YakklCurrentlySelected, type AccountData, type TransactionRequest, type YakklAccount } from '$lib/common';
+  import { DEFAULT_TITLE, YAKKL_DAPP, ETH_BASE_SCA_GAS_UNITS, ETH_BASE_EOA_GAS_UNITS } from '$lib/common/constants';
   import { onMount } from 'svelte';
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
   import type { Runtime } from 'webextension-polyfill';
-  import type { JsonRpcResponse, SessionInfo, YakklResponse } from '$lib/common/interfaces';
+  import type { JsonRpcResponse, SessionInfo } from '$lib/common/interfaces';
   import type { BackgroundPendingRequest } from '$lib/extensions/chrome/background';
-	import Confirmation from '$lib/components/Confirmation.svelte';
-	import { requestSigning } from '$lib/extensions/chrome/signingClient';
-	import Copyright from '$lib/components/Copyright.svelte';
-	import Warning from '$lib/components/Warning.svelte';
-	import Failed from '$lib/components/Failed.svelte';
-	import { createPortManagerWithStream, PortManagerWithStream } from '$lib/plugins/PortManagerWithStream';
-	import type { PortDuplexStream } from '$lib/plugins/PortStreamManager';
-	import { sessionToken, verifySessionToken } from '$lib/common/auth/session';
-	import { safeLogout } from '$lib/common/safeNavigate';
+  import Confirmation from '$lib/components/Confirmation.svelte';
+  import { requestSigning } from '$lib/extensions/chrome/signingClient';
+  import Copyright from '$lib/components/Copyright.svelte';
+  import Warning from '$lib/components/Warning.svelte';
+  import Failed from '$lib/components/Failed.svelte';
+  import { createPortManagerWithStream, PortManagerWithStream } from '$lib/plugins/PortManagerWithStream';
+  import type { PortDuplexStream } from '$lib/plugins/PortStreamManager';
+  import { sessionToken, verifySessionToken } from '$lib/common/auth/session';
+  import { safeLogout } from '$lib/common/safeNavigate';
+  import { decryptData } from '$lib/common/encryption';
+  import { isEncryptedData } from '$lib/common/misc';
+  import WalletManager from '$lib/plugins/WalletManager';
+  import type { Wallet } from '$lib/plugins/Wallet';
+  import { formatEther } from '$lib/utilities/utilities';
 
   type RuntimePort = Runtime.Port | undefined;
 
   let currentlySelected: YakklCurrentlySelected;
   let yakklMiscStore: string;
+  let wallet: Wallet;
 
   let showConfirm = $state(false);
   let showSuccess = $state(false);
@@ -34,16 +40,17 @@
   let domainTitle: string = $state('');
   let title: string = $state(DEFAULT_TITLE);
   let request: BackgroundPendingRequest;
-  let method: string;
+  let method: string = $state('');
   let requestId: string | null;
-  let message: any = $state('');  // This gets passed letting the user know what the intent is
+  let message: any = $state('');
   let address: string = $state('');
   let signedData: any;
+  let chainId: number;
 
   let params: any[] = $state([]);
 
   let personal_sign = {
-    dataToSign: '',   // Only used for personal_sign
+    dataToSign: '',
     address: '',
     description: '',
   };
@@ -53,14 +60,17 @@
     dataToSign: string | Record<string, any>;
   };
 
-  let signTypedData_v3v4: SignTypedData;
-
-  signTypedData_v3v4 = {
+  let signTypedData_v3v4: SignTypedData = {
     address: '',
     dataToSign: '',
-  }
+  };
 
-  let messageValue; // Used to display non-hex data that matches transaction or message
+  // For eth_signTransaction
+  let transaction: TransactionRequest = $state({} as TransactionRequest);
+  let transactionDisplay: any = $state({});
+  let gasLimit: bigint = $state(0n);
+
+  let messageValue;
   let pass = false;
 
   let portManager: PortManagerWithStream | null = null;
@@ -75,17 +85,51 @@
       if (requestId) {
         pass = true;
       }
-      // NOTE: The internal check now makes sure the requestId is valid
     } catch(e) {
       log.error(e);
       handleReject('No requestId or method was found. Access to YAKKL® is denied.');
     }
   }
 
-  // We no longer need to do get_params since we can access the request data directly
+  // Format transaction for user-friendly display
+  async function formatTransactionForDisplay() {
+    transactionDisplay = {
+      from: transaction.from,
+      to: transaction.to,
+      value: transaction.quantity ? formatEther(transaction.quantity.toString()) + ' ETH' : '0 ETH',
+      data: transaction.data ? `Data: ${(transaction.data as string).slice(0, 10)}...` : 'No data',
+      gasLimit: 'Will be calculated',
+      estimatedFee: 'Calculating...'
+    };
+
+    // Estimate gas if not provided
+    if (!transaction.gasLimit) {
+      const blockchain = wallet?.getBlockchain();
+      if (blockchain?.isSmartContractSupported()) {
+        const isSmartContract = await blockchain.isSmartContract(transaction.to as string);
+        gasLimit = isSmartContract ? BigInt(ETH_BASE_SCA_GAS_UNITS) : BigInt(ETH_BASE_EOA_GAS_UNITS);
+
+        // Add extra gas for data
+        if (transaction.data) {
+          const dataLength = (transaction.data as string).length - 2;
+          gasLimit = BigInt(gasLimit) + BigInt(dataLength * 68);
+        }
+      } else {
+        gasLimit = BigInt(ETH_BASE_EOA_GAS_UNITS);
+      }
+
+      // Check for user override
+      if (currentlySelected?.shortcuts?.gasLimit) {
+        gasLimit = BigInt(currentlySelected.shortcuts.gasLimit);
+      }
+
+      transactionDisplay.gasLimit = gasLimit.toString();
+    }
+  }
+
   async function onMessageListener(event: any) {
     try {
-      if (!domainLogo) domainLogo = '/images/failIcon48x48.png'; // Set default logo but change if favicon is present
+      if (!domainLogo) domainLogo = '/images/failIcon48x48.png';
 
       if (event.method === 'get_params') {
         request = event.result;
@@ -102,13 +146,12 @@
           return await handleReject('Domain is not connected. Connect to {domain} first via requestAccounts. Access to YAKKL® is denied.');
         }
 
-        // These needs to be fixed upstream
         domainTitle = requestData.metaData.metaData.title;
         domain = requestData.metaData.metaData.domain;
         domainLogo = requestData.metaData.metaData.icon;
         message = requestData.metaData.metaData.message ?? 'Nothing was passed to explain the intent of this approval. Be mindful of this request!';
         params = requestData.params ?? [];
-        // Make sure params is an array
+
         if (!Array.isArray(params)) {
           params = [params];
         }
@@ -118,7 +161,6 @@
           return await handleReject('No request ID was found. Access to YAKKL® is denied.');
         }
 
-        // Set the page title
         title = domainTitle || domain || DEFAULT_TITLE;
 
         let data;
@@ -141,6 +183,24 @@
             message = data?.message?.contents || data;
             log.info('Sign: eth_signTypedData_v4:', false, {data, message});
             break;
+          case 'eth_signTransaction':
+            // Handle transaction signing
+            transaction = params[0] as TransactionRequest;
+            address = transaction.from as string;
+
+            if (!wallet) {
+              wallet = WalletManager.getInstance(
+                ['Alchemy'],
+                ['Ethereum'],
+                chainId,
+                import.meta.env.VITE_ALCHEMY_API_KEY_PROD
+              );
+            }
+
+            await formatTransactionForDisplay();
+            message = `Sign transaction from ${transaction.from} to ${transaction.to}`;
+            log.info('Sign: eth_signTransaction:', false, transaction);
+            break;
           default:
             messageValue = 'No message request was passed in. Error.';
             break;
@@ -157,8 +217,18 @@
       if (browserSvelte) {
         currentlySelected = await getYakklCurrentlySelected();
         yakklMiscStore = getMiscStore();
+        chainId = currentlySelected.shortcuts.chainId as number;
 
-        // Since we're 1:1 we can attach to the known port name
+        // Initialize wallet for eth_signTransaction
+        if (method === 'eth_signTransaction') {
+          wallet = WalletManager.getInstance(
+            ['Alchemy'],
+            ['Ethereum'],
+            chainId,
+            import.meta.env.VITE_ALCHEMY_API_KEY_PROD
+          );
+        }
+
         const sessionInfo = await browser_ext.runtime.sendMessage({
             type: 'REQUEST_SESSION_PORT',
             requestId
@@ -166,14 +236,12 @@
 
         log.info('Received session info:', false, sessionInfo);
 
-        // Guard against null response
         if (!sessionInfo || !sessionInfo.success) {
           errorValue = 'Failed to verify session. No response received.';
           showFailure = true;
           return;
         }
 
-        // Create port manager with the original port name
         portManager = createPortManagerWithStream(sessionInfo?.portName ?? YAKKL_DAPP);
         portManager.setRequestId(requestId);
 
@@ -184,7 +252,6 @@
           return;
         }
 
-        // Connect to existing port
         stream = portManager.getStream();
         if (!stream) {
           errorValue = 'Stream is not available.';
@@ -196,7 +263,7 @@
       }
     } catch(e) {
       log.error(e);
-      errorValue = 'Port setuperror occurred while processing the request. Access to YAKKL® is denied.';
+      errorValue = 'Port setup error occurred while processing the request. Access to YAKKL® is denied.';
       showFailure = true;
     }
   });
@@ -226,64 +293,126 @@
     }
   }
 
-async function handleProcess() {
-  try {
-    if (!browserSvelte) {
-      await handleReject();
-    }
-
-    if (!verifySessionToken($sessionToken)) {
-      await handleReject("Session token is invalid. Login again.");
-    }
-
-    // Use signingClient to handle the signing request
-    const response = await requestSigning(requestId, method, params, $sessionToken);
-    if (!response) {
-      await handleReject("Request failed due to no response from the signing request.");
-    }
-
-    if (response.error) {
-      await handleReject(response.error.message || "Signing request failed");
-    }
-
-    // Send response to dapp
-    if (stream) {
-      const jsonRpcResponse: JsonRpcResponse = {
-        type: 'YAKKL_RESPONSE:EIP6963',
-        jsonrpc: '2.0',
-        id: requestId,
-        result: response.result
-      };
-      stream.write(jsonRpcResponse);
-      log.info('Sign: handleProcess - response:', false, {jsonRpcResponse});
-    }
-    else {
-      await handleReject("Request failed to send to dapp due to connection port not found.");
-    }
-    close();
-  } catch(e) {
-    log.error(e);
-    errorValue = e instanceof Error ? e.message : 'Unknown error occurred';
-    showFailure = true;
-  }
-}
-
-async function close() {
-  if (browserSvelte) {
+  async function handleProcess() {
     try {
-      await portManager.waitForIdle(1500);
-    } catch (e) {
-      log.warn('Port did not go idle in time', false, e);
+      if (!browserSvelte) {
+        await handleReject();
+      }
+
+      if (!verifySessionToken($sessionToken)) {
+        await handleReject("Session token is invalid. Login again.");
+      }
+
+      // Handle eth_signTransaction differently
+      if (method === 'eth_signTransaction') {
+        await handleSignTransaction();
+      } else {
+        // Use existing signingClient for other methods
+        const response = await requestSigning(requestId, method, params, $sessionToken);
+        if (!response) {
+          await handleReject("Request failed due to no response from the signing request.");
+        }
+
+        if (response.error) {
+          await handleReject(response.error.message || "Signing request failed");
+        }
+
+        if (stream) {
+          const jsonRpcResponse: JsonRpcResponse = {
+            type: 'YAKKL_RESPONSE:EIP6963',
+            jsonrpc: '2.0',
+            id: requestId,
+            result: response.result
+          };
+          stream.write(jsonRpcResponse);
+          log.info('Sign: handleProcess - response:', false, {jsonRpcResponse});
+        } else {
+          await handleReject("Request failed to send to dapp due to connection port not found.");
+        }
+      }
+      close();
+    } catch(e) {
+      log.error(e);
+      errorValue = e instanceof Error ? e.message : 'Unknown error occurred';
+      showFailure = true;
     }
-    portManager.disconnect();
-    safeLogout();
   }
-}
 
-function handleConfirm() {
-  showConfirm = true;
-}
+  async function handleSignTransaction() {
+    try {
+      // Get the account's private key
+      const accounts = await getYakklAccounts();
+      const account = accounts.find(acc =>
+        acc.address.toLowerCase() === transaction.from?.toLowerCase()
+      ) as YakklAccount;
 
+      if (!account) {
+        await handleReject("Account not found.");
+        return;
+      }
+
+      // Decrypt account data if needed
+      if (isEncryptedData(account.data)) {
+        account.data = await decryptData(account.data, yakklMiscStore) as AccountData;
+      }
+
+      if (!(account.data as AccountData).privateKey) {
+        await handleReject("Account key not available.");
+        return;
+      }
+
+      // Prepare transaction
+      transaction.gasLimit = gasLimit;
+      transaction.nonce = transaction.nonce ?? -1; // Let provider set if not provided
+      transaction.type = transaction.type ?? 2; // Default to EIP-1559
+      transaction.chainId = chainId;
+
+      // Create a signer with the private key
+      await wallet.setSigner((account.data as AccountData).privateKey);
+
+      // Get the blockchain provider from wallet
+      const blockchain = wallet.getBlockchain();
+      const provider = blockchain.getProvider();
+      const signer = provider.getSigner();
+
+      // Sign the transaction (but don't send it)
+      const signedTx = await signer.signTransaction(transaction);
+
+      // Send the signed transaction back
+      if (stream) {
+        const jsonRpcResponse: JsonRpcResponse = {
+          type: 'YAKKL_RESPONSE:EIP6963',
+          jsonrpc: '2.0',
+          id: requestId,
+          result: signedTx
+        };
+        stream.write(jsonRpcResponse);
+        log.info('Sign: eth_signTransaction - response:', false, {jsonRpcResponse});
+      } else {
+        await handleReject("Request failed to send to dapp due to connection port not found.");
+      }
+    } catch(e) {
+      log.error('Transaction signing error:', false, e);
+      errorValue = e instanceof Error ? e.message : 'Transaction signing failed';
+      showFailure = true;
+    }
+  }
+
+  async function close() {
+    if (browserSvelte) {
+      try {
+        await portManager.waitForIdle(1500);
+      } catch (e) {
+        log.warn('Port did not go idle in time', false, e);
+      }
+      portManager.disconnect();
+      safeLogout();
+    }
+  }
+
+  function handleConfirm() {
+    showConfirm = true;
+  }
 </script>
 
 <svelte:head>
@@ -322,8 +451,36 @@ function handleConfirm() {
     </div>
 
     <div class="overflow-auto flex-1 min-h-0 mb-4">
-      <span class="text-sm">Data to sign:</span>
-      <pre class="text-md border-2 border-blue-500 rounded-md p-2 bg-opacity-25">{message}</pre>
+      {#if method === 'eth_signTransaction'}
+        <span class="text-sm">Transaction Details:</span>
+        <div class="bg-base-200 rounded-lg p-4 space-y-3 mt-2">
+          <div class="flex justify-between items-center border-b border-base-300 pb-2">
+            <span class="font-medium">From:</span>
+            <span class="font-mono text-sm">{transactionDisplay.from}</span>
+          </div>
+          <div class="flex justify-between items-center border-b border-base-300 pb-2">
+            <span class="font-medium">To:</span>
+            <span class="font-mono text-sm">{transactionDisplay.to}</span>
+          </div>
+          <div class="flex justify-between items-center border-b border-base-300 pb-2">
+            <span class="font-medium">Value:</span>
+            <span class="font-bold text-primary">{transactionDisplay.value}</span>
+          </div>
+          <div class="flex justify-between items-center border-b border-base-300 pb-2">
+            <span class="font-medium">Gas Limit:</span>
+            <span>{transactionDisplay.gasLimit}</span>
+          </div>
+          {#if transaction.data}
+          <div class="flex justify-between items-center">
+            <span class="font-medium">Data:</span>
+            <span class="text-sm truncate max-w-[200px]">{transactionDisplay.data}</span>
+          </div>
+          {/if}
+        </div>
+      {:else}
+        <span class="text-sm">Data to sign:</span>
+        <pre class="text-md border-2 border-blue-500 rounded-md p-2 bg-opacity-25">{message}</pre>
+      {/if}
     </div>
   </div>
 
@@ -353,23 +510,22 @@ function handleConfirm() {
     transform: translateY(-1px);
   }
 
-  /* Custom scrollbar */
-  /* .overflow-y-auto {
+  /* Custom scrollbar styles */
+  .overflow-auto {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--p)) transparent;
   }
 
-  .overflow-y-auto::-webkit-scrollbar {
+  .overflow-auto::-webkit-scrollbar {
     width: 6px;
   }
 
-  .overflow-y-auto::-webkit-scrollbar-track {
+  .overflow-auto::-webkit-scrollbar-track {
     background: transparent;
   }
 
-  .overflow-y-auto::-webkit-scrollbar-thumb {
+  .overflow-auto::-webkit-scrollbar-thumb {
     background-color: hsl(var(--p));
     border-radius: 3px;
-  } */
+  }
 </style>
-

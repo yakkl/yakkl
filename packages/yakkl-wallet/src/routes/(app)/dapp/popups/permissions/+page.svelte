@@ -5,7 +5,7 @@
   import { type YakklCurrentlySelected } from '$lib/common';
   import { DEFAULT_TITLE, YAKKL_DAPP } from '$lib/common/constants';
   import { onMount } from 'svelte';
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
   import type { Runtime } from 'webextension-polyfill';
   import type { JsonRpcResponse, SessionInfo } from '$lib/common/interfaces';
   import type { BackgroundPendingRequest } from '$lib/extensions/chrome/background';

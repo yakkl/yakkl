@@ -2,7 +2,7 @@
 // This file handles all message routing in the extension, combining the original
 // sender-based system with the new port-based architecture for better connection tracking
 
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import browser from 'webextension-polyfill';
 import type { Runtime } from 'webextension-polyfill';
 import type { SessionToken } from '$lib/common/interfaces';

@@ -35,7 +35,7 @@
 	import Swap from '$lib/components/Swap.svelte';
 	import { getYakklCurrentlySelectedAccountKey } from '$lib/common/security';
 	import SendFormModal from '$lib/components/send/SendFormModal.svelte';
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
 
   const providers = [new CoinbasePriceProvider];
 

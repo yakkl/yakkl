@@ -1,6 +1,6 @@
 // export const ssr = false;
 
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { cleanup, initializeUIConnection } from '$lib/common/stores/connectionStore';
 import { get } from 'svelte/store';
 import { activeTabUIStore } from '$lib/common/stores';

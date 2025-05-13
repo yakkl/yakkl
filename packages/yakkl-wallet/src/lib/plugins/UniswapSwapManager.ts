@@ -17,7 +17,7 @@ import { SwapManager } from './SwapManager';
 import { Token } from './Token';
 import { EVMToken } from './tokens/evm/EVMToken';
 import { EthersConverter } from './utilities/EthersConverter';
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 // import { getToken, type TokenPair } from '$lib/common/tokens';
 // import { CurrencyAmount, Token as UniswapToken } from '@uniswap/sdk-core';

@@ -18,7 +18,7 @@ import {
 import type { PriceProvider, SwapToken, TransactionRequest } from '$lib/common/interfaces';
 import type { Blockchain, Wallet } from '$lib/plugins';
 import { Ethereum } from '$lib/plugins/blockchains/evm/ethereum/Ethereum';
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import type { UniswapSwapManager } from '$lib/plugins/UniswapSwapManager';
 import type { Provider } from '$plugins/Provider';
 import { ethers as ethersv6 } from 'ethers-v6';

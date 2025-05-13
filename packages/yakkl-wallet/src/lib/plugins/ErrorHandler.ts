@@ -1,4 +1,4 @@
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 interface ExtendedPerformance extends Performance {
   memory?: {

@@ -19,7 +19,13 @@ import type { PendingRequestData, YakklRequest, YakklResponse } from '$lib/commo
 import { showPopup } from './ui';
 import { extractSecureDomain } from '$lib/common/security';
 import { getAddressesForDomain, verifyDomainConnected } from '$lib/extensions/chrome/verifyDomainConnectedBackground';
-
+import { getYakklCurrentlySelected } from '$lib/common/stores';
+import { getRPCAlchemy } from './legacy';
+import { sendErrorResponse } from '$lib/extensions/chrome/errorResponseHandler';
+import { isSimulationMethod, isWriteMethod, isReadMethod } from '$lib/extensions/chrome/methodClassification';
+import { handleReadOnlyRequest } from '$lib/common/listeners/background/readMethodHandler';
+import { handleSimulationRequest } from '$lib/common/listeners/background/simulationMethodHandler';
+import { handleWriteRequest } from '$lib/common/listeners/background/writeMethodHandler';
 // Type definitions for our unified architecture
 export type RuntimePort = Runtime.Port;
 
@@ -185,6 +191,7 @@ browser.runtime.onConnect.addListener((port: RuntimePort) => {
 });
 
 // Handle provider-specific messages
+// In your background.ts handleProviderMessage function
 async function handleProviderMessage(message: any, port: RuntimePort, portId: string) {
   // Skip duplicate requests
   if (message.id && processedBackgroundRequests.has(message.id)) {
@@ -197,19 +204,36 @@ async function handleProviderMessage(message: any, port: RuntimePort, portId: st
 
   if (message.id) {
     processedBackgroundRequests.add(message.id);
-
-    // Clean up old processed requests
-    if (processedBackgroundRequests.size > 1000) {
-      const oldestRequests = Array.from(processedBackgroundRequests).slice(0, 100);
-      oldestRequests.forEach(id => processedBackgroundRequests.delete(id));
-    }
   }
 
   // Handle different message types
   switch (message.type) {
     case 'YAKKL_REQUEST:EIP6963':
     case 'YAKKL_REQUEST:EIP1193':
-      await handleProviderRequest(message as YakklRequest, port);
+      // Route to appropriate handler based on method type
+      const method = message.method;
+
+      if (!method) {
+        log.warn('No method specified in provider message:', false, message);
+        sendErrorResponse(port, message.id, new Error('Method is required'));
+        return;
+      }
+
+      try {
+        if (isSimulationMethod(method)) {
+          await handleSimulationRequest(message, port);
+        } else if (isWriteMethod(method)) {
+          await handleWriteRequest(message, port);
+        } else if (isReadMethod(method)) {
+          await handleReadOnlyRequest(message, port);
+        } else {
+          log.warn('Unknown provider method:', false, { method });
+          sendErrorResponse(port, message.id, new Error(`Unknown method: ${method}`));
+        }
+      } catch (error) {
+        log.error('Error handling provider message:', false, error);
+        sendErrorResponse(port, message.id, error);
+      }
       break;
 
     case 'CONNECTION_TEST':
@@ -226,167 +250,167 @@ async function handleProviderMessage(message: any, port: RuntimePort, portId: st
 }
 
 // Handle provider requests
-async function handleProviderRequest(request: YakklRequest, port: RuntimePort) {
-  const { id, method, params, requiresApproval } = request;
+// async function handleProviderRequest(request: YakklRequest, port: RuntimePort) {
+//   const { id, method, params, requiresApproval } = request;
 
-  try {
-    log.debug('Processing provider request:', false, {
-      id,
-      method,
-      requiresApproval,
-      timestamp: new Date().toISOString()
-    });
+//   try {
+//     log.debug('Processing provider request:', false, {
+//       id,
+//       method,
+//       requiresApproval,
+//       timestamp: new Date().toISOString()
+//     });
 
-    // Handle approval-required methods
-    if (requiresApproval) {
-      await handleApprovalRequest(request, port);
-      return;
-    }
+//     // Handle approval-required methods
+//     if (requiresApproval) {
+//       await handleApprovalRequest(request, port);
+//       return;
+//     }
 
-    // Handle direct methods - pass the entire request object
-    const result = await handleDirectMethod(method, params || [], request);
+//     // Handle direct methods - pass the entire request object
+//     const result = await handleDirectMethod(method, params || [], request);
 
-    // Send response
-    const response: YakklResponse = {
-      type: 'YAKKL_RESPONSE:EIP6963',
-      id,
-      result,
-      jsonrpc: '2.0',
-      method
-    };
+//     // Send response
+//     const response: YakklResponse = {
+//       type: 'YAKKL_RESPONSE:EIP6963',
+//       id,
+//       result,
+//       jsonrpc: '2.0',
+//       method
+//     };
 
-    log.debug('Sending provider response:', false, {
-      id: response.id,
-      method: response.method,
-      type: response.type,
-      hasResult: result !== undefined,
-      timestamp: new Date().toISOString()
-    });
+//     log.debug('Sending provider response:', false, {
+//       id: response.id,
+//       method: response.method,
+//       type: response.type,
+//       hasResult: result !== undefined,
+//       timestamp: new Date().toISOString()
+//     });
 
-    port.postMessage(response);
+//     port.postMessage(response);
 
-    log.debug('Provider response sent successfully', false, { id: response.id });
-  } catch (error) {
-    log.error('Error in handleProviderRequest:', false, { id, method, error });
-    sendErrorResponse(port, id, error);
-  }
-}
+//     log.debug('Provider response sent successfully', false, { id: response.id });
+//   } catch (error) {
+//     log.error('Error in handleProviderRequest:', false, { id, method, error });
+//     sendErrorResponse(port, id, error);
+//   }
+// }
 
 // Handle methods that require user approval
-async function handleApprovalRequest(request: YakklRequest, port: RuntimePort) {
-  const { id, method, params } = request;
+// async function handleApprovalRequest(request: YakklRequest, port: RuntimePort) {
+//   const { id, method, params } = request;
 
-  try {
-    // Get current tab information
-    const portInfo = Array.from(connectionManager['ports'].values())
-      .find(info => info.port === port);
+//   try {
+//     // Get current tab information
+//     const portInfo = Array.from(connectionManager['ports'].values())
+//       .find(info => info.port === port);
 
-    const tabInfo = await getTabInfoForPort(portInfo);
+//     const tabInfo = await getTabInfoForPort(portInfo);
 
-    // Store pending request
-    const pendingRequest: BackgroundPendingRequest = {
-      resolve: (result: any) => {
-        port.postMessage({
-          type: 'YAKKL_RESPONSE:EIP6963',
-          id,
-          result,
-          method,
-          jsonrpc: '2.0'
-        });
-      },
-      reject: (error: any) => {
-        sendErrorResponse(port, id, error);
-      },
-      port,
-      data: {
-        id,
-        method,
-        params: params || [],
-        requiresApproval: true,
-        timestamp: Date.now(),
-        metaData: {
-          method,
-          params: params || [],
-          metaData: {
-            domain: tabInfo.domain,
-            isConnected: await verifyDomainConnected(tabInfo.domain),
-            icon: tabInfo.icon,
-            title: tabInfo.title,
-            origin: tabInfo.url,
-            message: getApprovalMessage(method, params)
-          }
-        }
-      }
-    };
+//     // Store pending request
+//     const pendingRequest: BackgroundPendingRequest = {
+//       resolve: (result: any) => {
+//         port.postMessage({
+//           type: 'YAKKL_RESPONSE:EIP6963',
+//           id,
+//           result,
+//           method,
+//           jsonrpc: '2.0'
+//         });
+//       },
+//       reject: (error: any) => {
+//         sendErrorResponse(port, id, error);
+//       },
+//       port,
+//       data: {
+//         id,
+//         method,
+//         params: params || [],
+//         requiresApproval: true,
+//         timestamp: Date.now(),
+//         metaData: {
+//           method,
+//           params: params || [],
+//           metaData: {
+//             domain: tabInfo.domain,
+//             isConnected: await verifyDomainConnected(tabInfo.domain),
+//             icon: tabInfo.icon,
+//             title: tabInfo.title,
+//             origin: tabInfo.url,
+//             message: getApprovalMessage(method, params)
+//           }
+//         }
+//       }
+//     };
 
-    pendingRequests.set(id, pendingRequest);
+//     pendingRequests.set(id, pendingRequest);
 
-    // Show approval popup
-    const { showEIP6963Popup } = await import('./eip-6963');
-    await showEIP6963Popup(method, params || [], port, id);
-  } catch (error) {
-    log.error('Error handling approval request:', false, error);
-    sendErrorResponse(port, id, error);
-  }
-}
+//     // Show approval popup
+//     const { showEIP6963Popup } = await import('./eip-6963');
+//     await showEIP6963Popup(method, params || [], port, id);
+//   } catch (error) {
+//     log.error('Error handling approval request:', false, error);
+//     sendErrorResponse(port, id, error);
+//   }
+// }
 
 // Handle direct methods (no approval needed)
-async function handleDirectMethod(method: string, params: any[], request?: any): Promise<any> {
-  const yakklCurrentlySelectedData = await getCurrentlySelectedData();
+// async function handleDirectMethod(method: string, params: any[], request?: any): Promise<any> {
+//   const yakklCurrentlySelectedData = await getCurrentlySelectedData();
 
-  switch (method) {
-    case 'eth_chainId':
-      return yakklCurrentlySelectedData?.chainId || '0x1';
+//   switch (method) {
+//     case 'eth_chainId':
+//       return yakklCurrentlySelectedData?.chainId || '0x1';
 
-    case 'eth_accounts':
-      // Try to get origin from multiple possible locations
-      let origin = '';
+//     case 'eth_accounts':
+//       // Try to get origin from multiple possible locations
+//       let origin = '';
 
-      // First, check if the origin is in the request object
-      if (request?.origin) {
-        origin = request.origin;
-      }
-      // Then check if it's in the params
-      else if (params && params.length > 0) {
-        const lastParam = params[params.length - 1];
-        if (typeof lastParam === 'object' && lastParam.origin) {
-          origin = lastParam.origin;
-        }
-      }
+//       // First, check if the origin is in the request object
+//       if (request?.origin) {
+//         origin = request.origin;
+//       }
+//       // Then check if it's in the params
+//       else if (params && params.length > 0) {
+//         const lastParam = params[params.length - 1];
+//         if (typeof lastParam === 'object' && lastParam.origin) {
+//           origin = lastParam.origin;
+//         }
+//       }
 
-      // If we still don't have an origin, we can't proceed safely
-      if (!origin) {
-        log.warn('No origin provided for eth_accounts request', false);
-        return [];
-      }
+//       // If we still don't have an origin, we can't proceed safely
+//       if (!origin) {
+//         log.warn('No origin provided for eth_accounts request', false);
+//         return [];
+//       }
 
-      try {
-        const domain = extractSecureDomain(origin);
-        const isConnected = await verifyDomainConnected(domain);
+//       try {
+//         const domain = extractSecureDomain(origin);
+//         const isConnected = await verifyDomainConnected(domain);
 
-        if (!isConnected) {
-          return [];
-        }
+//         if (!isConnected) {
+//           return [];
+//         }
 
-        return await getAddressesForDomain(domain);
-      } catch (error) {
-        log.error('Error extracting domain or checking connection:', false, error);
-        return [];
-      }
+//         return await getAddressesForDomain(domain);
+//       } catch (error) {
+//         log.error('Error extracting domain or checking connection:', false, error);
+//         return [];
+//       }
 
-    case 'net_version':
-      const chainId = yakklCurrentlySelectedData?.chainId;
-      if (!chainId) return '1';
+//     case 'net_version':
+//       const chainId = yakklCurrentlySelectedData?.chainId;
+//       if (!chainId) return '1';
 
-      const chainIdStr = typeof chainId === 'string' ? chainId : `0x${chainId.toString(16)}`;
-      return parseInt(chainIdStr.replace('0x', ''), 16).toString();
+//       const chainIdStr = typeof chainId === 'string' ? chainId : `0x${chainId.toString(16)}`;
+//       return parseInt(chainIdStr.replace('0x', ''), 16).toString();
 
-    default:
-      // For other methods, delegate to the network provider
-      const provider = getAlchemyProvider();
-      return provider.request({ method, params });
-  }
-}
+//     default:
+//       // For other methods, delegate to the network provider
+//       const provider = getAlchemyProvider();
+//       return provider.request({ method, params });
+//   }
+// }
 
 // Handle general messages (not provider-specific)
 // In handleGeneralMessage function, add a case for responses
@@ -507,25 +531,6 @@ function getApprovalMessage(method: string, params?: any[]): string {
   }
 }
 
-// Send error response to port
-function sendErrorResponse(port: RuntimePort, id: string, error: any) {
-  const errorResponse: YakklResponse = {
-    type: 'YAKKL_RESPONSE:EIP6963',
-    id,
-    error: {
-      code: error.code || -32603,
-      message: error.message || 'Internal error'
-    },
-    jsonrpc: '2.0'
-  };
-
-  try {
-    port.postMessage(errorResponse);
-  } catch (e) {
-    log.error('Failed to send error response:', false, e);
-  }
-}
-
 // Clean up pending requests for a disconnected port
 function cleanupPendingRequestsForPort(port: RuntimePort) {
   for (const [id, request] of pendingRequests.entries()) {
@@ -636,7 +641,7 @@ async function initializeBackground() {
 
     // Initialize core components
     await initializeStorageDefaults();
-    await initializePermissions();
+    initializePermissions();
     initializeEIP6963();
 
     // Add listeners
@@ -684,14 +689,14 @@ function cleanupOldProcessedRequests() {
 }
 
 // Initialize keymanager and storage (if needed)
-async function initializeKeyManager(): Promise<void> {
-  try {
-    const keyManager = await KeyManager.getInstance();
-    log.debug('KeyManager initialized', false);
-  } catch (error) {
-    log.error('Failed to initialize KeyManager', false, error);
-  }
-}
+// async function initializeKeyManager(): Promise<void> {
+//   try {
+//     const keyManager = await KeyManager.getInstance();
+//     log.debug('KeyManager initialized', false);
+//   } catch (error) {
+//     log.error('Failed to initialize KeyManager', false, error);
+//   }
+// }
 
 // Handle runtime messages (for non-port communication)
 export async function onRuntimeMessageBackgroundListener(

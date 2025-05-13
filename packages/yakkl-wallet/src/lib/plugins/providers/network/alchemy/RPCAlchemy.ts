@@ -1,6 +1,7 @@
 import { RPCBase, type RPCOptions } from '$plugins/RPCBase';
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import type { BlockTag } from '$lib/common';
+import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
 
 export class RPCAlchemy extends RPCBase {
   constructor(apiKey: string, options?: Partial<RPCOptions>) {
@@ -55,16 +56,49 @@ export class RPCAlchemy extends RPCBase {
   async estimateGas(params: any): Promise<string> {
     try {
       log.info('[RPCAlchemy] Estimating gas', false, { params });
-      const tx = {
-        from: params.from,
-        to: params.to,
-        data: params.data,
-        quantity: params.value?.toString(),
-        gasLimit: params.gas?.toString(),
-        gasPrice: params.gasPrice?.toString(),
-        nonce: params.nonce?.toString()
+
+      // First, let's handle the case where params might be an array
+      const txParams = Array.isArray(params) ? params[0] : params;
+
+      // Build the transaction object according to JSON-RPC specification
+      const tx: any = {
+        from: txParams.from,
+        to: txParams.to,
+        data: txParams.data || txParams.input, // Some dApps use 'input' instead of 'data'
       };
-      return await this.request('eth_estimateGas', [tx]);
+
+      // Only include optional fields if they exist
+      if (txParams.value !== undefined) {
+        tx.value = txParams.value;  // Already in hex format
+      }
+
+      if (txParams.gas !== undefined) {
+        tx.gas = txParams.gas;  // Already in hex format
+      }
+
+      if (txParams.gasPrice !== undefined) {
+        tx.gasPrice = txParams.gasPrice;
+      }
+
+      if (txParams.maxFeePerGas !== undefined) {
+        tx.maxFeePerGas = txParams.maxFeePerGas;
+      }
+
+      if (txParams.maxPriorityFeePerGas !== undefined) {
+        tx.maxPriorityFeePerGas = txParams.maxPriorityFeePerGas;
+      }
+
+      if (txParams.nonce !== undefined) {
+        tx.nonce = txParams.nonce;
+      }
+
+      log.debug('[RPCAlchemy] Sending gas estimation request', false, { tx });
+
+      const result = await this.request('eth_estimateGas', [tx]);
+
+      log.debug('[RPCAlchemy] Gas estimation result', false, { result });
+
+      return result;
     } catch (error) {
       log.error('[RPCAlchemy] Error estimating gas', false, error);
       throw error;
@@ -86,6 +120,17 @@ export class RPCAlchemy extends RPCBase {
       return await this.request('eth_call', [tx, blockTag]);
     } catch (error) {
       log.error('[RPCAlchemy] Error in eth_call', false, error);
+      throw error;
+    }
+  }
+
+  async getGasPrice(): Promise<EthereumBigNumber> {
+    try {
+      log.info('[RPCAlchemy] Getting gas price', false);
+      const result = await this.request('eth_gasPrice');
+      return EthereumBigNumber.from(result);
+    } catch (error) {
+      log.error('[RPCAlchemy] Error getting gas price', false, error);
       throw error;
     }
   }

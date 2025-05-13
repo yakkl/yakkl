@@ -1,6 +1,6 @@
 <!-- Copy.svelte -->
 <script lang="ts">
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
   import { browser_ext } from '$lib/common/environment';
 	import { timeoutClipboard } from '$lib/utilities';
 

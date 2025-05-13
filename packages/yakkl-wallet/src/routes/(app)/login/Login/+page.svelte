@@ -16,7 +16,7 @@
 	import { deepCopy } from '@ethersproject/properties';
   import { browser_ext, browserSvelte } from '$lib/common/environment';
 	import { setLocks } from '$lib/common/locks';
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
 	import { createPortfolioAccount } from '$lib/plugins/networks/ethereum/createPortfolioAccount';
 	import Import from '$lib/components/Import.svelte';
   import { safeLogout, safeNavigate } from '$lib/common/safeNavigate';
@@ -58,6 +58,7 @@
             break;
           case 'eth_signTypedData_v4':
           case 'personal_sign':
+          case 'eth_signTransaction':
             url = '/dapp/popups/sign';
             break;
           case 'wallet_requestPermissions':

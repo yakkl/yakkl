@@ -85,6 +85,8 @@
             class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">eth_sendTransaction</button>
           <button onclick="sendRawTransaction()"
             class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">eth_sendRawTransaction</button>
+          <button onclick="signTransaction()"
+            class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">eth_signTransaction</button>
           <button onclick="personalSign()"
             class="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">personal_sign</button>
           <button onclick="signTypedData()"
@@ -376,17 +378,10 @@
       if (!ensureProviderSelected()) return;
 
       try {
-        const accounts = await selectedProvider.request({ method: 'eth_accounts' });
-        if (!accounts || accounts.length === 0) {
-          displayResult('Error: No accounts available. Please connect first.');
-          return;
-        }
-
-        // NOTE: This is a dummy transaction to the zero address
         const result = await selectedProvider.request({
           method: 'eth_sendTransaction',
           params: [{
-            from: accounts[0],
+            from: '0xeF9BdACbf5Cd84BC66DF3a2dC0C8bf22e221CB34',
             to: '0x0000000000000000000000000000000000000000',
             value: '0x0',
             gas: '0x5208',
@@ -415,16 +410,30 @@
       }
     }
 
+    async function signTransaction() {
+      if (!ensureProviderSelected()) return;
+
+      try {
+        const result = await selectedProvider.request({
+          method: 'eth_signTransaction',
+          params: [{
+            from: '0xeF9BdACbf5Cd84BC66DF3a2dC0C8bf22e221CB34',
+            to: '0x0000000000000000000000000000000000000000',
+            value: '0x0',
+            gas: '0x5208',
+            gasPrice: '0x0'
+          }]
+        });
+        displayResult(result);
+      } catch (error) {
+        displayResult(error);
+      }
+    }
+
     async function personalSign() {
       if (!ensureProviderSelected()) return;
 
       try {
-        // const accounts = await selectedProvider.request({ method: 'eth_accounts' });
-        // if (!accounts || accounts.length === 0) {
-        //   displayResult('Error: No accounts available. Please connect first.');
-        //   return;
-        // }
-
         displayResult(''); //Clear the result
 
         const message = 'Hello World from EIP-6963 Test Suite';
@@ -442,12 +451,6 @@
       if (!ensureProviderSelected()) return;
 
       try {
-        // const accounts = await selectedProvider.request({ method: 'eth_accounts' });
-        // if (!accounts || accounts.length === 0) {
-        //   displayResult('Error: No accounts available. Please connect first.');
-        //   return;
-        // }
-
         const typedData = {
           domain: {
             name: 'EIP-6963 Test Suite',
@@ -481,12 +484,6 @@
       if (!ensureProviderSelected()) return;
 
       try {
-        // const accounts = await selectedProvider.request({ method: 'eth_accounts' });
-        // if (!accounts || accounts.length === 0) {
-        //   displayResult('Error: No accounts available. Please connect first.');
-        //   return;
-        // }
-
         const result = await selectedProvider.request({
           method: 'eth_getBalance',
           params: ['0xeF9BdACbf5Cd84BC66DF3a2dC0C8bf22e221CB34', 'latest'] // Hardcoded an account for testing
@@ -529,12 +526,6 @@
       if (!ensureProviderSelected()) return;
 
       try {
-        // const accounts = await selectedProvider.request({ method: 'eth_accounts' });
-        // if (!accounts || accounts.length === 0) {
-        //   displayResult('Error: No accounts available. Please connect first.');
-        //   return;
-        // }
-
         const result = await selectedProvider.request({
           method: 'eth_estimateGas',
           params: [{

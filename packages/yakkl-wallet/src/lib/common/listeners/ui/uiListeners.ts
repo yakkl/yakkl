@@ -7,7 +7,7 @@ import { startCheckPrices, stopCheckPrices } from '$lib/tokens/prices';
 import { PATH_LOGOUT } from '$lib/common/constants';
 import { handleLockDown } from '$lib/common/handlers';
 import { globalListenerManager } from '$lib/plugins/GlobalListenerManager';
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { NotificationService } from '$lib/common/notifications';
 import { activeTabUIStore } from '$lib/common/stores';
 import { addWindowListeners, removeWindowListeners } from './windowListeners';

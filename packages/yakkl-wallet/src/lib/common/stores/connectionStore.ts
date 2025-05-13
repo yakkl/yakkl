@@ -1,6 +1,6 @@
 import { browser_ext, browserSvelte } from '$lib/common/environment';
 import { ConnectionType } from '$plugins/BackgroundManager';
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import type { MessageTypes, TabChangeData, WindowFocusData } from '$lib/common/types';
 import { MessageType } from '$lib/common/types';
 import { activeTabUIStore } from '../stores';

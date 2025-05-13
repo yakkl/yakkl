@@ -1,5 +1,5 @@
 // rpc/RPCBase.ts
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 export interface RPCOptions {
   baseURL: string;
