@@ -81,6 +81,8 @@ export async function init() {
     // Prevent multiple initializations
     if (isInitialized) return;
 
+    log.info('init', false, 'Initializing');
+    
     // First get the browser API
     const browserApi = getBrowserExt();
 

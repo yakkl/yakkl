@@ -7,7 +7,6 @@ import { log } from "$lib/plugins/Logger";
 // import { encodeJSON } from '$lib/utilities/utilities';
 import { Buffer } from "buffer";
 
-
 let crypto: Crypto;
 if (typeof window !== 'undefined' && window.crypto) {
   crypto = window.crypto;
@@ -25,15 +24,41 @@ function bufferToBase64(array: Uint8Array): string {
   return Buffer.from(array).toString("base64");
 }
 
-function base64ToBuffer(s: string): Uint8Array {
-  return Buffer.from(s, "base64");
+// function base64ToBuffer(s: string): Uint8Array {
+//   return Buffer.from(s, "base64");
+// }
+
+function base64ToBuffer(base64: string): Uint8Array {
+  const binaryString = atob(base64);
+  const length = binaryString.length;
+
+  // Explicitly type the buffer as ArrayBuffer (not ArrayBufferLike)
+  const buffer: ArrayBuffer = new ArrayBuffer(length);
+  const view = new Uint8Array(buffer);
+
+  for (let i = 0; i < length; i++) {
+    view[i] = binaryString.charCodeAt(i);
+  }
+
+  // Create a new Uint8Array from the buffer to ensure correct typing
+  return new Uint8Array(view.buffer.slice(0));
+}
+
+function bufferForCrypto(base64: string): ArrayBuffer {
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+
+  return bytes.buffer;
 }
 
 async function generateSalt(): Promise<string> {
   const saltBuffer = crypto.getRandomValues(new Uint8Array(64));
   return bufferToBase64(saltBuffer);
 }
-
 
 export async function digestMessage(message: string) {
   const encoder = new TextEncoder();
@@ -134,9 +159,9 @@ export async function decryptData<T>( encryptedData: EncryptedData, passwordOrSa
         : passwordOrSaltedKey;
 
     const plaintext = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: base64ToBuffer(iv) },
+      { name: "AES-GCM", iv: bufferForCrypto(iv) },
       key,
-      base64ToBuffer(data)
+      bufferForCrypto(data)
     );
 
     const txtDecoder = new TextDecoder().decode(plaintext);
@@ -145,4 +170,16 @@ export async function decryptData<T>( encryptedData: EncryptedData, passwordOrSa
     log.error('Error decrypting data:', false, error);
     throw error;
   }
+}
+
+// Create a helper function that ensures ArrayBuffer compatibility
+function ensureArrayBuffer(data: Uint8Array): Uint8Array {
+  // If the underlying buffer is a SharedArrayBuffer, we need to copy it
+  if (data.buffer instanceof SharedArrayBuffer) {
+    const newBuffer = new ArrayBuffer(data.byteLength);
+    const newArray = new Uint8Array(newBuffer);
+    newArray.set(data);
+    return newArray;
+  }
+  return data;
 }

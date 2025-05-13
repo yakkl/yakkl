@@ -3,6 +3,34 @@ import { getObjectFromLocalStorage } from '$lib/common/storage';
 import { log } from '$lib/plugins/Logger';
 import Dexie from 'dexie';
 
+
+// class YakklDatabase extends Dexie {
+//   domains: Dexie.Table<DomainEntry, string>;
+
+//   constructor() {
+//     super("YakklDatabase");
+//     this.version(1).stores({
+//         domains: 'domain'
+//     });
+//     this.domains = this.table("domains");
+//   }
+// }
+// const yakklDb = new YakklDatabase();
+
+
+// export function initializeYakklDatabase() {
+//   const yakklDb = new YakklDatabase();
+//   yakklDb.version(1).stores({
+//     domains: 'domain'
+//   });
+//   yakklDb.domains = yakklDb.table("domains");
+// }
+
+
+
+
+
+
 interface DomainEntry {
   domain: string;
 }
@@ -21,7 +49,7 @@ class BlacklistDatabase extends Dexie {
 
 const db = new BlacklistDatabase();
 
-export async function initializeDatabase(override = false) {
+export async function initializeBlacklistDatabase(override = false) {
   try {
     if (override) await db.domains.clear();
     const count = await db.domains.count();

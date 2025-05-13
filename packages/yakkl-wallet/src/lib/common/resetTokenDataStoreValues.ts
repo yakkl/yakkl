@@ -9,7 +9,9 @@ export function resetTokenDataStoreValues() {
         price: 0,
         provider: '',
         lastUpdated: new Date(0),
-        chainId: 1
+        chainId: 1,
+        sidepanel: true,
+        evmCompatible: true
       },
       pair: '',
       value: 0
@@ -23,7 +25,9 @@ export function resetTokenDataStoreValues() {
         price: 0,
         provider: '',
         lastUpdated: new Date(0),
-        chainId: 1
+        chainId: 1,
+        sidepanel: true,
+        evmCompatible: true
       },
       pair: '',
       value: 0
@@ -37,7 +41,9 @@ export function resetTokenDataStoreValues() {
         price: 0,
         provider: '',
         lastUpdated: new Date(0),
-        chainId: 1
+        chainId: 1,
+        sidepanel: true,
+        evmCompatible: true
       },
       pair: '',
       value: 0

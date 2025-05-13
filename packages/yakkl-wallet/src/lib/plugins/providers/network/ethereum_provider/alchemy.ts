@@ -404,9 +404,11 @@ class AlchemyProvider extends EventEmitter {
           return this.getNetworkVersion();
 
         case 'eth_accounts':
+          log.info('eth_accounts - alchemy.ts', false, { params });
           return this.getAccounts();
 
         case 'eth_requestAccounts':
+          log.info('eth_requestAccounts - alchemy.ts', false, { params });
           return this.requestAccounts();
 
         case 'eth_getBalance':
@@ -448,8 +450,8 @@ class AlchemyProvider extends EventEmitter {
         case 'eth_getTransactionCount':
           return this.getTransactionCount(params[0], params[1]);
 
-        case 'eth_sign':
-          return this.sign(params[0], params[1]);
+        // case 'eth_sign':
+        //   return this.sign(params[0], params[1]);
 
         case 'personal_sign':
           return this.personalSign(params[0], params[1]);

@@ -10,7 +10,7 @@
 export const prerender = false;
 
 import { dateString } from '$lib/common/datetime';
-import type { Preferences, YakklWatch, YakklSecurity, YakklBlocked, YakklRegisteredData, Profile, YakklChat, YakklCurrentlySelected, YakklAccount, YakklPrimaryAccount, YakklConnectedDomain, YakklContact, YakklNFT, CurrentlySelectedData, AccountData, PrimaryAccountData, ProfileData, Settings } from '$lib/common/interfaces';
+import type { Preferences, YakklWatch, YakklSecurity, YakklBlocked, YakklRegisteredData, Profile, YakklChat, YakklCurrentlySelected, YakklAccount, YakklPrimaryAccount, YakklConnectedDomain, YakklContact, YakklNFT, CurrentlySelectedData, AccountData, PrimaryAccountData, ProfileData, Settings, ConnectedDomainPermissions, AccountAddress, ConnectedDomainRevoked } from '$lib/common/interfaces';
 
 import {
   SystemTheme,
@@ -31,6 +31,7 @@ import {
   ALERT_DELAY,
   IDLE_AUTO_LOCK_CYCLE,
   VERSION,
+  DEFAULT_PERSONA,
 } from '$lib/common/constants';
 
 
@@ -73,6 +74,7 @@ export let yakklWalletProviders = ['Alchemy'];
 // Preferences - User specified and defaults
 export const yakklPreferences: Preferences = {
   id: '',
+  persona: DEFAULT_PERSONA,
   idleDelayInterval: 60, // System default of 1 minute - this is in seconds
   showTestNetworks: true,
   dark: SystemTheme.SYSTEM, // 'dark', 'light', 'system'
@@ -124,6 +126,7 @@ export const yakklPreferences: Preferences = {
 // Settings - Mostly items that are automatically updated by the system
 export let yakklSettings: Settings = {
   id: '',  // Profile id
+  persona: DEFAULT_PERSONA,
   version: VERSION,  // Uses semversion format but puts 'default' as a placeholder
   previousVersion: '',
   registeredType: RegistrationType.STANDARD,  // This data comes from yakklRegisteredData.type
@@ -170,6 +173,7 @@ export let yakklSettings: Settings = {
 
 export let yakklWatch: YakklWatch = {
   id: '',  // Profile id
+  persona: DEFAULT_PERSONA,
   blockchain: '',
   name: '',
   tags: [],
@@ -186,6 +190,8 @@ export let yakklWatch: YakklWatch = {
 
 // Need to work on 2FA and zero trust for 'Premium' and/or 'Ultra' and 'Enterprise' (enterprise will need to support SSO or AD)
 export let yakklSecurity: YakklSecurity = {
+  id: '',
+  persona: DEFAULT_PERSONA,
   type: '',
   value: '',
   enhancedSecurity: {
@@ -203,10 +209,14 @@ export let yakklSecurity: YakklSecurity = {
 }
 
 export let yakklBlocked: YakklBlocked = {
+  id: '',
+  persona: DEFAULT_PERSONA,
   domain: '',
 };
 
 export let yakklRegisteredData: YakklRegisteredData = {
+  id: '',
+  persona: DEFAULT_PERSONA,
   key: '',
   type: RegistrationType.STANDARD,
   version: VERSION,
@@ -216,6 +226,7 @@ export let yakklRegisteredData: YakklRegisteredData = {
 
 export let profile: Profile = {
   id: '', // Must be unique - used where there is an 'id'
+  persona: DEFAULT_PERSONA,
   userName: '', // Must be unique - not encrypted
   preferences: yakklPreferences,
   data: {} as ProfileData,
@@ -227,6 +238,7 @@ export let profile: Profile = {
 
 export let yakklChat: YakklChat = {
   id: '',
+  persona: DEFAULT_PERSONA,
   text: '',
   sender: '',
   timestamp: '',
@@ -238,6 +250,7 @@ export let yakklChat: YakklChat = {
 
 export let yakklCurrentlySelected: YakklCurrentlySelected = {
   id: '',  // Profile id
+  persona: DEFAULT_PERSONA,
   shortcuts: {
     quantity: 0n, // Account value - IF not 0.0 then use formatEther from utilities. If you need to convert to bigint then use parseEther from ethers
     accountType: AccountTypeCategory.PRIMARY,  // primary, imported, sub
@@ -313,6 +326,7 @@ export let yakklCurrentlySelected: YakklCurrentlySelected = {
 
 export let yakklPrimaryAccount: YakklPrimaryAccount = {
   id: '',  // Profile id
+  persona: DEFAULT_PERSONA,
   name: YAKKL_ZERO_ACCOUNT_NAME,  // account name, address, and keys are here for convenience - they are also in the yakklAccount record
   address: YAKKL_ZERO_ADDRESS,
   quantity: 0n,
@@ -330,6 +344,7 @@ export let yakklPrimaryAccount: YakklPrimaryAccount = {
 // Represents the raw address used for transactions for any asset class
 export let yakklAccount: YakklAccount = {
   id: '', // Profile id
+  persona: DEFAULT_PERSONA,
   index: 0,
   blockchain: 'Ethereum',
   smartContract: false, // SmartContracts do not have private keys and the price per gas unit is usually 45,000 instead of 21,000
@@ -356,15 +371,22 @@ export let yakklAccount: YakklAccount = {
 // Now update the 'primaryAccount' with the 'account' property
 yakklPrimaryAccount.account = yakklAccount;
 
+
+
 // Tracks the domain/dApp connected to a given address
 export let yakklConnectedDomain: YakklConnectedDomain = {
   id: '',
-  addresses: [], // {address: '', blockchain: 'Ethereum', chainId: '0x1'}
+  persona: DEFAULT_PERSONA,
+  addresses: [] as AccountAddress[], // {address: '', blockchain: 'Ethereum', chainId: '0x1'}
   name: '',  // Name of dApp/site
-  permissions: [],  // What permissions has Yakkl allowed for this connected domain
+  permissions: {} as ConnectedDomainPermissions,  // What permissions has Yakkl allowed for this connected domain
   domain: '',
   icon: '',
   version: VERSION, // Travels with the data for upgrades
+  status: '',
+  revoked: {} as ConnectedDomainRevoked,
+  chainId: 1,
+  url: '',
   createDate: dateString(),
   updateDate: dateString(),
 };
@@ -373,6 +395,7 @@ export let yakklConnectedDomain: YakklConnectedDomain = {
 // Holds any contact information of addresses used to send crypto to. Allows the addresses to be more human friendly
 export let yakklContact: YakklContact = {
   id: '',
+  persona: DEFAULT_PERSONA,
   name: '',
   address: '',
   addressType: 'EOA',  // EOA or SC
@@ -391,6 +414,7 @@ export let yakklContact: YakklContact = {
 // TODO: Think through NFT collections, rarity, transfers, etc.
 export let yakklNFT: YakklNFT = {
   id: '',
+  persona: DEFAULT_PERSONA,
   name: '',
   description: '',
   token: '',
@@ -423,6 +447,7 @@ export let yakklWatchList = [yakklWatch];
 export let sampleWatch: YakklWatch[] = [
   {
     id: '',
+    persona: DEFAULT_PERSONA,
     blockchain: "Ethereum",
     name: "Watcher 1",
     tags: ["Binance 8", "Uniswap"],
@@ -437,6 +462,7 @@ export let sampleWatch: YakklWatch[] = [
   },
   {
     id: '',
+    persona: DEFAULT_PERSONA,
     blockchain: "Ethereum",
     name: "Watcher 2",
     tags: ["Vb", "Token holdings"],
@@ -451,6 +477,7 @@ export let sampleWatch: YakklWatch[] = [
   },
   {
     id: '',
+    persona: DEFAULT_PERSONA,
     blockchain: "Ethereum",
     name: "Watcher 3",
     tags: ["barmstrong.eth", "coinbase", "address"],
@@ -897,6 +924,7 @@ export const yakklStoredObjects = [
 
 // export let yakklActivityLog: YakklActivityLog = {
 //   id: 0,  // Profile id
+//   persona: DEFAULT_PERSONA,
 //   txId: '',
 //   txDate: '',
 //   type: 'System', // 'System' (misc data that does not fit the other types), 'Created' (when system was created), 'Updated' (when system was upgraded/updated), 'Changed' (any datastore changes), 'Error', 'Warning', 'Buy', 'Sell', 'Swap', 'Send', 'Received', 'Payment', 'Token' created
@@ -1030,7 +1058,8 @@ export const yakklStoredObjects = [
 // TODO: Think through maybe adding a collection of totals for each asset class (e.g., 'Ethereum', 'Bitcoin', ...)
 // Includes account values, NFT values and more...
 // export let yakklPortfolio = {
-//   id: 0,
+//   id: '',
+//   persona: DEFAULT_PERSONA,
 //   accounts: yakklAccounts,
 //   version: '', // Travels with the data for upgrades
 // }

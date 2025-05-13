@@ -9,7 +9,7 @@ import type { Wallet } from '$lib/plugins';
 import type { EthereumSigner } from '$lib/plugins/blockchains/evm/ethereum/EthereumSigner';
 import { getObjectFromLocalStorage } from '$lib/common/backgroundStorage';
 import type { Signer } from '$lib/plugins/Signer';
-import { decryptDataBackground } from '$lib/common/listeners/background/unifiedMessageHandler';
+import { decryptDataBackground } from '$lib/common/listeners/background/unifiedMessageListener';
 
 export class SigningManager {
   private static instance: SigningManager | null = null;

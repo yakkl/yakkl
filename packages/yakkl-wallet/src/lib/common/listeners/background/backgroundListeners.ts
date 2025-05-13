@@ -3,23 +3,18 @@ import { ListenerManager } from '$lib/plugins/ListenerManager';
 import browser from 'webextension-polyfill';
 import type { Runtime } from 'webextension-polyfill';
 import { openWindows } from '$lib/common/reload';
-import { initializeDatabase } from '$lib/extensions/chrome/database';
+import { initializeBlacklistDatabase } from '$lib/extensions/chrome/database';
 import { yakklStoredObjects } from '$lib/models/dataModels';
 import { setObjectInLocalStorage } from '$lib/common/storage';
 import { setLocalObjectStorage } from '$lib/extensions/chrome/storage';
 import { loadDefaultTokens } from '$lib/plugins/tokens/loadDefaultTokens';
 import { VERSION } from '$lib/common/constants';
-// import { onRuntimeMessageListener } from './runtimeListeners';
 import { onPortConnectListener, onPortDisconnectListener } from './portListeners';
 import { onTabActivatedListener, onTabRemovedListener, onTabUpdatedListener, onWindowsFocusChangedListener } from './tabListeners';
 import { globalListenerManager } from '$lib/plugins/GlobalListenerManager';
 import { log } from '$lib/plugins/Logger';
-// import { onSigningRequestListener } from '$lib/extensions/chrome/signingHandler';
 import { openPopups } from '$lib/extensions/chrome/ui';
-// import { onSecureMessageListener } from './secureListener';
-// import { onRuntimeMessageBackgroundListener } from '$lib/extensions/chrome/background';
-// import { onEIP6963MessageListener } from '$lib/extensions/chrome/eip-6963';
-import { onUnifiedMessageListener } from './unifiedMessageHandler';
+import { onUnifiedMessageListener} from './unifiedMessageListener';
 
 type RuntimePlatformInfo = Runtime.PlatformInfo;
 
@@ -27,6 +22,13 @@ export const backgroundListenerManager = new ListenerManager('background');
 
 export async function onInstalledUpdatedListener( details: Runtime.OnInstalledDetailsType ): Promise<void> {
   try {
+    // Add default tokens
+    try {
+      await loadDefaultTokens();
+    } catch (error) {
+      log.warn('Background: loading default tokens:', false, error);
+    }
+
     // This portion only works in Chrome
     if (typeof chrome !== "undefined" && chrome.sidePanel) {
       // Set the panel behavior to NOT open on action click
@@ -62,7 +64,7 @@ export async function onInstalledUpdatedListener( details: Runtime.OnInstalledDe
         }
       });
 
-      await initializeDatabase(false);
+      await initializeBlacklistDatabase(false);
 
       await browser.runtime.setUninstallURL(encodeURI("https://yakkl.com?userName=&utm_source=yakkl&utm_medium=extension&utm_campaign=uninstall&utm_content=" + `${VERSION}` + "&utm_term=extension"));
       await setLocalObjectStorage(platform, false);
@@ -70,13 +72,11 @@ export async function onInstalledUpdatedListener( details: Runtime.OnInstalledDe
 
     if (details && details.reason === "update") {
       if (details.previousVersion !== browser.runtime.getManifest().version) {
-        await initializeDatabase(true); // This will clear the db and then import again
+        await initializeBlacklistDatabase(true); // This will clear the db and then import again
         await setLocalObjectStorage(platform, false); // After 1.0.0, upgrades will be handled.
       }
     }
 
-    // Add default tokens
-    loadDefaultTokens();
   } catch (e) {
     log.error(e);
   }
@@ -96,12 +96,6 @@ globalListenerManager.registerContext('background', backgroundListenerManager);
 export function addBackgroundListeners() {
   // These check to see if already added and if so, remove and re-add
   backgroundListenerManager.add(browser.runtime.onMessage, onUnifiedMessageListener);
-  // Comment out individual handlers as they are now handled by the unified handler
-  // backgroundListenerManager.add(browser.runtime.onMessage, onSecureMessageListener);
-  // backgroundListenerManager.add(browser.runtime.onMessage, onSigningRequestListener);
-  // backgroundListenerManager.add(browser.runtime.onMessage, onRuntimeMessageBackgroundListener);
-  // backgroundListenerManager.add(browser.runtime.onMessage, onRuntimeMessageListener);
-  // backgroundListenerManager.add(browser.runtime.onMessage, onEIP6963MessageListener);
 
   backgroundListenerManager.add(browser.runtime.onInstalled, onInstalledUpdatedListener);
   backgroundListenerManager.add(browser.runtime.onConnect, onPortConnectListener);

@@ -235,11 +235,13 @@
 
         const profileDataEnc = await encryptData(profileData, digest);
         yakklProfile.data = profileDataEnc;
+        yakklProfile.preferences.id = yakklProfile.id;
 
         await setProfileStorage(yakklProfile); // Sets $profileStore as well
         await setYakklCurrentlySelectedStorage(currentlySelected); // Sets $yakklCurrentlySelectedStore as well
 
         // const preferences = await getPreferences() || yakklPreferencesDefaults;
+        yakklPreferences.id = yakklProfile.id;
         yakklPreferences.screenWidth = screen.width;
         yakklPreferences.screenHeight = screen.height;
         await setPreferencesStorage(yakklPreferences); // Sets $yakklPreferencesStore as well

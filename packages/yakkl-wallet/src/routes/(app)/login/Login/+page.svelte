@@ -60,6 +60,11 @@
           case 'personal_sign':
             url = '/dapp/popups/sign';
             break;
+          case 'wallet_requestPermissions':
+          case 'wallet_revokePermissions':
+          case 'wallet_getPermissions':
+            url = '/dapp/popups/permissions';
+            break;
           // Unsupported - security risk
           // case 'wallet_addEthereumChain':
           //   url = '/dapp/popups/walletNetworkAdd';

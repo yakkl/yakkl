@@ -10,6 +10,8 @@ export interface StorageSchema {
 }
 
 export interface UserSettings {
+  id: string;
+  persona: string; // The persona that is associated with the user
   theme: 'light' | 'dark' | 'system';
   notifications: boolean;
   // Other settings

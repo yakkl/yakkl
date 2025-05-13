@@ -1,53 +1,112 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// Background actions for the extension...
+// background.ts - Complete implementation with unified port handling
 import { ensureProcessPolyfill } from '$lib/common/process';
 ensureProcessPolyfill();
 
-import { initializeEIP6963, handleRequestAccounts, getCurrentlySelectedData } from './eip-6963';
+import { initializeEIP6963, getCurrentlySelectedData } from './eip-6963';
 import { addBackgroundListeners } from '$lib/common/listeners/background/backgroundListeners';
-import { globalListenerManager } from '$lib/plugins/GlobalListenerManager';
 import { log } from '$lib/plugins/Logger';
 import browser from 'webextension-polyfill';
 import { onAlarmListener } from '$lib/common/listeners/background/alarmListeners';
 import type { Runtime } from 'webextension-polyfill';
-import { activeTabBackgroundStore, activeTabUIStore, backgroundUIConnectedStore } from '$lib/common/stores';
-import { get } from 'svelte/store';
-import { type ActiveTab, type YakklCurrentlySelected } from '$lib/common';
+import { type ActiveTab } from '$lib/common';
 import { initializePermissions } from '$lib/permissions';
 import { initializeStorageDefaults, watchLockedState } from '$lib/common/backgroundUtils';
 import { KeyManager } from '$lib/plugins/KeyManager';
 import { getObjectFromLocalStorage } from '$lib/common/backgroundSecuredStorage';
 import { SecurityLevel } from '$lib/permissions/types';
 import { getAlchemyProvider } from '$lib/plugins/providers/network/ethereum_provider/alchemy';
-import type { PendingRequestData, RequestMetadata, YakklMessage, YakklRequest, YakklResponse } from '$lib/common/interfaces';
-import { STORAGE_YAKKL_CURRENTLY_SELECTED } from '$lib/common/constants';
+import type { PendingRequestData, YakklRequest, YakklResponse } from '$lib/common/interfaces';
 import { showPopup } from './ui';
-import { ensureEipId } from '$lib/common/id-generator';
 import { extractSecureDomain } from '$lib/common/security';
-import { verifyDomainConnected } from '$lib/extensions/chrome/verifyDomainConnected';
-import { yakklCurrentlySelected } from '$lib/models/dataModels';
+import { getAddressesForDomain, verifyDomainConnected } from '$lib/extensions/chrome/verifyDomainConnectedBackground';
 
-type RuntimeSender = Runtime.MessageSender;
-type RuntimePort = Runtime.Port;
+// Type definitions for our unified architecture
+export type RuntimePort = Runtime.Port;
 
-// NOTE: This is a workaround for how Chrome handles alarms, listeners, and state changes in the background
-//  It appears that if the extension is suspended, the idle listener may not be triggered
-//  This workaround sets up a periodic check to ensure the state is updated
-//  If the devtools are open, the extension is not suspended and works as expected but, Chrome seems to be
-//  more aggressive when devtools is not open
+export interface PortInfo {
+    port: RuntimePort;
+    type: 'unified' | 'legacy';
+    lastActivity: number;
+    metadata: {
+      tabId?: number;
+      url?: string;
+      isContentScript: boolean;
+    };
+  }
 
-// UPDATE: Moved idle timer to the IdleManager plugin and for anything needed to always be active while the UI is active
-// IdleManager is UI context only and is not used in the background context
+// Connection manager class to handle all port connections
+class ConnectionManager {
+  private ports: Map<string, PortInfo> = new Map();
+  private portIdCounter = 0;
 
-// Export KeyManager for console debugging
-// Use globalThis instead of window to support Service Workers
-(globalThis as any).debugKeyManager = KeyManager.getInstance();
+  // Register a new port connection
+  public registerPort(port: RuntimePort, sender?: Runtime.MessageSender): string {
+    const portId = `port-${this.portIdCounter++}`;
 
-// Track connected ports
-const ports: Map<string, RuntimePort> = new Map();
+    const portInfo: PortInfo = {
+      port,
+      type: this.detectPortType(port.name),
+      lastActivity: Date.now(),
+      metadata: {
+        tabId: sender?.tab?.id,
+        url: sender?.url || sender?.tab?.url,
+        isContentScript: sender?.url?.startsWith('chrome-extension://') === false
+      }
+    };
 
-// Define the type for pending requests
+    this.ports.set(portId, portInfo);
+
+    log.debug('Port registered:', false, {
+      portId,
+      type: portInfo.type,
+      metadata: portInfo.metadata
+    });
+
+    return portId;
+  }
+
+  // Detect the type of port based on its name
+  private detectPortType(portName: string): 'unified' | 'legacy' {
+    if (portName === 'yakkl-unified') {
+      return 'unified';
+    }
+    return 'legacy';
+  }
+
+  // Get port info by ID
+  public getPort(portId: string): PortInfo | undefined {
+    return this.ports.get(portId);
+  }
+
+  // Remove a port
+  public removePort(portId: string): void {
+    this.ports.delete(portId);
+    log.debug('Port removed:', false, { portId });
+  }
+
+  // Update port activity
+  public updateActivity(portId: string): void {
+    const portInfo = this.ports.get(portId);
+    if (portInfo) {
+      portInfo.lastActivity = Date.now();
+    }
+  }
+
+  // Clean up inactive ports
+  public cleanupInactivePorts(maxInactiveTime: number = 300000): void { // 5 minutes
+    const now = Date.now();
+    for (const [portId, portInfo] of this.ports.entries()) {
+      if (now - portInfo.lastActivity > maxInactiveTime) {
+        this.removePort(portId);
+      }
+    }
+  }
+}
+
+// Create our connection manager instance
+const connectionManager = new ConnectionManager();
+
+// Pending requests tracking
 export type BackgroundPendingRequest = {
   resolve: (value: any) => void;
   reject: (reason: any) => void;
@@ -60,562 +119,600 @@ export type BackgroundPendingRequest = {
   result?: any;
 };
 
-// Export the pendingRequests Map
 export const pendingRequests = new Map<string, BackgroundPendingRequest>();
 
-// Store for request metadata
-const requestMetadata: Map<string, RequestMetadata> = new Map();
+// Track processed requests to prevent duplicates
+const processedBackgroundRequests = new Set<string>();
 
-// Flag to check if the client is ready so that we can send messages to the client correctly
-// let isClientReady = false;
-
-// browser.runtime.onMessage.addListener((message: any): any => {
-//   if (message.type === 'clientReady') {
-//     isClientReady = true;
-//   }
-//   return false;
-// });
-
-// Handle port connections
+// Main port connection handler
 browser.runtime.onConnect.addListener((port: RuntimePort) => {
-  const portId = port.name || `port-${Date.now()}`;
-  // Store the port
-  ports.set(portId, port);
+  const sender = port.sender;
+  const portId = connectionManager.registerPort(port, sender);
 
-  // Set up message listener
-  port.onMessage.addListener((message, port: RuntimePort) => {
-    handlePortMessage(message as YakklMessage, port);
+  log.debug('Background: Port connected:', false, {
+    portId,
+    portName: port.name,
+    sender: sender,
+    timestamp: new Date().toISOString()
   });
 
-  // Handle disconnection
+  // Set up message listener for this port
+  port.onMessage.addListener(async (message: any) => {
+    try {
+      connectionManager.updateActivity(portId);
+
+      log.debug('Background: Message received on port:', false, {
+        portId,
+        message,
+        timestamp: new Date().toISOString()
+      });
+
+      // Handle different message sources
+      if (message.source === 'content' || message.source === 'provider') {
+        log.debug('Background: Handling provider message:', false, {
+          portId,
+          message,
+          timestamp: new Date().toISOString()
+        });
+        await handleProviderMessage(message, port, portId);
+      } else {
+        // Handle other message types based on the message itself
+        log.debug('Background: Handling general message:', false, {
+          portId,
+          message,
+          timestamp: new Date().toISOString()
+        });
+        await handleGeneralMessage(message, port, portId);
+      }
+    } catch (error) {
+      log.error('Error handling port message:', false, error);
+      sendErrorResponse(port, message.id, error);
+    }
+  });
+
+  // Handle port disconnection
   port.onDisconnect.addListener(() => {
-    log.debug('Port disconnected', false, {
+    log.debug('Background: Port disconnected:', false, {
       portId,
       timestamp: new Date().toISOString()
     });
 
-    // Remove the port
-    ports.delete(portId);
+    connectionManager.removePort(portId);
 
     // Clean up any pending requests for this port
-    for (const [id, request] of pendingRequests.entries()) {
-      if (request.port === port) {
-        pendingRequests.delete(id);
-      }
-    }
+    cleanupPendingRequestsForPort(port);
   });
 });
 
-// Handle messages from ports
-async function handlePortMessage(message: YakklMessage, port: RuntimePort) {
-  if (!message || typeof message !== 'object') {
-    log.warn('Invalid message from port', false, message);
+// Handle provider-specific messages
+async function handleProviderMessage(message: any, port: RuntimePort, portId: string) {
+  // Skip duplicate requests
+  if (message.id && processedBackgroundRequests.has(message.id)) {
+    log.debug('Background: Skipping duplicate request:', false, {
+      requestId: message.id,
+      method: message.method
+    });
     return;
   }
 
-  // Handle responses from popups
-  if (message.type === 'YAKKL_RESPONSE:EIP6963') {
-    const { id, result, method, error } = message as YakklResponse;
+  if (message.id) {
+    processedBackgroundRequests.add(message.id);
 
-    log.debug('Processing response from popup', false, {
+    // Clean up old processed requests
+    if (processedBackgroundRequests.size > 1000) {
+      const oldestRequests = Array.from(processedBackgroundRequests).slice(0, 100);
+      oldestRequests.forEach(id => processedBackgroundRequests.delete(id));
+    }
+  }
+
+  // Handle different message types
+  switch (message.type) {
+    case 'YAKKL_REQUEST:EIP6963':
+    case 'YAKKL_REQUEST:EIP1193':
+      await handleProviderRequest(message as YakklRequest, port);
+      break;
+
+    case 'CONNECTION_TEST':
+      // Respond to connection test
+      port.postMessage({
+        type: 'CONNECTION_TEST_RESPONSE',
+        id: message.id
+      });
+      break;
+
+    default:
+      log.debug('Unknown provider message type:', false, message.type);
+  }
+}
+
+// Handle provider requests
+async function handleProviderRequest(request: YakklRequest, port: RuntimePort) {
+  const { id, method, params, requiresApproval } = request;
+
+  try {
+    log.debug('Processing provider request:', false, {
       id,
-      result,
       method,
-      error,
+      requiresApproval,
       timestamp: new Date().toISOString()
     });
 
-    // Find the original request
-    const originalRequest = pendingRequests.get(id);
-    if (!originalRequest) {
-      log.warn('No original request found for response', false, { id });
+    // Handle approval-required methods
+    if (requiresApproval) {
+      await handleApprovalRequest(request, port);
       return;
     }
 
-    log.info('----------- Background (handlePortMessage): Original request: ------------', false, {
-      originalRequest: originalRequest
-    });
+    // Handle direct methods - pass the entire request object
+    const result = await handleDirectMethod(method, params || [], request);
 
-    // Forward the response to the original requester
-    if (originalRequest.port) {
-      log.debug('Forwarding response to original requester', false, {
-        id,
-        message: message,
-        method: method,
-        port: originalRequest.port.name,
-        timestamp: new Date().toISOString()
-      });
-
-      // Ensure the response includes the method from the original request
-      const responseMethod = method || originalRequest.data.method;
-      originalRequest.port.postMessage({
-        ...message,
-        id,
-        method: responseMethod,
-        jsonrpc: '2.0'
-      });
-
-      log.debug('----------- Background (handlePortMessage): Pending requests: ------------', false, {
-        pendingRequests: pendingRequests,
-        id,
-        originalRequest: originalRequest
-      });
-
-      pendingRequests.delete(id);
-    } else {
-      log.warn('Original request port not found', false, { id });
-    }
-    return;
-  }
-
-  // Handle requests
-  if (message.type === 'YAKKL_REQUEST:EIP6963' || message.type === 'YAKKL_REQUEST:EIP1193') {
-    const request = message as YakklRequest;
-    const { id, method, params, requiresApproval } = request;
-
-    // Get the origin from the port sender if available
-    const origin = port.sender?.url || '';
-
-    log.debug('Processing request', false, {
+    // Send response
+    const response: YakklResponse = {
+      type: 'YAKKL_RESPONSE:EIP6963',
       id,
-      method,
-      params,
-      port,
-      requiresApproval,
-      origin,
+      result,
+      jsonrpc: '2.0',
+      method
+    };
+
+    log.debug('Sending provider response:', false, {
+      id: response.id,
+      method: response.method,
+      type: response.type,
+      hasResult: result !== undefined,
       timestamp: new Date().toISOString()
     });
 
-    try {
-      // For methods that require approval, use the EIP-6963 implementation
-      if (requiresApproval) {
-        try {
-          // Import the showEIP6963Popup function from eip-6963.ts
-          const { showEIP6963Popup } = await import('./eip-6963');
+    port.postMessage(response);
 
-          const activeTab = get(activeTabBackgroundStore);
-          const url = activeTab?.url || '';
-          const domain = url ? extractSecureDomain(url) : 'NO DOMAIN - NOT ALLOWED';
-
-          // Ensure params is an array and properly typed
-          const typedParams = Array.isArray(params) ? params : [params];
-          const message = method === 'personal_sign' && typedParams[0] ? String(typedParams[0]) : 'Not Available';
-
-          // Create the request data without non-serializable properties
-          const requestData: Omit<PendingRequestData, 'resolve' | 'reject' | 'port'> = {
-            id,
-            method,
-            params: typedParams,
-            requiresApproval: true,
-            timestamp: Date.now(),
-            metaData: {
-              method: method,
-              params: typedParams,
-              metaData: {
-                domain: domain,
-                isConnected: await verifyDomainConnected(domain),
-                icon: activeTab?.favIconUrl || '/images/failIcon48x48.png',
-                title: activeTab?.title || 'Not Available',
-                origin: url,
-                message: message
-              }
-            }
-          };
-
-          log.debug('----------- Background (handlePortMessage): Request data: ------------', false, {
-            requestData: requestData
-          });
-
-          // Create the full request with non-serializable properties
-          const fullRequest: BackgroundPendingRequest = {
-            resolve: (result) => {
-              port.postMessage({
-                type: 'YAKKL_RESPONSE:EIP6963',
-                jsonrpc: '2.0',
-                id,
-                result
-              });
-            },
-            reject: (error) => {
-              port.postMessage({
-                type: 'YAKKL_RESPONSE:EIP6963',
-                jsonrpc: '2.0',
-                id,
-                error: {
-                  code: -32603,
-                  message: error?.message || 'Internal error'
-                }
-              });
-            },
-            port: port as Runtime.Port,
-            data: requestData as PendingRequestData
-          };
-
-          pendingRequests.set(id, fullRequest);
-
-          log.debug('----------- Background (handlePortMessage): Pending requests: ------------', false, {
-            pendingRequests: pendingRequests,
-            id,
-            fullRequest: fullRequest
-          });
-
-          // Use the EIP-6963 implementation to handle the request
-          const result = await showEIP6963Popup(method, params || [], port, id);
-
-          log.debug('----------- Background (handlePortMessage): Result: ------------', false, {
-            result: result,
-            id,
-            port: port
-          });
-
-          // Send the response back to the port
-          port.postMessage({
-            type: 'YAKKL_RESPONSE:EIP6963',
-            jsonrpc: '2.0',
-            method: method,
-            id,
-            result
-          });
-          return;
-        } catch (error) {
-          log.error('Error handling EIP-6963 request:', false, error);
-          throw error;
-        }
-      }
-
-      // For non-approval methods, handle directly
-      const result = await handleRequest(method, params || [], origin, port, id);
-      port.postMessage({
-        type: 'YAKKL_RESPONSE:EIP6963',
-        jsonrpc: '2.0',
-        method: method,
-        id,
-        result
-      });
-    } catch (error) {
-      log.error('Error handling request:', false, error);
-      port.postMessage({
-        type: 'YAKKL_RESPONSE:EIP6963',
-        jsonrpc: '2.0',
-        method: method,
-        id,
-        error: {
-          code: -32603,
-          message: error instanceof Error ? error.message : 'Internal error'
-        }
-      });
-    }
+    log.debug('Provider response sent successfully', false, { id: response.id });
+  } catch (error) {
+    log.error('Error in handleProviderRequest:', false, { id, method, error });
+    sendErrorResponse(port, id, error);
   }
 }
 
-// Helper function to check if method requires approval
-function requiresApproval(method: string): boolean {
-  const approvalMethods = [
-    'eth_requestAccounts',
-    'eth_sendTransaction',
-    'eth_signTransaction',
-    'eth_sign',
-    'personal_sign',
-    'eth_signTypedData_v4',
-    'wallet_addEthereumChain',
-    'wallet_switchEthereumChain',
-    'wallet_watchAsset'
-  ];
-  return approvalMethods.includes(method);
+// Handle methods that require user approval
+async function handleApprovalRequest(request: YakklRequest, port: RuntimePort) {
+  const { id, method, params } = request;
+
+  try {
+    // Get current tab information
+    const portInfo = Array.from(connectionManager['ports'].values())
+      .find(info => info.port === port);
+
+    const tabInfo = await getTabInfoForPort(portInfo);
+
+    // Store pending request
+    const pendingRequest: BackgroundPendingRequest = {
+      resolve: (result: any) => {
+        port.postMessage({
+          type: 'YAKKL_RESPONSE:EIP6963',
+          id,
+          result,
+          method,
+          jsonrpc: '2.0'
+        });
+      },
+      reject: (error: any) => {
+        sendErrorResponse(port, id, error);
+      },
+      port,
+      data: {
+        id,
+        method,
+        params: params || [],
+        requiresApproval: true,
+        timestamp: Date.now(),
+        metaData: {
+          method,
+          params: params || [],
+          metaData: {
+            domain: tabInfo.domain,
+            isConnected: await verifyDomainConnected(tabInfo.domain),
+            icon: tabInfo.icon,
+            title: tabInfo.title,
+            origin: tabInfo.url,
+            message: getApprovalMessage(method, params)
+          }
+        }
+      }
+    };
+
+    pendingRequests.set(id, pendingRequest);
+
+    // Show approval popup
+    const { showEIP6963Popup } = await import('./eip-6963');
+    await showEIP6963Popup(method, params || [], port, id);
+  } catch (error) {
+    log.error('Error handling approval request:', false, error);
+    sendErrorResponse(port, id, error);
+  }
 }
 
-// Get provider instance
-async function getProvider() {
-  return getAlchemyProvider(); // Add other providers here
-}
-
-async function handleRequest(method: string, params: any[], origin: string, port?: Runtime.Port, requestId?: string) {
-  // const yakklCurrentlySelected = await getObjectFromLocalStorage(STORAGE_YAKKL_CURRENTLY_SELECTED) as YakklCurrentlySelected;
+// Handle direct methods (no approval needed)
+async function handleDirectMethod(method: string, params: any[], request?: any): Promise<any> {
   const yakklCurrentlySelectedData = await getCurrentlySelectedData();
 
-  log.debug('Processing request:', false, {
-    method,
-    params,
-    origin,
-    yakklCurrentlySelected,
-    timestamp: new Date().toISOString()
-  });
-
-  // Handle methods that should be handled by YAKKL directly
   switch (method) {
     case 'eth_chainId':
       return yakklCurrentlySelectedData?.chainId || '0x1';
+
     case 'eth_accounts':
-      // For eth_accounts, use the original implementation
-      const address = yakklCurrentlySelectedData?.address;
-      if (address && address !== '0x0000000000000000000000000000000000000000') {
-        return [address];
-      }
-      // Return empty array if no valid address
-      return [];
+      // Try to get origin from multiple possible locations
+      let origin = '';
 
-    case 'eth_requestAccounts': {
+      // First, check if the origin is in the request object
+      if (request?.origin) {
+        origin = request.origin;
+      }
+      // Then check if it's in the params
+      else if (params && params.length > 0) {
+        const lastParam = params[params.length - 1];
+        if (typeof lastParam === 'object' && lastParam.origin) {
+          origin = lastParam.origin;
+        }
+      }
+
+      // If we still don't have an origin, we can't proceed safely
+      if (!origin) {
+        log.warn('No origin provided for eth_accounts request', false);
+        return [];
+      }
+
       try {
-        return await handleRequestAccounts(port, requestId);
-      } catch (error) {
-        log.error('Error using EIP-6963 implementation for eth_requestAccounts:', false, error);
-        throw error;
-      }
-    }
+        const domain = extractSecureDomain(origin);
+        const isConnected = await verifyDomainConnected(domain);
 
-    case 'net_version': {
+        if (!isConnected) {
+          return [];
+        }
+
+        return await getAddressesForDomain(domain);
+      } catch (error) {
+        log.error('Error extracting domain or checking connection:', false, error);
+        return [];
+      }
+
+    case 'net_version':
       const chainId = yakklCurrentlySelectedData?.chainId;
       if (!chainId) return '1';
 
-      // Handle both string and number chainId formats
       const chainIdStr = typeof chainId === 'string' ? chainId : `0x${chainId.toString(16)}`;
       return parseInt(chainIdStr.replace('0x', ''), 16).toString();
+
+    default:
+      // For other methods, delegate to the network provider
+      const provider = getAlchemyProvider();
+      return provider.request({ method, params });
+  }
+}
+
+// Handle general messages (not provider-specific)
+// In handleGeneralMessage function, add a case for responses
+async function handleGeneralMessage(message: any, port: RuntimePort, portId: string) {
+  // Route messages based on type
+  switch (message.type) {
+    case 'SECURITY_CONFIG_REQUEST':
+      // Handle security configuration requests
+      const securityLevel = await getSecurityLevel();
+      port.postMessage({
+        type: 'SECURITY_CONFIG_RESPONSE',
+        securityLevel,
+        injectIframes: shouldInjectIframes(securityLevel)
+      });
+      break;
+
+    // Add this new case to handle responses
+    case 'YAKKL_RESPONSE:EIP6963':
+    case 'YAKKL_RESPONSE:EIP1193':
+      await handleProviderResponse(message, port, portId);
+      break;
+
+    default:
+      // Try legacy handlers if needed
+      await handleLegacyMessage(message, port);
+  }
+}
+
+// Add this new function to handle provider responses
+async function handleProviderResponse(response: any, port: RuntimePort, portId: string) {
+  const { id, result, error } = response;
+
+  log.debug('Handling provider response:', false, {
+    id,
+    hasResult: result !== undefined,
+    hasError: error !== undefined,
+    portId,
+    timestamp: new Date().toISOString()
+  });
+
+  // Find the pending request
+  const pendingRequest = pendingRequests.get(id);
+  if (!pendingRequest) {
+    log.warn('No pending request found for response:', false, { id });
+    return;
+  }
+
+  // Forward the response back through the original port that made the request
+  const originalPort = pendingRequest.port;
+
+  try {
+    log.debug('Forwarding response to original port:', false, {
+      id,
+      originalPortName: originalPort.name,
+      currentPortName: port.name,
+      timestamp: new Date().toISOString()
+    });
+
+    originalPort.postMessage(response);
+
+    // Clean up the pending request
+    pendingRequests.delete(id);
+
+    log.debug('Response forwarded successfully', false, { id });
+  } catch (error) {
+    log.error('Failed to forward response:', false, {
+      id,
+      error,
+      originalPortDisconnected: !originalPort.name
+    });
+
+    // If the original port is disconnected, clean up
+    pendingRequests.delete(id);
+  }
+}
+
+// Helper function to get tab information for a port
+async function getTabInfoForPort(portInfo: any): Promise<{
+  domain: string;
+  url: string;
+  title: string;
+  icon: string;
+}> {
+  try {
+    if (portInfo?.metadata?.tabId) {
+      const tab = await browser.tabs.get(portInfo.metadata.tabId);
+      return {
+        domain: extractSecureDomain(tab.url || ''),
+        url: tab.url || '',
+        title: tab.title || 'Unknown',
+        icon: tab.favIconUrl || '/images/failIcon48x48.png'
+      };
+    }
+  } catch (error) {
+    log.error('Error getting tab info:', false, error);
+  }
+
+  // Return defaults if we can't get tab info
+  return {
+    domain: 'Unknown',
+    url: '',
+    title: 'Unknown',
+    icon: '/images/failIcon48x48.png'
+  };
+}
+
+// Helper function to get approval message for different methods
+function getApprovalMessage(method: string, params?: any[]): string {
+  switch (method) {
+    case 'personal_sign':
+      return params?.[0] ? String(params[0]) : 'Sign Message';
+    case 'eth_signTypedData_v4':
+      return 'Sign Typed Data';
+    case 'eth_sendTransaction':
+      return 'Send Transaction';
+    default:
+      return 'Approve Request';
+  }
+}
+
+// Send error response to port
+function sendErrorResponse(port: RuntimePort, id: string, error: any) {
+  const errorResponse: YakklResponse = {
+    type: 'YAKKL_RESPONSE:EIP6963',
+    id,
+    error: {
+      code: error.code || -32603,
+      message: error.message || 'Internal error'
+    },
+    jsonrpc: '2.0'
+  };
+
+  try {
+    port.postMessage(errorResponse);
+  } catch (e) {
+    log.error('Failed to send error response:', false, e);
+  }
+}
+
+// Clean up pending requests for a disconnected port
+function cleanupPendingRequestsForPort(port: RuntimePort) {
+  for (const [id, request] of pendingRequests.entries()) {
+    if (request.port === port) {
+      pendingRequests.delete(id);
+      log.debug('Cleaned up pending request:', false, { id });
     }
   }
-
-  // For other methods, delegate to the network provider
-  const provider = await getProvider();
-  return provider.request({ method, params });
 }
 
-// Helper function to get a user-friendly description of a method
-function getMethodDescription(method: string): string {
-  switch (method) {
-    case 'eth_requestAccounts':
-      return 'connect to your wallet';
-    case 'eth_sendTransaction':
-      return 'send a transaction';
-    case 'eth_sign':
-    case 'personal_sign':
-    case 'eth_signTypedData_v4':
-      return 'sign a message';
-    case 'wallet_switchEthereumChain':
-      return 'switch networks';
-    case 'wallet_addEthereumChain':
-      return 'add a new network';
-    case 'wallet_watchAsset':
-      return 'add a token to your wallet';
-    default:
-      return 'perform an action';
+interface SecuritySettings {
+  level: SecurityLevel;
+  lastUpdated?: number;
+  // Add any other security settings properties here
+}
+
+// Create a dedicated function for getting security settings
+async function getSecuritySettings(): Promise<SecuritySettings | null> {
+  try {
+    const data = await getObjectFromLocalStorage('securitySettings');
+
+    // Validate the structure
+    if (!data || typeof data !== 'object') {
+      return null;
+    }
+
+    // Check if 'level' exists and is a valid SecurityLevel
+    if ('level' in data && Object.values(SecurityLevel).includes((data as any).level)) {
+      return data as SecuritySettings;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error retrieving security settings:', error);
+    return null;
   }
 }
 
-// Send events to all connected ports
-function broadcastEvent(eventName: string, data: any, type: string = 'YAKKL_EVENT:EIP6963') {
+// Your main function becomes simpler and more type-safe
+async function getSecurityLevel(): Promise<SecurityLevel> {
+  const settings = await getSecuritySettings();
+  return settings?.level || SecurityLevel.MEDIUM;
+}
+
+// Determine if iframes should be injected based on security level
+function shouldInjectIframes(securityLevel: SecurityLevel): boolean {
+  switch (securityLevel) {
+    case SecurityLevel.HIGH:
+      return false;
+    case SecurityLevel.MEDIUM:
+    case SecurityLevel.STANDARD:
+      return true;
+    default:
+      return true;
+  }
+}
+
+// Handle legacy messages for backward compatibility
+async function handleLegacyMessage(message: any, port: RuntimePort) {
+  // Add any legacy message handling here if needed
+  log.debug('Unhandled message type:', false, { type: message.type });
+}
+
+// Setup provider event broadcasting
+function setupProviderEvents() {
+  const provider = getAlchemyProvider();
+
+  // Listen for provider events and broadcast them
+  provider.on('accountsChanged', (accounts: string[]) => {
+    broadcastEvent('accountsChanged', accounts);
+  });
+
+  provider.on('chainChanged', (chainId: string) => {
+    broadcastEvent('chainChanged', chainId);
+  });
+
+  provider.on('connect', (connectInfo: { chainId: string }) => {
+    broadcastEvent('connect', connectInfo);
+  });
+
+  provider.on('disconnect', (error: { code: number; message: string }) => {
+    broadcastEvent('disconnect', error);
+  });
+}
+
+// Broadcast events to all connected ports
+function broadcastEvent(eventName: string, data: any) {
   const event = {
-    type,
+    type: 'YAKKL_EVENT:EIP6963',
     event: eventName,
     data
   };
-  // Send to all ports
-  for (const port of ports.values()) {
-    port.postMessage(event);
-  }
-}
 
-// When we get ready to add other providers, we can use this function to setup the events for each provider
-// function setupAllProviderEvents() {
-//   const providers = [getAlchemyProvider(), getInfuraProvider(), getCustomProvider()];
-//   for (const provider of providers) {
-//     provider.on('accountsChanged', ...);
-//     // ... other events
-//   }
-// }
-
-// Set up event listeners for provider events
-function setupProviderEvents() {
-  const provider = getAlchemyProvider(); // Add other providers here
-
-  // Listen for account changes
-  provider.on('accountsChanged', (accounts: string[]) => {
-    broadcastEvent('accountsChanged', accounts);
-    broadcastEvent('accountsChanged', accounts, 'YAKKL_EVENT:EIP1193');
-  });
-
-  // Listen for chain changes
-  provider.on('chainChanged', (chainId: string) => {
-    broadcastEvent('chainChanged', chainId);
-    broadcastEvent('chainChanged', chainId, 'YAKKL_EVENT:EIP1193');
-  });
-
-  // Listen for connect events
-  provider.on('connect', (connectInfo: { chainId: string }) => {
-    broadcastEvent('connect', connectInfo);
-    broadcastEvent('connect', connectInfo, 'YAKKL_EVENT:EIP1193');
-  });
-
-  // Listen for disconnect events
-  provider.on('disconnect', (error: { code: number; message: string }) => {
-    broadcastEvent('disconnect', error);
-    broadcastEvent('disconnect', error, 'YAKKL_EVENT:EIP1193');
-  });
-
-  // Listen for message events
-  provider.on('message', (message: { type: string; data: unknown }) => {
-    broadcastEvent('message', message);
-    broadcastEvent('message', message, 'YAKKL_EVENT:EIP1193');
+  // Send to all connected ports
+  connectionManager['ports'].forEach((portInfo) => {
+    try {
+      portInfo.port.postMessage(event);
+    } catch (error) {
+      log.debug('Failed to send event to port:', false, error);
+    }
   });
 }
 
 // Initialize background script
-function initialize() {
-  // Set up provider events
-  setupProviderEvents();
-
-  // Clean up old pending requests periodically
-  setInterval(() => {
-    const now = Date.now();
-    for (const [id, request] of pendingRequests.entries()) {
-      // Remove requests older than 45 seconds
-      if (now - request?.data?.timestamp > 45000) {
-        log.warn('Removing stale request', false, {
-          id,
-          method: request.data.method,
-          age: now - request.data.timestamp
-        });
-        pendingRequests.delete(id);
-      }
-    }
-  }, 20000);
-}
-
-// Start the background script
-initialize();
-
-// Initialize on startup
-async function initializeOnStartup() {
+async function initializeBackground() {
   try {
-    // Add extension listeners
+    log.debug('Initializing background script...', false);
+
+    // Initialize core components
+    await initializeStorageDefaults();
+    await initializePermissions();
+    initializeEIP6963();
+
+    // Add listeners
     addBackgroundListeners();
     browser.alarms.onAlarm.addListener(onAlarmListener);
 
-    // Initialize default storage values first
-    initializeStorageDefaults();
+    // Setup provider events
+    setupProviderEvents();
 
-    // Initialize KeyManager first
-    // await initializeKeyManager(); // Will come back to this when focusing on security
+    // Start periodic cleanup
+    setInterval(() => {
+      connectionManager.cleanupInactivePorts();
+      cleanupOldProcessedRequests();
+    }, 60000); // Every minute
 
-    // Initialize permissions system
-    initializePermissions();
-
-    // Initialize EIP-6963 handler
-    initializeEIP6963();
-
+    // Watch locked state
     await watchLockedState(2 * 60 * 1000);
 
-    // Migrate legacy storage to secure storage test
-    // const store = new SecureStore('wallet', await getMemoizedKey(tmp_getMemoizedKey));
-
-    // await migrateToSecureStorage<YakklCurrentlySelectedInterface>(
-    //   'yakklCurrentlySelected',
-    //   store,
-    //   'yakklCurrentlySelected.secure',
-    //   [
-    //     'shortcuts.address',
-    //     'shortcuts.smartContract',
-    //     'preferences.locale',
-    //     'shortcuts.networks.*.chainId'
-    //   ]
-    // );
+    log.debug('Background script initialized successfully', false);
   } catch (error) {
-    log.error('Failed to initialize background script', true, error);
+    log.error('Failed to initialize background script:', false, error);
   }
 }
 
-await initializeOnStartup(); // Initial setup on load or reload. Alarm and State need to be set up quickly so they are here
+// Clean up old processed requests
+function cleanupOldProcessedRequests() {
+  const now = Date.now();
 
-try {
-  if (browser) {
-    // Set the active tab on startup
-    const tabs = await browser.tabs.query({ active: true }); //, currentWindow: true });
-    if (tabs.length > 0) {
-      const realTab = tabs.find(t => !t.url?.startsWith('chrome-extension://'));
-      const win = await browser.windows.get(realTab.windowId);
-      let activeTab: ActiveTab | null = {
-        tabId: realTab.id,
-        windowId: realTab.windowId,
-        windowType: win.type,
-        url: realTab.url,
-        title: realTab.title,
-        favIconUrl: realTab.favIconUrl,
-        dateTime: new Date().toISOString()
-      };
-
-      if (activeTab.tabId === 0) activeTab = null;
-      if (activeTab?.windowType === 'normal') {
-        activeTabBackgroundStore.set(activeTab);
-        activeTabUIStore.set(activeTab);
-        await browser.storage.local.set({['activeTabBackground']: activeTab});
-      }
-
-      try {
-        const backgroundUIConnected = get(backgroundUIConnectedStore);
-      } catch (error) {
-        // silent
-        log.error('Error setting active tab 1:', false, error);
-      }
+  // Clean up pending requests older than 5 minutes
+  for (const [id, request] of pendingRequests.entries()) {
+    if (now - request.data.timestamp > 300000) {
+      pendingRequests.delete(id);
+      log.debug('Cleaned up stale pending request:', false, { id });
     }
-  } else {
-    activeTabBackgroundStore.set(null);
-    activeTabUIStore.set(null);
   }
-} catch (error) {
-  log.error('Error setting active tab 2:', false, error);
+
+  // Keep processed requests set reasonable size
+  if (processedBackgroundRequests.size > 5000) {
+    const toRemove = processedBackgroundRequests.size - 4000;
+    const iterator = processedBackgroundRequests.values();
+    for (let i = 0; i < toRemove; i++) {
+      processedBackgroundRequests.delete(iterator.next().value);
+    }
+  }
 }
 
-// Moved here for now
+// Initialize keymanager and storage (if needed)
+async function initializeKeyManager(): Promise<void> {
+  try {
+    const keyManager = await KeyManager.getInstance();
+    log.debug('KeyManager initialized', false);
+  } catch (error) {
+    log.error('Failed to initialize KeyManager', false, error);
+  }
+}
+
+// Handle runtime messages (for non-port communication)
 export async function onRuntimeMessageBackgroundListener(
   message: any,
-  sender: RuntimeSender
+  sender: Runtime.MessageSender
 ): Promise<any> {
   try {
     switch (message.type) {
-      case 'getActiveTab': {
-        try {
-          let activeTab: ActiveTab | null = null;
-          const tabs = await browser.tabs.query({ active: true });
+      case 'getActiveTab':
+        const activeTab = await getActiveTab();
+        return { success: true, activeTab };
 
-          if (tabs.length > 0) {
-            const realTab = tabs.find(t => !t.url?.startsWith('chrome-extension://'));
-            if (realTab) {
-              const win = await browser.windows.get(realTab.windowId);
-              activeTab = {
-                tabId: realTab.id,
-                windowId: realTab.windowId,
-                windowType: win.type,
-                url: realTab.url,
-                title: realTab.title,
-                favIconUrl: realTab.favIconUrl,
-                dateTime: new Date().toISOString()
-              };
-            }
-          }
-
-          if (activeTab && activeTab.tabId) {
-            return { success: true, activeTab: activeTab };
-          } else {
-            log.error('No active tab found:', true);
-            return { success: false, error: 'No active tab found.' };
-          }
-        } catch (err) {
-          log.error('Error opening side panel:', true, err);
-          return { success: false, error: err };
-        }
-      }
-
-      case 'popout': {
-        log.debug('popout:', false, message);
+      case 'popout':
         showPopup('');
         return { success: true };
-      }
 
-      default: {
-        // Not handled by this listener
+      default:
         return undefined;
-      }
     }
   } catch (error: any) {
-    log.error('Error handling message:', true, error);
+    log.error('Error handling runtime message:', false, error);
     return {
       success: false,
       error: error?.message || 'Unknown error occurred.'
@@ -623,115 +720,36 @@ export async function onRuntimeMessageBackgroundListener(
   }
 }
 
-// unused at the moment
-export async function onSuspendListener() {
+// Get active tab information
+async function getActiveTab(): Promise<ActiveTab | null> {
   try {
-    log.info('onSuspendListener');
-    globalListenerManager.removeAll();
-  } catch (error) {
-    log.error('Background: onSuspendListener:', false, error);
-  }
-}
+    const tabs = await browser.tabs.query({ active: true });
 
-/**
- * Determine if we're in a development environment
- * This method checks multiple possible indicators since NODE_ENV might be inconsistent
- */
-function isDevelopmentEnvironment(): boolean {
-  // Check multiple possible indicators for development mode
-  return (
-    // Standard NODE_ENV check
-    (typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production') ||
-    // Vite-specific development indicator
-    (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV === true) ||
-    // Check for DEV_MODE flag that might be set in your build process
-    (typeof process !== 'undefined' && process.env && process.env.DEV_MODE === 'true')
-  );
-}
-
-/**
- * Initialize the KeyManager
- */
-async function initializeKeyManager(): Promise<void> {
-  try {
-    const keyManager = await KeyManager.getInstance();
-
-    // Log environment details for debugging
-    log.info('Environment details:', false, {
-      NODE_ENV: process.env.NODE_ENV,
-      isDev: isDevelopmentEnvironment(),
-      availableEnvKeys: process.env ? Object.keys(process.env).filter(key =>
-        key.includes('API_KEY') || key.includes('ALCHEMY') || key.includes('INFURA') || key.includes('BLOCKNATIVE')
-      ) : []
-    });
-
-    // Skip direct key setup - it's better to allow empty keys than to use incorrect values
-    // KeyManager.getKey will now return empty strings instead of undefined for missing keys
-
-    // Log available keys for debugging
-    const keyStatus = keyManager.getKeyStatus();
-
-    // Explicitly log full key details (development only)
-    if (isDevelopmentEnvironment()) {
-      try {
-        log.info('Logging detailed key information...');
-        keyManager.debugLogKeys();
-      } catch (error) {
-        log.error('Failed to log key details', false, error);
-      }
-    }
-  } catch (error) {
-    log.error('Failed to initialize KeyManager', false, error);
-  }
-}
-
-// Map security levels to iframe injection settings
-const SECURITY_LEVEL_IFRAME_SETTINGS = {
-  [SecurityLevel.HIGH]: {
-    injectIframes: false,
-    description: 'No iframe injection (highest security)'
-  },
-  [SecurityLevel.MEDIUM]: {
-    injectIframes: true,
-    description: 'Inject into trusted domains only (balanced security)'
-  },
-  [SecurityLevel.STANDARD]: {
-    injectIframes: true,
-    description: 'Inject into all non-null origin frames (dApp compatible)'
-  }
-} as const;
-
-async function updateSecurityConfig(securityLevel: SecurityLevel) {
-  try {
-    // Get all tabs
-    const tabs = await browser.tabs.query({});
-
-    // Get iframe settings based on security level
-    const iframeSettings = SECURITY_LEVEL_IFRAME_SETTINGS[securityLevel];
-
-    // Send the update to each tab
-    for (const tab of tabs) {
-      if (tab.id) {
-        await browser.tabs.sendMessage(tab.id, {
-          type: 'YAKKL_SECURITY_CONFIG_UPDATE',
-          securityLevel,
-          injectIframes: iframeSettings.injectIframes
-        });
+    if (tabs.length > 0) {
+      const realTab = tabs.find(t => !t.url?.startsWith('chrome-extension://'));
+      if (realTab) {
+        const win = await browser.windows.get(realTab.windowId);
+        return {
+          tabId: realTab.id,
+          windowId: realTab.windowId,
+          windowType: win.type,
+          url: realTab.url,
+          title: realTab.title,
+          favIconUrl: realTab.favIconUrl,
+          dateTime: new Date().toISOString()
+        };
       }
     }
 
-    log.debug('Security configuration updated across all tabs', false, {
-      securityLevel,
-      iframeSettings,
-      timestamp: new Date().toISOString()
-    });
+    return null;
   } catch (error) {
-    log.error('Failed to update security configuration:', false, error);
+    log.error('Error getting active tab:', false, error);
+    return null;
   }
 }
 
-// browser.tabs.sendMessage(tabId, {
-//   type: 'YAKKL_SECURITY_CONFIG_UPDATE',
-//   securityLevel: 2, // Change to strict mode
-//   injectIframes: false // Disable iframe injection
-// });
+// Export the connection manager for testing and debugging
+(globalThis as any).connectionManager = connectionManager;
+
+// Initialize immediately on load
+initializeBackground();

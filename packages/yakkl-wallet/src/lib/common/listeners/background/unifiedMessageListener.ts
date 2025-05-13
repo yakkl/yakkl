@@ -1,3 +1,7 @@
+// unified-message-handler.ts
+// This file handles all message routing in the extension, combining the original
+// sender-based system with the new port-based architecture for better connection tracking
+
 import { log } from '$plugins/Logger';
 import browser from 'webextension-polyfill';
 import type { Runtime } from 'webextension-polyfill';
@@ -15,7 +19,10 @@ import { showPopup } from '$lib/extensions/chrome/ui';
 import { startLockIconTimer, stopLockIconTimer } from '$lib/extensions/chrome/iconTimer';
 import { setIconLock, setIconUnlock } from '$lib/utilities';
 import { isBackgroundContext } from '$lib/common/backgroundSecurity';
+import { sessionPortManager } from "$lib/plugins/SessionPortManager";
+import { requestManager as newRequestManager, type ExtendedBackgroundPendingRequest } from "$lib/plugins/RequestManager";
 
+// Interface for tracking active tabs
 interface ActiveTab {
   tabId: number;
   windowId: number;
@@ -26,33 +33,35 @@ interface ActiveTab {
   dateTime: string;
 }
 
-// Message type constants
+// Message type constants for routing
 export const EIP6963_REQUEST = 'EIP6963_REQUEST';
 export const EIP6963_RESPONSE = 'EIP6963_RESPONSE';
 export const EIP6963_ANNOUNCE = 'EIP6963_ANNOUNCE';
 export const SECURITY_MESSAGE = 'SECURITY_MESSAGE';
 export const RUNTIME_MESSAGE = 'RUNTIME_MESSAGE';
 
-// Session management
+// Session management configuration and state
 const SESSION_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
-let isClientReady = false; // Flag to check if the client is ready before sending messages from background to client
+let isClientReady = false; // Flag to check if the client is ready before sending messages
 let sessionToken: SessionToken | null = null;
 let memoryHash: string | null = null;
-const sessionPorts = new Map<string, Runtime.Port>();
+const sessionPorts = new Map<string, Runtime.Port>(); // Original session port storage
 const memoryHashes = new Map<string, string>();
 
+// Generates a new session token with expiration
 function generateSessionToken(): SessionToken {
   const token = getSafeUUID();
   const expiresAt = Date.now() + SESSION_TIMEOUT_MS;
   return { token, expiresAt };
 }
 
+// Clears the current session data
 function clearSession(reason: string) {
   sessionToken = null;
   memoryHash = null;
 }
 
-// Add port registration function
+// Original port registration function enhanced to work with both systems
 function registerSessionPort(port: Runtime.Port, requestId: string) {
   try {
     log.info('Attempting to register port', false, {
@@ -71,7 +80,7 @@ function registerSessionPort(port: Runtime.Port, requestId: string) {
       return { success: false, error: 'Invalid port or requestId' };
     }
 
-    // Check if port is already registered
+    // Check if port is already registered in original system
     if (sessionPorts.has(requestId)) {
       const existingPort = sessionPorts.get(requestId);
       log.warn('Port already registered for requestId', false, {
@@ -82,8 +91,12 @@ function registerSessionPort(port: Runtime.Port, requestId: string) {
       return { success: false, error: 'Port already registered' };
     }
 
-    // Store the port
+    // Store the port in original system
     sessionPorts.set(requestId, port);
+
+    // Also register with the new session port manager for enhanced tracking
+    sessionPortManager.registerSessionPort({ requestId }, port);
+
     log.info('Port registered successfully', false, {
       requestId,
       portName: port.name,
@@ -102,6 +115,7 @@ function registerSessionPort(port: Runtime.Port, requestId: string) {
   }
 }
 
+// Validates the current session token
 function validateSession(token: string, scope: string): void {
   try {
     if (!sessionToken || Date.now() > sessionToken.expiresAt) {
@@ -134,6 +148,7 @@ function validateSession(token: string, scope: string): void {
   }
 }
 
+// Decrypts data in the background context
 export async function decryptDataBackground(payload: any, token: string): Promise<any> {
   // Verify this is being called from the background context
   if (!isBackgroundContext()) {
@@ -148,41 +163,137 @@ export async function decryptDataBackground(payload: any, token: string): Promis
   return await decryptData(payload, memoryHash!);
 }
 
-// Update handleRequestSessionPort to use the consolidated session ports
-async function handleRequestSessionPort(requestId: string) {
+// New port-based message handler that works with the unified port architecture
+export async function onUnifiedPortMessageListener(
+  message: any,
+  port: Runtime.Port
+): Promise<void> {
   try {
-    if (!requestId) {
-      log.error('No request ID provided', false, { requestId });
-      return { success: false, error: 'No request ID provided' };
+    const { id: requestId, method, type, action } = message;
+
+    log.debug('Unified port handler received message', false, {
+      requestId: requestId,
+      method: method,
+      type: type,
+      action: action,
+      portName: port.name
+    });
+
+    // Handle session port registration with new connection ID system
+    if (type === 'REGISTER_SESSION_PORT') {
+      const connectionId = sessionPortManager.registerSessionPort(message, port);
+
+      // Also register in original system for backward compatibility
+      registerSessionPort(port, message.requestId);
+
+      port.postMessage({
+        type: 'SESSION_PORT_REGISTERED',
+        connectionId: connectionId,
+        requestId: message.requestId,
+        portName: port.name
+      });
+
+      log.info('Session port registered', false, {
+        connectionId: connectionId,
+        requestId: message.requestId,
+        portName: port.name
+      });
+      return;
     }
 
-    const port = sessionPorts.get(requestId);
-    if (!port) {
-      log.warn('No port found for request ID', false, { requestId });
-      return { success: false, error: 'No port found for request' };
+    // Handle session port requests with new system
+    if (type === 'REQUEST_SESSION_PORT') {
+      const sessionInfo = sessionPortManager.getSessionInfo(message.requestId);
+
+      // Fall back to original system if needed
+      if (!sessionInfo) {
+        const originalPort = sessionPorts.get(message.requestId);
+        if (originalPort) {
+          port.postMessage({
+            type: 'SESSION_PORT_INFO',
+            sessionInfo: {
+              connectionId: 'legacy',
+              portName: originalPort.name,
+              requestId: message.requestId
+            },
+            requestId: message.requestId
+          });
+          return;
+        }
+      }
+
+      if (sessionInfo) {
+        port.postMessage({
+          type: 'SESSION_PORT_INFO',
+          sessionInfo: sessionInfo,
+          requestId: message.requestId
+        });
+      } else {
+        port.postMessage({
+          type: 'SESSION_PORT_NOT_FOUND',
+          requestId: message.requestId,
+          error: 'No session found for this request ID'
+        });
+      }
+
+      log.info('Session info request handled', false, {
+        requestId: message.requestId,
+        found: !!sessionInfo
+      });
+      return;
     }
 
-    // Check if the port is still connected
-    if (!port.name) {
-      log.warn('Port has no name, may be disconnected', false, { requestId });
-      sessionPorts.delete(requestId);
-      return { success: false, error: 'Port disconnected' };
+    // For all other messages, convert port to sender format and call original handler
+    const sender: Runtime.MessageSender = {
+      tab: port.sender?.tab,
+      id: port.sender?.id,
+      url: port.sender?.url,
+      frameId: port.sender?.frameId
+    };
+
+    // Create an augmented sender with port for handlers that need it
+    const senderWithPort = Object.assign({}, sender, { port });
+
+    // Call the original message listener
+    const result = await onUnifiedMessageListener(message, senderWithPort);
+
+    // If the original handler returned a result, send it back through the port
+    if (result !== undefined) {
+      port.postMessage(result);
     }
 
-    log.debug('Session port found', false, { requestId, portName: port.name });
-    return { success: true, portName: port.name };
   } catch (error) {
-    log.error('Error handling request session port', false, { error, requestId });
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    log.error('Error in unified port message handler', false, {
+      error,
+      message,
+      portName: port.name
+    });
+
+    // Send error response if we have a request ID
+    if (message.id) {
+      port.postMessage({
+        type: 'ERROR_RESPONSE',
+        id: message.id,
+        error: {
+          code: -32603,
+          message: error instanceof Error ? error.message : 'Internal error'
+        }
+      });
+    }
   }
 }
 
-// Unified message handler
+// Alias for consistency with naming conventions
+export const onUnifiedMessageHandler = onUnifiedPortMessageListener;
+
+// Original unified message listener that handles all message types
 export async function onUnifiedMessageListener(
   message: any,
-  sender: Runtime.MessageSender
+  sender: Runtime.MessageSender & { port?: Runtime.Port }
 ): Promise<any> {
   try {
+    const { id: requestId, method, type } = message;
+
     log.debug('Received message', false, { message, sender });
 
     // Popout messages
@@ -200,7 +311,7 @@ export async function onUnifiedMessageListener(
       return await handleSecurityMessage(message, sender);
     }
 
-    // EIP-6963 messages
+    // EIP-6963 messages (all variations)
     if (message.type === EIP6963_REQUEST ||
         message.type === EIP6963_RESPONSE ||
         message.type === EIP6963_ANNOUNCE ||
@@ -211,6 +322,18 @@ export async function onUnifiedMessageListener(
         message.type === 'YAKKL_RESPONSE:EIP1193' ||
         message.type === 'YAKKL_EVENT:EIP1193' ||
         message.method?.startsWith('eth_')) {
+
+      // Use the new request manager when we have proper connection tracking
+      if (message.id && sender.port) {
+        const connectionId = sessionPortManager.getSessionInfo(message.id)?.connectionId;
+        newRequestManager.addRequest(message.id, {
+          data: message,
+          port: sender.port,
+          resolve: () => {},
+          reject: () => {}
+        } as ExtendedBackgroundPendingRequest, connectionId);
+      }
+
       return await handleEIP6963Message(message, sender);
     }
 
@@ -258,7 +381,7 @@ export async function onUnifiedMessageListener(
   }
 }
 
-// Security message handler
+// Handles all security-related messages
 async function handleSecurityMessage(message: any, sender: Runtime.MessageSender & { port?: Runtime.Port }) {
   try {
     log.info('Security message received:', false, {
@@ -277,7 +400,13 @@ async function handleSecurityMessage(message: any, sender: Runtime.MessageSender
         return { success: false, error: 'No requestId provided' };
       }
 
-      // First check if the port is already registered
+      // Check both the new and original session management systems
+      const newSessionInfo = sessionPortManager.getSessionInfo(requestId);
+      if (newSessionInfo) {
+        return { success: true, portName: newSessionInfo.portName };
+      }
+
+      // Fall back to original system
       const existingPort = sessionPorts.get(requestId);
       if (existingPort) {
         log.info('Found existing port for requestId', false, {
@@ -320,6 +449,8 @@ async function handleSecurityMessage(message: any, sender: Runtime.MessageSender
       }
 
       unregisterPort(message.requestId);
+      // Also unregister from new system
+      sessionPortManager.removeRequest(message.requestId);
       return { success: true };
     }
 
@@ -392,7 +523,7 @@ async function handleSecurityMessage(message: any, sender: Runtime.MessageSender
   }
 }
 
-// EIP-6963 message handler
+// Handles all EIP-6963 and EIP-1193 related messages
 async function handleEIP6963Message(
   message: any,
   sender: Runtime.MessageSender
@@ -434,7 +565,7 @@ async function handleEIP6963Message(
   }
 }
 
-// Signing message handler
+// Handles signing-related messages
 async function handleSigningMessage(
   message: any,
   sender: Runtime.MessageSender
@@ -505,7 +636,7 @@ async function handleSigningMessage(
   }
 }
 
-// Runtime message handler
+// Handles runtime messages (tabs, popouts, notifications, etc.)
 async function handleRuntimeMessage(
   message: any,
   sender: Runtime.MessageSender
@@ -629,7 +760,7 @@ async function handleRuntimeMessage(
   }
 }
 
-// Helper functions
+// Helper function to extract origin from request or sender
 function getRequestOrigin(request?: any, sender?: Runtime.MessageSender): string {
   try {
     if (request?.origin) return request.origin;
@@ -642,6 +773,7 @@ function getRequestOrigin(request?: any, sender?: Runtime.MessageSender): string
   }
 }
 
+// Handles storing session hash and generating token
 async function handleStoreSessionHash(payload: any) {
   try {
     if (!payload || typeof payload !== 'string') {
@@ -682,6 +814,7 @@ async function handleStoreSessionHash(payload: any) {
   }
 }
 
+// Handles session refresh requests
 export async function handleRefreshSession(token: string) {
   try {
     // Verify this is being called from the background context
@@ -737,6 +870,7 @@ export async function handleRefreshSession(token: string) {
   }
 }
 
+// Handles EIP-1193 method calls
 async function handleEIP1193Method(
   message: any,
   sender: Runtime.MessageSender,
@@ -791,6 +925,7 @@ async function handleEIP1193Method(
   }
 }
 
+// Handles EIP-6963 requests
 async function handleEIP6963Request(
   message: any,
   sender: Runtime.MessageSender,
@@ -845,6 +980,7 @@ async function handleEIP6963Request(
   }
 }
 
+// Handles EIP-6963 responses
 async function handleEIP6963Response(
   message: any,
   sender: Runtime.MessageSender,
@@ -885,6 +1021,7 @@ async function handleEIP6963Response(
   }
 }
 
+// Handles EIP-6963 events
 async function handleEIP6963Event(
   message: any,
   sender: Runtime.MessageSender,
@@ -937,6 +1074,7 @@ async function handleEIP6963Event(
   }
 }
 
+// Unregisters a port from both systems
 export function unregisterPort(requestId: string) {
   // Verify this is being called from the background context
   if (!isBackgroundContext()) {
@@ -945,23 +1083,20 @@ export function unregisterPort(requestId: string) {
 
   log.info('Unregistering port', false, { requestId });
   sessionPorts.delete(requestId);
+
+  // Also unregister from new system
+  sessionPortManager.removeRequest(requestId);
+
   return { success: true };
 }
 
-/**
- * Safely retrieves the current session token from the background context.
- * This function can only be called from the background context and will
- * return null if called from any other context.
- *
- * @returns The current session token or null if not available or if called from wrong context
- */
+// Gets the current session token from the background context
 export function getBackgroundSessionToken(): SessionToken | null {
   try {
     // Verify this is being called from the background context
     if (!isBackgroundContext()) {
       throw new Error('Unauthorized context');
     }
-
 
     if (!sessionToken) {
       log.debug('No active session token found');
@@ -981,3 +1116,4 @@ export function getBackgroundSessionToken(): SessionToken | null {
     return null;
   }
 }
+

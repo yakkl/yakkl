@@ -19,7 +19,16 @@
 		setYakklTokenDataStorage,
 		yakklTokenDataStore,
 		setYakklTokenDataCustomStorage,
-		yakklTokenDataCustomStore
+		yakklTokenDataCustomStore,
+		setYakklCombinedTokenStorage,
+		yakklCombinedTokenStore,
+		setYakklWalletProvidersStorage,
+		setYakklWalletBlockchainsStorage,
+		yakklWalletBlockchainsStore,
+		yakklWalletProvidersStore,
+		getYakklCombinedToken,
+		getYakklWalletProviders,
+		getYakklWalletBlockchains
   } from '$lib/common/stores';
   import { VERSION, type EmergencyKitMetaData } from '$lib/common';
   import Confirmation from './Confirmation.svelte';
@@ -70,6 +79,10 @@
       const passwordOrSaltedKey = getMiscStore();
       const tokenData = await getYakklTokenData();
       const tokenDataCustom = await getYakklTokenDataCustom();
+      const combinedTokenStore = await getYakklCombinedToken();
+      const walletProviders = await getYakklWalletProviders();
+      const walletBlockchains = await getYakklWalletBlockchains();
+
 
       if (!preferences || !settings || !profile || !currentlySelected || !passwordOrSaltedKey) {
         throw new Error('Missing required data for export');
@@ -90,6 +103,9 @@
         passwordOrSaltedKey,
         tokenData ?? [],
         tokenDataCustom ?? [],
+        combinedTokenStore ?? [],
+        walletProviders ?? [],
+        walletBlockchains ?? []
       );
 
       const fileName = await EmergencyKitManager.downloadBulkEmergencyKit(bulkEmergencyKit);
@@ -147,6 +163,9 @@
       { key: 'yakklConnectedDomainsStore', setStorage: setYakklConnectedDomainsStorage, store: yakklConnectedDomainsStore },
       { key: 'yakklTokenDataStore', setStorage: setYakklTokenDataStorage, store: yakklTokenDataStore },
       { key: 'yakklTokenDataCustomStore', setStorage: setYakklTokenDataCustomStorage, store: yakklTokenDataCustomStore },
+      { key: 'yakklCombinedTokenStore', setStorage: setYakklCombinedTokenStorage, store: yakklCombinedTokenStore },
+      { key: 'yakklWalletProvidersStore', setStorage: setYakklWalletProvidersStorage, store: yakklWalletProvidersStore },
+      { key: 'yakklWalletBlockchainsStore', setStorage: setYakklWalletBlockchainsStorage, store: yakklWalletBlockchainsStore },
     ];
 
     for (const { key, setStorage, store } of updateFunctions) {

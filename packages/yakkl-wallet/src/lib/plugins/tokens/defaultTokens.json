@@ -5,9 +5,12 @@
 		"symbol": "ETH",
 		"decimals": 18,
 		"chainId": 1,
+		"sidepanel": true,
+		"evmCompatible": true,
 		"isNative": true,
 		"isStablecoin": false,
-		"logoURI": "../../../images/ethereum.svg"
+		"logoURI": "../../../images/ethereum.svg",
+		"url": "https://www.tradingview.com/symbols/ETHUSD/"
 	},
 	{
 		"name": "Wrapped Ether",
@@ -15,19 +18,12 @@
 		"symbol": "WETH",
 		"decimals": 18,
 		"chainId": 1,
+		"sidepanel": true,
+		"evmCompatible": true,
 		"isNative": false,
 		"isStablecoin": false,
-		"logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png"
-	},
-	{
-		"name": "World Liberty Financial (not trading yet)",
-		"address": "0xdA5e1988097297dCdc1f90D4dFE7909e847CBeF6",
-		"symbol": "WLFI",
-		"decimals": 18,
-		"chainId": 1,
-		"isNative": false,
-		"isStablecoin": true,
-		"logoURI": "https://etherscan.io/token/images/worldlibertyfinancial_32.png"
+		"logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+		"url": "https://www.tradingview.com/symbols/ETHUSD/"
 	},
 	{
 		"name": "Tether USD",
@@ -35,9 +31,12 @@
 		"symbol": "USDT",
 		"decimals": 6,
 		"chainId": 1,
+		"sidepanel": true,
+		"evmCompatible": true,
 		"isNative": false,
 		"isStablecoin": true,
-		"logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png"
+		"logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png",
+		"url": "https://www.tradingview.com/symbols/USDT/"
 	},
 	{
 		"name": "USDCoin",
@@ -45,9 +44,12 @@
 		"symbol": "USDC",
 		"decimals": 6,
 		"chainId": 1,
+		"sidepanel": true,
+		"evmCompatible": true,
 		"isNative": false,
 		"isStablecoin": true,
-		"logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png"
+		"logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+		"url": "https://www.tradingview.com/symbols/USDC/"
 	},
 	{
 		"name": "Wrapped BTC",
@@ -55,8 +57,11 @@
 		"symbol": "WBTC",
 		"decimals": 8,
 		"chainId": 1,
+		"sidepanel": true,
+		"evmCompatible": true,
 		"isNative": false,
 		"isStablecoin": false,
-		"logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599/logo.png"
+		"logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599/logo.png",
+		"url": "https://www.tradingview.com/symbols/BTCUSD/"
 	}
 ]

@@ -58,6 +58,7 @@
       >
         <div>
           <p class="text-sm font-medium text-gray-900">{token.name}</p>
+          <p class="text-xs text-gray-500">Sidepanel viewable: {token?.sidepanel ? 'Yes' : 'No'}</p>
           <p class="text-xs text-gray-500">{token.symbol} - {token.address}</p>
           <p class="text-xs text-gray-500">Balance: {token.balance ?? 0}</p>
         </div>

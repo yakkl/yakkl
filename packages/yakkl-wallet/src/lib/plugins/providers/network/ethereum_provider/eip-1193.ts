@@ -4,6 +4,7 @@ import type { Duplex } from 'readable-stream';
 import { getWindowOrigin, safePostMessage, getTargetOrigin } from '$lib/common/origin';
 import { log } from '$lib/plugins/Logger';
 import { EIP1193_ERRORS } from './eip-types';
+import { getCurrentlySelectedAccounts } from '../../../../extensions/chrome/eip-6963';
 
 export class EIP1193Provider extends EventEmitter {
   private _isConnected: boolean = false;
@@ -36,6 +37,11 @@ export class EIP1193Provider extends EventEmitter {
 
   private setupMessageListener() {
     window.addEventListener('message', (event) => {
+
+      log.debug('EIP1193: Message received in content script:', false, {
+        event: event.data
+      });
+
       // Validate origin
       if (event.origin !== this.origin && event.origin !== getTargetOrigin()) {
         return;
@@ -117,7 +123,7 @@ export class EIP1193Provider extends EventEmitter {
           }
         } else {
           // For eth_accounts, use cached accounts if available
-          finalResult = this.cachedAccounts || [];
+          finalResult = this.cachedAccounts = await getCurrentlySelectedAccounts(id.toString());
         }
       } else if (method === 'net_version') {
         this.networkVersion = finalResult;
@@ -207,9 +213,9 @@ export class EIP1193Provider extends EventEmitter {
       return this.chainId;
     } else if (method === 'net_version' && this.networkVersion) {
       return this.networkVersion;
-    } else if (method === 'eth_accounts' && this.cachedAccounts) {
-      return this.cachedAccounts;
-    }
+    } //else if (method === 'eth_accounts' && this.cachedAccounts) {
+    //  return this.cachedAccounts;
+    //}
 
     return new Promise((resolve, reject) => {
       // Store the request with its resolve/reject callbacks

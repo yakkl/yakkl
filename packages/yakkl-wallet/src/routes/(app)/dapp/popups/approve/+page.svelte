@@ -1,6 +1,7 @@
 <script lang="ts">
   import { browserSvelte } from '$lib/common/environment';
   import { page } from '$app/state';
+  // The grayed out store items are for testing purposes used in the clearData function
   import { yakklDappConnectRequestStore } from '$lib/common/stores';
   import { PATH_LOGIN, YAKKL_DAPP, DEFAULT_TITLE } from '$lib/common/constants';
   import { onMount } from 'svelte';
@@ -48,8 +49,6 @@
   async function handleProcess() {
     if (!browserSvelte) return;
 
-    // NOTE: No need to verify session token since we will be redirecting to login
-
     try {
       // Store the request info in session storage so it persists after login
       sessionStorage.setItem('yakklSigningRequest', JSON.stringify({
@@ -57,7 +56,7 @@
         method
       }));
 
-      return safeNavigate(PATH_LOGIN + '?requestId=' + requestId + '&method=' + method);
+        return safeNavigate(PATH_LOGIN + '?requestId=' + requestId + '&method=' + method);
     } catch(e) {
       errorValue = e as string;
       showFailure = true;
@@ -72,20 +71,30 @@
       if (!domainLogo) domainLogo = '/images/failIcon48x48.png'; // Set default logo but change if favicon is present
 
       if (event.method === 'get_params') {
-        const requestData = event.result.data;
-        if (!requestData || !requestData.metaData) {
+        if (!event?.result?.data) {
           await handleReject('No request data was found. Access to YAKKL® is denied.');
+          return;
+        }
+        const requestData = event.result.data;
+
+        // Extract metadata from the correct location in the data structure
+        const metaData = requestData.metaData?.metaData || requestData.metaData;
+        if (!metaData) {
+          await handleReject('Invalid request data structure. Access to YAKKL® is denied.');
+          return;
         }
 
-        domainTitle = requestData.metaData.metaData.title;
-        domain = requestData.metaData.metaData.domain;
-        domainLogo = requestData.metaData.metaData.icon ?? '/images/failIcon48x48.png';
-        message = requestData.metaData.metaData.message ?? 'Nothing was passed to explain the intent of this approval. Be mindful of this request!';
+        domainTitle = metaData.title;
+        domain = metaData.domain;
+        domainLogo = metaData.icon ?? '/images/failIcon48x48.png';
+        message = metaData.message ?? 'Nothing was passed to explain the intent of this approval. Be mindful of this request!';
 
         if (!requestId) requestId = requestData?.id ?? null;
         if (!requestId) {
           await handleReject('No request ID was found. Access to YAKKL® is denied.');
+          return;
         }
+
         // Set the page title
         title = domainTitle || domain || DEFAULT_TITLE;
       }
@@ -261,6 +270,9 @@
           <span>1. Request approval to send a transaction</span>
         {:else if method === 'eth_signTypedData_v4' || method === 'personal_sign'}
           <span>1. Request approval to sign a message</span>
+        {:else if method === 'wallet_requestPermissions' || method === 'wallet_revokePermissions' || method === 'wallet_getPermissions'}
+          <!-- wallet_requestPermissions is the only one requiring user approval but added the other two for completeness -->
+          <span>1. Request approval to connect to your wallet addresses</span>
         {:else}
           <span>Request approval for '{method}' but it is not supported by YAKKL® due to security concerns.</span>
         {/if}
@@ -295,18 +307,24 @@
   <!-- Footer -->
   <div class="p-4 border-t border-base-300 flex-shrink-0">
     <div class="flex gap-4 justify-end">
-      {#if method !== 'eth_requestAccounts' && method !== 'eth_sendTransaction' && method !== 'eth_signTypedData_v4' && method !== 'personal_sign'}
+      {#if method !== 'eth_requestAccounts' && method !== 'eth_sendTransaction' && method !== 'eth_signTypedData_v4' && method !== 'personal_sign' && method !== 'wallet_requestPermissions' && method !== 'wallet_revokePermissions' && method !== 'wallet_getPermissions'}
         <button onclick={() => handleReject('Unsupported method - Security risk: ' + method)} class="btn btn-primary">
           Reject
         </button>
       {:else}
         <button onclick={handleApprove} class="btn btn-primary">
-          {#if method === 'eth_requestAccounts'}
-            Connect
+        {#if method === 'eth_requestAccounts'}
+          Connect
         {:else if method === 'eth_sendTransaction'}
           Approve Transaction
         {:else if method === 'eth_signTypedData_v4' || method === 'personal_sign'}
           Approve Message
+        {:else if method === 'wallet_requestPermissions'}
+          Approve Connection
+        {:else if method === 'wallet_revokePermissions'}
+          Revoke Connection
+        {:else if method === 'wallet_getPermissions'}
+          View Permissions
         {/if}
         </button>
       {/if}
