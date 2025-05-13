@@ -1,6 +1,6 @@
 import type { Runtime } from 'webextension-polyfill';
 import browser from 'webextension-polyfill';
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { getTargetOrigin, safePostMessage } from '$lib/common/origin';
 
 type RuntimePort = Runtime.Port;

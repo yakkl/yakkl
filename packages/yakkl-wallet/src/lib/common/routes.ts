@@ -3,7 +3,7 @@ import { goto } from '$app/navigation';
 import { get } from 'svelte/store';
 import { PATH_LEGAL, PATH_LOGIN, PATH_REGISTER } from '$lib/common/constants';
 import { yakklSettingsStore } from '$lib/common/stores';
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 // Routes based on init or isLocked settings else go to register or nothing
 export async function routeCheckWithSettings() {

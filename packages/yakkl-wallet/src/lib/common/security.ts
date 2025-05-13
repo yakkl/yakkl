@@ -3,7 +3,7 @@ import { decryptData, digestMessage } from '$lib/common/encryption';
 import type { AccountData, CurrentlySelectedData, Profile, ProfileData, SessionToken } from '$lib/common/interfaces';
 import { isEncryptedData } from '$lib/common/misc';
 import { getProfile, setMiscStore, getYakklCurrentlySelected, getMiscStore } from '$lib/common/stores';
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { storeEncryptedHash, storeSessionToken } from './auth/session';
 
 export interface AccountKey {

@@ -47,7 +47,7 @@
       if (isProfileData(profile.data) && (profile.data as ProfileData)?.pincode === digestedPincode) {
         onVerified(digestedPincode); // Send the verified digested pincode and not the actual pincode
       } else {
-        log.debug("Invalid pincode(s):", (profile.data as ProfileData)?.pincode, digestedPincode);
+        log.debug("Invalid pincode(s):", false, (profile.data as ProfileData)?.pincode, digestedPincode);
         alert("Invalid pincode");
       }
 

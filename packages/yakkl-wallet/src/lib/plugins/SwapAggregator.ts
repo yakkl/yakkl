@@ -2,7 +2,7 @@
 import type { SwapManager } from './SwapManager';
 import type { Token } from '$plugins/Token';
 import type { BigNumberish, SwapPriceData, TransactionResponse, SwapParams } from '$lib/common';
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 export class SwapAggregator {
   private swapManagers: SwapManager[];

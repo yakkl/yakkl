@@ -4,6 +4,9 @@ import { log } from "$lib/plugins/Logger";
 export async function onAlarmListener(alarm: any) {
   try {
     if (!browser) return;
+    
+    log.info('Background - onAlarmListener:', false, alarm);
+
     if (alarm.name === "yakkl-lock-alarm") {
       // NOTE: If this sendMessage is not working then move 'await NotificationService.sendSecurityAlert' here to make sure context is correct.
       await browser.runtime.sendMessage({type: 'lockdown'});

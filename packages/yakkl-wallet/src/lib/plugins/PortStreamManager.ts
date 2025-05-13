@@ -1,5 +1,5 @@
 // File: PortStreamManager.ts
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { browser_ext } from '$lib/common/environment';
 import type { Runtime } from 'webextension-polyfill';
 import { getDuplex } from '$lib/common/duplexShim';

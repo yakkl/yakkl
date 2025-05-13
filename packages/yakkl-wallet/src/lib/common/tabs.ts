@@ -1,5 +1,5 @@
 import { browser_ext } from "./environment";
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 export async function isTabValid(tabId: number): Promise<boolean> {
   if (!browser_ext) return;

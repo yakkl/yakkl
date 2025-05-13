@@ -836,10 +836,22 @@ function cleanup() {
 }
 
 // Set up cleanup on page unload
-window.addEventListener('beforeunload', cleanup);
+try {
+  window.addEventListener('beforeunload', cleanup);
+} catch (e: any) {
+  if (e.message.includes('fenced frames')) {
+    log.warn('Skipping unload in fenced frame context');
+  } else {
+    log.warn(`Failed to add unload handler:`, e);
+  }
+}
 
-// Start the initialization process
-initializeInpageScript();
+try {
+  // Start the initialization process
+  initializeInpageScript();
+} catch (e: any) {
+  log.warn(`Failed to initialize inpage script:`, e);
+}
 
 // Export the provider for use in other modules if needed
 export { provider };

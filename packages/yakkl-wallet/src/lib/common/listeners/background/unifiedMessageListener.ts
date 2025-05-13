@@ -2,7 +2,7 @@
 // This file handles all message routing in the extension, combining the original
 // sender-based system with the new port-based architecture for better connection tracking
 
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import browser from 'webextension-polyfill';
 import type { Runtime } from 'webextension-polyfill';
 import type { SessionToken } from '$lib/common/interfaces';
@@ -294,7 +294,7 @@ export async function onUnifiedMessageListener(
   try {
     const { id: requestId, method, type } = message;
 
-    log.debug('Received message', false, { message, sender });
+    log.debug('onUnifiedMessageListener - Received message', false, { message, sender });
 
     // Popout messages
     if (message.type === 'popout') {
@@ -343,8 +343,6 @@ export async function onUnifiedMessageListener(
         message.type === 'YAKKL_STATE_CHANGE' ||
         message.type === 'SET_PANEL_BEHAVIOR' ||
         message.type === 'clipboard-timeout' ||
-        message.type === 'lockdown' ||
-        message.type === 'lockdownImminent' ||
         message.type === 'startPricingChecks' ||
         message.type === 'stopPricingChecks') {
       return await handleRuntimeMessage(message, sender);
@@ -373,8 +371,8 @@ export async function onUnifiedMessageListener(
       return await handleSecurityMessage(message, sender);
     }
 
-    log.warn('Unknown message type', false, { message });
-    return { success: false, error: 'Unknown message type' };
+    // log.warn('Unknown message type', false, { message });
+    return { success: false, error: 'Message type not handled in this listener' };
   } catch (error) {
     log.error('Error in unified message listener', false, error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
@@ -402,12 +400,18 @@ async function handleSecurityMessage(message: any, sender: Runtime.MessageSender
 
       // Check both the new and original session management systems
       const newSessionInfo = sessionPortManager.getSessionInfo(requestId);
+
+      log.info('handleSecurityMessage - New session info:', false, newSessionInfo);
+
       if (newSessionInfo) {
         return { success: true, portName: newSessionInfo.portName };
       }
 
       // Fall back to original system
       const existingPort = sessionPorts.get(requestId);
+
+      log.info('handleSecurityMessage - Existing port:', false, existingPort);
+
       if (existingPort) {
         log.info('Found existing port for requestId', false, {
           requestId,
@@ -419,6 +423,9 @@ async function handleSecurityMessage(message: any, sender: Runtime.MessageSender
       // If no existing port, try to register the sender's port
       if (sender.port) {
         const registrationResult = registerSessionPort(sender.port, requestId);
+
+        log.info('handleSecurityMessage - Registration result:', false, registrationResult);
+
         if (registrationResult.success) {
           return { success: true, portName: sender.port.name };
         }
@@ -642,6 +649,8 @@ async function handleRuntimeMessage(
   sender: Runtime.MessageSender
 ): Promise<any> {
   try {
+    log.info('unifiedMessageListener - handleRuntimeMessage - message:', false, message);
+
     switch (message.type) {
       case 'getActiveTab': {
         try {
@@ -677,7 +686,6 @@ async function handleRuntimeMessage(
       }
 
       case 'popout': {
-        log.debug('popout:', false, message);
         showPopup('');
         return { success: true };
       }
@@ -748,6 +756,7 @@ async function handleRuntimeMessage(
 
       default: {
         // Not handled by this listener
+        log.info('unifiedMessageListener - handleRuntimeMessage - default (passed through):', false, message);
         return undefined;
       }
     }

@@ -20,6 +20,7 @@
 
   function handleEmergencyKitComplete(success: boolean, message: string) {
     show = false;
+    onComplete?.(success, message);
   }
 </script>
 

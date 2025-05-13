@@ -1,6 +1,6 @@
 // File: src/lib/auth/session.ts
 import { writable, get } from 'svelte/store';
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { browser_ext, browserSvelte } from '../environment';
 import type { SessionToken } from '../interfaces';
 import type { StoreHashResponse } from '../interfaces';

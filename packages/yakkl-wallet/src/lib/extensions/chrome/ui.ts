@@ -3,16 +3,18 @@ import type { Preferences } from '$lib/common/interfaces';
 import type { Windows } from 'webextension-polyfill';
 import browser from 'webextension-polyfill';
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from '$lib/common/storage';
-import { openWindows } from '$lib/common/reload';
 import { log } from '$lib/plugins/Logger';
 import type { ExtendedBrowser } from '$lib/common/types/browser-extensions';
+import { SingletonWindowManager } from '$lib/plugins/SingletonWindowManager';
 
 // NOTE: For background usage
 type WindowsWindow = Windows.Window;
 
 const browser_ext = browser as ExtendedBrowser;
 
-export const openPopups = new Map();
+export const openWindows = new Map();
+
+// export const openPopups = new Map();
 
 export async function showExtensionPopup(
   popupWidth = 428,
@@ -102,59 +104,43 @@ export async function showExtensionPopup(
 // Check the lastlogin date - todays date = days hash it using dj2 then use as salt to encrypt and send to here and send back on request where it is reversed or else login again
 export async function showPopup(url: string = '', pinnedLocation: string = '0'): Promise<void> {
   try {
-      showExtensionPopup(428, 926, url, pinnedLocation).then(async (result) => {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        browser_ext.windows.update(result.id, {drawAttention: true});
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        await browser_ext.storage.session.set({windowId: result.id});
+    const windowManager = SingletonWindowManager.getInstance();
+    await windowManager.showPopup(url, pinnedLocation);
 
-        openWindows.set(result.id, result);
-      }).catch((error) => {
-        log.error('Background - YAKKL: ' + false, error);  // need to send these area back to content.ts to inpage.ts to dapp so they can respond properly
-      });
+    // showExtensionPopup(428, 926, url, pinnedLocation).then(async (result) => {
+    //   browser_ext.windows.update(result.id, {drawAttention: true});
+    //   await browser_ext.storage.session.set({windowId: result.id});
+
+    //   openWindows.set(result.id, result);
+    // }).catch((error) => {
+    //   log.error('Background - YAKKL: ' + false, error);  // need to send these area back to content.ts to inpage.ts to dapp so they can respond properly
+    // });
   } catch (error) {
     log.error('Background - showPopup',false, error); // need to send these area back to content.ts to inpage.ts to dapp so they can respond properly
   }
 }
 
-export async function showDappPopup(request: string, requestId: string, method: string = '', pinnedLocation: string = 'M') {
-  try {
-    // Place approved html height here
-    // const height = request.includes('approve.html') ? 620 :
-    //                request.includes('transactions.html') ? 620 :
-    //                request.includes('sign.html') ? 550 :
-    //                request.includes('accounts.html') ? 550 : 0; // NOTE: This is not approved html height
+// export async function showDappPopup(request: string, requestId: string, method: string = '', pinnedLocation: string = 'M') {
+//   try {
+//     if (openPopups.has(requestId)) {
+//       log.warn('[PopupGuard] Duplicate popup for requestId. This request will be ignored.', false, {requestId, method});
+//       return;
+//     }
 
-    // if (height === 0) {
-    //   log.error('showDappPopup - 186 (ui-inside - not approved html):', false, {request, height});
-    //   return;
-    // }
+//     openPopups.set(requestId, {request, method, createdAt: Date.now()});
 
-    // log.info('showDappPopup <<< - 186 (ui-inside):', false, {request, height});
+//     log.info('[APPROVE] New popup received request:', false, {request, requestId, method});
 
-    if (openPopups.has(requestId)) {
-      log.warn('[PopupGuard] Duplicate popup for requestId. This request will be ignored.', false, {requestId, method});
-      return;
-    }
-
-    openPopups.set(requestId, {request, method, createdAt: Date.now()});
-
-    log.info('[APPROVE] New popup received request:', false, {request, requestId, method});
-
-    showExtensionPopup(428, 620, request, pinnedLocation).then(async (result) => {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      browser_ext.windows.update(result.id, {drawAttention: true});
-      await browser_ext.storage.session.set({windowId: result.id});
-    }).catch((error) => {
-      log.error('Background - YAKKL: ' + false, error);
-    });
-  } catch (error) {
-    log.error('Background - showDappPopup:', false, error);
-  }
-}
+//     showExtensionPopup(428, 620, request, pinnedLocation).then(async (result) => {
+//       browser_ext.windows.update(result.id, {drawAttention: true});
+//       await browser_ext.storage.session.set({windowId: result.id});
+//     }).catch((error) => {
+//       log.error('Background - YAKKL: ' + false, error);
+//     });
+//   } catch (error) {
+//     log.error('Background - showDappPopup:', false, error);
+//   }
+// }
 
 export async function updateScreenPreferences(event: any): Promise<void> {
   if (typeof browser_ext === 'undefined') {

@@ -248,6 +248,11 @@ export function blockContextMenu() {
         return false;
     }
 
+    // disable C key
+    if(((e.ctrlKey && e.shiftKey) || (e.altKey)) && e.code == "KeyC") { //keyCode == 67) {
+        return false;
+    }
+
     // disable U key
     if((e.ctrlKey || e.altKey) && e.code == "KeyU") { //keyCode == 85) {
         return false;
@@ -540,6 +545,17 @@ export async function setIconUnlock() {
     log.error(e);
   }
 }
+
+export async function setBadgeText(text: string = '') {
+  try {
+    if (browserSvelte) {
+      await browser_ext.action.setBadgeText({text: text});
+    }
+  } catch (e) {
+    log.error(e);
+  }
+}
+
 
 export function getPlatform() {
   const { navigator } = window;

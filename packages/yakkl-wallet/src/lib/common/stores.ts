@@ -194,6 +194,8 @@ export const yakklContractStore = writable<ContractData>({
   abi: '',
   functions: []
 });
+export const yakklContextTypeStore = writable<string>(undefined);
+
 // --------------------------------
 
 
@@ -217,6 +219,7 @@ export function resetStores() {
     setYakklWalletProvidersStore([]);
     setYakklConnectedDomainsStore([]);
     yakklMiscStore.set(undefined);
+    yakklContextTypeStore.set(undefined);
     yakklVeryStore.set(undefined);
     yakklVersionStore.set(undefined);
     yakklUserNameStore.set(undefined);
@@ -452,6 +455,11 @@ export function getMiscStore() {
 	return store;
 }
 
+export function getContextTypeStore() {
+	const store = get(yakklContextTypeStore);
+	return store;
+}
+
 // Memory only
 export function getVeryStore() {
 	const store = get(yakklVeryStore);
@@ -618,6 +626,12 @@ export function setYakklPrimaryAccountsStore(values: YakklPrimaryAccount[]) {
 export function setMiscStore(values: string) {
 	const store = get(yakklMiscStore);
 	yakklMiscStore.set(values);
+	return store;
+}
+
+export function setContextTypeStore(values: string) {
+	const store = get(yakklContextTypeStore);
+	yakklContextTypeStore.set(values);
 	return store;
 }
 
