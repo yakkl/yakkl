@@ -17,6 +17,7 @@
 	import { log } from '$lib/plugins/Logger';
 	import { browser_ext, browserSvelte } from '$lib/common/environment';
 	import { BrowserAccessor, ExtensionContext } from '$lib/common/shared/BrowserAccessor';
+	import { safeLogout } from '$lib/common/safeNavigate';
 
   interface Props {
     id?: string;
@@ -38,7 +39,7 @@
 
   let browserAccessor = BrowserAccessor.getInstance();
   let browserContext = $state();
-  
+
   onMount(async () => {
     try {
       browserContext = await browserAccessor.getContext();
@@ -54,7 +55,7 @@
   function handlePopout() {
     if (browserSvelte) {
       browser_ext.runtime.sendMessage({type: 'popout'});
-      goto(PATH_LOGOUT);
+      safeLogout();
     }
   }
 
@@ -101,7 +102,6 @@
 
     <Share class="absolute top-[1.1rem] right-[2.8rem]"/>
 
-    {console.log(browserContext)}
     {#if browserContext === ExtensionContext.SIDEPANEL}
     <button onclick={() => handlePopout()} aria-label="Popout" >
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 lucide lucide-external-link-icon lucide-external-link">

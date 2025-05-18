@@ -1,7 +1,7 @@
 <script lang="ts">
   import { browser_ext, browserSvelte } from '$lib/common/environment';
   import { page } from '$app/state';
-  import { getYakklCurrentlySelected, getMiscStore, yakklDappConnectRequestStore, getYakklAccounts } from '$lib/common/stores';
+  import { getYakklCurrentlySelected, getMiscStore, yakklDappConnectRequestStore, getYakklAccounts, getSettings } from '$lib/common/stores';
   import { type YakklCurrentlySelected, type AccountData, type TransactionRequest, type YakklAccount } from '$lib/common';
   import { DEFAULT_TITLE, YAKKL_DAPP, ETH_BASE_SCA_GAS_UNITS, ETH_BASE_EOA_GAS_UNITS } from '$lib/common/constants';
   import { onMount } from 'svelte';
@@ -215,6 +215,15 @@
   onMount(async () => {
     try {
       if (browserSvelte) {
+        log.info('Dapp - sign page mounted:', false);
+
+        const settings = await getSettings();
+        if (!settings.init || !settings.legal.termsAgreed) {
+          errorValue = "You must register and agree to the terms of service before using YAKKL®. Click on 'Open Wallet' to register.";
+          showFailure = true;
+          return;
+        }
+
         currentlySelected = await getYakklCurrentlySelected();
         yakklMiscStore = getMiscStore();
         chainId = currentlySelected.shortcuts.chainId as number;
@@ -237,7 +246,7 @@
         log.info('Received session info:', false, sessionInfo);
 
         if (!sessionInfo || !sessionInfo.success) {
-          errorValue = 'Failed to verify session. No response received.';
+          errorValue = 'Failed to verify session port. No response received.';
           showFailure = true;
           return;
         }
@@ -401,11 +410,13 @@
   async function close() {
     if (browserSvelte) {
       try {
-        await portManager.waitForIdle(1500);
+        if (portManager) {
+          await portManager.waitForIdle(1500);
+          portManager.disconnect();
+        }
       } catch (e) {
         log.warn('Port did not go idle in time', false, e);
       }
-      portManager.disconnect();
       safeLogout();
     }
   }
@@ -419,8 +430,8 @@
 	<title>{title}</title>
 </svelte:head>
 
-<Warning bind:show={showFailure} title="Error" value={errorValue} />
-<Failed bind:show={showFailure} title="Failed!" content={errorValue} handleReject={handleReject}/>
+<!-- <Warning bind:show={showFailure} title="Error" value={errorValue} /> -->
+<Failed bind:show={showFailure} title="Failed!" content={errorValue} onReject={handleReject}/>
 <Confirmation bind:show={showConfirm} title="Connect to {domain}" message="This will connect {domain} to {address} and sign the transaction or message! Do you wish to continue?" onConfirm={handleProcess}/>
 
 <div class="flex flex-col h-full max-h-screen overflow-hidden">

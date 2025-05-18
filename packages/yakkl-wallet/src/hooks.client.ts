@@ -1,6 +1,6 @@
 // src/hooks.client.ts
-import { ensureProcessPolyfill } from '$lib/common/process';
-ensureProcessPolyfill();
+// import { ensureProcessPolyfill } from '$lib/common/process';
+// ensureProcessPolyfill();
 
 import type { Browser } from 'webextension-polyfill';
 import { TIMER_IDLE_CHECK_INTERVAL, TIMER_IDLE_LOCK_DELAY, TIMER_IDLE_THRESHOLD } from '$lib/common';
@@ -19,6 +19,9 @@ declare global {
     browserPolyfill: Browser;
   }
 }
+
+console.log('init - hooks.client.ts loaded 1:', window);
+log.debug('init - hooks.client.ts loaded 1.5:', false, window);
 
 // This runs very early in the page lifecycle, before other SvelteKit code
 // hooks.client.ts
@@ -81,7 +84,7 @@ export async function init() {
     // Prevent multiple initializations
     if (isInitialized) return;
 
-    log.info('init', false, 'Initializing');
+    console.log('init - hooks.client.ts loaded 3:', 'Initializing');
 
     // First get the browser API
     const browserApi = getBrowserExt();
@@ -105,6 +108,7 @@ export async function init() {
     await setupUIListeners();
 
     // Start idle manager after other initialization is complete
+    console.log('init - starting idle manager:');
     idleManager.start();
 
     isInitialized = true;
@@ -155,14 +159,17 @@ async function setupUIListeners() {
   }
 }
 
+console.log('init - hooks.client.ts loaded 2:', window);
+
 // Run init early, but only in browser context
 if (typeof window !== 'undefined') {
   // Use a small delay to ensure browser API is available
-  setTimeout(() => {
+  // setTimeout(() => {
+    log.info('init - window is defined, initializing:', false);
     init().catch(err => {
       log.error("Failed to initialize:", false, err);
     });
-  }, 10);
+//   }, 10);
 }
 
 // Export for external use if needed

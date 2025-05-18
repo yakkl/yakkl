@@ -639,6 +639,11 @@ async function initializeBackground() {
   try {
     log.debug('Initializing background script...', false);
 
+    if (typeof chrome !== "undefined" && chrome.sidePanel) {
+      log.info('Background initializing: chrome.sidePanel is defined');
+      chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }); // Using sidepanel as default now
+    }
+
     // Initialize core components
     await initializeStorageDefaults();
     initializePermissions();
@@ -699,33 +704,33 @@ function cleanupOldProcessedRequests() {
 // }
 
 // Handle runtime messages (for non-port communication)
-export async function onRuntimeMessageBackgroundListener(
-  message: any,
-  sender: Runtime.MessageSender
-): Promise<any> {
-  try {
-    switch (message.type) {
-      case 'getActiveTab':
-        const activeTab = await getActiveTab();
-        return { success: true, activeTab };
+// export async function onRuntimeMessageBackgroundListener(
+//   message: any,
+//   sender: Runtime.MessageSender
+// ): Promise<any> {
+//   try {
+//     switch (message.type) {
+//       case 'getActiveTab':
+//         const activeTab = await getActiveTab();
+//         return { success: true, activeTab };
 
-      case 'popout':
-        showPopup('');
-        return { success: true };
+//       case 'popout':
+//         showPopup('');
+//         return { success: true };
 
-      default:
-        return undefined;
-    }
-  } catch (error: any) {
-    log.error('Error handling runtime message:', false, error);
-    return {
-      success: false,
-      error: error?.message || 'Unknown error occurred.'
-    };
-  }
-}
+//       default:
+//         return undefined;
+//     }
+//   } catch (error: any) {
+//     log.error('Error handling runtime message:', false, error);
+//     return {
+//       success: false,
+//       error: error?.message || 'Unknown error occurred.'
+//     };
+//   }
+// }
 
-// Get active tab information
+// Get active tab information - unifiedMessageListener handles this now but keep for possible future use
 async function getActiveTab(): Promise<ActiveTab | null> {
   try {
     const tabs = await browser.tabs.query({ active: true });

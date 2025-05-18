@@ -36,7 +36,7 @@ export class AppWideIdleManager extends IdleManagerBase {
         this.isLockdownInitiated = false;
 
         // Cancel any pending lock alarm
-        browser_ext.alarms.clear("yakkl-lock-alarm").catch(error =>
+        browser_ext.alarms.clear("yakkl-lock-").catch(error =>
           this.handleError(error as Error, 'Error clearing lock alarm')
         );
       }

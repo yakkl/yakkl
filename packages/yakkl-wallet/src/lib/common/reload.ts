@@ -1,7 +1,7 @@
 import { browserSvelte, browser_ext } from "./environment";
 import { log } from "$plugins/Logger";
+import { openWindows } from "$lib/extensions/chrome/ui";
 
-export const openWindows = new Map();
 
 export function getPopupDimensions() {
   return {

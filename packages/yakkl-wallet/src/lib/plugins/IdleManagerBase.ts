@@ -25,7 +25,7 @@ export abstract class IdleManagerBase {
 
   public setLoginVerified(verified: boolean): void {
     this.isLoginVerified = verified;
-    log.info('setLoginVerified:', false, verified);
+    console.log('setLoginVerified:', verified);
     if (verified) {
       this.start();
     } else {
@@ -36,9 +36,11 @@ export abstract class IdleManagerBase {
   protected async handleStateChanged(state: IdleState): Promise<void> {
     if (!browser_ext) return;
 
+    console.log('handleStateChanged - state (idle):', state);
+
     if (state === this.previousState) return;
 
-    log.info(`${this.stateWidth} idle state changing from ${this.previousState} to ${state} - ;;;;;;;;;;;;;`, false);
+    console.log(`${this.stateWidth} idle state changing from ${this.previousState} to ${state} - ;;;;;;;;;;;;;`);
     this.previousState = state;
 
     if (!this.isLoginVerified) {
@@ -58,20 +60,20 @@ export abstract class IdleManagerBase {
           if (!this.isLockdownInitiated) {
             this.isLockdownInitiated = true;
 
-            log.info('idle/locked state detected, initiating lockdown', false, state);
-            
+            console.log('idle/locked state detected, initiating lockdown', state);
+
             if (this.lockDelay <= 0) {
               // Immediate lockdown
-              log.warn(`${state} detected, initiating immediate lockdown`);
+              console.log(`${state} detected, initiating immediate lockdown`);
               await browser_ext.runtime.sendMessage({type: 'stopPricingChecks'});
               await browser_ext.runtime.sendMessage({type: 'lockdown'});
             } else {
               // Delayed lockdown
-              log.warn(`${state} detected, lockdown will occur in ${this.lockDelay/1000} seconds`);
+              console.log(`${state} detected, lockdown will occur in ${this.lockDelay/1000} seconds`);
               await browser_ext.runtime.sendMessage({type: 'stopPricingChecks'});
               // Send a notication that lockdown is imminent
               try {
-                log.warn(`${state} detected, sending imminent lockdown notification`);
+                console.log(`${state} detected, sending imminent lockdown notification`);
                 // Used the notication sending directly from here due to UI context.
                 await NotificationService.sendSecurityAlert(
                   'YAKKL will be locked soon due to inactivity.',

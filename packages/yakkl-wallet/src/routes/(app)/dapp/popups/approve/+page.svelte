@@ -2,20 +2,18 @@
   import { browserSvelte } from '$lib/common/environment';
   import { page } from '$app/state';
   // The grayed out store items are for testing purposes used in the clearData function
-  import { yakklDappConnectRequestStore } from '$lib/common/stores';
+  import { getSettings, yakklDappConnectRequestStore } from '$lib/common/stores';
   import { PATH_LOGIN, YAKKL_DAPP, DEFAULT_TITLE } from '$lib/common/constants';
   import { onMount } from 'svelte';
 	import Copyright from '$lib/components/Copyright.svelte';
 	import Failed from '$lib/components/Failed.svelte';
   import { log } from '$lib/common/logger-wrapper';
-
   import type { Runtime } from 'webextension-polyfill';
 	import Warning from '$lib/components/Warning.svelte';
 	import Confirmation from '$lib/components/Confirmation.svelte';
 	import { createPortManagerWithStream } from '$lib/plugins/PortManagerWithStream';
   import { safeNavigate, safeLogout } from '$lib/common/safeNavigate';
 	import { safeClientSendMessage } from '$lib/common/safeClientSendMessage';
-
 
   type RuntimePort = Runtime.Port | undefined;
   // let port: RuntimePort;
@@ -131,6 +129,14 @@
   onMount(async () => {
     try {
       if (browserSvelte) {
+        domainLogo = '/images/failIcon48x48.png';
+        const settings = await getSettings();
+        if (!settings.init || !settings.legal.termsAgreed) {
+          errorValue = "You must register and agree to the terms of service before using YAKKL®. Click on 'Open Wallet' to register.";
+          showFailure = true;
+          return;
+        }
+
         await safeClientSendMessage({ type: 'clientReady' }); // Safeguard to ensure the client is ready before sending messages
 
         // Check if we're returning from login with a session token
@@ -141,8 +147,6 @@
           method = storedMethod;
           sessionStorage.removeItem('yakklSigningRequest');
         }
-
-        domainLogo = '/images/failIcon48x48.png';
 
         if (!requestId) {
           errorValue = 'Missing request ID';
@@ -189,11 +193,13 @@
       }
 
       try {
-        await portManager.waitForIdle(1500);
+        if (portManager) {
+          await portManager.waitForIdle(1500);
+          portManager.disconnect();
+        }
       } catch (e) {
         log.warn('Port did not go idle in time', false, e);
       }
-      portManager.disconnect();
     } catch(e) {
       log.error(e);
     } finally {
@@ -211,16 +217,16 @@
 	<title>{title}</title>
 </svelte:head>
 
-<Warning
+<!-- <Warning
   bind:show={showFailure}
   title="Error"
-  value={errorValue} />
+  value={errorValue} /> -->
 
 <Failed
   bind:show={showFailure}
   title="Failed!"
   content={errorValue}
-  handleReject={handleReject}/>
+  onReject={handleReject}/>
 
 <Confirmation
   bind:show={showConfirm}

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { browser_ext, browserSvelte } from '$lib/common/environment';
-  import { getYakklCurrentlySelected, getMiscStore, yakklDappConnectRequestStore, getYakklConnectedDomains, getYakklAccounts } from '$lib/common/stores';
+  import { getYakklCurrentlySelected, getMiscStore, yakklDappConnectRequestStore, getYakklConnectedDomains, getYakklAccounts, getSettings } from '$lib/common/stores';
   import { DEFAULT_TITLE, YAKKL_DAPP, ETH_BASE_SCA_GAS_UNITS, ETH_BASE_EOA_GAS_UNITS } from '$lib/common/constants';
   import { onMount } from 'svelte';
   import { page } from '$app/state';
@@ -173,6 +173,13 @@
   onMount(async () => {
     try {
       if (browserSvelte) {
+        const settings = await getSettings();
+        if (!settings.init || !settings.legal.termsAgreed) {
+          errorValue = "You must register and agree to the terms of service before using YAKKL®. Click on 'Open Wallet' to register.";
+          showFailure = true;
+          return;
+        }
+
         currentlySelected = await getYakklCurrentlySelected();
         yakklMiscStore = getMiscStore();
         chainId = currentlySelected.shortcuts.chainId as number;
@@ -346,10 +353,10 @@
       if (portManager) {
         try {
           await portManager.waitForIdle(1500);
+          portManager.disconnect();
         } catch (e) {
           log.warn('Port did not go idle in time', false, e);
         }
-        portManager.disconnect();
       }
       showSpinner = false;
       safeLogout();
@@ -365,8 +372,8 @@
   <title>{title}</title>
 </svelte:head>
 
-<Warning bind:show={showFailure} title="Error" value={errorValue} />
-<Failed bind:show={showFailure} title="Failed!" content={errorValue} handleReject={handleReject}/>
+<!-- <Warning bind:show={showFailure} title="Error" value={errorValue} /> -->
+<Failed bind:show={showFailure} title="Failed!" content={errorValue} onReject={handleReject}/>
 <Confirmation bind:show={showConfirm} title="Approve Transaction" message="Are you sure you want to send this transaction? This action cannot be undone." onConfirm={handleApprove}/>
 <PincodeVerify bind:show={showPincode} onVerified={handleApprove}/>
 

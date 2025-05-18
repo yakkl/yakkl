@@ -4,7 +4,7 @@ import type { YakklCurrentlySelected } from "$lib/common/interfaces";
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from "$lib/common/storage";
 import { setIconUnlock } from "$lib/utilities/utilities";
 import type { Runtime } from "webextension-polyfill";
-import { showDappPopup, showPopup } from "$lib/extensions/chrome/ui";
+import { showPopup } from "$lib/extensions/chrome/ui";
 import { estimateGas, getBlock } from "$lib/extensions/chrome/legacy";
 import { supportedChainId } from "$lib/common/utils";
 import { onPortInternalListener } from "$lib/common/listeners/ui/portListeners";
@@ -16,6 +16,7 @@ import type { DAppActivity } from '../../activities/dapp-activity';
 import { portManager } from '$plugins/PortManager';
 import { onUnifiedMessageHandler } from "$lib/extensions/chrome/unifiedMessageRouter";
 import { sessionPortManager } from "$lib/plugins/SessionPortManager";
+import { showPopupForMethod } from "$lib/plugins/DAppPopupManager";
 
 // Browser extension reference
 const browser_ext = browser;
@@ -443,6 +444,7 @@ export async function onPortExternalListener(message: any, port: Runtime.Port): 
     // Determine if request requires approval
     const requiresApproval = event.method === 'eth_requestAccounts' ||
       event.method === 'wallet_requestPermissions' ||
+      event.method === 'wallet_switchEthereumChain' ||
       event.method === 'eth_sendTransaction' ||
       event.method === 'eth_signTransaction' ||
       event.method === 'eth_estimateGas' ||
@@ -683,9 +685,10 @@ export async function onPopupLaunchListener(
   }
 }
 
-async function showPopupForMethod(method: string, requestId: string, pinnedLocation: string = 'M') {
-  await showDappPopup(`/dapp/popups/approve.html?requestId=${requestId}&source=eip6963&method=${method}`, requestId, method, pinnedLocation);
-}
+// All dapp popup methods should use this function. If approval is required, it will show the popup and return a promise. If approval is not required, do not use this function.
+// export async function showPopupForMethod(method: string, requestId: string, pinnedLocation: string = 'M') {
+//   await showDappPopup(`/dapp/popups/approve.html?requestId=${requestId}&source=eip6963&method=${method}`, requestId, method, pinnedLocation);
+// }
 
 // Helper function to set up port health monitoring
 function setupPortHealthCheck(port: Runtime.Port, connectionId: string): void {

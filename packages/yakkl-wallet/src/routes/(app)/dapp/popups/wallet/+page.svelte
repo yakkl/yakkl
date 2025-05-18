@@ -5,12 +5,11 @@
   import { type YakklCurrentlySelected } from '$lib/common';
   import { DEFAULT_TITLE, YAKKL_DAPP } from '$lib/common/constants';
   import { onMount } from 'svelte';
-  import { log } from '$lib/common/logger-wrapper';
+  import { log } from '$plugins/Logger';
   import type { Runtime } from 'webextension-polyfill';
   import type { JsonRpcResponse, SessionInfo } from '$lib/common/interfaces';
   import type { BackgroundPendingRequest } from '$lib/extensions/chrome/background';
 	import Confirmation from '$lib/components/Confirmation.svelte';
-	import { requestSigning } from '$lib/extensions/chrome/signingClient';
 	import Copyright from '$lib/components/Copyright.svelte';
 	import Warning from '$lib/components/Warning.svelte';
 	import Failed from '$lib/components/Failed.svelte';
@@ -18,6 +17,12 @@
 	import type { PortDuplexStream } from '$lib/plugins/PortStreamManager';
 	import { sessionToken, verifySessionToken } from '$lib/common/auth/session';
 	import { safeLogout } from '$lib/common/safeNavigate';
+
+  // NOTE: This is not as large of security risk as the network form, but we should still be mindful of it.
+  // NOTE: We should also consider adding a warning to the user about the risks of signing messages.
+  // NOTE: We should also consider adding something to the wallet UI to make it more obvious that this is happening or has happened.
+
+  // NOTE: We believe this is a possible security risk. We will not support this feature at this time.
 
   type RuntimePort = Runtime.Port | undefined;
 
@@ -34,25 +39,27 @@
   let domainTitle: string = $state('');
   let title: string = $state(DEFAULT_TITLE);
   let request: BackgroundPendingRequest;
-  let method: string;
   let requestId: string | null;
-  let message: any = $state('');  // This gets passed letting the user know what the intent is
-  let address: string = $state('');
-
+  let method: string | null;
   let params: any[] = $state([]);
 
-  let permissions: any[] = $state([]);
-  let messageValue; // Used to display non-hex data that matches transaction or message
   let pass = false;
 
   let portManager: PortManagerWithStream | null = null;
   let stream: PortDuplexStream | null = null;
 
+  // const mode = $derived(props.mode ?? 'switch');
+  let chainId: string = $state('');
+
+  let currentChainData = $state<YakklCurrentlySelected | null>(null);
+
+  const currentChainId = $derived(currentChainData?.shortcuts?.chainId ?? '0x1');
+
   if (browserSvelte) {
     try {
       requestId = page.url.searchParams.get('requestId');
-      method = page.url.searchParams.get('method') as string ?? '';
-      $yakklDappConnectRequestStore = requestId as string; // NOT SURE IF THIS IS NEEDED here
+      method = page.url.searchParams.get('method');
+      $yakklDappConnectRequestStore = requestId as string;
 
       if (requestId) {
         pass = true;
@@ -88,7 +95,6 @@
         domainTitle = requestData.metaData.metaData.title;
         domain = requestData.metaData.metaData.domain;
         domainLogo = requestData.metaData.metaData.icon;
-        message = requestData.metaData.metaData.message ?? 'Nothing was passed to explain the intent of this approval. Be mindful of this request!';
         params = requestData.params ?? [];
         // Make sure params is an array
         if (!Array.isArray(params)) {
@@ -102,25 +108,6 @@
 
         // Set the page title
         title = domainTitle || domain || DEFAULT_TITLE;
-
-        let data;
-        switch(method) {
-          case 'wallet_requestPermissions': // Only used at the moment
-            permissions = params[0];
-            log.info('Permissions:', false, permissions);
-            break;
-          case 'wallet_revokePermissions':
-            permissions = params[0];
-            log.info('Revoke Permissions:', false, permissions);
-            break;
-          case 'wallet_getPermissions':
-            permissions = params[0];
-            log.info('Get Permissions:', false, permissions);
-            break;
-          default:
-            messageValue = 'No message request was passed in. Error.';
-            break;
-        }
       }
     } catch(e) {
       log.error(e);
@@ -131,6 +118,8 @@
   onMount(async () => {
     try {
       if (browserSvelte) {
+        log.info('Dapp - wallet page mounted:', false);
+
         const settings = await getSettings();
         if (!settings.init || !settings.legal.termsAgreed) {
           errorValue = "You must register and agree to the terms of service before using YAKKL®. Click on 'Open Wallet' to register.";
@@ -139,6 +128,7 @@
         }
 
         currentlySelected = await getYakklCurrentlySelected();
+        yakklMiscStore = getMiscStore();
 
         // Since we're 1:1 we can attach to the known port name
         const sessionInfo = await browser_ext.runtime.sendMessage({
@@ -208,63 +198,66 @@
     }
   }
 
-async function handleProcess() {
-  try {
-    if (!browserSvelte) {
-      await handleReject();
-    }
-
-    if (!verifySessionToken($sessionToken)) {
-      await handleReject("Session token is invalid. Login again.");
-    }
-
-    // Will need to be more dynamic in the future once more items are standardized
-    permissions = [
-      {
-        parentCapability: 'eth_accounts',
-        caveats: []
-      }
-    ];
-
-    // Send response to dapp
-    if (stream) {
-      const jsonRpcResponse: JsonRpcResponse = {
-        type: 'YAKKL_RESPONSE:EIP6963',
-        jsonrpc: '2.0',
-        id: requestId,
-        result: permissions
-      };
-      stream.write(jsonRpcResponse);
-      log.info('Sign: handleProcess - response:', false, {jsonRpcResponse});
-    }
-    else {
-      await handleReject("Request failed to send to dapp due to connection port not found.");
-    }
-    close();
-  } catch(e) {
-    log.error(e);
-    errorValue = e instanceof Error ? e.message : 'Unknown error occurred';
-    showFailure = true;
-  }
-}
-
-async function close() {
-  if (browserSvelte) {
+  async function handleProcess() {
     try {
-      if (portManager) {
-        await portManager.waitForIdle(1500);
-        portManager.disconnect();
+      if (!browserSvelte) {
+        await handleReject();
       }
-    } catch (e) {
-      log.warn('Port did not go idle in time', false, e);
-    }
-    safeLogout();
-  }
-}
 
-function handleConfirm() {
-  showConfirm = true;
-}
+      if (!verifySessionToken($sessionToken)) {
+        await handleReject("Session token is invalid. Login again.");
+      }
+
+      // Send response to dapp
+      if (stream) {
+        log.info('ChainId change approved: handleProcess - chainId: BEFORE', false, chainId);
+
+        const jsonRpcResponse: JsonRpcResponse = {
+          type: 'YAKKL_RESPONSE:EIP6963',
+          jsonrpc: '2.0',
+          id: requestId,
+          result: null  // NOTE: Just null like any other response with no value
+        };
+
+        // Write to stream and add a small delay to ensure the write completes
+        stream.write(jsonRpcResponse);
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        log.info('ChainId change approved: handleProcess - response:', false, {jsonRpcResponse});
+      }
+      else {
+        await handleReject("Request failed to send to dapp due to connection port not found.");
+      }
+      close();
+    } catch(e) {
+      log.error(e);
+      errorValue = e instanceof Error ? e.message : 'Unknown error occurred';
+      showFailure = true;
+    }
+  }
+
+  async function close() {
+    if (browserSvelte) {
+      try {
+        // Wait for port to go idle
+        if (portManager) {
+          await portManager.waitForIdle(1500);
+          portManager.disconnect();
+        }
+      } catch (e) {
+        log.warn('Port did not go idle in time', false, e);
+      }
+      safeLogout();
+    }
+  }
+
+  function handleConfirm() {
+    showConfirm = true;
+  }
+
+  function handleClose() {
+    handleReject();
+  }
 
 </script>
 
@@ -274,7 +267,7 @@ function handleConfirm() {
 
 <!-- <Warning bind:show={showFailure} title="Error" value={errorValue} /> -->
 <Failed bind:show={showFailure} title="Failed!" content={errorValue} onReject={handleReject}/>
-<Confirmation bind:show={showConfirm} title="Connect to {domain}" message="This will grant permission for {domain} to access your account(s)! Do you wish to continue?" onConfirm={handleProcess}/>
+<Confirmation bind:show={showConfirm} title="Connect to {domain}" message="This will connect {domain} to chainId {chainId} and switch your wallet to that network! Do you wish to continue?" onConfirm={handleProcess}/>
 
 <div class="flex flex-col h-full max-h-screen overflow-hidden">
   <!-- Header -->
@@ -285,7 +278,7 @@ function handleConfirm() {
         <span class="font-semibold truncate" title={domainTitle || domain}>{domainTitle || domain}</span>
       </div>
       <button
-        onclick={() => handleReject()}
+        onclick={handleClose}
         class="btn btn-ghost btn-sm flex-shrink-0"
         aria-label="Close">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -299,20 +292,15 @@ function handleConfirm() {
   <div class="flex-1 p-6 flex flex-col max-w-[428px]">
     <div class="text-center mb-4 flex-shrink-0 border-2 border-red-500 rounded-md p-2">
       <p class="text-md font-extrabold animate-pulse mb-2">Important!:</p>
-      <span class="text-sm font-bold mb-2">Granting permission to access your account(s): PLEASE be mindful and know what you are doing.</span>
-      <span class="text-sm font-bold mb-2">Permissions can be revoked at any time! Be 100% sure or REJECT this process and research more before trying again.</span>
-    </div>
-
-    <div class="overflow-auto flex-1 min-h-0 mb-4">
-      <span class="text-sm">Permissions:</span>
-      <pre class="text-md border-2 border-blue-500 rounded-md p-2 bg-opacity-25">(your account(s))</pre>
+      <span class="text-sm font-bold mb-2">Allowing another site or app to change the network of your wallet is a security concern.</span>
+      <span class="text-sm font-bold mb-2">You change it back to Mainnet from within the wallet if you desire! Be 100% sure you trust the site or app or REJECT this transaction and research more before trying again.</span>
     </div>
   </div>
 
   <!-- Footer -->
   <div class="p-4 border-t border-base-300 flex-shrink-0">
     <div class="flex gap-4 justify-end">
-      <button onclick={() => handleReject()} class="btn btn-outline">
+      <button onclick={handleClose} class="btn btn-outline">
         Reject
       </button>
       <button onclick={handleConfirm} class="btn btn-primary">
@@ -335,5 +323,22 @@ function handleConfirm() {
     transform: translateY(-1px);
   }
 
-</style>
+  /* Custom scrollbar */
+  /* .overflow-y-auto {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--p)) transparent;
+  }
 
+  .overflow-y-auto::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--p));
+    border-radius: 3px;
+  } */
+</style>

@@ -24,7 +24,6 @@
 	import ProtectedValue from './ProtectedValue.svelte';
 	import { tokenTotals } from '$lib/common/stores/tokenTotals'; // Used to display portfolio value in html below
   import { browserSvelte, browser_ext } from '$lib/common/environment';
-	import { handleOnMessageForPricing } from '$lib/common/listeners/ui/uiListeners';
   import { log } from "$plugins/Logger";
 	import Copy from './Copy.svelte';
   import { TimerManager } from '$lib/plugins/TimerManager';

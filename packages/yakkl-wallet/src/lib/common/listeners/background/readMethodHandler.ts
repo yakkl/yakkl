@@ -7,6 +7,7 @@ import { extractSecureDomain } from '$lib/common/security';
 import { verifyDomainConnected, getAddressesForDomain } from '$lib/extensions/chrome/verifyDomainConnected';
 import type { Runtime } from 'webextension-polyfill';
 import type { YakklResponse } from '$lib/common/interfaces';
+import { VERSION } from '$lib/common/constants';
 
 /**
  * Handles read-only RPC methods that don't require user approval
@@ -45,7 +46,7 @@ export async function handleReadOnlyRequest(
         break;
 
       case 'web3_clientVersion':
-        result = 'YAKKL/1.0.0';
+        result = 'YAKKL/'+ VERSION;
         break;
 
       default:

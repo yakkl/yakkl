@@ -113,66 +113,97 @@ globalListenerManager.registerContext('ui', uiListenerManager);
 
 export async function handleOnActiveTabUIChanged(
   message: any,
-  sender: Runtime.MessageSender
+  sender: Runtime.MessageSender,
+  sendResponse: (response?: any) => void
 ): Promise<any> {
   try {
     switch(message.type) {
       case 'setActiveTab': {
         try {
           activeTabUIStore.set(message.activeTab);
-          return { success: true };
+          sendResponse({ success: true });
         } catch (error) {
           log.error('Error on active tab change:', true, error);
-          return { success: false, error: error };
+          sendResponse({ success: false, error: error });
         }
+        return true; // Indicate asynchronous response
       }
       default: {
-        return undefined; // Let other listeners handle it
+        return false; // Let other listeners handle it
       }
     }
   } catch (error: any) {
     log.error('Error handling setActiveTab message:', true, error);
-    return { success: false, error: error?.message || 'Unknown error occurred.' };
+    if (isBrowserEnv()) sendResponse({ success: false, error: error?.message || 'Unknown error occurred.' });
+    return true; // Indicate asynchronous response
   }
 }
 
 // Centralized message handler function
 export async function handleOnMessageForExtension(
   message: any,
-  sender: Runtime.MessageSender
+  sender: Runtime.MessageSender,
+  sendResponse: (response?: any) => void
 ): Promise<any> {
   try {
     if (!browser_ext) return undefined;
 
+    log.info('handleOnMessageForExtension - message:', false, message);
+
     switch(message.type) {
       case 'lockdown': {
-        await browser_ext.runtime.sendMessage({type: 'stopPricingChecks'});
-        await handleLockDown();
-        await NotificationService.sendSecurityAlert('YAKKL Wallet locked due to inactivity. \nTo prevent unauthorized transactions, your wallet has been locked and logged out.', {contextMessage: 'Click extension icon to relaunch'});
+        try {
+          log.info('handleOnMessageForExtension - lockdown:', false, message);
 
-        // Schedule logout to happen after response is sent
-        setTimeout(() => safeLogout(), 0);
+          // Execute all preliminary operations
+          await Promise.all([
+            browser_ext.runtime.sendMessage({type: 'stopPricingChecks'}),
+            handleLockDown()
+          ]);
 
-        return { success: true, message: 'Lockdown initiated.' };
+          // Send notification
+          await NotificationService.sendSecurityAlert(
+            'YAKKL Wallet locked due to inactivity. \nTo prevent unauthorized transactions, your wallet has been locked and logged out.',
+            {contextMessage: 'Click extension icon to relaunch'}
+          );
+
+          // Send the response before logout
+          sendResponse({ success: true, message: 'Lockdown initiated.' });
+
+          // Delay logout slightly to ensure response is sent
+          setTimeout(() => safeLogout(), 50);
+
+          // Return true to indicate we're using the sendResponse callback
+          return true;
+        } catch (error: any) {
+          log.error('Lockdown failed:', false, error);
+          sendResponse({ success: false, error: error.message || 'Lockdown failed' });
+          return true;
+        }
       }
       case 'lockdownImminent': {
+        log.info('handleOnMessageForExtension - lockdownImminent:', false, message);
+
         await NotificationService.sendSecurityAlert('YAKKL Lockdown Imminent. \nFor your protection, YAKKL will be locked soon.', {contextMessage: 'Use YAKKL before timeout to stop lockdown'});
-        return { success: true, message: 'Imminent lockdown notification sent.' };
+        sendResponse({ success: true, message: 'Imminent lockdown notification sent.' });
+        return true;
       }
       default: {
-        return undefined; // Let other listeners handle it
+        return false; // Let other listeners handle it
       }
     }
   } catch (e: any) {
     log.error('Error handling message:', e);
-    return { success: false, error: e?.message || 'Unknown error occurred.' };
+    if (isBrowserEnv()) sendResponse({ success: false, error: e?.message || 'Unknown error occurred.' });
+    return true; // Indicate asynchronous response
   }
 }
 
 // Message handler for pricing checks
 export async function handleOnMessageForPricing(
   message: any,
-  sender: Runtime.MessageSender
+  sender: Runtime.MessageSender,
+  sendResponse: (response?: any) => void
 ): Promise<any> {
   if (!browser_ext) return undefined;
 
@@ -180,19 +211,22 @@ export async function handleOnMessageForPricing(
     switch(message.type) {
       case 'startPricingChecks': {
         startCheckPrices();
-        return { success: true, message: 'Price checks initiated.' };
+        sendResponse({ success: true, message: 'Price checks initiated.' });
+        return true;
       }
       case 'stopPricingChecks': {
         stopCheckPrices();
-        return { success: true, message: 'Stop price checks initiated.' };
+        sendResponse({ success: true, message: 'Stop price checks initiated.' });
+        return true;
       }
       default: {
-        return undefined; // Let other listeners handle it
+        return false; // Let other listeners handle it
       }
     }
   } catch (e: any) {
     log.error('Error handling message:', e);
-    return { success: false, error: e?.message || 'Unknown error occurred.' };
+    if (isBrowserEnv()) sendResponse({ success: false, error: e?.message || 'Unknown error occurred.' });
+    return true; // Indicate asynchronous response
   }
 }
 

@@ -2,7 +2,6 @@
 import { ListenerManager } from '$lib/plugins/ListenerManager';
 import browser from 'webextension-polyfill';
 import type { Runtime } from 'webextension-polyfill';
-import { openWindows } from '$lib/common/reload';
 import { initializeBlacklistDatabase } from '$lib/extensions/chrome/database';
 import { yakklStoredObjects } from '$lib/models/dataModels';
 import { setObjectInLocalStorage } from '$lib/common/storage';
@@ -13,7 +12,7 @@ import { onPortConnectListener, onPortDisconnectListener } from './portListeners
 import { onTabActivatedListener, onTabRemovedListener, onTabUpdatedListener, onWindowsFocusChangedListener } from './tabListeners';
 import { globalListenerManager } from '$lib/plugins/GlobalListenerManager';
 import { log } from '$lib/plugins/Logger';
-import { openPopups } from '$lib/extensions/chrome/ui';
+import { openWindows } from '$lib/extensions/chrome/ui';
 import { onUnifiedMessageListener} from './unifiedMessageListener';
 
 type RuntimePlatformInfo = Runtime.PlatformInfo;
@@ -31,28 +30,29 @@ export async function onInstalledUpdatedListener( details: Runtime.OnInstalledDe
 
     // This portion only works in Chrome
     if (typeof chrome !== "undefined" && chrome.sidePanel) {
+      log.info('Background: chrome.sidePanel is defined');
       // Set the panel behavior to NOT open on action click
-      chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false }); // Default to false
+      // chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false }); // Default to false
       const isSidepanel = process.env.VITE_IS_SIDEPANEL === 'true' ? true : false;
       // const isPopup = process.env.VITE_IS_POPUP === 'true' ? true : false;
-      if (isSidepanel) {
+      // if (isSidepanel) {
         chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }); // Override default to true
-      }
+      // }
 
-      chrome.runtime.onMessage.addListener((message: any, _sender: any, _sendResponse: any  ) => {
-        if (message.type === "SET_PANEL_BEHAVIOR") {
-          chrome.sidePanel.setPanelBehavior({
-            openPanelOnActionClick: !!message.open
-          });
-        }
-        return false;
-      });
+      // chrome.runtime.onMessage.addListener((message: any, _sender: any, _sendResponse: any  ) => {
+      //   if (message.type === "SET_PANEL_BEHAVIOR") {
+      //     chrome.sidePanel.setPanelBehavior({
+      //       openPanelOnActionClick: !!message.open
+      //     });
+      //   }
+      //   return false;
+      // });
     }
 
     const platform: RuntimePlatformInfo = await browser.runtime.getPlatformInfo();
 
     openWindows.clear();
-    openPopups.clear();
+    // openPopups.clear();
 
     if ( details && details.reason === "install") {
       // This only happens on initial install to set the defaults

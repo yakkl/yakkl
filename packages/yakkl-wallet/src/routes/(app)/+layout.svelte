@@ -8,7 +8,6 @@
   import ErrorNoAction from '$lib/components/ErrorNoAction.svelte';
   import { browserSvelte } from "$lib/common/environment";
   import { log } from '$lib/common/logger-wrapper';
-	import { env } from "process";
 
   interface Props {
     children?: import('svelte').Snippet;

@@ -294,7 +294,7 @@ export async function onUnifiedMessageListener(
   try {
     const { id: requestId, method, type } = message;
 
-    log.debug('Received message', false, { message, sender });
+    log.debug('onUnifiedMessageListener - Received message', false, { message, sender });
 
     // Popout messages
     if (message.type === 'popout') {
@@ -402,12 +402,18 @@ async function handleSecurityMessage(message: any, sender: Runtime.MessageSender
 
       // Check both the new and original session management systems
       const newSessionInfo = sessionPortManager.getSessionInfo(requestId);
+
+      log.info('handleSecurityMessage - New session info:', false, newSessionInfo);
+
       if (newSessionInfo) {
         return { success: true, portName: newSessionInfo.portName };
       }
 
       // Fall back to original system
       const existingPort = sessionPorts.get(requestId);
+
+      log.info('handleSecurityMessage - Existing port:', false, existingPort);
+
       if (existingPort) {
         log.info('Found existing port for requestId', false, {
           requestId,
@@ -419,6 +425,9 @@ async function handleSecurityMessage(message: any, sender: Runtime.MessageSender
       // If no existing port, try to register the sender's port
       if (sender.port) {
         const registrationResult = registerSessionPort(sender.port, requestId);
+
+        log.info('handleSecurityMessage - Registration result:', false, registrationResult);
+
         if (registrationResult.success) {
           return { success: true, portName: sender.port.name };
         }
@@ -642,6 +651,8 @@ async function handleRuntimeMessage(
   sender: Runtime.MessageSender
 ): Promise<any> {
   try {
+    log.info('unifiedMessageListener - handleRuntimeMessage - message:', false, message);
+
     switch (message.type) {
       case 'getActiveTab': {
         try {
@@ -677,7 +688,6 @@ async function handleRuntimeMessage(
       }
 
       case 'popout': {
-        log.debug('popout:', false, message);
         showPopup('');
         return { success: true };
       }
@@ -748,6 +758,7 @@ async function handleRuntimeMessage(
 
       default: {
         // Not handled by this listener
+        log.info('unifiedMessageListener - handleRuntimeMessage - default (passed through):', false, message);
         return undefined;
       }
     }

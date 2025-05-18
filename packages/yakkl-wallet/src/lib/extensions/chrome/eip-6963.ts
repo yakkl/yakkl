@@ -1,7 +1,6 @@
 import { log } from "$lib/plugins/Logger";
 import type { Runtime } from "webextension-polyfill";
 import { ProviderRpcError } from "$lib/common";
-import { showDappPopup } from "$lib/extensions/chrome/ui";
 import browser from "webextension-polyfill";
 import { initializePermissions } from "$lib/permissions";
 import { getBlock, getLatestBlock, getGasPrice, getBalance, getCode, getNonce, getTransactionReceipt, getTransaction, getLogs } from './legacy';
@@ -23,6 +22,7 @@ import { handleSimulationRequest } from '$lib/common/listeners/background/simula
 import { handleWriteRequest } from '$lib/common/listeners/background/writeMethodHandler';
 import { sendErrorResponse } from '$lib/extensions/chrome/errorResponseHandler';
 import { MessageAnalyzer } from "./messageAnalyzer";
+import { showPopupForMethod } from "$lib/plugins/DAppPopupManager";
 
 export { requestManager };
 
@@ -1018,7 +1018,7 @@ export async function showEIP6963Popup(
   let popupUrl = `/dapp/popups/approve.html?requestId=${requestId}&source=eip6963&method=${method}`;
 
   // Show the popup
-  showDappPopup(popupUrl, requestId, method, 'M');
+  showPopupForMethod(method, requestId, 'M');
 
   // Return a promise that resolves when the user approves or rejects
   return new Promise<any>((resolve, reject) => {

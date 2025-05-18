@@ -2,19 +2,34 @@
 <script lang="ts">
   import TokenListComponentList from '$lib/components/TokenComponentList.svelte';
   import RotatingBanner from '$lib/components/RotatingBanner.svelte';
-  import NewsFeed from '$lib/components/NewsFeed.svelte';
-  import Podcasts from '$lib/components/Podcasts.svelte';
   import SectionCard from '$lib/components/SectionCard.svelte';
   import { browser_ext, browserSvelte } from '$lib/common/environment';
   import WalletIcon from '$lib/components/icons/WalletIcon.svelte';
   import TokenIcon from '$lib/components/icons/TokenIcon.svelte';
   import NewsIcon from '$lib/components/icons/NewsIcon.svelte';
-  import PodcastIcon from '$lib/components/icons/PodcastIcon.svelte';
-	import TokenNewsTradingView from '$lib/components/TokenNewsTradingView.svelte';
+  import ToolIcon from '$lib/components/icons/ToolIcon.svelte';
 	import { onMount } from 'svelte';
 	import { getSettings, setYakklCombinedTokenStorage, updateCombinedTokenStore, yakklCombinedTokenStore } from '$lib/common/stores';
 	import { loadDefaultTokens } from '$lib/plugins/tokens/loadDefaultTokens';
 	import { get } from 'svelte/store';
+	import ExtensionRSSNewsFeed from '$lib/components/ExtensionRSSNewsFeed.svelte';
+	import CalcIcon from '$lib/components/icons/CalcIcon.svelte';
+	// import FiatIcon from '$lib/components/icons/FiatIcon.svelte';
+	import SimpleTooltip from '$lib/components/SimpleTooltip.svelte';
+	import EthUnitConverter from '$lib/components/EthUnitConverter.svelte';
+	// import TokenFiatConverter from '$lib/components/TokenFiatConverter.svelte';
+	import { log } from '$lib/common/logger-wrapper';
+
+  let showEthConverter = false;
+  let showTokenFiatConverter = false;
+  let init = false;
+
+  // List of crypto news RSS feeds
+  const cryptoFeeds = [
+    'https://cointelegraph.com/rss/?utm_source=yakkl&utm_medium=extension',
+    'https://www.coindesk.com/arc/outboundfeeds/rss/?utm_source=yakkl&utm_medium=extension',
+    'https://cryptonews.com/news/feed/?utm_source=yakkl&utm_medium=extension'
+  ];
 
   function openWallet() {
     if (browserSvelte) {
@@ -33,6 +48,7 @@
       //   console.log('Upgrade clicked for item at index:', index);
       // }
     },
+    // #region example of an ad
     // {
     //   type: 'ad' as const,
     //   useGoogleAd: false,
@@ -58,6 +74,7 @@
     //     // Handle ad upgrade
     //   }
     // }
+    // #endregion
   ];
 
   // Example of how to handle onCallToAction in a single function
@@ -100,24 +117,37 @@
   // }
 
   onMount(async() => {
-    const settings = await getSettings();
-    if (!settings.init || !settings.legal.termsAgreed) {
-      document.documentElement.classList.remove('dark');
-      localStorage.theme = 'light';
-      await loadDefaultTokens(); // This should have been handled by the background listener but just in case
-      updateCombinedTokenStore();
-      await setYakklCombinedTokenStorage(get(yakklCombinedTokenStore));
+    try {
+      const settings = await getSettings();
+      if (!settings.init || !settings.legal.termsAgreed) {
+        init = false;
+        document.documentElement.classList.remove('dark');
+        localStorage.theme = 'light';
+        await loadDefaultTokens(); // This should have been handled by the background listener but just in case
+        updateCombinedTokenStore();
+        await setYakklCombinedTokenStorage(get(yakklCombinedTokenStore));
+      } else {
+        init = true;
+      }
+    } catch (error) {
+      log.error('Error initializing sidepanel:', false,error);
     }
   });
+
 </script>
 
 <div class="flex flex-col h-screen bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-100">
   <header class="px-4 py-3 border-b border-zinc-200 dark:border-zinc-700 flex justify-between items-center">
     <h1 class="text-lg font-bold">YAKKL Dashboard</h1>
-    <button onclick={openWallet} class="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-xl shadow-md hover:from-green-600 hover:to-emerald-700 transition-all">
-      <WalletIcon className="w-5 h-5" />
-      Open Wallet
-    </button>
+    <SimpleTooltip content="Click here to unlock your wallet" position="bottom">
+      <button onclick={openWallet} class="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-xl shadow-md hover:from-green-600 hover:to-emerald-700 transition-all {!init ? 'animate-pulse' : ''}">
+        <WalletIcon className="w-5 h-5" />
+        Open Wallet
+      </button>
+    </SimpleTooltip>
+    {#if !init}
+      <span class="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-500 animate-ping"></span>
+    {/if}
   </header>
 
   <RotatingBanner items={bannerItems} autoRotate={false} showControls={false} />
@@ -126,39 +156,74 @@
     <!-- Grid container for cards -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 py-4">
       <!-- Token Prices Card -->
+       <!-- eye={false} for now but if we want to show the balances, we can set it to true -->
       <SectionCard
         title="Token Prices"
         icon={TokenIcon}
         isPinned={false}
-        eye={true}
+        eye={false}
         eyeTooltip="Toggle visibility of balances"
-        minHeight="250px"
-        maxHeight="500px"
+        minHeight="300px"
+        maxHeight="750px"
       >
-        <TokenListComponentList maxVisibleTokens={3} />
+        <TokenListComponentList maxVisibleTokens={5} />
       </SectionCard>
 
-      <!-- News Card -->
+      <!-- Newsfeeds Card -->
       <SectionCard
-        title="Latest News"
+        title="Newsfeeds"
         icon={NewsIcon}
-        minHeight="250px"
-        maxHeight="500px"
+        minHeight="350px"
+        maxHeight="1000px"
       >
-        <!-- <NewsFeed maxVisibleItems={3} /> -->
-        <TokenNewsTradingView />
+        <ExtensionRSSNewsFeed
+          feedUrls={cryptoFeeds}
+          maxVisibleItems={10}
+          maxItemsPerFeed={10}
+          className="bg-white dark:bg-gray-900 rounded-lg shadow-md"
+        />
       </SectionCard>
 
-      <!-- Podcasts Card -->
+      <!-- Utilities Card -->
       <SectionCard
-        title="Podcasts"
-        icon={PodcastIcon}
+        title="Utilities"
+        icon={ToolIcon}
         minHeight="250px"
-        maxHeight="500px"
+        maxHeight="800px"
       >
-        <Podcasts maxVisibleItems={3} />
+        <!-- Grid container -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 p-2 mt-2">
+          <!-- Icon button 1 -->
+          <SimpleTooltip content="ETH Unit Converter">
+            <button
+              class="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
+              aria-label="Open Conversion Calculator"
+              onclick={() => showEthConverter = true}
+            >
+              <CalcIcon className="w-7 h-7" />
+            </button>
+          </SimpleTooltip>
+          <EthUnitConverter
+            bind:show={showEthConverter}
+          />
+
+          <!-- Icon button 2 -->
+
+          <!-- <SimpleTooltip content="Token Fiat Converter">
+            <button
+              class="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
+              aria-label="Open Token Fiat Converter"
+              onclick={() => showTokenFiatConverter = true}
+            >
+              <FiatIcon className="w-7 h-7" />
+            </button>
+          </SimpleTooltip>
+          <TokenFiatConverter
+            bind:show={showTokenFiatConverter}
+          /> -->
+        </div>
+
       </SectionCard>
-    </div>
 
     <!-- Chart Section (for expanded view) -->
     <div class="hidden md:block mt-4">

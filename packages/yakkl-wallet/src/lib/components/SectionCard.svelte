@@ -34,8 +34,8 @@
   function calculateMinHeight() {
     if (!cardElement || !contentElement) return;
 
-    const headerHeight = cardElement.querySelector('header')?.offsetHeight || 0;
-    const firstItemHeight = contentElement.querySelector('.item')?.offsetHeight || 0;
+    const headerHeight = (cardElement.querySelector('header') as HTMLElement | null)?.offsetHeight || 0;
+    const firstItemHeight = (contentElement.querySelector('.item') as HTMLElement | null)?.offsetHeight || 0;
 
     // If there are items, min height is header + one item
     // If no items, min height is just the header

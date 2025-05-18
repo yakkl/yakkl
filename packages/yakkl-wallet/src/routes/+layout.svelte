@@ -11,14 +11,18 @@
   let { children } = $props();
 
   onMount(async () => {
-    browser_ext.runtime.onMessage.addListener((message: any): any => {
-      if (message?.type === 'SESSION_TOKEN_BROADCAST') {
-        storeSessionToken(message.token, message.expiresAt);
-        log.info('[Layout] Session token set:', false, {sessionToken, sessionExpiresAt}, get(sessionToken), get(sessionExpiresAt));
-      }
-      return false;
-    });
-    initializeBrowserAPI();
+    try {
+      browser_ext.runtime.onMessage.addListener((message: any): any => {
+        if (message?.type === 'SESSION_TOKEN_BROADCAST') {
+          storeSessionToken(message.token, message.expiresAt);
+          log.info('[Layout] Session token set:', false, {sessionToken, sessionExpiresAt}, get(sessionToken), get(sessionExpiresAt));
+        }
+        return false;
+      });
+      initializeBrowserAPI();
+    } catch (error) {
+      log.error('Error initializing layout:', false, error);
+    }
   });
 </script>
 

@@ -99,16 +99,12 @@ export class KeyManager {
     if (!KeyManager.instance.initialized && !KeyManager.isInitializing) {
       try {
         KeyManager.isInitializing = true;
-        log.debug('KeyManager starting initialization');
         await KeyManager.instance.initialize();
         log.debug('KeyManager initialization completed');
       } finally {
         KeyManager.isInitializing = false;
       }
-    } else if (KeyManager.instance.initialized) {
-      log.debug('KeyManager already initialized, returning instance');
     } else if (KeyManager.isInitializing) {
-      log.debug('KeyManager is currently initializing, waiting for completion');
       // Wait for initialization to complete
       while (!KeyManager.instance.initialized) {
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -163,7 +159,6 @@ export class KeyManager {
     try {
       // Check if we're in a background context using storage defaults
       // This is a reliable way to detect background context
-      log.debug('Checking background context...');
       initializeStorageDefaults();
       log.debug('Background context confirmed via initializeStorageDefaults');
 
@@ -189,8 +184,6 @@ export class KeyManager {
    */
   private async loadKeysFromEnvironment(): Promise<void> {
     log.debug('Loading keys from environment');
-
-    // Removed hardcoded development keys - we don't want these
 
     // Log all environment variables for debugging (only in dev)
     if (process.env.NODE_ENV !== 'production') {

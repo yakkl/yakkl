@@ -1,6 +1,7 @@
 import type { IdleConfig, IdleState } from '$lib/common/idle/types';
 import { IdleManagerBase } from './IdleManagerBase';
 import { browser_ext } from '$lib/common/environment';
+import { log } from '$lib/common/logger-wrapper';
 // import { log } from './Logger';
 
 export class SystemWideIdleManager extends IdleManagerBase {
@@ -17,6 +18,8 @@ export class SystemWideIdleManager extends IdleManagerBase {
     if (!this.isLoginVerified) {
       return;
     }
+
+    console.log('start - setting detection interval:', this.threshold);
 
     browser_ext.idle.setDetectionInterval(this.threshold);
     this.stateChangeListener = (state: IdleState) => {

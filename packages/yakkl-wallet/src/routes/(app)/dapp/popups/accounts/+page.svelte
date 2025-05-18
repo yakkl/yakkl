@@ -1,6 +1,6 @@
 <script lang="ts">
   import { browser_ext, browserSvelte } from '$lib/common/environment';
-  import { getYakklAccounts, setYakklConnectedDomainsStorage, setYakklAccountsStorage, yakklDappConnectRequestStore, getYakklCurrentlySelected, getYakklConnectedDomains } from '$lib/common/stores';
+  import { getYakklAccounts, setYakklConnectedDomainsStorage, setYakklAccountsStorage, yakklDappConnectRequestStore, getYakklCurrentlySelected, getYakklConnectedDomains, getSettings } from '$lib/common/stores';
   import { YAKKL_DAPP, DEFAULT_TITLE, DEFAULT_PERSONA } from '$lib/common/constants';
   import { onMount } from 'svelte';
   import { page } from '$app/state';
@@ -94,6 +94,8 @@
       requestId = page.url.searchParams.get('requestId');
       $yakklDappConnectRequestStore = requestId as string;
 
+      log.info('Dapp - accounts page loading:', false, { requestId });
+
       if (requestId) {
         pass = true;
       }
@@ -157,6 +159,8 @@
 
   async function handleReject(message: string = 'User rejected the request.') {
     try {
+      showConfirm = false;
+      showFailure = false;
       if (dappInterface) {
         dappInterface.sendError({
           code: 4001,
@@ -418,7 +422,19 @@
   onMount(async () => {
     try {
       if (browserSvelte) {
+        log.info('Dapp - accounts page mounted:', false);
+
+        const settings = await getSettings();
+        if (!settings.init || !settings.legal.termsAgreed) {
+          errorValue = "You must register and agree to the terms of service before using YAKKL®. Click on 'Open Wallet' to register.";
+          showFailure = true;
+          return;
+        }
+
+        log.info('Dapp - accounts page getting settings:', false, settings);
+
         currentlySelected = await getYakklCurrentlySelected();
+        log.info('Dapp - accounts page getting currently selected:', false, currentlySelected);
 
         // Since we're 1:1 we can attach to the known port name
         const sessionInfo = await browser_ext.runtime.sendMessage({
@@ -430,7 +446,7 @@
 
         // Guard against null response
         if (!sessionInfo || !sessionInfo.success) {
-          errorValue = 'Failed to verify session. No response received. Access to YAKKL® is rejected.';
+          errorValue = 'Failed to verify session port. No response received. Access to YAKKL® is rejected.';
           showFailure = true;
           return;
         }
@@ -464,11 +480,13 @@
   async function close() {
     if (browserSvelte) {
       try {
-        await portManager.waitForIdle(1500);
+        if (portManager) {
+          await portManager.waitForIdle(1500);
+          portManager.disconnect();
+        }
       } catch (e) {
         log.warn('Port did not go idle in time', false, e);
       }
-      portManager.disconnect();
       safeLogout();
     }
   }
@@ -479,8 +497,8 @@
 	<title>{title}</title>
 </svelte:head>
 
-<Warning bind:show={showFailure} title="Error" value={errorValue} />
-<Failed bind:show={showFailure} title="Failed!" content={errorValue} handleReject={handleReject}/>
+<!-- <Warning bind:show={showFailure} title="Error" value={errorValue} /> -->
+<Failed bind:show={showFailure} title="Failed!" content={errorValue} onReject={handleReject}/>
 <Confirmation bind:show={showConfirm} title="Connect to {domain}" message="This will connect {domain} to {accountsPicked} of your addresses! Do you wish to continue?" onConfirm={handleProcess}/>
 
 <!-- {#if showConfirm}

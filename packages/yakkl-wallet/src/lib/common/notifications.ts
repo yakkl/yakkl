@@ -24,6 +24,8 @@ export class NotificationService {
         iconUrl: browser_ext.runtime.getURL(this.DEFAULT_ICON),
       };
 
+      log.info('createNotification - notificationOptions:', false, notificationOptions);
+
       await browser_ext.notifications.create(
         id || this.DEFAULT_ID,
         notificationOptions
@@ -39,6 +41,8 @@ export class NotificationService {
     options: Partial<Omit<BasicNotificationOptions, 'type' | 'title' | 'message'>> = {},
     id?: string
   ): Promise<void> {
+    log.info('sendBasic - title:', false, title);
+
     await this.createNotification({
       type: 'basic',
       title,
@@ -101,6 +105,8 @@ export class NotificationService {
     options: Partial<Omit<BasicNotificationOptions, 'type' | 'title' | 'message'>> = {},
     id?: string
   ): Promise<void> {
+    log.info('sendSecurityAlert - message:', false, message);
+
     await this.sendBasic(
       '🔒 Security Alert',
       message,
@@ -148,7 +154,10 @@ export async function sendNotificationMessage(title: string, messageText: string
   try {
     if (!browser_ext) return;
 
-    await browser_ext.notifications.create(
+    log.info('sendNotificationMessage - title:', false, title);
+    log.info('sendNotificationMessage - messageText:', false, messageText);
+
+    const id = await browser_ext.notifications.create(
       'yakkl-notification',
       {
         type: 'basic',
@@ -158,8 +167,11 @@ export async function sendNotificationMessage(title: string, messageText: string
       }
     );
 
+    return id;
+
   } catch (error) {
     log.error('Error sending notification message:', false, error);
+    return null;
   }
 }
 
@@ -169,6 +181,9 @@ export async function sendNotificationMessage(title: string, messageText: string
 export async function sendNotificationStartLockIconTimer() {
   try {
     if (!browser_ext) return;
+
+    log.info('sendNotificationStartLockIconTimer - starting lock icon timer:', false);
+
     startLockIconTimer();
   } catch (error) {
     log.error('Error starting lock icon timer:', false, error);

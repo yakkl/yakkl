@@ -66,12 +66,12 @@
           case 'wallet_getPermissions':
             url = '/dapp/popups/permissions';
             break;
+          case 'wallet_switchEthereumChain': // Only allow switching to supported chains
+            url = '/dapp/popups/wallet';
+            break;
           // Unsupported - security risk
           // case 'wallet_addEthereumChain':
           //   url = '/dapp/popups/walletNetworkAdd';
-          //   break;
-          // case 'wallet_switchEthereumChain':
-          //   url = '/dapp/popups/wallet';
           //   break;
           default:
             url = '/dapp/popups/approve';

@@ -1,58 +1,40 @@
-<!-- File: src/lib/components/NewsFeed.svelte -->
+<!-- src/lib/components/NewsFeed.svelte -->
 <script lang="ts">
-	import ChevronDownIcon from '$lib/components/icons/ChevronDownIcon.svelte';
-	import ChevronUpIcon from '$lib/components/icons/ChevronUpIcon.svelte';
+  import ChevronDownIcon from '$lib/components/icons/ChevronDownIcon.svelte';
+  import ChevronUpIcon from '$lib/components/icons/ChevronUpIcon.svelte';
   import NewsFeedLineView from './NewsFeedLineView.svelte';
 
+  interface NewsItem {
+    title: string;
+    subtitle: string;
+    content: string;
+    imageUrl: string;
+    source: string;
+    date: string;
+    url: string;
+  }
+
   interface Props {
+    newsItems?: NewsItem[];
     maxVisibleItems?: number;
     className?: string;
   }
 
-  let { maxVisibleItems = 3, className = '' }: Props = $props();
-
-  let newsItems = $state([
-    {
-      title: "Bitcoin ETF Approval Expected This Week",
-      subtitle: "Market Analysis",
-      content: "The SEC is expected to make a decision on Bitcoin ETF applications this week, potentially opening the door for institutional investment. Analysts predict this could lead to significant market movement.",
-      imageUrl: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=200",
-      source: "Crypto Daily",
-      date: "2 hours ago",
-      url: "https://example.com/news/1"
-    },
-    {
-      title: "Ethereum Layer 2 Solutions See Record Growth",
-      subtitle: "Technology",
-      content: "Ethereum's Layer 2 scaling solutions have processed over 1 million transactions in the past 24 hours, marking a new milestone in blockchain scalability.",
-      imageUrl: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=200",
-      source: "Blockchain Weekly",
-      date: "4 hours ago",
-      url: "https://example.com/news/2"
-    },
-    {
-      title: "DeFi Protocol Reaches $1B TVL",
-      subtitle: "DeFi",
-      content: "A leading DeFi protocol has surpassed $1 billion in total value locked, signaling growing confidence in decentralized finance solutions.",
-      imageUrl: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=200",
-      source: "DeFi Pulse",
-      date: "6 hours ago",
-      url: "https://example.com/news/3"
-    },
-    {
-      title: "NFT Market Shows Signs of Recovery",
-      subtitle: "NFTs",
-      content: "After a prolonged bear market, NFT trading volume has increased by 30% in the past week, with blue-chip collections leading the recovery.",
-      imageUrl: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=200",
-      source: "NFT Insider",
-      date: "8 hours ago",
-      url: "https://example.com/news/4"
-    }
-  ]);
+  let {
+    newsItems = [],
+    maxVisibleItems = 3,
+    className = ''
+  }: Props = $props();
 
   let visibleItems = $state(newsItems.slice(0, maxVisibleItems));
   let remainingItems = $state(newsItems.slice(maxVisibleItems));
   let isRemainingSectionCollapsed = $state(true);
+
+  // Update when newsItems prop changes
+  $effect(() => {
+    visibleItems = newsItems.slice(0, maxVisibleItems);
+    remainingItems = newsItems.slice(maxVisibleItems);
+  });
 
   // Check if we have any valid news items
   const hasValidItems = newsItems.length > 0;
@@ -113,3 +95,4 @@
     </div>
   {/if}
 </div>
+

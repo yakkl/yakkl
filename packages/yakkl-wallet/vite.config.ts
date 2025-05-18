@@ -43,6 +43,7 @@ export default defineConfig( ({ mode }) => {
       } ),
     ],
     resolve: {
+      dedupe: ['dexie'],
       alias: {
         process: 'process/browser',
         $base: path.resolve( './src' ),
@@ -73,6 +74,7 @@ export default defineConfig( ({ mode }) => {
       'process.env.DEV_MODE': process.env.DEV_MODE || false,
     },
     optimizeDeps: {
+      include: ['dexie'],
       exclude: [
         'webextension-polyfill',
         '**/*.tmp/**/*',  // Exclude .tmp directories - the .tmp items here do not seem to be working as expected. I will keep it and handle it another way.
@@ -112,7 +114,7 @@ export default defineConfig( ({ mode }) => {
       rollupOptions: {
         external: [
           'webextension-polyfill',
-        ],
+        ]
       }
     },
     esbuild: {
