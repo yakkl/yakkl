@@ -6,8 +6,10 @@
   import Footer from '$components/Footer.svelte';
   import { blockContextMenu, blockWindowResize } from '$lib/utilities';
   import ErrorNoAction from '$lib/components/ErrorNoAction.svelte';
-  import { browserSvelte } from "$lib/common/environment";
+  import { browserSvelte, browser_ext } from "$lib/common/environment";
   import { log } from '$lib/common/logger-wrapper';
+  import { initializeUiContext } from '$lib/common/messaging';
+	import InAppNotifications from "$lib/components/InAppNotifications.svelte";
 
   interface Props {
     children?: import('svelte').Snippet;
@@ -52,6 +54,10 @@
   onMount(async () => {
     // Reset session initialization state when app first loads
     sessionInitialized.set(false);
+
+    if (browser_ext) {
+      await initializeUiContext(browser_ext);
+    }
   });
 
 </script>
@@ -77,3 +83,4 @@
   <Footer containerWidth={popupWidth.toString()} />
 </div>
 
+<InAppNotifications />

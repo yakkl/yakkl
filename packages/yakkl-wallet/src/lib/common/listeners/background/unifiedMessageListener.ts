@@ -343,8 +343,6 @@ export async function onUnifiedMessageListener(
         message.type === 'YAKKL_STATE_CHANGE' ||
         message.type === 'SET_PANEL_BEHAVIOR' ||
         message.type === 'clipboard-timeout' ||
-        message.type === 'lockdown' ||
-        message.type === 'lockdownImminent' ||
         message.type === 'startPricingChecks' ||
         message.type === 'stopPricingChecks') {
       return await handleRuntimeMessage(message, sender);

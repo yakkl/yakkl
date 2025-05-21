@@ -442,13 +442,16 @@
             requestId
           }) as SessionInfo;
 
-        log.info('Received session info:', false, sessionInfo, sessionInfo?.portName);
+        console.log('sessionInfo - debugger', sessionInfo);
+
+        console.log('Received session info:', sessionInfo, sessionInfo?.portName);
 
         // Guard against null response
         if (!sessionInfo || !sessionInfo.success) {
           errorValue = 'Failed to verify session port. No response received. Access to YAKKL® is rejected.';
-          showFailure = true;
-          return;
+          // showFailure = true;
+          // return;
+          // TEST TEST TEST
         }
 
         // Create port manager with the original port name

@@ -641,10 +641,19 @@ class ContentScriptManager {
 
   // Notify inpage script of connection state changes
   private notifyConnectionStateChange(state: 'lost' | 'restored') {
+    const origin = getTargetOrigin();
+    log.debug('Notifying inpage script of connection state change:', false, {
+      state,
+      origin
+    });
+    if (!origin) {
+      log.warn('No origin to notify', false);
+      return;
+    }
     window.postMessage({
       type: `YAKKL_CONNECTION_${state.toUpperCase()}`,
       timestamp: Date.now()
-    }, getTargetOrigin());
+    }, origin);
   }
 
   // Send error response to inpage script

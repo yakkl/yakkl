@@ -9,6 +9,13 @@
 	import { setLocks } from '$lib/common/locks';
 	import { resetTokenDataStoreValues } from '$lib/common/resetTokenDataStoreValues';
   import { log } from '$lib/common/logger-wrapper';
+	import { stopActivityTracking } from '../../../hooks.client';
+  import { ErrorHandler } from '$lib/plugins/ErrorHandler';
+
+  // Initialize error handler
+  if (browserSvelte) {
+    ErrorHandler.getInstance();
+  }
 
   // Reactive State
   let yakklCurrentlySelected: YakklCurrentlySelected | null = $state(null);
@@ -20,10 +27,12 @@
   let isUpdating = false; // Prevent concurrent executions
 
   async function update() {
+    if (!browserSvelte) return;
     if (isUpdating) return; // Prevent multiple updates
     isUpdating = true;
 
     try {
+      await stopActivityTracking();
       // Set lock icon
       await setIconLock();
       setLocks(true);
@@ -36,10 +45,6 @@
       setYakklTokenDataCustomStorage($yakklTokenDataCustomStore); // Zero out values in custom token storage
       resetStores();
 
-      // if (browser_ext) {
-        // Reload the browser extension
-        // browser_ext.runtime.reload();
-      // }
     } catch (error) {
       log.error('Logout failed:', false, error);
       alert('Logout encountered an error. Please try again or refresh the extension manually.');

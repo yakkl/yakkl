@@ -2,7 +2,7 @@
   import { browserSvelte } from '$lib/common/environment';
   import { page } from '$app/state';
   // The grayed out store items are for testing purposes used in the clearData function
-  import { getSettings, yakklDappConnectRequestStore } from '$lib/common/stores';
+  import { getMiscStore, getSettings, yakklDappConnectRequestStore, yakklMiscStore } from '$lib/common/stores';
   import { PATH_LOGIN, YAKKL_DAPP, DEFAULT_TITLE } from '$lib/common/constants';
   import { onMount } from 'svelte';
 	import Copyright from '$lib/components/Copyright.svelte';
@@ -55,7 +55,7 @@
         method
       }));
 
-        return safeNavigate(PATH_LOGIN + '?requestId=' + requestId + '&method=' + method);
+      return safeNavigate('/dapp/login?requestId=' + requestId + '&method=' + method);
     } catch(e) {
       errorValue = e as string;
       showFailure = true;

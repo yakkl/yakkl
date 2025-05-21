@@ -171,7 +171,8 @@ export async function handleOnMessageForExtension(
           sendResponse({ success: true, message: 'Lockdown initiated.' });
 
           // Delay logout slightly to ensure response is sent
-          setTimeout(() => safeLogout(), 50);
+          // setTimeout(() => safeLogout(), 50);
+          goto(PATH_LOGOUT);
 
           // Return true to indicate we're using the sendResponse callback
           return true;
@@ -182,11 +183,19 @@ export async function handleOnMessageForExtension(
         }
       }
       case 'lockdownImminent': {
-        log.info('handleOnMessageForExtension - lockdownImminent:', false, message);
+        try {
+          log.info('--------------------------------');
+          log.info('[uiListeners] - handleOnMessageForExtension - lockdownImminent:', false, message);
+          log.info('--------------------------------');
 
-        await NotificationService.sendSecurityAlert('YAKKL Lockdown Imminent. \nFor your protection, YAKKL will be locked soon.', {contextMessage: 'Use YAKKL before timeout to stop lockdown'});
-        sendResponse({ success: true, message: 'Imminent lockdown notification sent.' });
-        return true;
+          await NotificationService.sendSecurityAlert('YAKKL Lockdown Imminent. \nFor your protection, YAKKL will be locked soon.', {contextMessage: 'Use YAKKL before timeout to stop lockdown'});
+          sendResponse({ success: true, message: 'Imminent lockdown notification sent.' });
+          return true;
+        } catch (error: any) {
+          log.error('Lockdown imminent failed:', false, error);
+          sendResponse({ success: false, error: error.message || 'Lockdown imminent failed' });
+          return true;
+        }
       }
       default: {
         return false; // Let other listeners handle it

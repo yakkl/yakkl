@@ -196,7 +196,7 @@
       reset();
       const yakklMiscStore = getMiscStore();
       if (!yakklMiscStore) {
-        log.error('User is not logged in.');
+        log.info('User is not logged in yet, so no swap is possible.');
         return;
       }
 
