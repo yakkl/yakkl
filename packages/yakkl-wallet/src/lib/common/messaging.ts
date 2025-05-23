@@ -332,7 +332,7 @@ class ExtensionMessaging {
     }
 
     // Generate a new context ID
-    const contextId = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+    const contextId = Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
 
     // Store it in window storage if available
     if (typeof window !== 'undefined') {
@@ -429,7 +429,7 @@ class ExtensionMessaging {
       deduplicate: false
     });
 
-    log.debug(`Login ${verified ? 'verified' : 'unverified'} for context: ${this.contextId}`);
+    log.debug(`Login ${verified ? 'verified' : 'unverified'} for context (messaging): ${this.contextId}`);
   }
 
   /**
@@ -440,7 +440,7 @@ class ExtensionMessaging {
 
     if (window.location.pathname.includes('sidepanel')) {
       return 'sidepanel';
-    } else if (window.location.pathname.includes('popup') && !window.location.pathname.includes('dapp/popups')) {
+    } else if (window.location.pathname.includes('index.html')) {
       return 'popup-wallet';
     } else if (window.location.pathname.includes('dapp/popups')) {
       return 'popup-dapp';
@@ -458,7 +458,7 @@ class ExtensionMessaging {
     if (!isBrowser || typeof window === 'undefined') return;
 
     // Track user activity
-    const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+    const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart', 'focus'];
 
     // Throttled activity tracker
     let lastActivity = Date.now();
@@ -550,7 +550,7 @@ function determineBestContextType(): string {
 
   if (window.location.pathname.includes('sidepanel')) {
     return 'sidepanel';
-  } else if (window.location.pathname.includes('popup') && !window.location.pathname.includes('dapp/popups')) {
+  } else if (window.location.pathname.includes('index.html')) {
     return 'popup-wallet';
   } else if (window.location.pathname.includes('dapp/popups')) {
     return 'popup-dapp';
@@ -570,7 +570,7 @@ export async function startActivityTracking(contextType?: string): Promise<void>
   // Verify the login
   await messagingService.setLoginVerified(true, contextType);
 
-  // Ensure activity tracking is set up
+  // Ensure activity tracking is set up - should have been called in +layout.svelte at route level
   messagingService.setupActivityTracking();
 }
 

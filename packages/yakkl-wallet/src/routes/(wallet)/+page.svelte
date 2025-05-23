@@ -5,6 +5,9 @@
 	import { onMount } from "svelte";
   import { log } from '$lib/common/logger-wrapper';
 
+  // NOTE: This is the default index.html file that is rendered when the wallet is loaded.
+  // Do not remove this file. However, you can add to it if required.
+  
   onMount(async () => {
     try {
       log.debug('+page.svelte (app level) - onMount');
@@ -28,4 +31,3 @@
 <svelte:head>
   <title>YAKKL Wallet</title>
 </svelte:head>
-

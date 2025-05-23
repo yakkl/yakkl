@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-  import { sessionInitialized } from "$lib/common/stores";
-  import { DEFAULT_POPUP_HEIGHT, DEFAULT_TITLE, DEFAULT_POPUP_WIDTH } from '$lib/common';
+  import { getSettings, sessionInitialized } from "$lib/common/stores";
+  import { DEFAULT_POPUP_HEIGHT, DEFAULT_TITLE, DEFAULT_POPUP_WIDTH, PATH_LEGAL, PATH_REGISTER, PATH_LOGIN } from '$lib/common';
   import Header from '$components/Header.svelte';
   import Footer from '$components/Footer.svelte';
   import { blockContextMenu, blockWindowResize } from '$lib/utilities';
@@ -10,6 +10,7 @@
   import { log } from '$lib/common/logger-wrapper';
   import { initializeUiContext } from '$lib/common/messaging';
 	import InAppNotifications from "$lib/components/InAppNotifications.svelte";
+	import { goto } from "$app/navigation";
 
   interface Props {
     children?: import('svelte').Snippet;
@@ -52,11 +53,16 @@
   });
 
   onMount(async () => {
-    // Reset session initialization state when app first loads
-    sessionInitialized.set(false);
+    try {
+      log.debug('+layout.svelte (wallet level) - onMount');
+      // Reset session initialization state when app first loads
+      sessionInitialized.set(false);
 
-    if (browser_ext) {
-      await initializeUiContext(browser_ext);
+      if (browser_ext) {
+        await initializeUiContext(browser_ext);
+      }
+    } catch (error) {
+      log.error('+layout.svelte (wallet level) - onMount:', false, error);
     }
   });
 

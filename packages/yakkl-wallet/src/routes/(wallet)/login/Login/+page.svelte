@@ -43,7 +43,7 @@
       // Full wallet initialization
       setIconUnlock();
       syncStorageToStore();
-      startActivityTracking();
+      startActivityTracking('popup-wallet');
 
       // Navigate to wallet dashboard
       safeNavigate(PATH_WELCOME, 0, {replaceState: true, invalidateAll: true});

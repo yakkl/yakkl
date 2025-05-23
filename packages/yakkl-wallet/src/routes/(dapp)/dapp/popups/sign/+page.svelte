@@ -246,9 +246,7 @@
         log.info('Received session info:', false, sessionInfo);
 
         if (!sessionInfo || !sessionInfo.success) {
-          errorValue = 'Failed to verify session port. No response received.';
-          showFailure = true;
-          return;
+          log.warn('Failed to verify session port. No response received. Using YAKKL_DAPP.');
         }
 
         portManager = createPortManagerWithStream(sessionInfo?.portName ?? YAKKL_DAPP);

@@ -9,7 +9,7 @@
 	import { setLocks } from '$lib/common/locks';
 	import { resetTokenDataStoreValues } from '$lib/common/resetTokenDataStoreValues';
   import { log } from '$lib/common/logger-wrapper';
-	import { stopActivityTracking } from '../../../hooks.client';
+	import { stopActivityTracking } from '$lib/common/messaging';
   import { ErrorHandler } from '$lib/plugins/ErrorHandler';
 
   // Initialize error handler
@@ -47,7 +47,7 @@
 
     } catch (error) {
       log.error('Logout failed:', false, error);
-      alert('Logout encountered an error. Please try again or refresh the extension manually.');
+      alert('Logout encountered an error. Please try again or refresh the extension via browser extension manager.');
     } finally {
       isUpdating = false;
       window.close();

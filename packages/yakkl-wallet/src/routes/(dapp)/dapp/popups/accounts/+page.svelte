@@ -443,15 +443,11 @@
           }) as SessionInfo;
 
         console.log('sessionInfo - debugger', sessionInfo);
-
         console.log('Received session info:', sessionInfo, sessionInfo?.portName);
 
         // Guard against null response
         if (!sessionInfo || !sessionInfo.success) {
-          errorValue = 'Failed to verify session port. No response received. Access to YAKKL® is rejected.';
-          // showFailure = true;
-          // return;
-          // TEST TEST TEST
+          log.warn('Failed to verify session port. No response received. Using YAKKL_DAPP.');
         }
 
         // Create port manager with the original port name

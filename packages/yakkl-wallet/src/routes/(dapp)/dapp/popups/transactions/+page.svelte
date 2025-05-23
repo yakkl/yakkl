@@ -199,9 +199,7 @@
         }) as SessionInfo;
 
         if (!sessionInfo?.success) {
-          errorValue = 'Failed to establish secure connection. Please try again.';
-          showFailure = true;
-          return;
+          log.warn('Failed to verify session port. No response received. Using YAKKL_DAPP.');
         }
 
         // Create port connection

@@ -7,7 +7,7 @@ import { log } from '$lib/plugins/Logger';
 import { addUIListeners, removeUIListeners } from '$lib/common/listeners/ui/uiListeners';
 import { globalListenerManager } from '$lib/plugins/GlobalListenerManager';
 import { uiListenerManager } from '$lib/common/listeners/ui/uiListeners';
-import { UIActivityTracker } from '$lib/common/idle/uiActivityTracker';
+// import { UIActivityTracker } from '$lib/common/idle/uiActivityTracker';
 import messagingService from '$lib/common/messaging';
 
 // Store the browser reference globally for SvelleKit to use
@@ -60,7 +60,7 @@ if (isClient) {
 
 let browser_ext: Browser | null = null;
 let initializationAttempted = false;
-let activityTracker: UIActivityTracker | null = null;
+// let activityTracker: UIActivityTracker | null = null;
 
 function getBrowserExt(): Browser | null {
   if (!isClient) return null;
@@ -152,7 +152,7 @@ export async function init() {
 
     // Initialize activity tracker (but don't start it yet)
     const contextType = getContextType();
-    activityTracker = UIActivityTracker.initialize(CONTEXT_ID, contextType);
+    // activityTracker = UIActivityTracker.initialize(CONTEXT_ID, contextType);
     console.log(`[${CONTEXT_ID}] Initialized activity tracker for ${contextType}`);
 
     // Set up UI listeners through the manager
@@ -190,9 +190,9 @@ async function setupUIListeners() {
         console.log(`[${CONTEXT_ID}] Cleaning up before unload`);
 
         // Stop activity tracking if it was started
-        if (window.EXTENSION_INIT_STATE.activityTrackingStarted) {
-          stopActivityTracking();
-        }
+        // if (window.EXTENSION_INIT_STATE.activityTrackingStarted) {
+        //   stopActivityTracking();
+        // }
 
         removeUIListeners();
       } catch (error) {
@@ -222,98 +222,98 @@ async function setupUIListeners() {
 /**
  * Start tracking user activity - call this after login is verified
  */
-export async function startActivityTracking() {
-  if (!isClient) return;
+// export async function startActivityTracking() {
+//   if (!isClient) return;
 
-  try {
-    // Only start if not already started
-    if (typeof window !== 'undefined' &&
-        window.EXTENSION_INIT_STATE &&
-        !window.EXTENSION_INIT_STATE.activityTrackingStarted) {
+//   try {
+//     // Only start if not already started
+//     if (typeof window !== 'undefined' &&
+//         window.EXTENSION_INIT_STATE &&
+//         !window.EXTENSION_INIT_STATE.activityTrackingStarted) {
 
-      console.log(`[${CONTEXT_ID}] Starting activity tracking`);
+//       console.log(`[${CONTEXT_ID}] Starting activity tracking`);
 
-      // Make sure tracker is initialized (keep your existing code)
-      if (!activityTracker) {
-        const contextType = getContextType();
-        activityTracker = UIActivityTracker.initialize(CONTEXT_ID, contextType);
-      }
+//       // Make sure tracker is initialized (keep your existing code)
+//       if (!activityTracker) {
+//         const contextType = getContextType();
+//         activityTracker = UIActivityTracker.initialize(CONTEXT_ID, contextType);
+//       }
 
-      // Start the tracker (keep your existing code)
-      activityTracker.startTracking();
+//       // Start the tracker (keep your existing code)
+//       activityTracker.startTracking();
 
-      // Use messaging service to notify background
-      try {
-        // Initialize messaging service if needed
-        if (browser_ext) {
-          messagingService.initialize(browser_ext);
-        }
+//       // Use messaging service to notify background
+//       try {
+//         // Initialize messaging service if needed
+//         if (browser_ext) {
+//           messagingService.initialize(browser_ext);
+//         }
 
-        // Send login verification without waiting for response
-        messagingService.sendMessage('SET_LOGIN_VERIFIED', {
-          verified: true,
-          contextId: CONTEXT_ID,
-          contextType: getContextType()
-        }, {
-          waitForResponse: false // Don't wait for response
-        }).catch((err: any) => {
-          // Ignore errors
-          log.debug('Failed to notify background of login verification 1:', false, err);
-        });
-      } catch (err) {
-        try {
-          // Fallback to original method if messaging service fails
-          browser_ext.runtime.sendMessage({
-            type: 'SET_LOGIN_VERIFIED',
-            verified: true,
-            contextId: CONTEXT_ID,
-            contextType: getContextType()
-          }).catch((error: any) => {
-            log.debug('Failed to notify background of login verification 2:', false, error);
-          });
-        } catch (err) {
-          log.debug('Failed to notify background of login verification 3:', false, err);
-        }
-      }
+//         // Send login verification without waiting for response
+//         messagingService.sendMessage('SET_LOGIN_VERIFIED', {
+//           verified: true,
+//           contextId: CONTEXT_ID,
+//           contextType: getContextType()
+//         }, {
+//           waitForResponse: false // Don't wait for response
+//         }).catch((err: any) => {
+//           // Ignore errors
+//           log.debug('Failed to notify background of login verification 1:', false, err);
+//         });
+//       } catch (err) {
+//         try {
+//           // Fallback to original method if messaging service fails
+//           browser_ext.runtime.sendMessage({
+//             type: 'SET_LOGIN_VERIFIED',
+//             verified: true,
+//             contextId: CONTEXT_ID,
+//             contextType: getContextType()
+//           }).catch((error: any) => {
+//             log.debug('Failed to notify background of login verification 2:', false, error);
+//           });
+//         } catch (err) {
+//           log.debug('Failed to notify background of login verification 3:', false, err);
+//         }
+//       }
 
-      // Mark as started (keep your existing code)
-      window.EXTENSION_INIT_STATE.activityTrackingStarted = true;
-    }
-  } catch (error) {
-    log.error('Failed to start activity tracking:', false, error);
-    // Don't rethrow the error here, just log it
-  }
-}
+//       // Mark as started (keep your existing code)
+//       window.EXTENSION_INIT_STATE.activityTrackingStarted = true;
+//     }
+//   } catch (error) {
+//     log.error('Failed to start activity tracking:', false, error);
+//     // Don't rethrow the error here, just log it
+//   }
+// }
 
 /**
  * Stop tracking user activity - call this at logout
  */
-export async function stopActivityTracking() {
-  if (!isClient || !browser_ext) return;
+// export async function stopActivityTracking() {
+//   if (!isClient || !browser_ext) return;
 
-  try {
-    console.log(`[${CONTEXT_ID}] Stopping activity tracking`);
+//   try {
+//     console.log(`[${CONTEXT_ID}] Stopping activity tracking`);
 
-    // Stop the tracker if it exists
-    if (activityTracker) {
-      activityTracker.stopTracking();
-    }
+//     // Stop the tracker if it exists
+//     if (activityTracker) {
+//       activityTracker.stopTracking();
+//     }
 
-    // Notify background that login is no longer verified
-    browser_ext.runtime.sendMessage({
-      type: 'SET_LOGIN_VERIFIED',
-      verified: false,
-      contextId: CONTEXT_ID
-    }).catch(error => {
-      log.error('Failed to notify background of logout:', false, error);
-    });
+//     // Notify background that login is no longer verified
+//     browser_ext.runtime.sendMessage({
+//       type: 'SET_LOGIN_VERIFIED',
+//       verified: false,
+//       contextId: CONTEXT_ID
+//     }).catch(error => {
+//       log.error('Failed to notify background of logout:', false, error);
+//     });
 
-    // Mark as stopped
-    window.EXTENSION_INIT_STATE.activityTrackingStarted = false;
-  } catch (error) {
-    log.error('Failed to stop activity tracking:', false, error);
-  }
-}
+//     // Mark as stopped
+//     window.EXTENSION_INIT_STATE.activityTrackingStarted = false;
+//   } catch (error) {
+//     log.error('Failed to stop activity tracking:', false, error);
+//   }
+// }
 
 // Run init early, but only in browser context
 if (isClient) {

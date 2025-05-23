@@ -47,11 +47,13 @@ export function initContextTracker() {
   // Listen for window removal to clean up
   browser.windows.onRemoved.addListener(handleWindowRemoved);
   // Set up alarm listener for lockdown
-  browser.alarms.onAlarm.addListener((alarm) => {
-    if (alarm.name === "yakkl-lock-alarm") {
-      executeLockdown();
-    }
-  });
+  // browser.alarms.onAlarm.addListener((alarm) => {
+  //   if (alarm.name === "yakkl-lock-alarm") {
+  //     executeLockdown();
+  //   } else if (alarm.name === "yakkl-lock-notification") {
+  //     NotificationService.sendLockdownWarning(idleLockDelay);
+  //   }
+  // });
 
   log.info('[ContextTracker] Initialized with idle threshold:', false, {
     threshold: idleThreshold / 1000,
@@ -524,13 +526,17 @@ async function handleStateChanged(state: IdleState): Promise<void> {
 async function startLockdownSequence(): Promise<void> {
   try {
     // Stop price checks
-    await browser.runtime.sendMessage({type: 'stopPricingChecks'}).catch(err => {
-      log.debug('[IdleManager] Error sending stopPricingChecks message:', false, err);
-    });
+    // await browser.runtime.sendMessage({type: 'stopPricingChecks'}).catch(err => {
+    //   log.debug('[IdleManager] Error sending stopPricingChecks message:', false, err);
+    // });
 
     // Show lockdown warning using the enhanced notification service
     // This handles both browser notification and UI message
-    await NotificationService.sendLockdownWarning(idleLockDelay);
+    // await NotificationService.sendLockdownWarning(idleLockDelay);
+
+    browser.runtime.sendMessage({type: 'lockdownImminent', delayMs: idleLockDelay}).then(result => {console.log('lockdown-warning result', result)}).catch(err => {
+      log.error('[IdleManager] Error sending lockdown warning:', false, err);
+    });
 
     // Set lockdown alarm
     browser.alarms.create("yakkl-lock-alarm", {
@@ -577,12 +583,12 @@ async function executeLockdown(): Promise<void> {
 
   try {
     // Stop price checks
-    await browser.runtime.sendMessage({type: 'stopPricingChecks'}).catch(err => {
-      log.debug('[IdleManager] Error sending stopPricingChecks message:', false, err);
-    });
+    // await browser.runtime.sendMessage({type: 'stopPricingChecks'}).catch(err => {
+    //   log.debug('[IdleManager] Error sending stopPricingChecks message:', false, err);
+    // });
 
-    // Show locked notification
-    await NotificationService.sendWalletLocked();
+    // // Show locked notification
+    // await NotificationService.sendWalletLocked();
 
     // Perform lockdown
     await browser.runtime.sendMessage({type: 'lockdown'}).catch(err => {

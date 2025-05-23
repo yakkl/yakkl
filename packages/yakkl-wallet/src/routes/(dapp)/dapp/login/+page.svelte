@@ -8,12 +8,12 @@
     yakklUserNameStore
   } from '$lib/common/stores';
   import { safeLogout, safeNavigate } from '$lib/common/safeNavigate';
-  import { messagingService } from '$lib/common/messaging';
+  import { messagingService, startActivityTracking } from '$lib/common/messaging';
   import { log } from '$lib/common/logger-wrapper';
 	import type { Profile } from '$lib/common/interfaces';
 	import ErrorNoAction from '$lib/components/ErrorNoAction.svelte';
 	import Welcome from '$lib/components/Welcome.svelte';
-	import { Popover } from 'flowbite-svelte';
+	// import { Popover } from 'flowbite-svelte';
 
   // Get request parameters
   let requestId = $state('');
@@ -68,15 +68,18 @@
       syncStorageToStore();
 
       // Tell the background script about successful auth
-      messagingService.sendMessage('dapp_auth_success', {
-        requestId,
-        contextType: 'popup-dapp',
-        method: method
-      }, {
-        waitForResponse: false
-      }).catch(e => {
-        log.warn('Failed to send dapp_auth_success message', false, e);
-      });
+      startActivityTracking('popup-dapp');
+
+      // dapp_auth_success is not needed anymore
+      // messagingService.sendMessage('dapp_auth_success', {
+      //   requestId,
+      //   contextType: 'popup-dapp',
+      //   method: method
+      // }, {
+      //   waitForResponse: false
+      // }).catch(e => {
+      //   log.warn('Failed to send dapp_auth_success message', false, e);
+      // });
 
       // Navigate to the appropriate approval screen with parameters
       const url = `${approvalUrl}?requestId=${requestId}&method=${method}`;
@@ -97,7 +100,7 @@
   // Handle login errors
   function handleLoginError(value: string) {
     if (!browserSvelte) return;
-    
+
     errorValue = value;
     showError = true;
 
