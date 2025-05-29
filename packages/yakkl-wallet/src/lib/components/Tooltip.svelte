@@ -1,36 +1,46 @@
+<script lang="ts">
+  import * as Tooltip from "$lib/components/ui/tooltip";
+  import { cn } from "$lib/utils.js";
 
-
-<!-- <script lang="ts">
- import * as Tooltip from "$lib/components/ui/tooltip/index.js";
-
- export interface Props {
-    triggerText?: string; // Text or element for the tooltip trigger
-    contentText?: string; // Text or element for the tooltip content
-    placement?: "top" | "bottom" | "left" | "right"; // Tooltip placement (default: bottom)
-    delay?: number; // Delay in showing the tooltip (default: 0)
-    triggerClass?: string; // Optional classes for trigger styling
-    contentClass?: string; // Optional classes for content styling
+  interface Props {
+    content: string;
+    side?: "top" | "right" | "bottom" | "left";
+    align?: "start" | "center" | "end";
+    sideOffset?: number;
+    alignOffset?: number;
+    triggerClass?: string;
+    contentClass?: string;
+    children?: any;
   }
 
   let {
-    triggerText = "Hover",
-    contentText = "Tooltip Content",
-    placement = "bottom",
-    delay = 0,
-    triggerClass = "px-2 py-1 bg-gray-300 text-gray-800 rounded",
-    contentClass = "p-2 bg-gray-800 text-white rounded shadow-md",
+    content,
+    side = "top",
+    align = "center",
+    sideOffset = 4,
+    alignOffset = 0,
+    triggerClass = "",
+    contentClass = "",
+    children
   }: Props = $props();
 
+  // Default styles for the tooltip content
+  const defaultContentClass = "bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900";
 </script>
 
 <Tooltip.Provider>
   <Tooltip.Root>
     <Tooltip.Trigger class={triggerClass}>
-      {triggerText}
+      {@render children()}
     </Tooltip.Trigger>
-    <Tooltip.Content class={contentClass} side={placement} sideOffset={5}  >
-      {contentText}
+    <Tooltip.Content
+      {side}
+      {align}
+      {sideOffset}
+      {alignOffset}
+      class={cn(defaultContentClass, contentClass)}
+    >
+      {content}
     </Tooltip.Content>
   </Tooltip.Root>
 </Tooltip.Provider>
- -->

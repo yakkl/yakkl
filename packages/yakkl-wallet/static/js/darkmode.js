@@ -5,7 +5,7 @@ const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 function updateMode(mediaQuery) {
 
     try {
-        // Default to darkMode
+        // Default to lightMode
         if (mediaQuery.matches || !('theme' in localStorage) || (!('theme' in localStorage) && mediaQuery.matches)){
             setDark();
         } else {

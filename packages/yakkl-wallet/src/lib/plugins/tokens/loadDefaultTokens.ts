@@ -40,6 +40,9 @@ export async function loadDefaultTokens(): Promise<void> {
         tags: token.tags ?? [],
         version: token.version ?? '',
         customDefault: 'default',
+        sidepanel: token.sidepanel ?? true,
+        evmCompatible: token.evmCompatible ?? true,
+        url: token.url ?? '',
       };
     });
 

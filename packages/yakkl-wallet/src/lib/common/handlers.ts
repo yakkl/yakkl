@@ -15,7 +15,7 @@ export async function handleLockDown() {
   try {
     if (isBrowserEnv()) {
       log.info('handleLockDown: Setting icon lock...', false);
-      
+
       await setIconLock();
       const yakklSettings = await getObjectFromLocalStorage('settings') as Settings;
       if (yakklSettings && !yakklSettings.isLocked) {
@@ -35,63 +35,3 @@ export async function handleLockDown() {
     log.error('Error in lock down handler:', false, error);
   }
 }
-
-
-// // src/utils/handlers.ts
-// import type { Runtime } from 'webextension-polyfill';  // Correct Type Import
-// import { PATH_LOCK } from '../constants';
-// import { goto } from '$app/navigation';
-// import { handleLockDown } from './handleLockDown';
-// import { isBrowserEnv } from '../environment';
-// import { debug_log } from '../debug-error';
-// import { startCheckPrices, stopCheckPrices } from '$lib/tokens/prices';
-
-// // Centralized message handler function
-// // Not called now...
-// export async function handleOnMessageForExtension(
-//   message: any,
-//   sender: Runtime.MessageSender,
-//   sendResponse: (response?: any) => void
-// ): Promise<boolean | void>  {
-//   try {
-//     if (message.type === 'lockdown') {
-//       handleLockDown();  // Correct function call
-//       sendResponse({ success: true, message: 'Lockdown initiated.' });
-//       goto(PATH_LOCK);
-
-//       debug_log('Lockdown initiated.');
-
-//       return true;  // return type - asynchronous
-//     }
-//   } catch (e: any) {
-//     console.log('[ERROR]: Error handling message:', e);
-//     if (isBrowserEnv()) sendResponse({ success: false, error: e?.message || 'Unknown error occurred.' });
-//     return true; // Indicate asynchronous response
-//   }
-// }
-
-//   // Message handler for starting and stopping price checks. This is primarily sent by active, idle, locked states.
-//   export async function handleOnMessageForPricing(
-//     message: any,
-//     sender: Runtime.MessageSender,
-//     sendResponse: (response?: any) => void
-//   ): Promise<boolean | void>  {
-//     try {
-//       switch(message.type) {
-//         case 'startPricingChecks': {
-//           startCheckPrices();
-//           sendResponse({ success: true, message: 'Price checks initiated.' });
-//           return true;  // return type - asynchronous
-//         }
-//         case 'stopPricingChecks': {
-//           stopCheckPrices();
-//           sendResponse({ success: true, message: 'Stop price checks initiated.' });
-//           return true;  // return type - asynchronous
-//         }
-//       }
-//     } catch (e: any) {
-//       console.log('[ERROR]: Error handling message:', e);
-//       if (isBrowserEnv()) sendResponse({ success: false, error: e?.message || 'Unknown error occurred.' });
-//       return true; // Indicate asynchronous response
-//     }
-//   }

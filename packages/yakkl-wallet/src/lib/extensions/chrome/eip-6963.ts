@@ -1,10 +1,9 @@
 import { log } from "$lib/plugins/Logger";
 import type { Runtime } from "webextension-polyfill";
 import { ProviderRpcError } from "$lib/common";
-import { showDappPopup } from "$lib/extensions/chrome/ui";
 import browser from "webextension-polyfill";
 import { initializePermissions } from "$lib/permissions";
-import { getBlock, getLatestBlock, ethCall, getGasPrice, getBalance, getCode, getNonce, getTransactionReceipt, getTransaction, getLogs } from './legacy';
+import { getBlock, getLatestBlock, getGasPrice, getBalance, getCode, getNonce, getTransactionReceipt, getTransaction, getLogs } from './legacy';
 import type { Block, BlockTag } from 'alchemy-sdk';
 import type { YakklCurrentlySelected } from '../../common/interfaces';
 import { STORAGE_YAKKL_CURRENTLY_SELECTED, YAKKL_PROVIDER_EIP6963 } from '$lib/common/constants';
@@ -15,9 +14,15 @@ import type { PendingRequestData } from '$lib/common/interfaces';
 import { activeTabBackgroundStore } from "$lib/common/stores";
 import { get } from 'svelte/store';
 import { extractSecureDomain } from "$lib/common/security";
-import { verifyDomainConnected } from "$lib/extensions/chrome/verifyDomainConnected";
-import { getSafeUUID } from "$lib/common/uuid";
+import { getAddressesForDomain, getDomainForRequestId, revokeDomainConnection, verifyDomainConnected } from "$lib/extensions/chrome/verifyDomainConnectedBackground";
 import type { BackgroundPendingRequest } from "./background";
+import { isReadMethod, isWriteMethod, isSimulationMethod } from './methodClassification';
+import { handleReadOnlyRequest } from '$lib/common/listeners/background/readMethodHandler';
+import { handleSimulationRequest } from '$lib/common/listeners/background/simulationMethodHandler';
+import { handleWriteRequest } from '$lib/common/listeners/background/writeMethodHandler';
+import { sendErrorResponse } from '$lib/extensions/chrome/errorResponseHandler';
+import { MessageAnalyzer } from "./messageAnalyzer";
+import { showPopupForMethod } from "$lib/plugins/DAppPopupManager";
 
 export { requestManager };
 
@@ -38,7 +43,7 @@ interface EIP6963Message {
     message: string;
   };
 }
-
+const messageAnalyzer = new MessageAnalyzer();
 // Add before the handleEIP6963Request function
 type PermissionlessMethod = () => Promise<unknown> | unknown;
 type PermissionRequiredMethod = () => Promise<unknown>;
@@ -77,6 +82,9 @@ setInterval(() => {
     }
   }
 }, 5 * 60 * 1000);
+
+// Add at the top with other imports
+const processedEIP6963Requests = new Set<string>();
 
 /**
  * Get the origin from a request
@@ -136,6 +144,10 @@ export async function onEIP6963MessageListener(
 
     if (message.action === 'resolveEIP6963Request') {
       const success = resolveEIP6963Request(message.requestId, message.result);
+      log.debug('EIP6963: resolveEIP6963Request', false, {
+        success,
+        requestId: message.requestId
+      });
       return {
         type: 'YAKKL_RESPONSE:EIP6963',
         result: success,
@@ -145,6 +157,11 @@ export async function onEIP6963MessageListener(
 
     if (message.action === 'rejectEIP6963Request') {
       const success = rejectEIP6963Request(message.requestId, message.error);
+      log.debug('EIP6963: rejectEIP6963Request', false, {
+        success,
+        requestId: message.requestId,
+        error: message.error
+      });
       return {
         type: 'YAKKL_RESPONSE:EIP6963',
         result: success,
@@ -177,6 +194,12 @@ export function initializeEIP6963() {
 
     browser.runtime.onConnect.addListener((port: RuntimePort) => {
       if (port.name !== YAKKL_PROVIDER_EIP6963) return;
+
+      log.debug('EIP6963: Port connected:', false, {
+        portName: port.name,
+        port: port,
+        timestamp: new Date().toISOString()
+      });
 
       const portId = `eip6963_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
       eip6963Ports.set(portId, port);
@@ -348,9 +371,15 @@ export async function handleWriteMethod(method: string, port: Runtime.Port, para
       case 'eth_signTypedData_v4':
         return await handleSignTypedDataV4(port, params, requestId);
       case 'wallet_addEthereumChain':
-        return await handleAddEthereumChain(params[0], params[1], requestId);
+        return await handleAddEthereumChain(port, params, requestId);
       case 'wallet_switchEthereumChain':
-        return await handleSwitchEthereumChain(params[0], params[1], requestId);
+        return await handleSwitchEthereumChain(port, params, requestId);
+      case 'wallet_requestPermissions':
+        return await handleRequestPermissions(port, params, requestId);
+      case 'wallet_revokePermissions':
+        return await handleRevokePermissions(port, params, requestId);
+      case 'wallet_getPermissions':
+        return await handleGetPermissions(port, requestId);
       default:
         throw new ProviderRpcError(4200, `Method ${method} not supported`);
     }
@@ -365,50 +394,152 @@ export async function handleWriteMethod(method: string, port: Runtime.Port, para
 }
 
 // Primary EIP-6963 Port Listener
-export async function onEIP6963PortListener(message: unknown, port: Runtime.Port) {
-  const { id, method, params = [], requiresApproval } = message as {
-    id: number;
-    method: string;
-    params?: any[];
-    requiresApproval?: boolean;
-  };
-
+export async function onEIP6963PortListener(message: any, port: Runtime.Port): Promise<void> {
   try {
-    let result: any;
-
-    // Check if method is read-only
-    if (READONLY_METHODS.includes(method as typeof READONLY_METHODS[number])) {
-      result = await handleReadOnlyMethod(method, params, id.toString());
-    } else {
-      // Handle write methods that require approval
-      result = await handleWriteMethod(method, port, params, id.toString());
-    }
-
-    // Send success response
-    port.postMessage({
-      type: 'YAKKL_RESPONSE:EIP6963',
-      id,
-      method,
-      result
-    });
-
-  } catch (error) {
-    log.error('Request failed', false, {
-      error,
-      method,
+    messageAnalyzer.analyze(message);
+    // First, let's understand what we received
+    log.debug('EIP6963 handler received raw message', false, {
+      message,
+      messageType: typeof message,
+      hasMethod: 'method' in message,
+      hasType: 'type' in message,
       timestamp: new Date().toISOString()
     });
 
-    // Send error response
-    port.postMessage({
-      type: 'YAKKL_RESPONSE:EIP6963',
-      id,
-      method,
-      error: {
-        code: error instanceof ProviderRpcError ? error.code : 4200,
-        message: error instanceof Error ? error.message : "Unknown error occurred"
+    // Try to extract method from various possible locations
+    let method = message.method;
+    let id = message.id;
+
+    // Fallback: Check if method is nested in data or payload
+    if (!method && message.data?.method) {
+      method = message.data.method;
+      log.debug('Found method in message.data', false, { method });
+    }
+
+    // Fallback: Check if this is a wrapped message
+    if (!method && message.payload?.method) {
+      method = message.payload.method;
+      log.debug('Found method in message.payload', false, { method });
+    }
+
+    // Fallback: Check if type contains method information (e.g., "YAKKL_REQUEST:eth_accounts")
+    if (!method && message.type && typeof message.type === 'string') {
+      const typeMatch = message.type.match(/:(eth_[a-zA-Z0-9_]+)/);
+      if (typeMatch) {
+        method = typeMatch[1];
+        log.debug('Extracted method from type', false, { type: message.type, method });
       }
+    }
+
+    // Fallback: Check for action field (some systems use action instead of method)
+    if (!method && message.action) {
+      method = message.action;
+      log.debug('Using action as method', false, { action: message.action });
+    }
+
+    // Special case: handle non-RPC messages
+    if (!method && message.type) {
+      switch (message.type) {
+        case 'ping':
+        case 'PING':
+        case 'connection_test':
+          // Handle ping/connection test
+          port.postMessage({
+            type: 'pong',
+            id: id || message.id || Date.now().toString(),
+            timestamp: Date.now()
+          });
+          log.debug('Handled ping message', false);
+          return;
+
+        case 'init':
+        case 'INIT':
+        case 'handshake':
+          // Handle initialization
+          port.postMessage({
+            type: 'init_ack',
+            id: id || message.id || Date.now().toString(),
+            status: 'ready'
+          });
+          log.debug('Handled init message', false);
+          return;
+
+        default:
+          // Log unknown message types for debugging
+          // log.warn('Unknown message type without method', false, {
+          //   type: message.type,
+          //   message
+          // });
+      }
+    }
+
+    // After all fallbacks, validate we have a method
+    if (!method) {
+      log.error('No method found in EIP6963 message after all fallbacks', false, {
+        message,
+        checkedLocations: [
+          'message.method',
+          'message.data.method',
+          'message.payload.method',
+          'message.type (extraction)',
+          'message.action'
+        ]
+      });
+
+      // If we have an ID, send a proper error response
+      if (id) {
+        sendErrorResponse(port, id, new Error('Method is required'));
+      } else {
+        // Without an ID, we can't send a proper response
+        // Log it and potentially close the connection
+        log.error('Cannot send error response - no request ID', false);
+      }
+      return;
+    }
+
+    // Now we definitely have a method, continue with normal processing
+    log.debug('EIP6963 handler processing message', false, {
+      method,
+      id,
+      timestamp: new Date().toISOString()
     });
+
+    // Skip duplicate requests check remains the same
+    if (id && processedEIP6963Requests.has(id)) {
+      log.debug('EIP6963: Skipping duplicate request:', false, {
+        requestId: id,
+        method,
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    if (id) {
+      processedEIP6963Requests.add(id);
+    }
+
+    // Route based on method type
+    if (isSimulationMethod(method)) {
+      log.debug('Routing to simulation handler:', false, { method });
+      await handleSimulationRequest(message, port);
+    } else if (isWriteMethod(method)) {
+      log.debug('Routing to write handler:', false, { method });
+      await handleWriteRequest(message, port);
+    } else if (isReadMethod(method)) {
+      log.debug('Routing to read handler:', false, { method });
+      await handleReadOnlyRequest(message, port);
+    } else {
+      log.warn('Unknown EIP6963 method:', false, { method });
+      if (id) {
+        sendErrorResponse(port, id, new Error(`Unknown method: ${method}`));
+      }
+    }
+
+  } catch (error) {
+    log.error('Error in EIP6963 handler:', false, error);
+    if (message?.id) {
+      sendErrorResponse(port, message.id, error);
+    }
   }
 }
 
@@ -462,6 +593,12 @@ function validateParams(method: string, params: any[]): boolean {
         return params.length === 1 && typeof params[0] === 'object' && typeof params[0].chainId === 'string';
       case 'wallet_addEthereumChain':
         return params.length === 1 && typeof params[0] === 'object' && typeof params[0].chainId === 'string';
+      case 'wallet_requestPermissions':
+        return params.length === 1 && Array.isArray(params[0]) && params[0].every(p => typeof p === 'object' && typeof p.eth_accounts === 'object');
+      case 'wallet_revokePermissions':
+        return params.length === 1 && Array.isArray(params[0]) && params[0].every(p => typeof p === 'object' && typeof p.eth_accounts === 'object');
+      case 'wallet_getPermissions':
+        return params.length === 0; // No parameters needed
       // Add more method validations as needed
       default:
         return true; // Default to true for methods without specific validation
@@ -476,12 +613,7 @@ function validateParams(method: string, params: any[]): boolean {
 export async function getCurrentlySelectedData(requestId?: string) {
   try {
     const result = await browser.storage.local.get(STORAGE_YAKKL_CURRENTLY_SELECTED);
-
-    log.info('getCurrentlySelectedData', false, { result });
-
     const yakklCurrentlySelected = result[STORAGE_YAKKL_CURRENTLY_SELECTED] as YakklCurrentlySelected;
-
-    log.info('getCurrentlySelectedData', false, { yakklCurrentlySelected });
     if (!yakklCurrentlySelected?.shortcuts) {
       throw new ProviderRpcError(4100, 'Wallet shortcuts not initialized');
     }
@@ -495,120 +627,267 @@ export async function getCurrentlySelectedData(requestId?: string) {
 
 // Read-only method handlers
 async function getCurrentlySelectedChainId(requestId?: string): Promise<string> {
+  if (!requestId) {
+    throw new ProviderRpcError(4100, 'Request ID is required for eth_chainId');
+  }
   const shortcuts = await getCurrentlySelectedData(requestId);
   return `0x${shortcuts.chainId.toString(16)}`;
 }
 
-async function getCurrentlySelectedAccounts(requestId?: string): Promise<string[]> {
+export async function getCurrentlySelectedAccounts(requestId?: string): Promise<string[]> {
+  if (!requestId) {
+    throw new ProviderRpcError(4100, 'Request ID is required for eth_accounts');
+  }
   const shortcuts = await getCurrentlySelectedData(requestId);
-  return shortcuts.address ? [shortcuts.address] : [];
+  const id = shortcuts.id;
+  const persona = shortcuts.persona;
+  const domain = await getDomainForRequestId(requestId);
+  const addresses = await getAddressesForDomain(domain);
+  log.info('getCurrentlySelectedAccounts', false, { id, persona, addresses });
+  return addresses;
 }
 
 async function getCurrentlySelectedNetworkVersion(requestId?: string): Promise<string> {
+  if (!requestId) {
+    throw new ProviderRpcError(4100, 'Request ID is required for eth_chainId');
+  }
   const shortcuts = await getCurrentlySelectedData(requestId);
   return shortcuts.chainId.toString();
 }
 
 async function getCurrentlySelectedBlockNumber(requestId?: string): Promise<string> {
+  if (!requestId) {
+    throw new ProviderRpcError(4100, 'Request ID is required for eth_blockNumber');
+  }
   const shortcuts = await getCurrentlySelectedData(requestId);
   const block = await getLatestBlock(shortcuts.chainId);
   return block.number.toString();
 }
 
 async function getCurrentlySelectedBalance(address: string, requestId?: string): Promise<string> {
+  if (!requestId) {
+    throw new ProviderRpcError(4100, 'Request ID is required for eth_getBalance');
+  }
   const shortcuts = await getCurrentlySelectedData(requestId);
   const balance = await getBalance(shortcuts.chainId, address);
   return balance.toString();
 }
 
 async function getCurrentlySelectedCode(address: string, requestId?: string): Promise<string> {
+  if (!requestId) {
+    throw new ProviderRpcError(4100, 'Request ID is required for eth_getCode');
+  }
   const shortcuts = await getCurrentlySelectedData(requestId);
   return await getCode(shortcuts.chainId, address);
 }
 
 async function getCurrentlySelectedStorageAt(address: string, position: string, requestId?: string): Promise<string> {
+  if (!requestId) {
+    throw new ProviderRpcError(4100, 'Request ID is required for eth_getStorageAt');
+  }
   const shortcuts = await getCurrentlySelectedData(requestId);
   return await getCode(shortcuts.chainId, address); // Implement actual storage getter
 }
 
 async function getCurrentlySelectedTransactionCount(address: string, requestId?: string): Promise<string> {
+  if (!requestId) {
+    throw new ProviderRpcError(4100, 'Request ID is required for eth_getTransactionCount');
+  }
   const shortcuts = await getCurrentlySelectedData(requestId);
   const nonce = await getNonce(shortcuts.chainId, address);
   return nonce.toString();
 }
 
 async function getCurrentlySelectedGasPrice(requestId?: string): Promise<string> {
+  if (!requestId) {
+    throw new ProviderRpcError(4100, 'Request ID is required for eth_gasPrice');
+  }
   const shortcuts = await getCurrentlySelectedData(requestId);
   const gasPrice = await getGasPrice(shortcuts.chainId);
   return gasPrice.toString();
 }
 
 async function getCurrentlySelectedBlockByHash(hash: string, fullTx: boolean, requestId?: string): Promise<any> {
+  if (!requestId) {
+    throw new ProviderRpcError(4100, 'Request ID is required for eth_getBlockByHash');
+  }
   const shortcuts = await getCurrentlySelectedData(requestId);
   return await getBlock(shortcuts.chainId, hash, fullTx ? true : false);
 }
 
 async function getCurrentlySelectedTransactionByHash(hash: string, requestId?: string): Promise<any> {
+  if (!requestId) {
+    throw new ProviderRpcError(4100, 'Request ID is required for eth_getTransactionByHash');
+  }
   const shortcuts = await getCurrentlySelectedData(requestId);
   return await getTransaction(shortcuts.chainId, hash);
 }
 
 async function getCurrentlySelectedTransactionReceipt(hash: string, requestId?: string): Promise<any> {
+  if (!requestId) {
+    throw new ProviderRpcError(4100, 'Request ID is required for eth_getTransactionReceipt');
+  }
   const shortcuts = await getCurrentlySelectedData(requestId);
   return await getTransactionReceipt(shortcuts.chainId, hash);
 }
 
 async function getCurrentlySelectedLogs(params: any, requestId?: string): Promise<any> {
+  if (!requestId) {
+    throw new ProviderRpcError(4100, 'Request ID is required for eth_getLogs');
+  }
   const shortcuts = await getCurrentlySelectedData(requestId);
   return await getLogs(shortcuts.chainId, params);
 }
 
 // Write method handlers
 export async function handleSendTransaction(port: Runtime.Port, params: any[], requestId?: string): Promise<string> {
+  if (!requestId) {
+    throw new ProviderRpcError(4100, 'Request ID is required for eth_sendTransaction');
+  }
   return showEIP6963Popup('eth_sendTransaction', params, port, requestId) as Promise<string>;
 }
 
 export async function handleRequestAccounts(port: Runtime.Port, requestId?: string): Promise<string[]> {
+  if (!requestId) {
+    throw new ProviderRpcError(4100, 'Request ID is required for eth_requestAccounts');
+  }
   log.warn('Requesting accounts', false, { method: 'eth_requestAccounts', requestId });
   return showEIP6963Popup('eth_requestAccounts', [], port, requestId) as Promise<string[]>;
 }
 
 export async function handleSign(port: Runtime.Port, params: any[], requestId?: string): Promise<string> {
+  if (!requestId) {
+    throw new ProviderRpcError(4100, 'Request ID is required for eth_sign');
+  }
   return showEIP6963Popup('eth_sign', params, port, requestId) as Promise<string>;
 }
 
 export async function handlePersonalSign(port: Runtime.Port, params: any[], requestId?: string): Promise<string> {
-  log.info('handlePersonalSign - 542', false, { port, params, requestId });
+  if (!requestId) {
+    throw new ProviderRpcError(4100, 'Request ID is required for personal_sign');
+  }
   return showEIP6963Popup('personal_sign', params, port, requestId) as Promise<string>;
 }
 
 export async function handleSignTypedDataV4(port: Runtime.Port, params: any[], requestId?: string): Promise<string> {
+  if (!requestId) {
+    throw new ProviderRpcError(4100, 'Request ID is required for eth_signTypedData_v4');
+  }
   return showEIP6963Popup('eth_signTypedData_v4', params, port, requestId) as Promise<string>;
 }
 
 export async function handleAddEthereumChain(port: Runtime.Port, params: any[], requestId?: string): Promise<null> {
+  if (!requestId) {
+    throw new ProviderRpcError(4100, 'Request ID is required for wallet_addEthereumChain');
+  }
   return showEIP6963Popup('wallet_addEthereumChain', params, port, requestId) as null;
 }
 
 export async function handleSwitchEthereumChain(port: Runtime.Port, params: any[], requestId?: string): Promise<null> {
+  if (!requestId) {
+    throw new ProviderRpcError(4100, 'Request ID is required for wallet_switchEthereumChain');
+  }
   return showEIP6963Popup('wallet_switchEthereumChain', params, port, requestId) as null;
+}
+
+// Add new handlers for permission methods
+export async function handleRequestPermissions(port: Runtime.Port, params: any[], requestId?: string): Promise<any> {
+  if (!requestId) {
+    throw new ProviderRpcError(4100, 'Request ID is required for wallet_requestPermissions');
+  }
+  try {
+    // Validate parameters
+    if (!validateParams('wallet_requestPermissions', params)) {
+      throw new ProviderRpcError(EIP1193_ERRORS.INVALID_PARAMS.code, 'Invalid parameters for wallet_requestPermissions');
+    }
+
+    // Show popup for permission request
+    return await showEIP6963Popup('wallet_requestPermissions', params, port, requestId);
+  } catch (error) {
+    log.error('Error handling wallet_requestPermissions:', false, error);
+    throw error;
+  }
+}
+
+export async function handleRevokePermissions(port: Runtime.Port, params: any[], requestId?: string): Promise<any> {
+  try {
+    // Validate parameters
+    if (!validateParams('wallet_revokePermissions', params)) {
+      throw new ProviderRpcError(EIP1193_ERRORS.INVALID_PARAMS.code, 'Invalid parameters for wallet_revokePermissions');
+    }
+
+    // Get the origin from the port
+    const origin = port.sender?.url ? new URL(port.sender.url).origin : null;
+    if (!origin) {
+      throw new ProviderRpcError(EIP1193_ERRORS.INVALID_PARAMS.code, 'Could not determine origin for permission revocation');
+    }
+
+    // Revoke permissions automatically
+    await revokeDomainConnection(origin); // This will remove the domain connection
+
+    // Return success
+    return true;
+  } catch (error) {
+    log.error('Error handling wallet_revokePermissions:', false, error);
+    throw error;
+  }
+}
+
+export async function handleGetPermissions(port: Runtime.Port, requestId?: string): Promise<any> {
+  try {
+    // Validate parameters
+    if (!validateParams('wallet_getPermissions', [])) {
+      throw new ProviderRpcError(EIP1193_ERRORS.INVALID_PARAMS.code, 'Invalid parameters for wallet_getPermissions');
+    }
+
+    // Get the origin from the port
+    const origin = port.sender?.url ? new URL(port.sender.url).origin : null;
+    if (!origin) {
+      throw new ProviderRpcError(EIP1193_ERRORS.INVALID_PARAMS.code, 'Could not determine origin for permission check');
+    }
+
+    // Check if the domain is connected
+    const isConnected = await verifyDomainConnected(origin);
+
+    // If connected, return the standard eth_accounts permission
+    if (isConnected) {
+      return [{
+        parentCapability: 'eth_accounts',
+        caveats: []
+      }];
+    }
+
+    // If not connected, return empty array
+    return [];
+  } catch (error) {
+    log.error('Error handling wallet_getPermissions:', false, error);
+    throw error;
+  }
 }
 
 // Request handling functions
 export function resolveEIP6963Request(requestId: string, result: any): void {
-  const request = requestManager.getRequest(requestId);
-  if (request) {
-    request.resolve(result);
-    requestManager.removeRequest(requestId);
+  if (!requestId) {
+    throw new ProviderRpcError(4100, 'Request ID is required for resolveEIP6963Request');
   }
+  const request = requestManager.getRequest(requestId);
+  if (!request) {
+    throw new ProviderRpcError(4100, 'Request not found');
+  }
+  request.resolve(result);
+  requestManager.removeRequest(requestId);
 }
 
 export function rejectEIP6963Request(requestId: string, error: any): void {
-  const request = requestManager.getRequest(requestId);
-  if (request) {
-    request.reject(error);
-    requestManager.removeRequest(requestId);
+  if (!requestId) {
+    throw new ProviderRpcError(4100, 'Request ID is required for rejectEIP6963Request');
   }
+  const request = requestManager.getRequest(requestId);
+  if (!request) {
+    throw new ProviderRpcError(4100, 'Request not found');
+  }
+  request.reject(error);
+  requestManager.removeRequest(requestId);
 }
 
 // Event broadcasting function
@@ -643,7 +922,9 @@ export async function showEIP6963Popup(
   // Check if we already have a pending request with this ID
   const existingRequest = requestManager.getRequest(requestId);
   if (existingRequest) {
-    log.info(`Reusing existing request for ID: ${requestId}`, false, { method });
+
+    log.info(`Reusing existing request for ID: ${requestId}`, false, { method, requestManager: requestManager, existingRequest: existingRequest });
+
     return new Promise<any>((resolve, reject) => {
       existingRequest.resolve = resolve;
       existingRequest.reject = reject;
@@ -737,7 +1018,7 @@ export async function showEIP6963Popup(
   let popupUrl = `/dapp/popups/approve.html?requestId=${requestId}&source=eip6963&method=${method}`;
 
   // Show the popup
-  showDappPopup(popupUrl, requestId, method, 'M');
+  showPopupForMethod(method, requestId, 'M');
 
   // Return a promise that resolves when the user approves or rejects
   return new Promise<any>((resolve, reject) => {

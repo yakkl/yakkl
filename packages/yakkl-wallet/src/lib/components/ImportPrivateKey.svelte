@@ -6,7 +6,7 @@
   import { getWallet } from '$lib/utilities/ethereum';
   import { encryptData, decryptData } from '$lib/common/encryption';
   import { deepCopy, getSymbol } from '$lib/utilities/utilities';
-  import { VERSION } from '$lib/common/constants';
+  import { DEFAULT_PERSONA, VERSION } from '$lib/common/constants';
   import { createForm } from 'svelte-forms-lib';
   import * as yup from 'yup';
   // import { Confetti } from 'svelte-confetti';
@@ -141,6 +141,7 @@
       const walletNew = getWallet(prvKey);
 
       yakklAccount.id = currentlySelected.id;
+      yakklAccount.persona = currentlySelected?.persona || DEFAULT_PERSONA;
       yakklAccount.blockchain = currentlySelected.shortcuts.network.blockchain;
 
       (yakklAccount.data as AccountData).privateKey = prvKey;

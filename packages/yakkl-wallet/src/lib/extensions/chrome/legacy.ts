@@ -1,8 +1,8 @@
 import { log } from '$lib/plugins/Logger';
-import type { Deferrable } from '@ethersproject/properties';
-import { Alchemy, Network, type TransactionRequest, type BlockTag } from 'alchemy-sdk';
+import { Alchemy, Network, type TransactionRequest, type BlockTag, BigNumber } from 'alchemy-sdk';
 import { keyManager } from '$lib/plugins/KeyManager';
 import { RPCAlchemy } from '$lib/plugins/providers/network/alchemy/RPCAlchemy';
+import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
 
 /**********************************************************************************************************************/
 // This section is for the Ethereum provider - Legacy version
@@ -69,7 +69,7 @@ function getProviderConfig(chainId: any, apiKey: string) {
       network: network,
     }
   } catch (e) {
-    log.error('Error in getProviderConfig', false, e);
+    log.warn('Warning in getProviderConfig', false, e);
     throw e;
   }
 }
@@ -86,27 +86,22 @@ export async function estimateGas(chainId: any, params: TransactionRequest, apiK
     // const provider = new Alchemy(getProviderConfig(chainId, apiKey));
     // return await provider.transact.estimateGas(params);
   } catch (e) {
-    log.error('Error in estimateGas', false, e);
+    log.warn('Warning in estimateGas', false, e);
     throw e;
   }
 }
 
 export async function getBlock(chainId: any, block: BlockTag | Promise<BlockTag>, fullTx: boolean = false, apiKeyOverride: string = '') {
   try {
-    // Try to use the provided API key first
-
-    log.info('getBlock', false, { chainId, block, fullTx, apiKeyOverride });
-
     const rpcAlchemy = await getRPCAlchemy(chainId, apiKeyOverride);
-
-    // Call getBlock directly
     const result = await rpcAlchemy.getBlock(block as BlockTag);
-
-    log.info('Alchemy block result:', false, result);
-
     return result;
+    // const keyManagerInstance = await keyManager;
+    // const apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD');
+    // const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
+    // return await provider.core.getBlock(block as BlockTag, fullTx);
   } catch (e) {
-    log.error('Error in getBlock', false, e);
+    log.warn('Warning in getBlock', false, e);
     throw e;
   }
 }
@@ -120,7 +115,7 @@ export async function getLatestBlock(chainId: any, apiKeyOverride: string = '') 
     // const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
     // return await provider.core.getBlock('latest');
   } catch (e) {
-    log.error('Error in getLatestBlock', false, e);
+    log.warn('Warning in getLatestBlock', false, e);
     throw e;
   }
 }
@@ -134,21 +129,52 @@ export async function ethCall(chainId: any, transaction: TransactionRequest, blo
     // const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
     // return await provider.core.call(transaction, blockTag || 'latest');
   } catch (e) {
-    log.error('Error in ethCall', false, e);
+    log.warn('Warning in ethCall', false, e);
     throw e;
   }
 }
 
+// Keep your core function simple and standards-compliant
 export async function getGasPrice(chainId: any) {
   try {
-    const keyManagerInstance = await keyManager;
-    const apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD');
-    const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
-    return await provider.core.getGasPrice();
+    const rpcAlchemy = await getRPCAlchemy(chainId);
+    return await rpcAlchemy.getGasPrice();
+    // const keyManagerInstance = await keyManager;
+    // const apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD');
+    // const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
+    // return await provider.core.getGasPrice();
   } catch (e) {
-    log.error('Error in getGasPrice', false, e);
+    log.warn('Warning in getGasPrice', false, e);
     throw e;
   }
+}
+
+// Create utility functions for conversions
+export function weiToGwei(wei: EthereumBigNumber): string {
+  return wei.toGwei().toString();
+}
+
+// For display purposes, you might want a formatted version
+export function formatGasPrice(wei: EthereumBigNumber): string {
+  const gweiString = weiToGwei(wei);
+  const gweiNumber = parseFloat(gweiString);
+
+  // Format based on the value
+  if (gweiNumber < 1) {
+    return `${gweiNumber.toFixed(3)} Gwei`;
+  } else if (gweiNumber < 10) {
+    return `${gweiNumber.toFixed(2)} Gwei`;
+  } else if (gweiNumber < 100) {
+    return `${gweiNumber.toFixed(1)} Gwei`;
+  } else {
+    return `${Math.round(gweiNumber)} Gwei`;
+  }
+}
+
+// Create a higher-level function that combines both
+export async function getGasPriceForDisplay(chainId: any): Promise<string> {
+  const gasPriceWei = await getGasPrice(chainId);
+  return formatGasPrice(EthereumBigNumber.from(gasPriceWei));
 }
 
 export async function getBalance(chainId: any, address: string, blockTag: BlockTag = 'latest', apiKeyOverride: string = '') {
@@ -160,7 +186,7 @@ export async function getBalance(chainId: any, address: string, blockTag: BlockT
     // const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
     // return await provider.core.getBalance(address, blockTag || 'latest');
   } catch (e) {
-    log.error('Error in getBalance', false, e);
+    log.warn('Warning in getBalance', false, e);
     throw e;
   }
 }
@@ -174,7 +200,7 @@ export async function getCode(chainId: any, address: string, blockTag: BlockTag 
     // const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
     // return await provider.core.getCode(address, blockTag || 'latest');
   } catch (e) {
-    log.error('Error in getCode', false, e);
+    log.warn('Warning in getCode', false, e);
     throw e;
   }
 }
@@ -188,7 +214,7 @@ export async function getNonce(chainId: any, address: string, blockTag: BlockTag
     // const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
     // return await provider.core.getTransactionCount(address, blockTag || 'latest');
   } catch (e) {
-    log.error('Error in getNonce', false, e);
+    log.warn('Warning in getNonce', false, e);
     throw e;
   }
 }
@@ -202,7 +228,7 @@ export async function getTransactionReceipt(chainId: any, txHash: string, apiKey
     // const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
     // return await provider.core.getTransactionReceipt(txHash);
   } catch (e) {
-    log.error('Error in getTransactionReceipt', false, e);
+    log.warn('Warning in getTransactionReceipt', false, e);
     throw e;
   }
 }
@@ -216,7 +242,7 @@ export async function getTransaction(chainId: any, txHash: string, apiKeyOverrid
     // const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
     // return await provider.core.getTransaction(txHash);
   } catch (e) {
-    log.error('Error in getTransaction', false, e);
+    log.warn('Warning in getTransaction', false, e);
     throw e;
   }
 }
@@ -230,7 +256,7 @@ export async function getLogs(chainId: any, filter: any, apiKeyOverride: string 
     // const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
     // return await provider.core.getLogs(filter);
   } catch (e) {
-    log.error('Error in getLogs', false, e);
+    log.warn('Warning in getLogs', false, e);
     throw e;
   }
 }

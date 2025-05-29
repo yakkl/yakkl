@@ -41,7 +41,7 @@ export async function onTabActivatedListener(activeInfo: Tabs.OnActivatedActiveI
       }
     }
   } catch (error) {
-    log.error('Background - onTabActivatedListener', false, error);
+    log.warn('Background - onTabActivatedListener', false, error);
   }
 }
 
@@ -93,7 +93,7 @@ export async function onTabUpdatedListener(tabId: number, changeInfo: any, tabTa
       }
     }
   } catch (error) {
-    log.error('Background - OnTabUpdatedListener', false, error);
+    log.warn('Background - OnTabUpdatedListener', false, error);
   }
 }
 
@@ -116,7 +116,7 @@ export async function onTabRemovedListener(tabId: number, removeInfo: Tabs.OnRem
       portsExternal.delete(tabId);
     }
   } catch (error) {
-    log.error('Background - onTabRemovedListener', false, error);
+    log.warn('Background - onTabRemovedListener', false, error);
   }
 }
 
@@ -149,6 +149,6 @@ export async function onWindowsFocusChangedListener(windowId: number) {
       }
     }
   } catch (error) {
-    log.error('Background - onTabRemovedListener', false, error);
+    log.warn('Background - onWindowsFocusChangedListener', false, error);
   }
 }

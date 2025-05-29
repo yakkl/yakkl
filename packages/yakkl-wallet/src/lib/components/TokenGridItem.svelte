@@ -40,7 +40,7 @@
   <h3 class="font-bold mt-2 text-md">{token.symbol}</h3>
   <p class="text-gray-500 mt-1 text-sm">Value: <span><ProtectedValue value={valueFormatted} placeholder="*******" /></span></p>
   {#if isLarge}
-    <p class="text-gray-500 mt-1 text-sm">Price: $<span><ProtectedValue value={price.toString()} placeholder="*******" /></span></p>
+    <p class="text-gray-500 mt-1 text-sm">Price: <span><ProtectedValue value={priceFormatted} placeholder="*******" /></span></p>
     <p class="text-gray-600 mt-1 text-xs">Qty: <span><ProtectedValue value={balance.toString()} placeholder="*******" /></span></p>
   {/if}
 </div>
@@ -56,7 +56,7 @@
           <img src={token.logoURI} alt={token.symbol} class="w-8 h-8" />
           <span class="font-semibold leading-6">{token.name} - {token.symbol}</span>
         </p>
-        <p>Price: $<span><ProtectedValue value={price.toString()} placeholder="*******" /></span></p>
+        <p>Price: <span><ProtectedValue value={priceFormatted} placeholder="*******" /></span></p>
         <p>Value: <span><ProtectedValue value={valueFormatted} placeholder="*******" /></span></p>
         <p>Quantity: <span><ProtectedValue value={balance.toString()} placeholder="*******" /></span></p>
         <p>Change: <span class={percentChangeColor}>{percentChange ? percentChange : '--'}%</span></p>

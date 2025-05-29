@@ -17,7 +17,7 @@ import type {
   YakklChat,
   YakklBlocked,
   ProfileData,
-  TokenData
+  TokenData,
 } from '$lib/common';
 
 interface BulkEmergencyKitData {
@@ -36,6 +36,9 @@ interface BulkEmergencyKitData {
     yakklConnectedDomainsStore: EncryptedData;
     yakklTokenDataStore: EncryptedData;
     yakklTokenDataCustomStore: EncryptedData;
+    yakklCombinedTokenStore: EncryptedData;
+    yakklWalletProvidersStore: EncryptedData;
+    yakklWalletBlockchainsStore: EncryptedData;
   };
   cs: string;
 }
@@ -123,7 +126,10 @@ export class EmergencyKitManager {
     connectedDomains: YakklConnectedDomain[],
     passwordOrSaltedKey: string | SaltedKey,
     tokenData: TokenData[],
-    tokenDataCustom: TokenData[]
+    tokenDataCustom: TokenData[],
+    combinedTokenStore: TokenData[],
+    walletProviders: string[],
+    walletBlockchains: string[]
   ): Promise<BulkEmergencyKitData> {
     const createDate = new Date().toISOString();
     const id = this.generateId();
@@ -141,7 +147,10 @@ export class EmergencyKitManager {
       yakklBlockedListStore: await this.encryptWithChecksum(blockedList, passwordOrSaltedKey),
       yakklConnectedDomainsStore: await this.encryptWithChecksum(connectedDomains, passwordOrSaltedKey),
       yakklTokenDataStore: await this.encryptWithChecksum(tokenData, passwordOrSaltedKey),
-      yakklTokenDataCustomStore: await this.encryptWithChecksum(tokenDataCustom, passwordOrSaltedKey)
+      yakklTokenDataCustomStore: await this.encryptWithChecksum(tokenDataCustom, passwordOrSaltedKey),
+      yakklCombinedTokenStore: await this.encryptWithChecksum(combinedTokenStore, passwordOrSaltedKey),
+      yakklWalletProvidersStore: await this.encryptWithChecksum(walletProviders, passwordOrSaltedKey),
+      yakklWalletBlockchainsStore: await this.encryptWithChecksum(walletBlockchains, passwordOrSaltedKey)
     };
 
     let profileData: ProfileData | null = null;
@@ -149,6 +158,8 @@ export class EmergencyKitManager {
       profileData = await decryptData(profile.data, passwordOrSaltedKey);
     }
 
+    // Update this when new data stores are added to the wallet UNLESS it's not important to restore the given data store.
+    // Compare with EmergencyKit.svelte for the list of data stores that need to be updated.
     const meta: EmergencyKitMetaData = {
       id,
       createDate,
@@ -170,7 +181,10 @@ export class EmergencyKitManager {
         'yakklBlockedListStore',
         'yakklConnectedDomainsStore',
         'yakklTokenDataStore',
-        'yakklTokenDataCustomStore'
+        'yakklTokenDataCustomStore',
+        'yakklCombinedTokenStore',
+        'yakklWalletProvidersStore',
+        'yakklWalletBlockchainsStore'
       ]
     };
 
@@ -275,10 +289,10 @@ export class EmergencyKitManager {
         const decryptedData = await this.decryptWithChecksumVerification(encryptedValue, passwordOrSaltedKey);
 
         // Check if data already exists (you'll need to implement this check based on your data structure)
-        const dataExists = await this.checkDataExists(key, decryptedData); // Currently a placeholder
+        const dataExists = await this.checkDataExists(key, decryptedData); // Currently a placeholder for future use and is not used
 
         if (dataExists) {
-          existingData[key] = decryptedData;
+          existingData[key] = decryptedData; // Currently a placeholder for future use and is not used
         } else {
           newData[key] = decryptedData;
         }
@@ -433,7 +447,6 @@ export class EmergencyKitManager {
 //   watchList,
 //   blockedList,
 //   connectedDomains,
-//   password
 // );
 
 // Download the bulk emergency kit

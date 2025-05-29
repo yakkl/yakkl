@@ -3,9 +3,56 @@ import { type ErrorBody, type ParsedError } from '$lib/common';
 import { AccountTypeCategory } from '$lib/common/types';
 import type { YakklAccount, YakklPrimaryAccount } from '$lib/common/interfaces';
 import { getYakklAccounts, getYakklPrimaryAccounts, yakklAccountsStore, setYakklAccountsStorage, setYakklPrimaryAccountsStorage, yakklPrimaryAccountsStore } from '$lib/common/stores';
+import { browser_ext } from './environment';
 import { ethers as ethersv6 } from 'ethers-v6';
 import { get } from 'svelte/store';
 import { log } from "$lib/plugins/Logger";
+import type { Runtime } from 'webextension-polyfill';
+
+export function isExtensionContextValid(): boolean {
+  try {
+    return !!(chrome?.runtime?.id || browser_ext?.runtime?.id);
+  } catch {
+    return false;
+  }
+}
+
+export function safeRuntimeCall<T>(
+  callback: () => T,
+  fallback?: T
+): T | undefined {
+  if (!isExtensionContextValid()) {
+    console.warn('Extension context invalidated');
+    return fallback;
+  }
+
+  try {
+    return callback();
+  } catch (error: any) {
+    if (error.message?.includes('Extension context invalidated')) {
+      console.warn('Extension context invalidated during call');
+      return fallback;
+    }
+    throw error;
+  }
+}
+
+export async function safeSendMessage<T>(
+  message: any,
+  options?: Runtime.SendMessageOptionsType
+): Promise<T | null> {
+  return safeRuntimeCall(async () => {
+    try {
+      return browser_ext.runtime.sendMessage(message, options);
+    } catch (error: any) {
+      if (error.message?.includes('receiving end does not exist')) {
+        console.warn('Message receiver not available');
+        return null;
+      }
+      throw error;
+    }
+  }, null);
+}
 
 // For ssr checks during compiling
 export function isServerSide(): boolean {
@@ -60,7 +107,7 @@ export function detectExecutionContext(): "background" | "content_script" | "pop
 //       return false;
 //     }
 
-//     let hasPrimaryOrImported = false; 
+//     let hasPrimaryOrImported = false;
 //     if (Array.isArray(accounts)) {
 //       hasPrimaryOrImported = accounts.some(account =>
 //         account.accountType === AccountTypeCategory.PRIMARY ||
@@ -94,7 +141,7 @@ export async function checkAccountRegistration(): Promise<boolean> {
     if (!accounts || accounts.length === 0) {
       return false;
     }
-    
+
     const hasPrimaryOrImported = accounts.some(account =>
       account.accountType === AccountTypeCategory.PRIMARY ||
       account.accountType === AccountTypeCategory.IMPORTED

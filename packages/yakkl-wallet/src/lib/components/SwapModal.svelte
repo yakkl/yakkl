@@ -11,7 +11,7 @@
 	import ErrorNoAction from './ErrorNoAction.svelte';
 	import Warning from './Warning.svelte';
 	import PincodeVerify from './PincodeVerify.svelte';
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
 
   interface Props {
     show?: boolean;

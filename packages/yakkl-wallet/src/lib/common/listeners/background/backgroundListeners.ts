@@ -2,24 +2,20 @@
 import { ListenerManager } from '$lib/plugins/ListenerManager';
 import browser from 'webextension-polyfill';
 import type { Runtime } from 'webextension-polyfill';
-import { openWindows } from '$lib/common/reload';
-import { initializeDatabase } from '$lib/extensions/chrome/database';
+import { initializeBlacklistDatabase } from '$lib/extensions/chrome/database';
 import { yakklStoredObjects } from '$lib/models/dataModels';
 import { setObjectInLocalStorage } from '$lib/common/storage';
 import { setLocalObjectStorage } from '$lib/extensions/chrome/storage';
 import { loadDefaultTokens } from '$lib/plugins/tokens/loadDefaultTokens';
 import { VERSION } from '$lib/common/constants';
-// import { onRuntimeMessageListener } from './runtimeListeners';
 import { onPortConnectListener, onPortDisconnectListener } from './portListeners';
 import { onTabActivatedListener, onTabRemovedListener, onTabUpdatedListener, onWindowsFocusChangedListener } from './tabListeners';
 import { globalListenerManager } from '$lib/plugins/GlobalListenerManager';
 import { log } from '$lib/plugins/Logger';
-// import { onSigningRequestListener } from '$lib/extensions/chrome/signingHandler';
-import { openPopups } from '$lib/extensions/chrome/ui';
-// import { onSecureMessageListener } from './secureListener';
-// import { onRuntimeMessageBackgroundListener } from '$lib/extensions/chrome/background';
-// import { onEIP6963MessageListener } from '$lib/extensions/chrome/eip-6963';
-import { onUnifiedMessageListener } from './unifiedMessageHandler';
+import { openWindows } from '$lib/extensions/chrome/ui';
+import { onUnifiedMessageListener} from './unifiedMessageListener';
+import { isYakklPage } from '$lib/common/isYakklPage';
+import { browser_ext } from '$lib/common/environment';
 
 type RuntimePlatformInfo = Runtime.PlatformInfo;
 
@@ -27,30 +23,38 @@ export const backgroundListenerManager = new ListenerManager('background');
 
 export async function onInstalledUpdatedListener( details: Runtime.OnInstalledDetailsType ): Promise<void> {
   try {
+    // Add default tokens
+    try {
+      await loadDefaultTokens();
+    } catch (error) {
+      log.warn('Background: loading default tokens:', false, error);
+    }
+
     // This portion only works in Chrome
     if (typeof chrome !== "undefined" && chrome.sidePanel) {
+      log.info('Background: chrome.sidePanel is defined');
       // Set the panel behavior to NOT open on action click
-      chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false }); // Default to false
+      // chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false }); // Default to false
       const isSidepanel = process.env.VITE_IS_SIDEPANEL === 'true' ? true : false;
       // const isPopup = process.env.VITE_IS_POPUP === 'true' ? true : false;
-      if (isSidepanel) {
+      // if (isSidepanel) {
         chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }); // Override default to true
-      }
+      // }
 
-      chrome.runtime.onMessage.addListener((message: any, _sender: any, _sendResponse: any  ) => {
-        if (message.type === "SET_PANEL_BEHAVIOR") {
-          chrome.sidePanel.setPanelBehavior({
-            openPanelOnActionClick: !!message.open
-          });
-        }
-        return false;
-      });
+      // chrome.runtime.onMessage.addListener((message: any, _sender: any, _sendResponse: any  ) => {
+      //   if (message.type === "SET_PANEL_BEHAVIOR") {
+      //     chrome.sidePanel.setPanelBehavior({
+      //       openPanelOnActionClick: !!message.open
+      //     });
+      //   }
+      //   return false;
+      // });
     }
 
     const platform: RuntimePlatformInfo = await browser.runtime.getPlatformInfo();
 
     openWindows.clear();
-    openPopups.clear();
+    // openPopups.clear();
 
     if ( details && details.reason === "install") {
       // This only happens on initial install to set the defaults
@@ -62,7 +66,7 @@ export async function onInstalledUpdatedListener( details: Runtime.OnInstalledDe
         }
       });
 
-      await initializeDatabase(false);
+      await initializeBlacklistDatabase(false);
 
       await browser.runtime.setUninstallURL(encodeURI("https://yakkl.com?userName=&utm_source=yakkl&utm_medium=extension&utm_campaign=uninstall&utm_content=" + `${VERSION}` + "&utm_term=extension"));
       await setLocalObjectStorage(platform, false);
@@ -70,13 +74,11 @@ export async function onInstalledUpdatedListener( details: Runtime.OnInstalledDe
 
     if (details && details.reason === "update") {
       if (details.previousVersion !== browser.runtime.getManifest().version) {
-        await initializeDatabase(true); // This will clear the db and then import again
+        await initializeBlacklistDatabase(true); // This will clear the db and then import again
         await setLocalObjectStorage(platform, false); // After 1.0.0, upgrades will be handled.
       }
     }
 
-    // Add default tokens
-    loadDefaultTokens();
   } catch (e) {
     log.error(e);
   }
@@ -90,18 +92,114 @@ export function onEthereumListener(event: any) {
   }
 }
 
+// Example on how to open the side panel from an external message
+// On your website - the site will need to be whitelisted in the manifest.json AND the user will need to have the extension installed. The site will need to use MDN browser APIs or chrome.* APIs to send messages to the extension.
+// function openSidePanelViaExtension() {
+//   const extensionId = 'extension-id-here';
+//   / You can also use browser.runtime.sendMessage(extensionId, {
+//   /   action: 'openSidePanel'
+//   / }, (response) => {
+//   /   if (response?.success) {
+//   /     console.log('Sidepanel opened!');
+//   /   } else {
+//   /     console.log('Failed to open sidepanel:', response?.error);
+//   /   }
+//   / });
+//   chrome.runtime.sendMessage(extensionId, {
+//     action: 'openSidePanel'
+//   }, (response) => {
+//     if (response?.success) {
+//       console.log('Sidepanel opened!');
+//     } else {
+//       console.log('Failed to open sidepanel:', response?.error);
+//     }
+//   });
+// }
+
+// / Must be triggered by user interaction
+// document.getElementById('openPanelBtn').addEventListener('click', openSidePanelViaExtension);
+
+export async function onYakklPageListener(
+  message: any,
+  sender: Runtime.MessageSender & { port?: Runtime.Port }
+): Promise<any> {
+  try {
+    switch (message.type) {
+      case 'openSidePanel': {
+        // Can only open if user gesture triggered this message - opens the side panel
+        chrome.sidePanel.open({
+          tabId: sender.tab.id
+        }).then(() => {
+          log.debug('Background: onYakklPageListener: openSidePanel', false);
+        }).catch((error) => {
+          log.error('Background: onYakklPageListener: openSidePanel', false, error);
+        });
+        return true;
+      }
+
+      case 'CLEAR_ALL_ENHANCED_ALERTS': {
+        // Clear all notifications at once
+        if (browser_ext?.notifications) {
+          await browser_ext.notifications.getAll().then((notifications: Record<string, any>) => {
+            Object.keys(notifications).forEach(id => {
+              browser_ext.notifications.clear(id);
+            });
+          });
+        }
+
+        // Clear badge and icon
+        if (browser_ext?.action) {
+          await browser_ext.action.setBadgeText({ text: '' });
+          await browser_ext.action.setIcon({
+            path: {
+              16: '/images/logoBullFav16x16.png',
+              32: '/images/logoBullFav32x32.png',
+              48: '/images/logoBullFav48x48.png',
+              96: '/images/logoBullFav96x96.png',
+              128: '/images/logoBullFav128x128.png'
+            }
+          });
+        }
+
+        return true;
+      }
+
+      default: {
+        return false;
+      }
+    }
+  } catch (error) {
+    console.error('Error handling Yakkl page message:', error);
+    return false;
+  }
+}
+
+export async function onExternalMessageListener(
+  message: any,
+  sender: Runtime.MessageSender & { port?: Runtime.Port }
+): Promise<any> {
+  try {
+    if (isYakklPage()) {
+      log.debug('Background: onExternalMessageListener: isYakklPage', false);
+      return onYakklPageListener(message, sender);
+    }
+
+    log.debug('Background: onExternalMessageListener', false, { message, sender });
+  } catch (error) {
+    log.error('Background: onExternalMessageListener', false, error);
+  }
+}
+
+
 // Register backgroundListenerManager globally
 globalListenerManager.registerContext('background', backgroundListenerManager);
 
 export function addBackgroundListeners() {
   // These check to see if already added and if so, remove and re-add
   backgroundListenerManager.add(browser.runtime.onMessage, onUnifiedMessageListener);
-  // Comment out individual handlers as they are now handled by the unified handler
-  // backgroundListenerManager.add(browser.runtime.onMessage, onSecureMessageListener);
-  // backgroundListenerManager.add(browser.runtime.onMessage, onSigningRequestListener);
-  // backgroundListenerManager.add(browser.runtime.onMessage, onRuntimeMessageBackgroundListener);
-  // backgroundListenerManager.add(browser.runtime.onMessage, onRuntimeMessageListener);
-  // backgroundListenerManager.add(browser.runtime.onMessage, onEIP6963MessageListener);
+
+  backgroundListenerManager.add(browser.runtime.onMessageExternal, onYakklPageListener);
+  backgroundListenerManager.add(browser.runtime.onMessageExternal, onExternalMessageListener);
 
   backgroundListenerManager.add(browser.runtime.onInstalled, onInstalledUpdatedListener);
   backgroundListenerManager.add(browser.runtime.onConnect, onPortConnectListener);
@@ -113,7 +211,7 @@ export function addBackgroundListeners() {
   backgroundListenerManager.add(browser.windows.onFocusChanged, onWindowsFocusChangedListener);
 }
 
-// Decide if this is needed
+// Originally used to update the side panel content from the background script triggered by the wallet popup.
 // browser.runtime.onMessage.addListener((
 //   message: unknown,
 //   sender: Runtime.MessageSender,

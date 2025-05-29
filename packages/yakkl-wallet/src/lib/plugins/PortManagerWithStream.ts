@@ -1,6 +1,6 @@
 import { getDuplex } from '$lib/common/duplexShim';
 import { PortDuplexStream, type LightweightDuplex } from './PortStreamManager';
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { browser_ext, isClient, getBrowserExt } from '$lib/common/environment';
 import type { Runtime } from 'webextension-polyfill';
 import type { DuplexOptions } from 'stream';

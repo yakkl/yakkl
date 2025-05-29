@@ -1,4 +1,5 @@
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
+import { browser as isBrowser } from '$app/environment';
 
 interface ExtendedPerformance extends Performance {
   memory?: {
@@ -68,12 +69,15 @@ export class ErrorHandler {
   private readonly MAX_ACTION_HISTORY = 50;
 
   private constructor() {
+    if (!isBrowser) return;
     setTimeout(() => {
       this.initialize();
     }, 0);
   }
 
   private async initialize(): Promise<void> {
+    if (!isBrowser) return;
+
     try {
       if (this.isInitialized) return;
 
@@ -99,10 +103,13 @@ export class ErrorHandler {
   }
 
   handleError(error: Error): void {
+    if (!isBrowser) return;
     log.error('Error handled by ErrorHandler:', false, error);
   }
 
   private initializeErrorHandlers(): void {
+    if (!isBrowser) return;
+
     try {
       let lastError: any = null;
       const performance = window.performance as ExtendedPerformance;
@@ -293,6 +300,8 @@ export class ErrorHandler {
   }
 
 private initializeUIMonitoring(): void {
+    if (!isBrowser) return;
+
     try {
       // Monitor DOM mutations for modal dialogs
       const modalObserver = new MutationObserver((mutations) => {
@@ -387,6 +396,8 @@ private initializeUIMonitoring(): void {
   }
 
 private initializeResourceMonitoring(): void {
+    if (!isBrowser) return;
+
     try {
       const performance = window.performance as ExtendedPerformance;
 
@@ -449,6 +460,8 @@ private initializeResourceMonitoring(): void {
   }
 
   private initializeStateRecovery(): void {
+    if (!isBrowser) return;
+
     const lastFatalError = localStorage.getItem('lastFatalError');
     if (lastFatalError) {
       try {
@@ -465,6 +478,8 @@ private initializeResourceMonitoring(): void {
   }
 
 private checkPreviousError(): void {
+    if (!isBrowser) return;
+
     try {
       const lastError = localStorage.getItem('lastFatalError');
       const lastState = localStorage.getItem('lastStateBeforeClose');
@@ -485,6 +500,8 @@ private checkPreviousError(): void {
   }
 
   private getMemorySnapshot(): MemorySnapshot {
+    if (!isBrowser) return { time: Date.now(), nodes: 0, eventListeners: 0, location: '' };
+
     const performance = window.performance as ExtendedPerformance;
     return {
       time: Date.now(),
@@ -496,6 +513,16 @@ private checkPreviousError(): void {
   }
 
   private captureStateSnapshot(): StateSnapshot {
+    if (!isBrowser) return {
+      timestamp: Date.now(),
+      route: '',
+      activeModals: [],
+      componentStack: [],
+      eventQueue: [],
+      lastActions: [],
+      memoryUsage: {}
+    };
+
     const performance = window.performance as ExtendedPerformance;
 
     return {
@@ -519,6 +546,8 @@ private checkPreviousError(): void {
   }
 
   private captureComponentStack(): string[] {
+    if (!isBrowser) return [];
+
     const stack: string[] = [];
     let element = document.activeElement;
 
@@ -534,6 +563,8 @@ private checkPreviousError(): void {
   }
 
   private getEventListeners(): string[] {
+    if (!isBrowser) return [];
+
     // Basic estimation of event types
     const elements = document.getElementsByTagName('*');
     const listeners: string[] = [];
@@ -549,6 +580,8 @@ private checkPreviousError(): void {
   }
 
   private getEventListenerCount(): number {
+    if (!isBrowser) return 0;
+
     const elements = document.getElementsByTagName('*');
     let count = 0;
     for (const element of elements) {
@@ -564,6 +597,8 @@ private checkPreviousError(): void {
   }
 
   public destroy(): void {
+    if (!isBrowser) return;
+
     try {
       if (this.resourceCheckInterval) {
         clearInterval(this.resourceCheckInterval);

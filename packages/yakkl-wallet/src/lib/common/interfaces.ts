@@ -3,11 +3,14 @@ import type { AccessList, Log, Transaction } from '$lib/common/evm';
 import type { AccountTypeCategory, BytesLike, NetworkType, RegistrationType, SystemTheme, URL } from '$lib/common/types';
 import type { BigNumberish } from '$lib/common/bignumber';
 import type { Token } from '$lib/plugins/Token';
+import type { Runtime } from 'webextension-polyfill';
 
 // Session Info is used to check if the session is valid and if the port is open - mainly used for the dapp popups
 export interface SessionInfo {
-  success: boolean;
+  success?: boolean;
   portName: string | null;
+  connectionId: string | null;
+  requestId: string | null;
 }
 
 // Ethereum JSON-RPC request arguments
@@ -39,13 +42,15 @@ export interface YakklRequest {
   type: string;
   id: string;
   method: string;
-  params: unknown[];
+  params?: any[];
   requiresApproval?: boolean;
+  origin?: string;
 }
 
 export interface YakklResponse {
   type: string;
   id: string;
+  jsonrpc?: string;
   method?: string;
   result?: unknown;
   error?: {
@@ -107,6 +112,7 @@ export interface EncryptedData {
 
 export interface User {
   id: string;
+  persona?: string; // The persona that is associated with the account
   email: string;
   name: string;
   username?: string;
@@ -143,6 +149,7 @@ export interface GetActiveTabResponse {
 // This is always encrypted.
 export interface EmergencyKitAccountData {
   id: string;
+  persona?: string; // The persona that is associated with the account
   registered: YakklRegisteredData;
   email: string;
   userName: string;
@@ -161,6 +168,7 @@ export interface EmergencyKitAccountData {
 
 export interface EmergencyKitMetaData {
   id: string;
+  persona?: string; // The persona that is associated with the account
   createDate: string;
   updateDate: string;
   version: string;
@@ -176,6 +184,7 @@ export interface EmergencyKitMetaData {
 
 export interface EmergencyKitData {
   id: string;
+  persona?: string; // The persona that is associated with the account
   data: EncryptedData;
   accounts: EmergencyKitAccountData[];
   meta?: EmergencyKitMetaData;
@@ -476,6 +485,8 @@ export interface Transactions {
 // End - Evaluate the need for these interfaces
 
 export interface SwapToken {
+  id?: string;
+  persona?: string; // The persona that is associated with the account
   chainId: number;
   address: string;  // Token address
   name: string;
@@ -499,6 +510,9 @@ export interface TokenData extends SwapToken {
   formattedValue?: string; // Formatted value for display
   alias?: string; // Alias for the token
   customDefault?: 'custom' | 'default'; // If 'custom' then it's a custom token and if 'default' then it's a default token
+  sidepanel?: boolean; // If true then the token is only available in the sidepanel
+  evmCompatible?: boolean; // If true then the token is EVM compatible
+  url?: string; // URL to the token
 }
 
 // Currently only used for the token list and not as a stand alone data store
@@ -536,6 +550,8 @@ export interface Currency {
 }
 
 export interface YakklWallet {
+  id?: string;
+  persona?: string; // The persona that is associated with the account
   title: string;
   extensionHeight: number;
   popupHeight: number;
@@ -555,6 +571,8 @@ export interface YakklWallet {
 }
 
 export interface Theme {
+  id?: string;
+  persona?: string; // The persona that is associated with the account
   name: string;
   animation: {
     lockScreen: string;
@@ -605,6 +623,8 @@ export interface Network {
 }
 
 export interface EnhancedSecurity {
+  id?: string;
+  persona?: string; // The persona that is associated with the account
   enabled: boolean; // We have this off so that user makes a decision to enable it
   rotationDays?: number;
   lastRotationDate?: string; // It will not force a pwd change but will keep prompting until they do
@@ -615,6 +635,8 @@ export interface EnhancedSecurity {
 }
 
 export interface YakklSecurity {
+  id?: string;
+  persona?: string; // The persona that is associated with the account
   type: string; //'PWD' | '2FA' | 'Passkey';
   value: string;
   enhancedSecurity?: EnhancedSecurity;
@@ -633,6 +655,8 @@ export interface Company {
 }
 
 export interface Name {
+  id: string;
+  persona: string; // The persona that is associated with the account
   prefix?: string;
   first: string;
   middle?: string;
@@ -641,6 +665,8 @@ export interface Name {
 }
 
 export interface NaturalPerson {
+  id: string;
+  persona: string; // The persona that is associated with the account
   sex: string;
   dateOfBirth: string;
   idPhoto: boolean;
@@ -648,6 +674,7 @@ export interface NaturalPerson {
 
 export interface Document {
   id: string;
+  persona: string; // The persona that is associated with the account
   type: string;
   fileName: string;
   created: string;
@@ -657,6 +684,8 @@ export interface Document {
 }
 
 export interface PrimaryPhone {
+  id?: string;
+  persona?: string; // The persona that is associated with the account
   country: string;
   number: string;
   type?: string;
@@ -664,6 +693,8 @@ export interface PrimaryPhone {
 }
 
 export interface PrimaryAddress {
+  id?: string;
+  persona?: string; // The persona that is associated with the account
   add1: string;
   add2?: string;
   city: string;
@@ -673,10 +704,14 @@ export interface PrimaryAddress {
 }
 
 export interface YakklBlocked {
+  id?: string;
+  persona?: string; // The persona that is associated with the account
   domain: string;
 }
 
 export interface YakklRegisteredData {
+  id?: string;
+  persona?: string; // The persona that is associated with the account
   key: string;
   type: RegistrationType; // Consider using a union type if there are specific allowed values
   version: string;
@@ -686,6 +721,7 @@ export interface YakklRegisteredData {
 
 export interface WatchListItem {
   id: string;
+  persona?: string; // The persona that is associated with the account
   name: string;
   address: string;
   blockchain: string;
@@ -696,6 +732,7 @@ export interface WatchListItem {
 
 export interface YakklWatch {
   id: string; // Profile id
+  persona?: string; // The persona that is associated with the account
   blockchain: string;
   name: string;
   tags?: string[];
@@ -710,6 +747,8 @@ export interface YakklWatch {
 }
 
 export interface ProfileData {
+  id?: string;
+  persona?: string; // The persona that is associated with the account
   name: Name;
   email: string;
   registered: YakklRegisteredData;
@@ -727,6 +766,7 @@ export interface ProfileData {
 
 export interface Profile {
   id: string; // Must be unique - used where there is an 'id'
+  persona?: string; // The persona that is associated with the account
   userName: string; // Must be unique - not encrypted
   preferences: Preferences;
   data: EncryptedData | ProfileData | Promise<ProfileData>; // Properties that are encrypted when stored
@@ -737,6 +777,7 @@ export interface Profile {
 
 export interface Preferences {
   id: string;
+  persona?: string; // The persona that is associated with the account
   idleDelayInterval: number; // System default of 1 minute - this is in seconds
   showTestNetworks?: boolean;
   dark: SystemTheme; //'dark' | 'light' | 'system';
@@ -758,6 +799,7 @@ export interface Preferences {
 
 export interface Settings{
   id: string; // Profile id
+  persona?: string; // The persona that is associated with the account
   previousVersion?: string;
   registeredType: string; // This data comes from yakklRegisteredData.type
   legal: Legal;
@@ -777,6 +819,7 @@ export interface Settings{
 
 export interface YakklChat {
   id: string;
+  persona?: string; // The persona that is associated with the account
   text: string;
   sender: string;
   usage?: {
@@ -795,12 +838,16 @@ export interface PreferencesShort {
 }
 
 export interface ProfileShort {
+  id?: string;
+  persona?: string; // The persona that is associated with the account
   userName: string;
   name: Name | null;
   email?: string;
 }
 
 export interface Shortcuts {
+  id?: string;
+  persona?: string; // The persona that is associated with the account
   quantity?: BigNumberish; // Account value
   accountType: AccountTypeCategory; // primary, imported, sub
   accountName: string;
@@ -824,7 +871,8 @@ export interface Shortcuts {
 }
 
 export interface CurrentlySelectedData {
-  // providerKey?: string; // TODO: May can remove this with the new provider model!!!! If we remove here then remove everywhere
+  id?: string;
+  persona?: string; // The persona that is associated with the account
   profile?: Profile | Promise<Profile>;
   primaryAccount?: YakklPrimaryAccount | null; // | undefined | null;
   account?: YakklAccount;
@@ -833,6 +881,7 @@ export interface CurrentlySelectedData {
 
 export interface YakklCurrentlySelected {
   id: string; // Profile id
+  persona?: string; // The persona that is associated with the account
   shortcuts: Shortcuts;
   preferences: PreferencesShort;
   data: EncryptedData | CurrentlySelectedData | Promise<CurrentlySelectedData>; // Properties that are encrypted when stored
@@ -842,6 +891,8 @@ export interface YakklCurrentlySelected {
 }
 
 export interface AccountData {
+  id?: string;
+  persona?: string; // The persona that is associated with the account
   extendedKey?: string;
   privateKey: string;
   publicKey: string;
@@ -856,6 +907,7 @@ export interface AccountData {
 
 export interface YakklAccount {
   id: string; // Profile id
+  persona?: string; // The persona that is associated with the account
   index: number;
   blockchain: string; // Primary blockchain (example: Ethereum)
   smartContract: boolean; // SmartContracts do not have private keys and the price per gas unit is usually 45,000 instead of 21,000
@@ -907,6 +959,7 @@ export interface PrimaryAccountData {
 
 export interface YakklPrimaryAccount {
   id: string; // Profile id
+  persona?: string; // The persona that is associated with the account
   name: string; // account name, address, and keys are here for convenience - they are also in the yakklAccount record
   address: string;
   quantity: BigNumberish;  // Value is used as a placeholder and adjusted as needed for display and calculations - dynamic
@@ -927,6 +980,8 @@ export interface PrimaryAccountReturnValues {
 
 // Address information for the dApp on connected domains
 export interface AccountAddress {
+  id: string;
+  persona: string; // The persona that is associated with the account
   address: string;
   name: string;
   alias: string;
@@ -939,20 +994,50 @@ export interface ConnectedDomainAddress extends AccountAddress{
   checked: boolean; // Checkbox checked if true
 }
 
+export interface ConnectedDomainPermissions {
+  id?: string;
+  persona?: string; // The persona that is associated with the account
+  domain?: string;
+  url?: string;
+  icon?: string;
+  name?: string;
+  permissions?: {
+    parentCapability?: string;
+    caveats?: string[];
+  }[];
+}
+
+export interface ConnectedDomainRevoked {
+  id?: string;
+  persona?: string; // The persona that is associated with the account
+  domain?: string;
+  revokedDate?: string; // Date and time the domain was revoked
+  revokedBy?: string; // Who revoked the domain
+  revokedReason?: string; // Reason the domain was revoked
+  revokedMessage?: string; // Message from the domain that was revoked
+  revokedSignature?: string; // Signature of the domain that was revoked - Maybe not needed
+}
+
 export interface YakklConnectedDomain {
   id: string;
+  persona?: string; // The persona that is associated with the account
   addresses: AccountAddress[]; // Array of address objects
+  chainId: number; // ChainId of the connected domain
   name: string; // Name of dApp/site
-  permissions: string[]; // What permissions has Yakkl allowed for this connected domain
+  permissions: ConnectedDomainPermissions; // What permissions has Yakkl allowed for this connected domain
   domain: string;
+  url: string;
   icon: string;
   version: string; // Travels with the data for upgrades
+  status: string; // 'approved' | 'revoked'
+  revoked: ConnectedDomainRevoked; // If status revoked then the domain has been revoked and this will have the details
   createDate: string;
   updateDate: string;
 }
 
 export interface YakklContact {
   id: string;
+  persona?: string; // The persona that is associated with the account
   name: string;
   address: string;
   addressType: string; //'EOA' | 'SC'; // EOA or SC
@@ -973,6 +1058,7 @@ export interface Media {
 
 export interface YakklNFT {
   id: string;
+  persona?: string; // The persona that is associated with the account
   name: string;
   description?: string;
   token?: string;

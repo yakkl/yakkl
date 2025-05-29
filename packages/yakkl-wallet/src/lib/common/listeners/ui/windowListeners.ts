@@ -30,7 +30,7 @@ export function addWindowListeners() {
     // Add window-specific browser extension listeners
     uiListenerManager.add(browser_ext.windows.onRemoved, handleOnRemoveWindow);
   } catch (e) {
-    log.error('Error adding window listeners:', false, e);
+    log.warn('Error adding window listeners:', false, e);
   }
 }
 
@@ -46,6 +46,6 @@ export function removeWindowListeners() {
     // Remove window-specific browser extension listeners
     uiListenerManager.remove(browser_ext.windows.onRemoved, handleOnRemoveWindow);
   } catch (e) {
-    log.error('Error removing window listeners:', false, e);
+    log.warn('Error removing window listeners:', false, e);
   }
 }

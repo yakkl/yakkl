@@ -194,6 +194,8 @@ export const yakklContractStore = writable<ContractData>({
   abi: '',
   functions: []
 });
+export const yakklContextTypeStore = writable<string>(undefined);
+
 // --------------------------------
 
 
@@ -217,6 +219,7 @@ export function resetStores() {
     setYakklWalletProvidersStore([]);
     setYakklConnectedDomainsStore([]);
     yakklMiscStore.set(undefined);
+    yakklContextTypeStore.set(undefined);
     yakklVeryStore.set(undefined);
     yakklVersionStore.set(undefined);
     yakklUserNameStore.set(undefined);
@@ -350,6 +353,9 @@ export async function syncStorageToStore() {
   }
 }
 
+// NOTE: We need to think through the id and persona for each store and any wrappers and how best to handle them.
+// We can filter on get and on set we will need to get all, find the item we need to update and then update it.
+
 // Browser Extension local storage
 // Returns old settings
 export async function setSettings(settings: Settings) {
@@ -446,6 +452,11 @@ export function getYakklContractStore() {
 // Memory only
 export function getMiscStore() {
 	const store = get(yakklMiscStore);
+	return store;
+}
+
+export function getContextTypeStore() {
+	const store = get(yakklContextTypeStore);
 	return store;
 }
 
@@ -618,6 +629,12 @@ export function setMiscStore(values: string) {
 	return store;
 }
 
+export function setContextTypeStore(values: string) {
+	const store = get(yakklContextTypeStore);
+	yakklContextTypeStore.set(values);
+	return store;
+}
+
 // Return previous values
 export function setVeryStore(values: any) {
 	const store = get(yakklVeryStore);
@@ -686,13 +703,18 @@ export function setYakklInstancesStore( values: [Wallet | null, Provider | null,
 
 // --------------------------------
 
-export async function getYakklRegisteredData(): Promise<YakklRegisteredData | null> {
+export async function getYakklRegisteredData(id?: string, persona?: string): Promise<YakklRegisteredData | null> {
   try {
     const value = await getObjectFromLocalStorage<YakklRegisteredData>(STORAGE_YAKKL_REGISTERED_DATA);
 		if (typeof value === 'string') {
       // Handle the case where value is a string, which shouldn't happen in this context
       throw new Error('Unexpected string value received from local storage');
     }
+
+    if (id && persona) {
+      // TODO: Implement this later - think through the license key and persona
+    }
+
     return value || null; // Return an empty object or provide a default value if necessary
   } catch (error) {
     log.error('Error in getYakklRegisteredData:', false, error);
@@ -700,13 +722,18 @@ export async function getYakklRegisteredData(): Promise<YakklRegisteredData | nu
   }
 }
 
-export async function getYakklContacts(): Promise<YakklContact[]> {
+export async function getYakklContacts(id?: string, persona?: string): Promise<YakklContact[]> {
   try {
     const value = await getObjectFromLocalStorage<YakklContact[]>(STORAGE_YAKKL_CONTACTS);
 		if (typeof value === 'string') {
       // Handle the case where value is a string, which shouldn't happen in this context
       throw new Error('Unexpected string value received from local storage');
     }
+
+    if (id && persona) {
+      // TODO: Implement this later
+    }
+
     return value || []; // Return an empty array or provide a default value if necessary
   } catch (error) {
     log.error('Error in getYakklContacts:', false, error);
@@ -714,13 +741,19 @@ export async function getYakklContacts(): Promise<YakklContact[]> {
   }
 }
 
-export async function getYakklTokenData(): Promise<TokenData[]> {
+export async function getYakklTokenData(id?: string, persona?: string): Promise<TokenData[]> {
   try {
     const value = await getObjectFromLocalStorage<TokenData[]>(STORAGE_YAKKL_TOKENDATA);
 		if (typeof value === 'string') {
       // Handle the case where value is a string, which shouldn't happen in this context
       throw new Error('Unexpected string value received from local storage');
     }
+
+    if (id && persona) {
+      // TODO: Implement this later
+    }
+
+    if (value) setYakklTokenDataStore(value);
     return value || []; // Return an empty array or provide a default value if necessary
   } catch (error) {
     log.error('Error in getYakklTokenData:', false, error);
@@ -728,13 +761,19 @@ export async function getYakklTokenData(): Promise<TokenData[]> {
   }
 }
 
-export async function getYakklTokenDataCustom(): Promise<TokenData[]> {
+export async function getYakklTokenDataCustom(id?: string, persona?: string): Promise<TokenData[]> {
   try {
     const value = await getObjectFromLocalStorage<TokenData[]>(STORAGE_YAKKL_TOKENDATA_CUSTOM);
 		if (typeof value === 'string') {
       // Handle the case where value is a string, which shouldn't happen in this context
       throw new Error('Unexpected string value received from local storage');
     }
+
+    if (id && persona) {
+      // TODO: Implement this later
+    }
+
+    if (value) setYakklTokenDataCustomStore(value);
     return value || []; // Return an empty array or provide a default value if necessary
   } catch (error) {
     log.error('Error in getYakklTokenDataCustom:', false, error);
@@ -742,13 +781,19 @@ export async function getYakklTokenDataCustom(): Promise<TokenData[]> {
   }
 }
 
-export async function getYakklCombinedToken(): Promise<TokenData[]> {
+export async function getYakklCombinedToken(id?: string, persona?: string): Promise<TokenData[]> {
   try {
     const value = await getObjectFromLocalStorage<TokenData[]>(STORAGE_YAKKL_COMBINED_TOKENS);
 		if (typeof value === 'string') {
       // Handle the case where value is a string, which shouldn't happen in this context
       throw new Error('Unexpected string value received from local storage');
     }
+
+    if (id && persona) {
+      // TODO: Implement this later
+    }
+
+    if (value) setYakklCombinedTokenStore(value);
     return value || []; // Return an empty array or provide a default value if necessary
   } catch (error) {
     log.error('Error in getYakklCombinedToken:', false, error);
@@ -756,13 +801,18 @@ export async function getYakklCombinedToken(): Promise<TokenData[]> {
   }
 }
 
-export async function getYakklChats(): Promise<YakklChat[]> {
+export async function getYakklChats(id?: string, persona?: string): Promise<YakklChat[]> {
   try {
     let value = await getObjectFromLocalStorage<YakklChat[]>(STORAGE_YAKKL_CHATS);
     if (typeof value === 'string') {
       value = [];
       setYakklChatsStorage(value);
     }
+
+    if (id && persona) {
+      // TODO: Implement this later
+    }
+
     // Convert object to array if necessary
     if (value && typeof value === 'object' && !Array.isArray(value)) {
       value = Object.values(value);
@@ -804,7 +854,7 @@ export async function getYakklWalletProviders(): Promise<string[]> {
   }
 }
 
-export async function getYakklConnectedDomains(): Promise<YakklConnectedDomain[]> {
+export async function getYakklConnectedDomains(id?: string, persona?: string): Promise<YakklConnectedDomain[]> {
   try {
     const value = await getObjectFromLocalStorage<YakklConnectedDomain[]>(STORAGE_YAKKL_CONNECTED_DOMAINS);
 
@@ -814,6 +864,11 @@ export async function getYakklConnectedDomains(): Promise<YakklConnectedDomain[]
       // Handle the case where value is a string, which shouldn't happen in this context
       throw new Error('Unexpected string value received from local storage');
     }
+
+    if (id && persona) {
+      return value.filter(d => d.id === id && d.persona === persona) || [];
+    }
+
     return value || []; // Return an empty array or provide a default value if necessary
   } catch (error) {
     log.error('Error in getYakklConnectedDomains:', false, error);
@@ -821,13 +876,18 @@ export async function getYakklConnectedDomains(): Promise<YakklConnectedDomain[]
   }
 }
 
-export async function getPreferences(): Promise<Preferences | null> {
+export async function getPreferences(id?: string, persona?: string): Promise<Preferences | null> {
   try {
     const value = await getObjectFromLocalStorage<Preferences>(STORAGE_YAKKL_PREFERENCES);
 		if (typeof value === 'string') {
       // Handle the case where value is a string, which shouldn't happen in this context
       throw new Error('Unexpected string value received from local storage');
     }
+
+    if (id && persona) {
+      // TODO: Implement this later
+    }
+
     return value; // Return an empty object or provide a default value if necessary
   } catch (error) {
     log.error('Error in getPreferences:', false, error);
@@ -835,13 +895,18 @@ export async function getPreferences(): Promise<Preferences | null> {
   }
 }
 
-export async function getSettings(): Promise<Settings | null> {
+export async function getSettings(id?: string, persona?: string): Promise<Settings | null> {
   try {
     const value = await getObjectFromLocalStorage<Settings>(STORAGE_YAKKL_SETTINGS);
 		if (typeof value === 'string') {
       // Handle the case where value is a string, which shouldn't happen in this context
       throw new Error('Unexpected string value received from local storage');
     }
+
+    if (id && persona) {
+      // TODO: Implement this later
+    }
+
     return value; // Return an empty object or provide a default value if necessary
   } catch (error) {
     log.error('Error in getSettings:', false, error);
@@ -849,13 +914,18 @@ export async function getSettings(): Promise<Settings | null> {
   }
 }
 
-export async function getProfile(): Promise<Profile | null> {
+export async function getProfile(id?: string, persona?: string): Promise<Profile | null> {
   try {
     const value = await getObjectFromLocalStorage<Profile>(STORAGE_YAKKL_PROFILE);
 		if (typeof value === 'string') {
       // Handle the case where value is a string, which shouldn't happen in this context
       throw new Error('Unexpected string value received from local storage');
     }
+
+    if (id && persona) {
+      // TODO: Implement this later
+    }
+
     return value; // Return an empty object or provide a default value if necessary
   } catch (error) {
     log.error('Error in getProfile:', false, error);
@@ -863,9 +933,13 @@ export async function getProfile(): Promise<Profile | null> {
   }
 }
 
-export async function getYakklCurrentlySelected(): Promise<YakklCurrentlySelected> {
+export async function getYakklCurrentlySelected(id?: string, persona?: string): Promise<YakklCurrentlySelected> {
   try {
     const value = await getObjectFromLocalStorage<YakklCurrentlySelected>(STORAGE_YAKKL_CURRENTLY_SELECTED);
+
+    if (id && persona) {
+      // TODO: Implement this later
+    }
 
     // If no value or value is a string, return default values
     if (!value || typeof value === 'string') {
@@ -933,7 +1007,7 @@ export async function getYakklCurrentlySelected(): Promise<YakklCurrentlySelecte
   }
 }
 
-export async function getYakklWatchList(): Promise<YakklWatch[]> {
+export async function getYakklWatchList(id?: string, persona?: string): Promise<YakklWatch[]> {
   // eslint-disable-next-line no-useless-catch
   try {
     const value = await getObjectFromLocalStorage<YakklWatch[]>(STORAGE_YAKKL_WATCHLIST);
@@ -941,6 +1015,11 @@ export async function getYakklWatchList(): Promise<YakklWatch[]> {
       // Handle the case where value is a string, which shouldn't happen in this context
       throw new Error('Unexpected string value received from local storage');
     }
+
+    if (id && persona) {
+      // TODO: Implement this later
+    }
+
     return value || [];
   } catch (error) {
     log.error('Error in getYakklWatchList:', false, error);
@@ -948,7 +1027,7 @@ export async function getYakklWatchList(): Promise<YakklWatch[]> {
   }
 }
 
-export async function getYakklBlockedList(): Promise<YakklBlocked[]> {
+export async function getYakklBlockedList(id?: string, persona?: string): Promise<YakklBlocked[]> {
   // eslint-disable-next-line no-useless-catch
   try {
     const value = await getObjectFromLocalStorage<YakklBlocked[]>(STORAGE_YAKKL_BLOCKEDLIST);
@@ -956,6 +1035,11 @@ export async function getYakklBlockedList(): Promise<YakklBlocked[]> {
       // Handle the case where value is a string, which shouldn't happen in this context
       throw new Error('Unexpected string value received from local storage');
     }
+
+    if (id && persona) {
+      // TODO: Implement this later
+    }
+
     return value || [];
   } catch (error) {
     log.error('Error in getYakklBlockedList:', false, error);
@@ -963,7 +1047,7 @@ export async function getYakklBlockedList(): Promise<YakklBlocked[]> {
   }
 }
 
-export async function getYakklAccounts(): Promise<YakklAccount[]> {
+export async function getYakklAccounts(id?: string, persona?: string): Promise<YakklAccount[]> {
   // eslint-disable-next-line no-useless-catch
   try {
     const value = await getObjectFromLocalStorage<YakklAccount[]>(STORAGE_YAKKL_ACCOUNTS);
@@ -971,6 +1055,11 @@ export async function getYakklAccounts(): Promise<YakklAccount[]> {
       // Handle the case where value is a string, which shouldn't happen in this context
       throw new Error('Unexpected string value received from local storage');
     }
+
+    if (id && persona) {
+      // TODO: Implement this later
+    }
+
     return value || [];
   } catch (error) {
     log.error('Error in getYakklAccounts:', false, error);
@@ -978,7 +1067,7 @@ export async function getYakklAccounts(): Promise<YakklAccount[]> {
   }
 }
 
-export async function getYakklPrimaryAccounts(): Promise<YakklPrimaryAccount[]> {
+export async function getYakklPrimaryAccounts(id?: string, persona?: string): Promise<YakklPrimaryAccount[]> {
   // eslint-disable-next-line no-useless-catch
   try {
     const value = await getObjectFromLocalStorage<YakklPrimaryAccount[]>(STORAGE_YAKKL_PRIMARY_ACCOUNTS);
@@ -986,6 +1075,11 @@ export async function getYakklPrimaryAccounts(): Promise<YakklPrimaryAccount[]> 
       // Handle the case where value is a string, which shouldn't happen in this context
       throw new Error('Unexpected string value received from local storage');
     }
+
+    if (id && persona) {
+      // TODO: Implement this later
+    }
+
     return value || [];
   } catch (error) {
     log.error('Error in getYakklPrimaryAccounts:', false, error);

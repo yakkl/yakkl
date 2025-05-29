@@ -3,7 +3,7 @@
 import { ethers as ethersv6 } from 'ethers-v6';
 import { setSettingsStorage, getSettings, setProfileStorage, getYakklCurrentlySelected, setYakklCurrentlySelectedStorage, setYakklPrimaryAccountsStorage, getYakklPrimaryAccounts, getYakklAccounts, setYakklAccountsStorage } from '$lib/common/stores';
 import { encryptData, decryptData } from '$lib/common/encryption';
-import { DEFAULT_DERIVED_PATH_ETH } from '$lib/common/constants';
+import { DEFAULT_DERIVED_PATH_ETH, DEFAULT_PERSONA } from '$lib/common/constants';
 import type { CurrentlySelectedData, MetaData, ProfileData, YakklAccount, Profile, YakklPrimaryAccount, AccountData, PrimaryAccountData } from '$lib/common/interfaces';
 import { deepCopy, getSymbol } from '$lib/utilities';
 import { isEncryptedData, isMetaData, isProfileData, isString } from '$lib/common/misc';
@@ -259,6 +259,7 @@ export async function createPortfolioAccount(yakklMiscStore: string, profile: Pr
     (currentlySelectedData as CurrentlySelectedData).account = yakklPrimaryAccountEnc.account;
 
     yakklCurrentlySelected.id = profile.id;
+    yakklCurrentlySelected.persona = profile?.persona || DEFAULT_PERSONA;
     yakklCurrentlySelected.createDate = yakklPrimaryAccountEnc.account.createDate;
     yakklCurrentlySelected.updateDate = yakklPrimaryAccountEnc.account.updateDate;
 

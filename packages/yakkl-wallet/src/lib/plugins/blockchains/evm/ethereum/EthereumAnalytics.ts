@@ -6,7 +6,7 @@ import {
   type BlockchainNetworkInfo,
   Web3Provider
 } from '$plugins/AnalyticsBase';
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import type { Provider } from '$plugins/Provider';
 import { ethers as ethersv6 } from 'ethers-v6';
 

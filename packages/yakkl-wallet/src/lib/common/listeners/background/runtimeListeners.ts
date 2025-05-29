@@ -18,6 +18,8 @@ export async function onRuntimeMessageListener(
       return { success: false, error: 'Browser API not available' };
     }
 
+    log.info('runtimeListeners - onRuntimeMessageListener:', false, message);
+
     switch (message.type) {
       case 'ping': {
         return { success: true, message: 'Pong' };

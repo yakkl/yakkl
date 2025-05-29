@@ -7,7 +7,7 @@
   import TokenTechnicalView from './TokenTechnicalView.svelte';
   import TokenSymbolView from './TokenSymbolView.svelte';
   import type { TokenData } from '$lib/common/interfaces';
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
 	import { yakklCombinedTokenStore } from '$lib/common/stores';
   import LoadingState from './LoadingState.svelte';
 	import { onMount } from 'svelte';

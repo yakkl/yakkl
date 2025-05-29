@@ -1,8 +1,8 @@
-import { openWindows } from "$lib/common/reload";
-import { openPopups, updateScreenPreferences } from "$lib/extensions/chrome/ui";
+import { openWindows, updateScreenPreferences } from "$lib/extensions/chrome/ui";
 import { setIconLock } from "$lib/utilities/utilities";
+import type { Runtime } from "webextension-polyfill";
 
-export async function onPortInternalListener(event: any): Promise<void> {
+export async function onPortInternalListener(event: any, port?: Runtime.Port): Promise<void> {
   if (event && event.method) {
     switch(event.method) {
       case 'int_screen':
@@ -10,7 +10,7 @@ export async function onPortInternalListener(event: any): Promise<void> {
         break;
       case 'close':
         await setIconLock();
-        openPopups.clear();
+        // openPopups.clear();
         openWindows.clear();
         break;
       default:

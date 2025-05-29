@@ -18,8 +18,8 @@
 		}
 	},
 	"scripts": {
-		"dev:chrome": "npm run build:env:dev && npm run build:constants && webpack -c webpack.config.cjs && DEV_MODE=true vite build && node ./buildSveltekitForCSP.mjs",
-		"build:chrome": "npm run build:env:prod && npm run build:constants && webpack -c webpack.config.cjs && vite build && node ./buildSveltekitForCSP.mjs",
+		"dev:chrome": "NODE_ENV=development npm run build:env:dev && NODE_ENV=development npm run build:constants && NODE_ENV=development webpack -c webpack.config.cjs && NODE_ENV=development DEV_MODE=true vite build && NODE_ENV=development node ./buildSveltekitForCSP.mjs",
+		"build:chrome": "NODE_ENV=production npm run build:env:prod && NODE_ENV=production npm run build:constants && NODE_ENV=production webpack -c webpack.config.cjs && NODE_ENV=production vite build && NODE_ENV=production node ./buildSveltekitForCSP.mjs",
 		"build:constants": "mustache package.json ./src/lib/common/constants.mustache > ./src/lib/common/constants.ts",
 		"build:env": "node ./build-env.js",
 		"build:env:dev": "node ./build-env.js dev",
@@ -28,7 +28,7 @@
 		"build:tsc": "tsc -p ./tsconfig.extonlyfiles.json",
 		"build:debug": "node build.mjs",
 		"build:swaplist": "node buildSwapList.mjs",
-		"package": "webpack -c webpack.config.cjs && vite package",
+		"package": "NODE_ENV=production webpack -c webpack.config.cjs && NODE_ENV=production vite package",
 		"chrome_store_zip": "rm extension.zip && zip -r extension.zip ./build/*",
 		"firefox_store_zip": "rm fire_extension.zip && zip -r fire_extension.zip ./build/*",
 		"preview": "npm run build:chrome:manifest && webpack -c webpack.config.cjs && vite preview",

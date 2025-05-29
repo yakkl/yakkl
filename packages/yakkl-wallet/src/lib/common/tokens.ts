@@ -83,6 +83,7 @@ export async function updateTokenDataBalances(userAddress: string, provider: eth
           const balance = await getTokenBalance(token, userAddress, provider);
           return {
             ...token,
+            sidepanel: token.sidepanel ?? true,
             balance: balance !== undefined ? balance : token.balance,
             value: 0, // Reset value after updating balance
           };
@@ -122,6 +123,7 @@ export async function updateTokenDataCustomBalances(userAddress: string, provide
           const balance = await getTokenBalance(token, userAddress, provider);
           return {
             ...token,
+            sidepanel: token.sidepanel ?? true,
             balance: balance !== undefined ? balance : token.balance,
             value: 0, // Reset value after updating balance
           };

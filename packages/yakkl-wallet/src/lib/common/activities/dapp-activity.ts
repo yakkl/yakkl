@@ -3,6 +3,7 @@ import { getObjectFromLocalStorage, setObjectInLocalStorage } from '../storage';
 
 export interface DAppActivity {
   id: string;
+  persona: string; // The persona that is associated with the activity
   timestamp: number;
   method: string;
   status: 'pending' | 'approved' | 'rejected' | 'completed';

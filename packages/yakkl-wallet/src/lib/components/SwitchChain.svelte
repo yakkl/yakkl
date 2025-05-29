@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { YakklCurrentlySelected } from '$lib/common/interfaces';
   import { getYakklCurrentlySelected, setYakklCurrentlySelectedStorage } from '$lib/common/stores';
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
 	import { onMount } from 'svelte';
 
   export let chainId: string; // 'hex'
@@ -9,7 +9,7 @@
   export let onReject: () => void;
 
   // NOTE: WIP - Adding a switch chain component to the wallet
-  
+
   const chainLabels: Record<string, string> = {
     '0x1': 'Mainnet',
     '0xaa36a7': 'Sepolia',
