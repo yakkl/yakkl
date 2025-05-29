@@ -78,10 +78,10 @@
 
 <div class={cn("flex flex-col", className)}>
   <div class="space-y-1">
-        {#each visibleTokens as token}
-          <TokenLineView {token} />
-        {/each}
-      </div>
+    {#each visibleTokens as token}
+      <TokenLineView {token} />
+    {/each}
+  </div>
 
   {#if remainingTokens.length > 0}
     <Accordion.Root type="single">
@@ -92,6 +92,7 @@
         <Accordion.Content>
           <div class="space-y-1">
           {#each remainingTokens as token}
+            {log.info('TokenComponentList', false, { token })}
             <TokenLineView {token} />
           {/each}
         </div>

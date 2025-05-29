@@ -63,16 +63,16 @@
     switch (view) {
       case 'accounts':
         log.info('Loading accounts page:', false, view);
-        return import('../../routes/(app)/dapp/popups/accounts/+page.svelte');
+        return import('../../routes/(dapp)/dapp/popups/accounts/+page.svelte');
       case 'transactions':
         log.info('Loading transactions page:', false, view);
-        return import('../../routes/(app)/dapp/popups/transactions/+page.svelte');
+        return import('../../routes/(dapp)/dapp/popups/transactions/+page.svelte');
       case 'sign':
         log.info('Loading sign page:', false, view);
-        return import('../../routes/(app)/dapp/popups/sign/+page.svelte');
+        return import('../../routes/(dapp)/dapp/popups/sign/+page.svelte');
       default:
         log.info('Loading approve page:', false, view);
-        return import('../../routes/(app)/dapp/popups/approve/+page.svelte');
+        return import('../../routes/(dapp)/dapp/popups/approve/+page.svelte');
     }
   }
 

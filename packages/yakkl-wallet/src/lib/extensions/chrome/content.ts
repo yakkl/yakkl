@@ -74,7 +74,7 @@ class PortDuplexStream extends Duplex {
       this.port.postMessage(message);
       callback();
     } catch (error) {
-      log.error('Failed to write to port', false, error);
+      log.warn('Failed to write to port', false, error);
       callback();
     }
   }
@@ -85,7 +85,7 @@ class PortDuplexStream extends Duplex {
       // Push the message to the stream
       this.push(message);
     } catch (error) {
-      log.error('Error in _onMessage', false, error);
+      log.warn('Error in _onMessage', false, error);
     }
   }
 
@@ -96,7 +96,7 @@ class PortDuplexStream extends Duplex {
       this.port.disconnect();
       callback(err);
     } catch (error: unknown) {
-      log.error('Error in _destroy', false, error);
+      log.warn('Error in _destroy', false, error);
       if (error instanceof Error) {
         callback(error);
       } else {
@@ -173,7 +173,7 @@ class ContentScriptManager {
 
       log.debug('Content script connection initialized successfully', false);
     } catch (error) {
-      log.error('Failed to initialize content script:', false, error);
+      log.warn('Failed to initialize content script:', false, error);
       this.scheduleReconnection();
     } finally {
       this.isInitializing = false;
@@ -208,8 +208,13 @@ class ContentScriptManager {
           this.cleanup();
         });
       }
-    } catch (e) {
-      // Ignore error in fenced frames
+    } catch (e: any) {
+      if (e.message.includes('fenced frames')) {
+        log.warn('Skipping unload in fenced frame context');
+        return;
+      } else {
+        log.warn(`Failed to add unload handler:`, e);
+      }
     }
   }
 
@@ -237,7 +242,7 @@ class ContentScriptManager {
       // Notify the inpage script that connection is restored
       this.notifyConnectionStateChange('restored');
     } catch (error) {
-      log.error('Failed to restore connection after bfcache:', false, error);
+      log.warn('Failed to restore connection after bfcache:', false, error);
       this.scheduleReconnection();
     }
   }
@@ -295,7 +300,7 @@ class ContentScriptManager {
 
       // Handle stream errors
       this.contentStream.on('error', (error: any) => {
-        log.error('Stream error:', false, error);
+        log.warn('Stream error:', false, error);
       });
     }
 
@@ -385,7 +390,7 @@ class ContentScriptManager {
         log.debug('Unknown message type from background:', false, data);
       }
     } catch (error) {
-      log.error('Error handling background message:', false, error);
+      log.warn('Error handling background message:', false, error);
     }
   }
 
@@ -414,7 +419,7 @@ class ContentScriptManager {
   // Forward request to background
   private forwardToBackground(message: any) {
     if (!this.contentStream) {
-      log.error('No content stream available', false);
+      log.warn('No content stream available', false);
       this.sendErrorResponse(message.id, message.method, 'Not connected');
       return;
     }
@@ -484,7 +489,7 @@ class ContentScriptManager {
           log.warn(`Retry ${retries} sending response to inpage`, false, { id: formattedResponse.id });
           setTimeout(sendResponse, 100 * retries);
         } else {
-          log.error('Failed to send response to inpage after retries', false, {
+          log.warn('Failed to send response to inpage after retries', false, {
             id: formattedResponse.id,
             error
           });
@@ -641,10 +646,19 @@ class ContentScriptManager {
 
   // Notify inpage script of connection state changes
   private notifyConnectionStateChange(state: 'lost' | 'restored') {
+    const origin = getTargetOrigin();
+    log.debug('Notifying inpage script of connection state change:', false, {
+      state,
+      origin
+    });
+    if (!origin) {
+      log.warn('No origin to notify', false);
+      return;
+    }
     window.postMessage({
       type: `YAKKL_CONNECTION_${state.toUpperCase()}`,
       timestamp: Date.now()
-    }, getTargetOrigin());
+    }, origin);
   }
 
   // Send error response to inpage script
@@ -723,8 +737,12 @@ class ContentScriptManager {
           observer.disconnect();
         });
       }
-    } catch (e) {
-      // Ignore error in fenced frames
+    } catch (e: any) {
+      if (e.message.includes('fenced frames')) {
+        log.warn('Skipping unload in fenced frame context');
+      } else {
+        log.warn(`Failed to add unload handler:`, e);
+      }
     }
   }
 
@@ -798,7 +816,7 @@ function initializeContentScript() {
 
     log.debug('Content script initialized', false);
   } catch (error) {
-    log.error('Failed to initialize content script:', false, error);
+    log.warn('Failed to initialize content script:', false, error);
   }
 }
 

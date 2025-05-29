@@ -7,7 +7,7 @@ import { YAKKL_FEE_BASIS_POINTS, type BigNumberish, type TransactionResponse } f
 import type { PoolInfoData, SwapParams, SwapPriceData, SwapToken, TransactionReceipt, TransactionRequest } from '$lib/common/interfaces';
 import { PriceManager } from './PriceManager';
 import { calculateFeeAmount } from '$lib/utilities';
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 export abstract class SwapManager {
   protected blockchain: Blockchain;

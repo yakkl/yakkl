@@ -13,7 +13,12 @@
     "http://*/*",
     "https://*/*",
     "ws://*/*",
-    "wss://*/*"
+    "wss://*/*",
+    "https://cointelegraph.com/*",
+    "https://www.coindesk.com/*",
+    "https://cryptonews.com/*",
+    "https://bitcoinmagazine.com/*",
+    "https://decrypt.co/*"
   ],
   "permissions": [
     "storage",
@@ -24,7 +29,8 @@
     "alarms",
     "tabs",
     "activeTab",
-    "sidePanel"
+    "sidePanel",
+    "windows"
   ],
   "sandbox": {
     "pages": ["sandbox.html"]
@@ -37,6 +43,7 @@
       "16": "/images/logoBullLock16x16.png",
       "32": "/images/logoBullLock32x32.png",
       "48": "/images/logoBullLock48x48.png",
+      "96": "/images/logoBullLock96x96.png",
       "128": "/images/logoBullLock128x128.png"
     },
     "theme_icons": [
@@ -45,12 +52,14 @@
           "16": "/images/logoBullLock16x16.png",
           "32": "/images/logoBullLock32x32.png",
           "48": "/images/logoBullLock48x48.png",
+          "96": "/images/logoBullLock96x96.png",
           "128": "/images/logoBullLock128x128.png"
         },
         "dark": {
           "16": "/images/logoBullLock-BW16x16.png",
           "32": "/images/logoBullLock-BW32x32.png",
           "48": "/images/logoBullLock-BW48x48.png",
+          "96": "/images/logoBullLock-BW96x96.png",
           "128": "/images/logoBullLock-BW128x128.png"
         },
         "size": "16"
@@ -75,6 +84,15 @@
       },
       {
         "light": {
+          "96": "/images/logoBullLock96x96.png"
+        },
+        "dark": {
+          "96": "/images/logoBullLock-BW96x96.png"
+        },
+        "size": "96"
+      },
+      {
+        "light": {
           "128": "/images/logoBullLock128x128.png"
         },
         "dark": {
@@ -90,6 +108,9 @@
     "default_title": "YAKKL® Smart Wallet",
     "default_popup": "/popup/popup.html"
   {{/isPopup}}
+  },
+  "externally_connectable": {
+    "matches": ["https://yakkl.com/*"]
   },
   "background": {
     "service_worker": "/js/background-wrapper.js",
@@ -110,7 +131,7 @@
     "resources": [
       "/ext/browser-polyfill.js",
       "/sidepanel.html",
-      "/sandbox.thml",
+      "/sandbox.html",
       "background.js",
       "/ext/inpage.js",
       "/js/data/lists.json",
@@ -124,9 +145,10 @@
     "matches": ["<all_urls>"]
   }],
   "icons": {
-    "16": "/images/logoBull16x16.png",
-    "32": "/images/logoBull32x32.png",
-    "48": "/images/logoBull48x48.png",
+    "16": "/images/logoBullLock16x16.png",
+    "32": "/images/logoBullLock32x32.png",
+    "48": "/images/logoBullLock48x48.png",
+    "96": "/images/logoBullLock96x96.png",
     "128": "/images/logoBull128x128.png"
   },
   "omnibox": {

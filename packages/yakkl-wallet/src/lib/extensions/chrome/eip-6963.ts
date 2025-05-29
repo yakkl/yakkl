@@ -1,7 +1,6 @@
 import { log } from "$lib/plugins/Logger";
 import type { Runtime } from "webextension-polyfill";
 import { ProviderRpcError } from "$lib/common";
-import { showDappPopup } from "$lib/extensions/chrome/ui";
 import browser from "webextension-polyfill";
 import { initializePermissions } from "$lib/permissions";
 import { getBlock, getLatestBlock, getGasPrice, getBalance, getCode, getNonce, getTransactionReceipt, getTransaction, getLogs } from './legacy';
@@ -17,6 +16,13 @@ import { get } from 'svelte/store';
 import { extractSecureDomain } from "$lib/common/security";
 import { getAddressesForDomain, getDomainForRequestId, revokeDomainConnection, verifyDomainConnected } from "$lib/extensions/chrome/verifyDomainConnectedBackground";
 import type { BackgroundPendingRequest } from "./background";
+import { isReadMethod, isWriteMethod, isSimulationMethod } from './methodClassification';
+import { handleReadOnlyRequest } from '$lib/common/listeners/background/readMethodHandler';
+import { handleSimulationRequest } from '$lib/common/listeners/background/simulationMethodHandler';
+import { handleWriteRequest } from '$lib/common/listeners/background/writeMethodHandler';
+import { sendErrorResponse } from '$lib/extensions/chrome/errorResponseHandler';
+import { MessageAnalyzer } from "./messageAnalyzer";
+import { showPopupForMethod } from "$lib/plugins/DAppPopupManager";
 
 export { requestManager };
 
@@ -37,7 +43,7 @@ interface EIP6963Message {
     message: string;
   };
 }
-
+const messageAnalyzer = new MessageAnalyzer();
 // Add before the handleEIP6963Request function
 type PermissionlessMethod = () => Promise<unknown> | unknown;
 type PermissionRequiredMethod = () => Promise<unknown>;
@@ -388,17 +394,118 @@ export async function handleWriteMethod(method: string, port: Runtime.Port, para
 }
 
 // Primary EIP-6963 Port Listener
-export async function onEIP6963PortListener(message: unknown, port: Runtime.Port) {
-  const { id, method, params = [], requiresApproval } = message as {
-    id: number;
-    method: string;
-    params?: any[];
-    requiresApproval?: boolean;
-  };
-
+export async function onEIP6963PortListener(message: any, port: Runtime.Port): Promise<void> {
   try {
-    // Skip if we've already processed this request
-    if (processedEIP6963Requests.has(id.toString())) {
+    messageAnalyzer.analyze(message);
+    // First, let's understand what we received
+    log.debug('EIP6963 handler received raw message', false, {
+      message,
+      messageType: typeof message,
+      hasMethod: 'method' in message,
+      hasType: 'type' in message,
+      timestamp: new Date().toISOString()
+    });
+
+    // Try to extract method from various possible locations
+    let method = message.method;
+    let id = message.id;
+
+    // Fallback: Check if method is nested in data or payload
+    if (!method && message.data?.method) {
+      method = message.data.method;
+      log.debug('Found method in message.data', false, { method });
+    }
+
+    // Fallback: Check if this is a wrapped message
+    if (!method && message.payload?.method) {
+      method = message.payload.method;
+      log.debug('Found method in message.payload', false, { method });
+    }
+
+    // Fallback: Check if type contains method information (e.g., "YAKKL_REQUEST:eth_accounts")
+    if (!method && message.type && typeof message.type === 'string') {
+      const typeMatch = message.type.match(/:(eth_[a-zA-Z0-9_]+)/);
+      if (typeMatch) {
+        method = typeMatch[1];
+        log.debug('Extracted method from type', false, { type: message.type, method });
+      }
+    }
+
+    // Fallback: Check for action field (some systems use action instead of method)
+    if (!method && message.action) {
+      method = message.action;
+      log.debug('Using action as method', false, { action: message.action });
+    }
+
+    // Special case: handle non-RPC messages
+    if (!method && message.type) {
+      switch (message.type) {
+        case 'ping':
+        case 'PING':
+        case 'connection_test':
+          // Handle ping/connection test
+          port.postMessage({
+            type: 'pong',
+            id: id || message.id || Date.now().toString(),
+            timestamp: Date.now()
+          });
+          log.debug('Handled ping message', false);
+          return;
+
+        case 'init':
+        case 'INIT':
+        case 'handshake':
+          // Handle initialization
+          port.postMessage({
+            type: 'init_ack',
+            id: id || message.id || Date.now().toString(),
+            status: 'ready'
+          });
+          log.debug('Handled init message', false);
+          return;
+
+        default:
+          // Log unknown message types for debugging
+          // log.warn('Unknown message type without method', false, {
+          //   type: message.type,
+          //   message
+          // });
+      }
+    }
+
+    // After all fallbacks, validate we have a method
+    if (!method) {
+      log.error('No method found in EIP6963 message after all fallbacks', false, {
+        message,
+        checkedLocations: [
+          'message.method',
+          'message.data.method',
+          'message.payload.method',
+          'message.type (extraction)',
+          'message.action'
+        ]
+      });
+
+      // If we have an ID, send a proper error response
+      if (id) {
+        sendErrorResponse(port, id, new Error('Method is required'));
+      } else {
+        // Without an ID, we can't send a proper response
+        // Log it and potentially close the connection
+        log.error('Cannot send error response - no request ID', false);
+      }
+      return;
+    }
+
+    // Now we definitely have a method, continue with normal processing
+    log.debug('EIP6963 handler processing message', false, {
+      method,
+      id,
+      timestamp: new Date().toISOString()
+    });
+
+    // Skip duplicate requests check remains the same
+    if (id && processedEIP6963Requests.has(id)) {
       log.debug('EIP6963: Skipping duplicate request:', false, {
         requestId: id,
         method,
@@ -407,50 +514,32 @@ export async function onEIP6963PortListener(message: unknown, port: Runtime.Port
       return;
     }
 
-    // Mark this request as processed
-    processedEIP6963Requests.add(id.toString());
-
-    // Clean up old processed requests (keep last 1000)
-    if (processedEIP6963Requests.size > 1000) {
-      const oldestRequests = Array.from(processedEIP6963Requests).slice(0, processedEIP6963Requests.size - 1000);
-      oldestRequests.forEach(requestId => processedEIP6963Requests.delete(requestId));
+    if (id) {
+      processedEIP6963Requests.add(id);
     }
 
-    let result: any;
-
-    // Check if method is read-only
-    if (READONLY_METHODS.includes(method as typeof READONLY_METHODS[number])) {
-      result = await handleReadOnlyMethod(method, params, id.toString());
+    // Route based on method type
+    if (isSimulationMethod(method)) {
+      log.debug('Routing to simulation handler:', false, { method });
+      await handleSimulationRequest(message, port);
+    } else if (isWriteMethod(method)) {
+      log.debug('Routing to write handler:', false, { method });
+      await handleWriteRequest(message, port);
+    } else if (isReadMethod(method)) {
+      log.debug('Routing to read handler:', false, { method });
+      await handleReadOnlyRequest(message, port);
     } else {
-      // Handle write methods that require approval
-      result = await handleWriteMethod(method, port, params, id.toString());
+      log.warn('Unknown EIP6963 method:', false, { method });
+      if (id) {
+        sendErrorResponse(port, id, new Error(`Unknown method: ${method}`));
+      }
     }
-
-    // Send success response
-    port.postMessage({
-      type: 'YAKKL_RESPONSE:EIP6963',
-      id,
-      method,
-      result
-    });
 
   } catch (error) {
-    log.error('Request failed', false, {
-      error,
-      method,
-      timestamp: new Date().toISOString()
-    });
-
-    // Send error response
-    port.postMessage({
-      type: 'YAKKL_RESPONSE:EIP6963',
-      id,
-      method,
-      error: {
-        code: error instanceof ProviderRpcError ? error.code : 4200,
-        message: error instanceof Error ? error.message : "Unknown error occurred"
-      }
-    });
+    log.error('Error in EIP6963 handler:', false, error);
+    if (message?.id) {
+      sendErrorResponse(port, message.id, error);
+    }
   }
 }
 
@@ -929,7 +1018,7 @@ export async function showEIP6963Popup(
   let popupUrl = `/dapp/popups/approve.html?requestId=${requestId}&source=eip6963&method=${method}`;
 
   // Show the popup
-  showDappPopup(popupUrl, requestId, method, 'M');
+  showPopupForMethod(method, requestId, 'M');
 
   // Return a promise that resolves when the user approves or rejects
   return new Promise<any>((resolve, reject) => {

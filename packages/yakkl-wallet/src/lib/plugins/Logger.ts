@@ -67,6 +67,7 @@ class Logger {
   private logFilterEnabled: boolean = false;
   private stackIndex = 4;
   private backend: string = "localStorage"; // Default logging backend. 'console' should always display and the other values will only get used if persist is true
+  private minLogLevel: LogLevel = LogLevel.ERROR;
 
   constructor(
     level: LogLevel = LogLevel.DEBUG,
@@ -93,6 +94,11 @@ class Logger {
       Logger.instance = new Logger();
     }
     return Logger.instance;
+  }
+
+    // Add setter for minimum log level
+  setMinimumLogLevel(level: LogLevel): void {
+    this.minLogLevel = level;
   }
 
   setLevel(level: keyof typeof LogLevel, direction: keyof typeof LogLevelDirection, logsIncluded: string[] = ['DEBUG', 'DEBUG_TRACE', 'INFO', 'INFO_TRACE', 'WARN', 'ERROR', 'ERROR_TRACE', 'TRACE']): void {
@@ -129,6 +135,10 @@ class Logger {
    */
   setBackend(backendType: string): void {
     this.backend = backendType;
+  }
+
+  getMinimumLogLevel(): LogLevel {
+    return this.minLogLevel;
   }
 
   private getTimestamp(): string {
@@ -393,6 +403,17 @@ class Logger {
     ...args: any[]
   ): void {
     try {
+      // Environment check that works in both Vite and pure TS environments
+      const isProduction = this.isProductionEnvironment();
+
+      // Check if we should log based on environment and level
+      if (isProduction) {
+        // In production, only log WARN and above
+        if (level < this.minLogLevel) {
+          return;
+        }
+      }
+
       // Always log to console first
       const { message, stack } = this.normalizeInput(input);
       const timestamp = this.getTimestamp();
@@ -421,8 +442,32 @@ class Logger {
         this.persistLog(entry);
       }
     } catch (error: any) {
-      this.error('Logging failed:', false, error);
+      if (!this.isProductionEnvironment() || level >= LogLevel.WARN) {
+        this.error('Logging failed:', false, error);
+      }
     }
+  }
+
+  private isProductionEnvironment(): boolean {
+    // Check various ways to determine if we're in production
+    if (typeof __PROD__ !== 'undefined') {
+      return __PROD__;
+    }
+
+    // For background scripts or environments without Vite
+    if (typeof process !== 'undefined' && process.env) {
+      return process.env.NODE_ENV === 'production';
+    }
+
+    // Fallback for browser environments
+    if (typeof window !== 'undefined' && window.location) {
+      // You might want to adjust this based on your production URL patterns
+      return !window.location.hostname.includes('localhost') &&
+            !window.location.hostname.includes('127.0.0.1');
+    }
+
+    // Default to development if we can't determine
+    return false;
   }
 
   debug(input: unknown, persist: boolean = false, ...args: any[]): void {

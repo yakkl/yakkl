@@ -14,25 +14,28 @@
     profileStore, yakklPreferencesStore, yakklSettingsStore, yakklCurrentlySelectedStore,
     yakklContactsStore, yakklChatsStore, yakklAccountsStore, yakklPrimaryAccountsStore,
     yakklWatchListStore, yakklBlockedListStore, yakklConnectedDomainsStore,
-		getYakklTokenData,
-		getYakklTokenDataCustom,
-		setYakklTokenDataStorage,
-		yakklTokenDataStore,
-		setYakklTokenDataCustomStorage,
-		yakklTokenDataCustomStore,
-		setYakklCombinedTokenStorage,
-		yakklCombinedTokenStore,
-		setYakklWalletProvidersStorage,
-		setYakklWalletBlockchainsStorage,
-		yakklWalletBlockchainsStore,
-		yakklWalletProvidersStore,
-		getYakklCombinedToken,
-		getYakklWalletProviders,
-		getYakklWalletBlockchains
+    getYakklTokenData,
+    getYakklTokenDataCustom,
+    setYakklTokenDataStorage,
+    yakklTokenDataStore,
+    setYakklTokenDataCustomStorage,
+    yakklTokenDataCustomStore,
+    setYakklCombinedTokenStorage,
+    yakklCombinedTokenStore,
+    setYakklWalletProvidersStorage,
+    setYakklWalletBlockchainsStorage,
+    yakklWalletBlockchainsStore,
+    yakklWalletProvidersStore,
+    getYakklCombinedToken,
+    getYakklWalletProviders,
+    getYakklWalletBlockchains
   } from '$lib/common/stores';
-  import { VERSION, type EmergencyKitMetaData } from '$lib/common';
+  import { VERSION, type EmergencyKitMetaData, isEncryptedData, type CurrentlySelectedData } from '$lib/common';
+  import { browserSvelte, browser_ext } from '$lib/common/environment';
+  import { decryptData } from '$lib/common/encryption';
   import Confirmation from './Confirmation.svelte';
-	import { log } from '$lib/plugins/Logger';
+  import { log } from '$lib/plugins/Logger';
+	import { safeLogout } from '$lib/common/safeNavigate';
 
   interface Props {
     mode?: 'import' | 'export' | 'restore';
@@ -138,7 +141,28 @@
       // Update local storage and Svelte stores
       await updateStorageAndStores(newData, existingData);
 
+      // After successful import, send YAKKL_ACCOUNT message with the currently selected account
+      // Come back to this later - this is more cosmetic and not needed for now.
+      // if (browserSvelte) {
+      //   const currentlySelected = await getYakklCurrentlySelected();
+      //   if (currentlySelected && currentlySelected.data) {
+      //     let accountData = currentlySelected.data;
+      //     if (isEncryptedData(accountData)) {
+      //       accountData = await decryptData(accountData, passwordOrSaltedKey) as CurrentlySelectedData;
+      //     }
+      //     const account = (accountData as CurrentlySelectedData).account;
+
+      //     browser_ext.runtime.sendMessage({
+      //       type: 'YAKKL_ACCOUNT',
+      //       data: account
+      //     }).catch((error: Error) => {
+      //       log.error('Error sending account message', true, error);
+      //     });
+      //   }
+      // }
+
       onComplete(true, `Emergency kit imported successfully for: ${file!.name}`);
+      safeLogout();
     } catch (err) {
       error = `Failed to import emergency kit for: ${file!.name}`;
       log.error(err);
@@ -149,6 +173,8 @@
   }
 
   async function updateStorageAndStores(newData: any, existingData: any) {
+    // Update this when new data stores are added to the wallet UNLESS it's not important to restore the given data store.
+    // Compare with EmergencyKitManager.ts for the list of data stores that are updated.
     const updateFunctions = [
       { key: 'yakklPreferencesStore', setStorage: setPreferencesStorage, store: yakklPreferencesStore },
       { key: 'yakklSettingsStore', setStorage: setSettingsStorage, store: yakklSettingsStore },
@@ -168,26 +194,60 @@
       { key: 'yakklWalletBlockchainsStore', setStorage: setYakklWalletBlockchainsStorage, store: yakklWalletBlockchainsStore },
     ];
 
+    // Validate VERSION once before the loop
+    if (typeof VERSION === 'undefined' || typeof VERSION !== 'string' || VERSION.trim() === '') {
+      log.error("VERSION is not properly defined.");
+      return;
+    }
+
+    // This version now updates the version of all of the data stores that have a version property.
     for (const { key, setStorage, store } of updateFunctions) {
-      const data = newData[key] || existingData[key];
+      const data = newData[key] || existingData[key]; // Currently a placeholder for future use and existingData is not used! This is for future use if using something like a backend database.
       if (data) {
-        if ( key === 'yakklPreferencesStore') {
-          if (data && typeof data === 'object' && !Array.isArray(data)) {
-            // Keep the metadata version of the latest version
-            if (typeof VERSION !== 'undefined' && typeof VERSION === 'string' && VERSION.trim() !== '') {
-              data['version'] = VERSION;
-            } else {
-              log.error("VERSION is not properly defined.");
-            }
-          } else {
-            log.error("Invalid 'data' object. Cannot assign 'version'.");
+        // Check if data is a valid object and has a version property
+        if (data && typeof data === 'object' && !Array.isArray(data)) {
+          // Update version if it exists (either as 'version' or 'VERSION')
+          if ('version' in data || 'VERSION' in data) {
+            data['version'] = VERSION;
+            log.info(`Updated version for ${key} to ${VERSION}`);
           }
+        } else if (data && typeof data === 'object' && Array.isArray(data)) {
+          log.warn(`${key} contains array data - version not updated`);
+        } else {
+          log.error(`Invalid data object for ${key}. Cannot assign version.`);
+          continue; // Skip this iteration
         }
 
-        await setStorage(data);
-        store.set(data);
+        try {
+          await setStorage(data);
+          store.set(data);
+        } catch (error: any) {
+          log.error(`Failed to update ${key}:`, false, error);
+        }
       }
     }
+
+    // Previous version of the code that only updated the version of preferences
+    // for (const { key, setStorage, store } of updateFunctions) {
+    //   const data = newData[key] || existingData[key];
+    //   if (data) {
+    //     if ( key === 'yakklPreferencesStore') {
+    //       if (data && typeof data === 'object' && !Array.isArray(data)) {
+    //         // Keep the metadata version of the latest version
+    //         if (typeof VERSION !== 'undefined' && typeof VERSION === 'string' && VERSION.trim() !== '') {
+    //           data['version'] = VERSION;
+    //         } else {
+    //           log.error("VERSION is not properly defined.");
+    //         }
+    //       } else {
+    //         log.error("Invalid 'data' object. Cannot assign 'version'.");
+    //       }
+    //     }
+
+    //     await setStorage(data);
+    //     store.set(data);
+    //   }
+    // }
   }
 
 </script>
@@ -212,6 +272,9 @@
         <p>Version: {metadata.version}</p>
         <p>Type: {metadata.type}</p>
         <p>Files: {metadata.files}</p>
+      </div>
+      <div class="mb-4">
+        <h4 class="text-lg font-bold">YAKKL will <span class="text-red-500 underline">auto logout</span> once the import is complete! Simply login again to continue.</h4>
       </div>
     {/if}
     <button onclick={handleImport} class="bg-green-500 text-white px-4 py-2 rounded" disabled={loading || !file}>

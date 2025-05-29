@@ -1,8 +1,8 @@
-// background.ts - Complete implementation with unified port handling
+// background.ts - Complete implementation with unified port handling and message deduplication
 import { ensureProcessPolyfill } from '$lib/common/process';
 ensureProcessPolyfill();
 
-import { initializeEIP6963, getCurrentlySelectedData } from './eip-6963';
+import { initializeEIP6963 } from './eip-6963';
 import { addBackgroundListeners } from '$lib/common/listeners/background/backgroundListeners';
 import { log } from '$lib/plugins/Logger';
 import browser from 'webextension-polyfill';
@@ -11,14 +11,17 @@ import type { Runtime } from 'webextension-polyfill';
 import { type ActiveTab } from '$lib/common';
 import { initializePermissions } from '$lib/permissions';
 import { initializeStorageDefaults, watchLockedState } from '$lib/common/backgroundUtils';
-import { KeyManager } from '$lib/plugins/KeyManager';
 import { getObjectFromLocalStorage } from '$lib/common/backgroundSecuredStorage';
 import { SecurityLevel } from '$lib/permissions/types';
 import { getAlchemyProvider } from '$lib/plugins/providers/network/ethereum_provider/alchemy';
-import type { PendingRequestData, YakklRequest, YakklResponse } from '$lib/common/interfaces';
-import { showPopup } from './ui';
+import type { PendingRequestData } from '$lib/common/interfaces';
 import { extractSecureDomain } from '$lib/common/security';
-import { getAddressesForDomain, verifyDomainConnected } from '$lib/extensions/chrome/verifyDomainConnectedBackground';
+import { sendErrorResponse } from '$lib/extensions/chrome/errorResponseHandler';
+import { isSimulationMethod, isWriteMethod, isReadMethod } from '$lib/extensions/chrome/methodClassification';
+import { handleReadOnlyRequest } from '$lib/common/listeners/background/readMethodHandler';
+import { handleSimulationRequest } from '$lib/common/listeners/background/simulationMethodHandler';
+import { handleWriteRequest } from '$lib/common/listeners/background/writeMethodHandler';
+import { initContextTracker } from './context';
 
 // Type definitions for our unified architecture
 export type RuntimePort = Runtime.Port;
@@ -38,6 +41,8 @@ export interface PortInfo {
 class ConnectionManager {
   private ports: Map<string, PortInfo> = new Map();
   private portIdCounter = 0;
+  private processedMessages = new Map<string, number>();
+  private MESSAGE_DEDUP_THRESHOLD = 500; // ms
 
   // Register a new port connection
   public registerPort(port: RuntimePort, sender?: Runtime.MessageSender): string {
@@ -101,6 +106,59 @@ class ConnectionManager {
       }
     }
   }
+
+  // Check if a message is a duplicate
+  public isDuplicateMessage(message: any): boolean {
+    if (!message || !message.type) return false;
+
+    // Skip deduplication for activity and response messages
+    if (
+      message.type === 'USER_ACTIVITY' ||
+      message.type === 'ui_context_activity' ||
+      message.type.includes('RESPONSE')
+    ) {
+      return false;
+    }
+
+    // Create a hash based on message type and id
+    const messageId = `${message.type}:${message.id || ''}:${message.contextId || ''}`;
+    const now = Date.now();
+
+    // Check if we've seen this message recently
+    const lastSeen = this.processedMessages.get(messageId);
+    if (lastSeen && now - lastSeen < this.MESSAGE_DEDUP_THRESHOLD) {
+      return true; // Duplicate message
+    }
+
+    // Track this message
+    this.processedMessages.set(messageId, now);
+    return false;
+  }
+
+  // Clean up old message tracking entries
+  public cleanupProcessedMessages(): void {
+    const now = Date.now();
+    const cutoffTime = now - 60000; // 1 minute
+
+    for (const [messageId, timestamp] of this.processedMessages.entries()) {
+      if (timestamp < cutoffTime) {
+        this.processedMessages.delete(messageId);
+      }
+    }
+
+    // Keep map at reasonable size
+    if (this.processedMessages.size > 5000) {
+      const entriesToDelete = this.processedMessages.size - 4000;
+      const entries = Array.from(this.processedMessages.entries())
+        .sort((a, b) => a[1] - b[1])
+        .slice(0, entriesToDelete)
+        .map(entry => entry[0]);
+
+      for (const messageId of entries) {
+        this.processedMessages.delete(messageId);
+      }
+    }
+  }
 }
 
 // Create our connection manager instance
@@ -124,6 +182,24 @@ export const pendingRequests = new Map<string, BackgroundPendingRequest>();
 // Track processed requests to prevent duplicates
 const processedBackgroundRequests = new Set<string>();
 
+// Debug helper - redirects to context.ts
+export function getIdleManagerStatus() {
+  // Import from context.ts
+  const { getIdleStatus } = require('./context');
+  return getIdleStatus();
+}
+
+// Update global debug object to point to the new implementation
+if (typeof self !== 'undefined' && (self as any).YAKKLDebug) {
+  // If debug API already exists, update it
+  (self as any).YAKKLDebug = {
+    ...(self as any).YAKKLDebug,
+    idleManager: {
+      getStatus: getIdleManagerStatus
+    }
+  };
+}
+
 // Main port connection handler
 browser.runtime.onConnect.addListener((port: RuntimePort) => {
   const sender = port.sender;
@@ -141,28 +217,39 @@ browser.runtime.onConnect.addListener((port: RuntimePort) => {
     try {
       connectionManager.updateActivity(portId);
 
+      // Extract actual message content if nested
+      const actualMessage = message.message || message;
+
+      // Check for duplicate messages to prevent handling flood
+      if (connectionManager.isDuplicateMessage(actualMessage)) {
+        log.debug('Background: Dropping duplicate message:', false, {
+          type: actualMessage.type
+        });
+        return;
+      }
+
       log.debug('Background: Message received on port:', false, {
         portId,
-        message,
+        type: actualMessage.type,
         timestamp: new Date().toISOString()
       });
 
       // Handle different message sources
-      if (message.source === 'content' || message.source === 'provider') {
+      if (actualMessage.source === 'content' || actualMessage.source === 'provider') {
         log.debug('Background: Handling provider message:', false, {
           portId,
-          message,
+          type: actualMessage.type,
           timestamp: new Date().toISOString()
         });
-        await handleProviderMessage(message, port, portId);
+        await handleProviderMessage(actualMessage, port, portId);
       } else {
         // Handle other message types based on the message itself
         log.debug('Background: Handling general message:', false, {
           portId,
-          message,
+          type: actualMessage.type,
           timestamp: new Date().toISOString()
         });
-        await handleGeneralMessage(message, port, portId);
+        await handleGeneralMessage(actualMessage, port, portId);
       }
     } catch (error) {
       log.error('Error handling port message:', false, error);
@@ -197,19 +284,36 @@ async function handleProviderMessage(message: any, port: RuntimePort, portId: st
 
   if (message.id) {
     processedBackgroundRequests.add(message.id);
-
-    // Clean up old processed requests
-    if (processedBackgroundRequests.size > 1000) {
-      const oldestRequests = Array.from(processedBackgroundRequests).slice(0, 100);
-      oldestRequests.forEach(id => processedBackgroundRequests.delete(id));
-    }
   }
 
   // Handle different message types
   switch (message.type) {
     case 'YAKKL_REQUEST:EIP6963':
     case 'YAKKL_REQUEST:EIP1193':
-      await handleProviderRequest(message as YakklRequest, port);
+      // Route to appropriate handler based on method type
+      const method = message.method;
+
+      if (!method) {
+        log.warn('No method specified in provider message:', false, message);
+        sendErrorResponse(port, message.id, new Error('Method is required'));
+        return;
+      }
+
+      try {
+        if (isSimulationMethod(method)) {
+          await handleSimulationRequest(message, port);
+        } else if (isWriteMethod(method)) {
+          await handleWriteRequest(message, port);
+        } else if (isReadMethod(method)) {
+          await handleReadOnlyRequest(message, port);
+        } else {
+          log.warn('Unknown provider method:', false, { method });
+          sendErrorResponse(port, message.id, new Error(`Unknown method: ${method}`));
+        }
+      } catch (error) {
+        log.error('Error handling provider message:', false, error);
+        sendErrorResponse(port, message.id, error);
+      }
       break;
 
     case 'CONNECTION_TEST':
@@ -220,179 +324,52 @@ async function handleProviderMessage(message: any, port: RuntimePort, portId: st
       });
       break;
 
-    default:
-      log.debug('Unknown provider message type:', false, message.type);
-  }
-}
-
-// Handle provider requests
-async function handleProviderRequest(request: YakklRequest, port: RuntimePort) {
-  const { id, method, params, requiresApproval } = request;
-
-  try {
-    log.debug('Processing provider request:', false, {
-      id,
-      method,
-      requiresApproval,
-      timestamp: new Date().toISOString()
-    });
-
-    // Handle approval-required methods
-    if (requiresApproval) {
-      await handleApprovalRequest(request, port);
-      return;
-    }
-
-    // Handle direct methods - pass the entire request object
-    const result = await handleDirectMethod(method, params || [], request);
-
-    // Send response
-    const response: YakklResponse = {
-      type: 'YAKKL_RESPONSE:EIP6963',
-      id,
-      result,
-      jsonrpc: '2.0',
-      method
-    };
-
-    log.debug('Sending provider response:', false, {
-      id: response.id,
-      method: response.method,
-      type: response.type,
-      hasResult: result !== undefined,
-      timestamp: new Date().toISOString()
-    });
-
-    port.postMessage(response);
-
-    log.debug('Provider response sent successfully', false, { id: response.id });
-  } catch (error) {
-    log.error('Error in handleProviderRequest:', false, { id, method, error });
-    sendErrorResponse(port, id, error);
-  }
-}
-
-// Handle methods that require user approval
-async function handleApprovalRequest(request: YakklRequest, port: RuntimePort) {
-  const { id, method, params } = request;
-
-  try {
-    // Get current tab information
-    const portInfo = Array.from(connectionManager['ports'].values())
-      .find(info => info.port === port);
-
-    const tabInfo = await getTabInfoForPort(portInfo);
-
-    // Store pending request
-    const pendingRequest: BackgroundPendingRequest = {
-      resolve: (result: any) => {
-        port.postMessage({
-          type: 'YAKKL_RESPONSE:EIP6963',
-          id,
-          result,
-          method,
-          jsonrpc: '2.0'
-        });
-      },
-      reject: (error: any) => {
-        sendErrorResponse(port, id, error);
-      },
-      port,
-      data: {
-        id,
-        method,
-        params: params || [],
-        requiresApproval: true,
-        timestamp: Date.now(),
-        metaData: {
-          method,
-          params: params || [],
-          metaData: {
-            domain: tabInfo.domain,
-            isConnected: await verifyDomainConnected(tabInfo.domain),
-            icon: tabInfo.icon,
-            title: tabInfo.title,
-            origin: tabInfo.url,
-            message: getApprovalMessage(method, params)
-          }
-        }
-      }
-    };
-
-    pendingRequests.set(id, pendingRequest);
-
-    // Show approval popup
-    const { showEIP6963Popup } = await import('./eip-6963');
-    await showEIP6963Popup(method, params || [], port, id);
-  } catch (error) {
-    log.error('Error handling approval request:', false, error);
-    sendErrorResponse(port, id, error);
-  }
-}
-
-// Handle direct methods (no approval needed)
-async function handleDirectMethod(method: string, params: any[], request?: any): Promise<any> {
-  const yakklCurrentlySelectedData = await getCurrentlySelectedData();
-
-  switch (method) {
-    case 'eth_chainId':
-      return yakklCurrentlySelectedData?.chainId || '0x1';
-
-    case 'eth_accounts':
-      // Try to get origin from multiple possible locations
-      let origin = '';
-
-      // First, check if the origin is in the request object
-      if (request?.origin) {
-        origin = request.origin;
-      }
-      // Then check if it's in the params
-      else if (params && params.length > 0) {
-        const lastParam = params[params.length - 1];
-        if (typeof lastParam === 'object' && lastParam.origin) {
-          origin = lastParam.origin;
-        }
-      }
-
-      // If we still don't have an origin, we can't proceed safely
-      if (!origin) {
-        log.warn('No origin provided for eth_accounts request', false);
-        return [];
-      }
-
-      try {
-        const domain = extractSecureDomain(origin);
-        const isConnected = await verifyDomainConnected(domain);
-
-        if (!isConnected) {
-          return [];
-        }
-
-        return await getAddressesForDomain(domain);
-      } catch (error) {
-        log.error('Error extracting domain or checking connection:', false, error);
-        return [];
-      }
-
-    case 'net_version':
-      const chainId = yakklCurrentlySelectedData?.chainId;
-      if (!chainId) return '1';
-
-      const chainIdStr = typeof chainId === 'string' ? chainId : `0x${chainId.toString(16)}`;
-      return parseInt(chainIdStr.replace('0x', ''), 16).toString();
+    case 'clientReady':
+      // Client is ready, just acknowledge
+      port.postMessage({
+        type: 'clientReady_response',
+        id: message.id,
+        success: true
+      });
+      break;
 
     default:
-      // For other methods, delegate to the network provider
-      const provider = getAlchemyProvider();
-      return provider.request({ method, params });
+      // Handle through unified message handler
+      await handleUnknownMessage(message, port, portId);
   }
 }
 
 // Handle general messages (not provider-specific)
-// In handleGeneralMessage function, add a case for responses
 async function handleGeneralMessage(message: any, port: RuntimePort, portId: string) {
-  // Route messages based on type
-  switch (message.type) {
+  // Extract actual message if needed
+  const actualMessage = message.message || message;
+
+  // List of one-way messages that should always get immediate responses
+  const oneWayMessages = [
+    'clientReady',
+    'ui_context_initialized',
+    'ui_context_activity',
+    'ui_context_closing',
+    'SET_LOGIN_VERIFIED',
+    'USER_ACTIVITY'
+  ];
+
+  // Check if this is a one-way message type
+  if (oneWayMessages.includes(actualMessage.type)) {
+    // Send immediate acknowledgment response
+    try {
+      port.postMessage({
+        type: `${actualMessage.type}_response`,
+        id: actualMessage.id || actualMessage.messageId,
+        success: true
+      });
+    } catch (err) {
+      // If port is closed, ignore the error
+    }
+  }
+
+  // Then proceed with regular message handling
+  switch (actualMessage.type) {
     case 'SECURITY_CONFIG_REQUEST':
       // Handle security configuration requests
       const securityLevel = await getSecurityLevel();
@@ -403,15 +380,57 @@ async function handleGeneralMessage(message: any, port: RuntimePort, portId: str
       });
       break;
 
-    // Add this new case to handle responses
     case 'YAKKL_RESPONSE:EIP6963':
     case 'YAKKL_RESPONSE:EIP1193':
-      await handleProviderResponse(message, port, portId);
+      await handleProviderResponse(actualMessage, port, portId);
+      break;
+
+    case 'clientReady':
+      // Client is ready, already acknowledged above
+      break;
+
+    case 'ui_context_initialized':
+    case 'ui_context_activity':
+    case 'ui_context_closing':
+    case 'SET_LOGIN_VERIFIED':
+    case 'USER_ACTIVITY':
+    case 'IDLE_MANAGER_START':
+    case 'GET_IDLE_STATUS':
+      // These are handled by context tracker, no need to handle again
       break;
 
     default:
-      // Try legacy handlers if needed
-      await handleLegacyMessage(message, port);
+      // Try legacy handlers or handle unknown message
+      await handleUnknownMessage(actualMessage, port, portId);
+  }
+}
+
+// New function to handle unknown message types
+async function handleUnknownMessage(message: any, port: RuntimePort, portId: string) {
+  // Log unknown message types, but only once per type to avoid log flooding
+  const seenUnknownMessageTypes = new Map<string, number>();
+  const now = Date.now();
+
+  // Only log unknown message types once per minute
+  if (!seenUnknownMessageTypes.has(message.type) ||
+      now - seenUnknownMessageTypes.get(message.type)! > 60000) {
+    log.debug('Unknown message type received:', false, {
+      type: message.type,
+      portId
+    });
+    seenUnknownMessageTypes.set(message.type, now);
+  }
+
+  // Keep the map size reasonable
+  if (seenUnknownMessageTypes.size > 100) {
+    const oldestTypesToRemove = Array.from(seenUnknownMessageTypes.entries())
+      .sort((a, b) => a[1] - b[1])
+      .slice(0, 50)
+      .map(entry => entry[0]);
+
+    for (const type of oldestTypesToRemove) {
+      seenUnknownMessageTypes.delete(type);
+    }
   }
 }
 
@@ -507,25 +526,6 @@ function getApprovalMessage(method: string, params?: any[]): string {
   }
 }
 
-// Send error response to port
-function sendErrorResponse(port: RuntimePort, id: string, error: any) {
-  const errorResponse: YakklResponse = {
-    type: 'YAKKL_RESPONSE:EIP6963',
-    id,
-    error: {
-      code: error.code || -32603,
-      message: error.message || 'Internal error'
-    },
-    jsonrpc: '2.0'
-  };
-
-  try {
-    port.postMessage(errorResponse);
-  } catch (e) {
-    log.error('Failed to send error response:', false, e);
-  }
-}
-
 // Clean up pending requests for a disconnected port
 function cleanupPendingRequestsForPort(port: RuntimePort) {
   for (const [id, request] of pendingRequests.entries()) {
@@ -583,12 +583,6 @@ function shouldInjectIframes(securityLevel: SecurityLevel): boolean {
   }
 }
 
-// Handle legacy messages for backward compatibility
-async function handleLegacyMessage(message: any, port: RuntimePort) {
-  // Add any legacy message handling here if needed
-  log.debug('Unhandled message type:', false, { type: message.type });
-}
-
 // Setup provider event broadcasting
 function setupProviderEvents() {
   const provider = getAlchemyProvider();
@@ -620,13 +614,13 @@ function broadcastEvent(eventName: string, data: any) {
   };
 
   // Send to all connected ports
-  connectionManager['ports'].forEach((portInfo) => {
+  for (const [portId, portInfo] of Object.entries(connectionManager['ports'])) {
     try {
       portInfo.port.postMessage(event);
     } catch (error) {
       log.debug('Failed to send event to port:', false, error);
     }
-  });
+  }
 }
 
 // Initialize background script
@@ -634,9 +628,14 @@ async function initializeBackground() {
   try {
     log.debug('Initializing background script...', false);
 
+    if (typeof chrome !== "undefined" && chrome.sidePanel) {
+      log.info('Background initializing: chrome.sidePanel is defined');
+      chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }); // Using sidepanel as default now
+    }
+
     // Initialize core components
     await initializeStorageDefaults();
-    await initializePermissions();
+    initializePermissions();
     initializeEIP6963();
 
     // Add listeners
@@ -649,11 +648,14 @@ async function initializeBackground() {
     // Start periodic cleanup
     setInterval(() => {
       connectionManager.cleanupInactivePorts();
+      connectionManager.cleanupProcessedMessages();
       cleanupOldProcessedRequests();
     }, 60000); // Every minute
 
     // Watch locked state
     await watchLockedState(2 * 60 * 1000);
+
+    initContextTracker();
 
     log.debug('Background script initialized successfully', false);
   } catch (error) {
@@ -683,51 +685,14 @@ function cleanupOldProcessedRequests() {
   }
 }
 
-// Initialize keymanager and storage (if needed)
-async function initializeKeyManager(): Promise<void> {
-  try {
-    const keyManager = await KeyManager.getInstance();
-    log.debug('KeyManager initialized', false);
-  } catch (error) {
-    log.error('Failed to initialize KeyManager', false, error);
-  }
-}
-
-// Handle runtime messages (for non-port communication)
-export async function onRuntimeMessageBackgroundListener(
-  message: any,
-  sender: Runtime.MessageSender
-): Promise<any> {
-  try {
-    switch (message.type) {
-      case 'getActiveTab':
-        const activeTab = await getActiveTab();
-        return { success: true, activeTab };
-
-      case 'popout':
-        showPopup('');
-        return { success: true };
-
-      default:
-        return undefined;
-    }
-  } catch (error: any) {
-    log.error('Error handling runtime message:', false, error);
-    return {
-      success: false,
-      error: error?.message || 'Unknown error occurred.'
-    };
-  }
-}
-
-// Get active tab information
+// Get active tab information - unifiedMessageListener handles this now but keep for possible future use
 async function getActiveTab(): Promise<ActiveTab | null> {
   try {
     const tabs = await browser.tabs.query({ active: true });
 
     if (tabs.length > 0) {
       const realTab = tabs.find(t => !t.url?.startsWith('chrome-extension://'));
-      if (realTab) {
+      if (realTab && browser.windows) {
         const win = await browser.windows.get(realTab.windowId);
         return {
           tabId: realTab.id,
@@ -747,6 +712,7 @@ async function getActiveTab(): Promise<ActiveTab | null> {
     return null;
   }
 }
+
 
 // Export the connection manager for testing and debugging
 (globalThis as any).connectionManager = connectionManager;

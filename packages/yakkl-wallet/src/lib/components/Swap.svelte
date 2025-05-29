@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { log } from '$plugins/Logger';
+	import { log } from '$lib/common/logger-wrapper';
   import { onDestroy, onMount } from 'svelte';
   import type { Profile, ProfileData, SwapParams, SwapPriceData, SwapToken } from '$lib/common/interfaces';
   import SellTokenPanel from './SellTokenPanel.svelte';
@@ -196,7 +196,7 @@
       reset();
       const yakklMiscStore = getMiscStore();
       if (!yakklMiscStore) {
-        log.error('User is not logged in.');
+        log.info('User is not logged in yet, so no swap is possible.');
         return;
       }
 

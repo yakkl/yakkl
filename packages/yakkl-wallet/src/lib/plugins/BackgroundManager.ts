@@ -1,5 +1,5 @@
 import { browser_ext } from '$lib/common/environment';
-import { log } from '$plugins/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import type { Runtime } from 'webextension-polyfill';
 
 export interface QueuedMessage<T = unknown> {

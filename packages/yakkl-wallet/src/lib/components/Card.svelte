@@ -24,7 +24,6 @@
 	import ProtectedValue from './ProtectedValue.svelte';
 	import { tokenTotals } from '$lib/common/stores/tokenTotals'; // Used to display portfolio value in html below
   import { browserSvelte, browser_ext } from '$lib/common/environment';
-	import { handleOnMessageForPricing } from '$lib/common/listeners/ui/uiListeners';
   import { log } from "$plugins/Logger";
 	import Copy from './Copy.svelte';
   import { TimerManager } from '$lib/plugins/TimerManager';
@@ -165,6 +164,19 @@
     try {
       if (browserSvelte) {
         await browser_ext.runtime.sendMessage({ type: 'clientReady' }); // Safeguard to ensure the client is ready before sending messages
+
+        // Add message listener for YAKKL_ACCOUNT
+        // Come back to this later - this is more cosmetic and not needed for now.
+        // browser_ext.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
+        //   log.info('YAKKL_ACCOUNT message received', false, message);
+        //   const typedMessage = message as { type: string; data: YakklAccount };
+        //   if (typedMessage.type === 'YAKKL_ACCOUNT' && typedMessage.data) {
+        //     handleAccounts(typedMessage.data);
+        //     sendResponse({ success: true });
+        //     log.info('YAKKL_ACCOUNT message sent', false, { success: true });
+        //   }
+        //   return true;
+        // });
 
         startPricingChecks();
         await updateTokenPrices(); // Initial token price update
@@ -327,6 +339,8 @@
         log.warn("Account is not defined.");
         return;
       }
+
+      log.info('handleAccounts - Account received', false, account);
 
       let updatedCurrentlySelected = $yakklCurrentlySelectedStore;
 

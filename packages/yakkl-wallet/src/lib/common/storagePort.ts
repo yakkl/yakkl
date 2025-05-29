@@ -2,6 +2,7 @@ import { getBrowserExt } from "$lib/browser-polyfill-wrapper";
 import { log } from "$lib/plugins/Logger";
 import type { Runtime } from "webextension-polyfill";
 import type { StorageRequest, StorageResponse } from "./storageTypes";
+import { getSafeUUID } from "./uuid";
 
 // storage-port.ts
 export class StoragePort {
@@ -99,7 +100,7 @@ export class StoragePort {
       await this.connect();
       if (!this.port) throw new Error('Failed to establish storage port');
 
-      const requestId = crypto.randomUUID();
+      const requestId = getSafeUUID();
       return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
           this.pendingRequests.delete(requestId);

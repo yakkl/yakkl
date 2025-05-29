@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { log } from '$plugins/Logger';
+  import { log } from '$lib/common/logger-wrapper';
 
 // NOTE: WIP - Adding a network form to the wallet
 
