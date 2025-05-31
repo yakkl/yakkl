@@ -3,11 +3,16 @@
     newsItem: {
       title: string;
       subtitle: string;
-      content: string;
+      description: string;
+      content?: string;
       imageUrl: string;
       source: string;
       date: string;
       url: string;
+      guid?: string;
+      categories?: string[];
+      author?: string;
+      publishedAt?: string;
     };
     className?: string;
   }
@@ -17,7 +22,7 @@
   // Check if the news item has all required properties
   const isValidNewsItem = newsItem &&
     newsItem.title &&
-    newsItem.content &&
+    newsItem.description &&
     newsItem.imageUrl &&
     newsItem.source &&
     newsItem.date &&
@@ -40,7 +45,7 @@
             class="w-16 h-16 object-cover rounded-md"
           />
         </div>
-        <div class="flex-1 min-w-0">
+        <div class="flex-1 min-w-0 pr-0">
           <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
             {newsItem.title}
           </h3>
@@ -50,7 +55,7 @@
             <span>{newsItem.date}</span>
           </div>
           <p class="text-xs text-gray-600 dark:text-gray-300 mt-1 line-clamp-2">
-            {newsItem.content}
+            {newsItem.description}
           </p>
         </div>
       </div>
