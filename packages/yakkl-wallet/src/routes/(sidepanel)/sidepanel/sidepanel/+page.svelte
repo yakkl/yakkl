@@ -21,6 +21,7 @@
 	import { log } from '$lib/common/logger-wrapper';
 	import { setBadgeText } from '$lib/utilities/utilities';
 	import Copyright from '$lib/components/Copyright.svelte';
+	import BookmarkedArticles from '$lib/components/BookmarkedArticles.svelte';
 
   let showEthConverter = $state(false);
   let showTokenFiatConverter = $state(false);
@@ -203,6 +204,9 @@
           className="bg-white dark:bg-gray-900 rounded-lg shadow-md"
         />
       </SectionCard>
+
+      <!-- Bookmarked Articles Card -->
+      <BookmarkedArticles />
 
       <!-- Utilities Card -->
       <SectionCard

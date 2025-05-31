@@ -72,6 +72,8 @@ import { tokens } from './stores/tokens';
 // import { timerManagerStore } from '$lib/plugins/TimerManager';
 import { log } from "$plugins/Logger";
 import { AccountTypeCategory, NetworkType } from '$lib/common/types';
+import { browser_ext } from '$lib/common/environment';
+import type { RSSItem } from '$lib/plugins/ExtensionRSSFeedService';
 
 // Svelte writeable stores
 export const alert = writable({
@@ -195,6 +197,9 @@ export const yakklContractStore = writable<ContractData>({
   functions: []
 });
 export const yakklContextTypeStore = writable<string>(undefined);
+
+// Bookmarked Articles Store
+export const yakklBookmarkedArticlesStore = writable<RSSItem[]>([]);
 
 // --------------------------------
 
@@ -1354,4 +1359,31 @@ export function updateCombinedTokenStore() {
   const combinedTokens = [...get(yakklTokenDataStore), ...get(yakklTokenDataCustomStore)];
   yakklCombinedTokenStore.set(combinedTokens); // Single reactive update for the combined tokens
 }
+
+// Bookmarked Articles Storage
+export async function getYakklBookmarkedArticles(): Promise<RSSItem[]> {
+  try {
+    const result = await getObjectFromLocalStorage<RSSItem[]>('yakklBookmarkedArticles');
+    const articles = result || [];
+    yakklBookmarkedArticlesStore.set(articles); // Ensure store is in sync
+    return articles;
+  } catch (error) {
+    console.error('Error getting bookmarked articles:', error);
+    return [];
+  }
+}
+
+export async function setYakklBookmarkedArticles(articles: RSSItem[]): Promise<void> {
+  try {
+    await setObjectInLocalStorage('yakklBookmarkedArticles', articles);
+    yakklBookmarkedArticlesStore.set(articles); // Update store after storage
+  } catch (error) {
+    console.error('Error setting bookmarked articles:', error);
+  }
+}
+
+// Initialize bookmarked articles from storage
+getYakklBookmarkedArticles().then(articles => {
+  yakklBookmarkedArticlesStore.set(articles);
+});
 
