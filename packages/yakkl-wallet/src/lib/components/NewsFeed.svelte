@@ -3,15 +3,22 @@
   import ChevronDownIcon from '$lib/components/icons/ChevronDownIcon.svelte';
   import ChevronUpIcon from '$lib/components/icons/ChevronUpIcon.svelte';
   import NewsFeedLineView from './NewsFeedLineView.svelte';
+  import ArticleControls from './ArticleControls.svelte';
+	import { yakklBookmarkedArticlesStore } from '$lib/common/stores';
 
   interface NewsItem {
     title: string;
     subtitle: string;
-    content: string;
+    description: string;
+    content?: string;
     imageUrl: string;
     source: string;
     date: string;
     url: string;
+    guid?: string;
+    categories?: string[];
+    author?: string;
+    publishedAt?: string;
   }
 
   interface Props {
@@ -45,8 +52,11 @@
     <!-- Visible Items Section -->
     <div class="space-y-0">
       {#each visibleItems as item, index}
-        <div class="relative">
-          <NewsFeedLineView newsItem={item} />
+        <div class="relative group">
+          <div class="group-hover:bg-gray-50 dark:group-hover:bg-zinc-800/50 transition-colors duration-200">
+            <NewsFeedLineView newsItem={item} />
+          </div>
+          <ArticleControls article={item} />
           {#if index < visibleItems.length - 1}
             <div class="flex justify-center">
               <div class="w-[80%] h-[1px] bg-gray-200 dark:bg-gray-700"></div>
@@ -76,8 +86,11 @@
         {#if !isRemainingSectionCollapsed}
           <div class="space-y-0">
             {#each remainingItems as item, index}
-              <div class="relative">
-                <NewsFeedLineView newsItem={item} />
+              <div class="relative group">
+                <div class="group-hover:bg-gray-50 dark:group-hover:bg-zinc-800/50 transition-colors duration-200">
+                  <NewsFeedLineView newsItem={item} />
+                </div>
+                <ArticleControls article={item} />
                 {#if index < remainingItems.length - 1}
                   <div class="flex justify-center">
                     <div class="w-[80%] h-[1px] bg-gray-200 dark:bg-gray-700"></div>
