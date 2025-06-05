@@ -1,19 +1,80 @@
 /* eslint-disable no-debugger */
 import { type ErrorBody, type ParsedError } from '$lib/common';
-import { AccountTypeCategory } from '$lib/common/types';
+import { AccountTypeCategory, RegistrationType } from '$lib/common/types';
 import type { YakklAccount, YakklPrimaryAccount } from '$lib/common/interfaces';
-import { getYakklAccounts, getYakklPrimaryAccounts, yakklAccountsStore, setYakklAccountsStorage, setYakklPrimaryAccountsStorage, yakklPrimaryAccountsStore } from '$lib/common/stores';
+import { getYakklAccounts, getYakklPrimaryAccounts, yakklAccountsStore, setYakklAccountsStorage, setYakklPrimaryAccountsStorage, yakklPrimaryAccountsStore, getSettings, setSettingsStorage } from '$lib/common/stores';
 import { browser_ext } from './environment';
 import { ethers as ethersv6 } from 'ethers-v6';
 import { get } from 'svelte/store';
 import { log } from "$lib/plugins/Logger";
 import type { Runtime } from 'webextension-polyfill';
 
+// Global flag to track extension context validity
+let extensionContextValid = true;
+
+// Queue for operations that need valid extension context
+const contextDependentOperations: Array<() => void> = [];
+
 export function isExtensionContextValid(): boolean {
   try {
-    return !!(chrome?.runtime?.id || browser_ext?.runtime?.id);
-  } catch {
+    // Multiple checks to ensure context is valid
+    if (!browser_ext?.runtime?.id) {
+      return false;
+    }
+
+    // Try to access extension URL to test context
+    if (browser_ext.runtime.getURL) {
+      browser_ext.runtime.getURL('/');
+    }
+
+    return true;
+  } catch (error) {
     return false;
+  }
+}
+
+/**
+ * Validate extension context and update global flag
+ */
+function validateExtensionContext(): boolean {
+  const wasValid = extensionContextValid;
+  extensionContextValid = isExtensionContextValid();
+
+  if (wasValid && !extensionContextValid) {
+    log.warn('[ExtensionContext] Extension context became invalid');
+    // Clear any pending operations
+    contextDependentOperations.length = 0;
+  } else if (!wasValid && extensionContextValid) {
+    log.info('[ExtensionContext] Extension context restored');
+    // Execute queued operations
+    while (contextDependentOperations.length > 0) {
+      const operation = contextDependentOperations.shift();
+      try {
+        operation?.();
+      } catch (error) {
+        log.warn('[ExtensionContext] Error executing queued operation:', false, error);
+      }
+    }
+  }
+
+  return extensionContextValid;
+}
+
+export async function isPro(): Promise<boolean> {
+  const settings = await getSettings();
+  return settings?.registeredType === RegistrationType.PRO;
+}
+
+export async function isStandard(): Promise<boolean> {
+  const settings = await getSettings();
+  return settings?.registeredType === RegistrationType.STANDARD;
+}
+
+export async function setRegistrationType(type: RegistrationType): Promise<void> {
+  const settings = await getSettings();
+  if (settings) {
+    settings.registeredType = type;
+    await setSettingsStorage(settings); // You should have something that handles both local state and extension storage sync
   }
 }
 

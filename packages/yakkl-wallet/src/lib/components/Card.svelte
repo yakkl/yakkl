@@ -17,9 +17,11 @@
   import Tokens from './Tokens.svelte';
 	import Receive from './Receive.svelte';
 	import ImportPrivateKey from './ImportPrivateKey.svelte';
+	import Upgrade from './Upgrade.svelte';
 	import type { Blockchain } from '$lib/plugins/Blockchain';
 	import type { TokenService } from '$lib/plugins/blockchains/evm/TokenService';
 	import type { Provider } from '$lib/plugins/Provider';
+	import type { Settings } from '$lib/common/interfaces';
 	import EyeIcon from './icons/EyeIcon.svelte';
 	import ProtectedValue from './ProtectedValue.svelte';
 	import { tokenTotals } from '$lib/common/stores/tokenTotals'; // Used to display portfolio value in html below
@@ -28,6 +30,8 @@
 	import Copy from './Copy.svelte';
   import { TimerManager } from '$lib/plugins/TimerManager';
   import { updateTokenPrices } from '$lib/common/tokenPriceManager';
+  import { getSettings } from '$lib/common/stores';
+  import { RegistrationType } from '$lib/common/types';
   // import { broadcastToEIP6963Ports } from '$lib/extensions/chrome/eip-6963'; // Test
 
   interface Props {
@@ -73,6 +77,7 @@
   let showContacts = $state(false);
   let showTokens = $state(false);
   let showRecv = $state(false);
+  let showUpgradeModal = $state(false);
 
   // let userName = $yakklUserNameStore;
   // let upgrade = $state(false);
@@ -102,6 +107,9 @@
   let isDropdownOpen = $state(false);
 
   let tokens: TokenData[] = [];
+
+  let settings = $state<Settings | null>(null);
+  let registrationType = $state<RegistrationType>(RegistrationType.STANDARD);
 
   $effect(() => {
     (async () => {
@@ -214,6 +222,11 @@
           await setYakklCurrentlySelectedStorage(currentlySelected); // This updates the store and local storage
           if ($yakklCurrentlySelectedStore.shortcuts.quantity) await updateValuePriceFiat();
           // updateUpgradeButton();
+        }
+
+        settings = await getSettings();
+        if (settings) {
+          registrationType = settings.registeredType as RegistrationType;
         }
       }
     } catch (e) {
@@ -602,69 +615,7 @@
 <Tokens bind:show={showTokens} onTokenSelect={handleToken} />
 <Receive bind:show={showRecv} address={address} />
 <ImportPrivateKey bind:show={showAccountImportModal} onComplete={handleImport} className="text-gray-600 z-[999]"/>
-
-<!-- Move to Upgrade.svelte -->
-<!-- <Modal title="Upgrade to Pro" bind:open={upgrade} size="xs" class="xs" color="purple">
-  <div class="text-center m-2">
-    {#if !step1}
-    <div id="step1" class="border border-purple-500 rounded-lg w-full mb-2 p-2 ">
-      <form class="w-full" onsubmit={preventDefault(handleSubmit)}>
-        <div class="pt-1 item-center w-full text-left mb-2">
-          <span class="text-md text-purple-800 font-bold text-left mt-2 mb-1">Email required for upgrading:*</span>
-          <input id="email"
-              class="w-full px-3 md:py-2 py-1 text-lg font-normal text-gray-700 bg-gray-100  border border-solid border-gray-300 transition ease-in-out m-0 focus:text-gray-700 focus:bg-white focus:border-blue-600 focus:outline-none"
-              placeholder="Email"
-              autocomplete="off"
-              bind:value="{$form.email}"
-              onchange={handleChange}
-              aria-label="Email"
-              required />
-          {#if $errors.email}
-          <small class="text-red-600 font-bold animate-pulse">{$errors.email}</small>
-          {/if}
-
-          <p class="text-md font-normal">Step 1. <span class="font-bold">Email is required for LATER billing.</span> Entering it here will automatically prefill the billing page (browser window). Billing is handled by Stripe and billing data is maintained there as well. Once you do that you can remove it, but the vendor requires it.</p>
-          {#if promoCode === 'IYO'}
-          <p class="text-md text-red">NOTE: The <span class="font-bold">IYO</span> promo code is being automatically passed to the processor. This means you get the Pro version for FREE because you're participating in our BETA release. Stripe, our processor, will prompt for a credit/debit card even though there will be NO CHARGE! This is for the annual recurring billing of $29.99. You can cancel that at any time.</p>
-          {/if}
-        </div>
-        <div class="mb-2">
-          <Button type="submit" id="continue">1. Continue
-            <span class="ml-2">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-              </svg>
-            </span>
-          </Button>
-        </div>
-      </form>
-    </div>
-    {/if}
-
-    {#if step1}
-    <div id="step2" class="border border-primary rounded-lg w-full my-2 p-2 ">
-      <form class="w-full" onsubmit={handleUpgradeSave}>
-        <div class="pt-1 item-center w-full text-left">
-        <span class="text-md text-purple-800 font-bold text-left mt-2 mb-1">Pro Serial Number:*</span>
-        <input id="serialNumber"
-            class="w-full px-3 md:py-2 py-1 text-lg font-normal text-gray-700 bg-gray-100  border border-solid border-gray-300 transition ease-in-out m-0 focus:text-gray-700 focus:bg-white focus:border-blue-600 focus:outline-none"
-            placeholder="Serial Number" autocomplete="off" bind:value="{serialNumber}" aria-label="Serial Number" required />
-        <p class="text-md font-normal">Step 2 (Final). After entering the billing information in the browser window, a serial number will be generated and emailed to you. Copy that value and paste it in the Registration Dialog that will popup prompting for the registration key. Click complete and that's it!</p>
-        </div>
-        <div class="mb-2">
-          <Button type="submit" id="complete" >2. Complete</Button>
-        </div>
-      </form>
-    </div>
-    {/if}
-  </div>
-  {#snippet footer()}
-
-      <p class="text-lg font-bold">Great choice!</p>
-      <p class="text-sm font-normal">A number of advanced features can be unlocked by upgrading to Pro. Copy the serial number from the website (after completing the purchase) and paste it into the serial number field above and save. That's it!</p>
-
-          {/snippet}
-</Modal> -->
+<Upgrade bind:show={showUpgradeModal} />
 {/if}
 {/await}
 
@@ -706,12 +657,12 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
           </svg>
         </SpeedDialButton>
-        <!-- <SpeedDialButton name="Lock" on:click={() => goto(PATH_LOCK)} class="w-16">
-          <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" stroke="currentColor" class="w-6 h-6">
-            <path fill-rule="evenodd" d="M3 4.25A2.25 2.25 0 015.25 2h10.5A2.25 2.25 0 0118 4.25v10.5A2.25 2.25 0 0115.75 18h-10.5A2.25 2.25 0 013 15.75V4.25z" clip-rule="evenodd" />
-            <path fill-rule="evenodd" d="M8.704 10.943l1.048.943H3.75a.75.75 0 000 1.5h6.002l-1.048.943a.75.75 0 101.004 1.114l2.5-2.25a.75.75 0 000-1.114l-2.5-2.25a.75.75 0 10-1.004 1.114z" clip-rule="evenodd" />
+        <SpeedDialButton name="Upgrade" on:click={() => {showUpgradeModal = true}} class="w-16">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" aria-hidden="true" class="w-6 h-6" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 2a.75.75 0 01.75.75v5.59l1.95-2.1a.75.75 0 111.1 1.02l-3.25 3.5a.75.75 0 01-1.1 0L6.2 7.26a.75.75 0 111.1-1.02l1.95 2.1V2.75A.75.75 0 0110 2z" clip-rule="evenodd" />
+            <path fill-rule="evenodd" d="M10 18a.75.75 0 01-.75-.75v-5.59l-1.95 2.1a.75.75 0 11-1.1-1.02l3.25-3.5a.75.75 0 011.1 0l3.25 3.5a.75.75 0 11-1.1 1.02l-1.95-2.1v5.59a.75.75 0 01-.75.75z" clip-rule="evenodd" />
           </svg>
-        </SpeedDialButton> -->
+        </SpeedDialButton>
         <SpeedDialButton name="Lock/Exit" on:click={() => goto(PATH_LOGOUT)} class="w-16">
           <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" stroke="currentColor" class="w-6 h-6">
             <path fill-rule="evenodd" d="M3 4.25A2.25 2.25 0 015.25 2h5.5A2.25 2.25 0 0113 4.25v2a.75.75 0 01-1.5 0v-2a.75.75 0 00-.75-.75h-5.5a.75.75 0 00-.75.75v11.5c0 .414.336.75.75.75h5.5a.75.75 0 00.75-.75v-2a.75.75 0 011.5 0v2A2.25 2.25 0 0110.75 18h-5.5A2.25 2.25 0 013 15.75V4.25z" clip-rule="evenodd" />
@@ -725,6 +676,19 @@
           <span class="text-gray-100 text-center dark:text-white text-4xl ml-2 -mt-6 font-bold">
             {$yakklCurrentlySelectedStore && $yakklCurrentlySelectedStore.shortcuts.network.blockchain}
           </span>
+          {#if registrationType === RegistrationType.PRO}
+            <span class="flex h-6 absolute z-100 top-2 right-24">
+              <div class="px-3 py-1 bg-green-800/80 text-white font-medium text-xs leading-tight uppercase rounded-full shadow-md">
+                PRO
+              </div>
+            </span>
+          {:else}
+            <span class="flex h-6 absolute z-100 top-2 right-24">
+              <div class="px-3 py-1 bg-yellow-800/80 text-white font-medium text-xs leading-tight uppercase rounded-full shadow-md">
+                STD
+              </div>
+            </span>
+          {/if}
           {#if showTestNetworks}
           <span class="flex h-6 absolute z-100 top-2 right-24">
             <div class="dropdown dropdown-bottom relative">

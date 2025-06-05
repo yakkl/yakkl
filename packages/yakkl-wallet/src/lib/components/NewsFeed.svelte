@@ -4,7 +4,6 @@
   import ChevronUpIcon from '$lib/components/icons/ChevronUpIcon.svelte';
   import NewsFeedLineView from './NewsFeedLineView.svelte';
   import ArticleControls from './ArticleControls.svelte';
-	import { yakklBookmarkedArticlesStore } from '$lib/common/stores';
 
   interface NewsItem {
     title: string;

@@ -22,7 +22,11 @@
 	import { setBadgeText } from '$lib/utilities/utilities';
 	import Copyright from '$lib/components/Copyright.svelte';
 	import BookmarkedArticles from '$lib/components/BookmarkedArticles.svelte';
+	import LockedSectionCard from '$lib/components/LockedSectionCard.svelte';
+	import { isPro } from '$lib/common/utils';
+	import Upgrade from '$lib/components/Upgrade.svelte';
 
+  let showUpgradeModal = $state(false);
   let showEthConverter = $state(false);
   let showTokenFiatConverter = $state(false);
   let init = $state(false);
@@ -155,7 +159,12 @@
     }
   });
 
+  function onComplete() {
+    showUpgradeModal = true;
+  }
 </script>
+
+<Upgrade bind:show={showUpgradeModal} onComplete={onComplete} />
 
 <div class="flex flex-col h-screen bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-100">
   <header class="px-4 py-3 border-b border-zinc-200 dark:border-zinc-700 flex justify-between items-center">
@@ -163,7 +172,7 @@
     <SimpleTooltip content="Click here to unlock your wallet" position="bottom">
       <button onclick={openWallet} class="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-xl shadow-md hover:from-green-600 hover:to-emerald-700 transition-all {!init ? 'animate-pulse' : ''}">
         <WalletIcon className="w-5 h-5" />
-        Open Wallet
+        Open SmartWallet
       </button>
     </SimpleTooltip>
     {#if !init}
@@ -178,7 +187,7 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 py-4">
       <!-- Token Prices Card -->
        <!-- eye={false} for now but if we want to show the balances, we can set it to true -->
-      <SectionCard
+      <LockedSectionCard
         title="Token Prices"
         icon={TokenIcon}
         isPinned={false}
@@ -186,9 +195,15 @@
         eyeTooltip="Toggle visibility of balances"
         minHeight="300px"
         maxHeight="750px"
+        locked={true}
+        lockMessage="Upgrade to Pro to unlock this feature"
+        showButton={true}
+        onComplete={() => {
+          showUpgradeModal = true;
+        }}
       >
         <TokenListComponentList maxVisibleTokens={5} />
-      </SectionCard>
+      </LockedSectionCard>
 
       <!-- Newsfeeds Card -->
       <SectionCard

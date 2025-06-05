@@ -32,6 +32,7 @@
     refreshTimer = window.setInterval(loadFeeds, 300000);
 
     // Listen for updates from background script
+    // TODO:: Need to convert to browser_ext.runtime.onMessage.addListener
     chrome.runtime.onMessage.addListener((request) => {
       if (request.action === 'rssUpdated') {
         loadFeeds();
