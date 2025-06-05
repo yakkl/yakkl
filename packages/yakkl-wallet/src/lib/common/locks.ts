@@ -4,10 +4,11 @@ import type { Settings, YakklCurrentlySelected } from "./interfaces";
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from "./storage";
 import { yakklCurrentlySelectedStore, yakklSettingsStore } from "./stores";
 import { log } from "$plugins/Logger";
+import { PlanType } from "./types";
 
 // Will keep this for now but may want to deprecate it and use the new background script to handle locks
 
-export async function setLocks(locked: boolean = true, registration: string = '') {
+export async function setLocks(locked: boolean = true, planType: PlanType = PlanType.STANDARD) {
   try {
     let dirty = false;
 
@@ -18,7 +19,7 @@ export async function setLocks(locked: boolean = true, registration: string = ''
         if (!yakklSettings.isLocked) {
           yakklSettings.isLocked = true;
           yakklSettings.lastAccessDate = dateString();
-          if (registration) yakklSettings.registeredType = registration;
+          if (planType) yakklSettings.plan.type = planType;
           await setObjectInLocalStorage('settings', yakklSettings);
           dirty = true;
         }
@@ -26,7 +27,7 @@ export async function setLocks(locked: boolean = true, registration: string = ''
         if (yakklSettings.isLocked) {
           yakklSettings.isLocked = false;
           yakklSettings.lastAccessDate = dateString();
-          if (registration) yakklSettings.registeredType = registration;
+          if (planType) yakklSettings.plan.type = planType;
           await setObjectInLocalStorage('settings', yakklSettings);
           dirty = true;
         }

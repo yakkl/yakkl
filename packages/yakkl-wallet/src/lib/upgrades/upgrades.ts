@@ -1,24 +1,29 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-debugger */
 // Upgrades for the app...
-import { DEFAULT_TITLE } from '$lib/common/constants';
 import { getObjectFromLocalStorage, removeObjectFromLocalStorage, setObjectInLocalStorage } from '$lib/common/storage';
-import type { Preferences } from '$lib/common';
+import { AccessSourceType, PromoClassificationType, type Settings } from '$lib/common';
 import { log } from '$lib/plugins/Logger';
 
 // This list gets updated with each new version
 const yakklUpdateStorage = [
+  'preferences',
+  'profile',
+  'settings',
   'yakklAccounts',
+  'yakklBookmarkedArticles',
   'yakklChats',
   'yakklConnectedDomains',
   'yakklContacts',
+  'yakklCombinedTokens',
   'yakklCurrentlySelected',
-  'preferences',
   'yakklPrimaryAccounts',
-  'profile',
   'yakklRegisteredData',
   'yakklSecurity',
-  'settings',
+  'yakklTokenData',
+  'yakklTokenDataCustom',
+  'yakklWalletBlockchains',
+  'yakklWalletProviders',
   'yakklWatchList',
 
 // NOTE: Add new storage areas here
@@ -39,7 +44,7 @@ export function upgrade(fromVersion: string, toVersion: string) {
     log.info(`Upgraded from ${fromVersion} to ${toVersion}`);
 
   } catch (e) {
-    log.error(e);
+    log.warn(e);
   }
 }
 
@@ -51,19 +56,47 @@ async function latest(toVersion: string) {
   // yakklCurrentlySelected - change all chainId values to number
   // yakklConnectedDomains - change the addresses array to hold objects with chainId, network, and address
 
-  const yakklPreferences: Preferences = await getObjectFromLocalStorage('preferences') as Preferences;
+  // const yakklPreferences: Preferences = await getObjectFromLocalStorage('preferences') as Preferences;
   // Create backup!
-  setObjectInLocalStorage('preferencesBackup', yakklPreferences );
+  // setObjectInLocalStorage('preferencesBackup', yakklPreferences );
 
-  const yakklUpdatedPreferences = yakklPreferences;
+  // const yakklUpdatedPreferences = yakklPreferences;
 
   // Update if needed
-  if (yakklPreferences.wallet !== undefined) {
-    yakklUpdatedPreferences.wallet = yakklPreferences.wallet;
-    yakklUpdatedPreferences.wallet.title = DEFAULT_TITLE;
-    // delete yakklUpdatedPreferences.wallet; // TODO: this is temporary until we can update the wallet object
-    setObjectInLocalStorage('preferences', yakklUpdatedPreferences );
+  // if (yakklPreferences.wallet !== undefined) {
+  //   yakklUpdatedPreferences.wallet = yakklPreferences.wallet;
+  //   yakklUpdatedPreferences.wallet.title = DEFAULT_TITLE;
+  //   // delete yakklUpdatedPreferences.wallet;
+  //   setObjectInLocalStorage('preferences', yakklUpdatedPreferences );
+  // }
+
+  console.log('upgrading settings');
+  console.log('toVersion', toVersion);
+
+  const yakklSettings: Settings = await getObjectFromLocalStorage('settings') as Settings;
+  setObjectInLocalStorage('settingsBackup', yakklSettings ); // Create backup
+
+  if (yakklSettings) {
+    if (yakklSettings.plan.source === undefined) {
+      yakklSettings.plan.source = AccessSourceType.STANDARD;
+    }
+      if (yakklSettings.plan.promo === undefined) {
+      yakklSettings.plan.promo = PromoClassificationType.NONE;
+    }
+    if (yakklSettings.plan.trialEndDate === undefined) {
+      yakklSettings.plan.trialEndDate = '';
+    }
+    if (yakklSettings.trialCountdownPinned === undefined) {
+      yakklSettings.trialCountdownPinned = false;
+    }
+    yakklSettings.previousVersion = yakklSettings.version;
+    yakklSettings.version = toVersion;
+    setObjectInLocalStorage('settings', yakklSettings);
   }
+
+  console.log('settings upgraded');
+  console.log('yakklSettings', yakklSettings);
+  console.log('toVersion', toVersion);
 
   // Now remove the backups
   removeBackups();
@@ -85,24 +118,17 @@ export async function checkVersion(toVersion: string) {
     }
     return true;
   } catch (e) {
-    log.error(e);
+    log.warn(e);
   }
 }
 
-// tmp - these storage areas are listed in the array above. However, during a registration event, the following data models are not yet created so an error may occur. This is a temporary fix until the data models are created.
-// #yakklChats, #yakklConnectDomains, #yakklContacts, #yakklRegisteredData
 export async function updateVersion(toVersion: string) {
   try {
-    // Below did not work only because these or most are [] and not {}
     if (!toVersion) return;
-
-    // console.log('Updating version to 1:', toVersion, yakklUpdateStorage);
 
     for (let index = 0; index < yakklUpdateStorage.length; index++) {
       const dataFile = yakklUpdateStorage[index].toString();
       let data: any = await getObjectFromLocalStorage(dataFile);
-
-      // console.log('Updating version for 2:', dataFile, data);
 
       if (data) {
         if (Array.isArray(data)) {
@@ -113,12 +139,8 @@ export async function updateVersion(toVersion: string) {
             };
           });
         } else {
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          //@ts-ignore
           data.version = toVersion; // Created issue #YB-64 due to upgrade from 0.29.5 to 0.30.5 see for more details
         }
-
-        // console.log('Updating version for 3:', dataFile, data);
 
         await setObjectInLocalStorage(dataFile, data);
       } else {
@@ -126,7 +148,7 @@ export async function updateVersion(toVersion: string) {
       }
     }
   } catch (e) {
-    log.error(e);
+    log.warn(e);
   }
 }
 
@@ -134,13 +156,13 @@ export async function updateVersion(toVersion: string) {
 // Can optimize this by using a loop later
 export async function removeBackups() {
   try {
-    removeObjectFromLocalStorage('preferencesBackup');
+    removeObjectFromLocalStorage('settingsBackup');
     // removeObjectFromLocalStorage('yakklNetworksBackup');
     // removeObjectFromLocalStorage('yakklCurrentlySelectedBackup');
     // removeObjectFromLocalStorage('yakklAccountsBackup');
     // removeObjectFromLocalStorage('yakklProvidersBackup');
     // removeObjectFromLocalStorage('yakklConnectedDomainsBackup');
   } catch (e) {
-    log.error(e);
+    log.warn(e);
   }
 }

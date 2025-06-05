@@ -1,6 +1,6 @@
 {
 	"name": "yakkl-wallet",
-	"version": "1.5.4",
+	"version": "1.5.6",
 	"version_sub": "",
 	"types": "index.d.ts",
 	"config": {
@@ -18,8 +18,11 @@
 		}
 	},
 	"scripts": {
-		"dev:chrome": "NODE_ENV=development npm run build:env:dev && NODE_ENV=development npm run build:constants && NODE_ENV=development webpack -c webpack.config.cjs && NODE_ENV=development DEV_MODE=true vite build && NODE_ENV=development node ./buildSveltekitForCSP.mjs",
-		"build:chrome": "NODE_ENV=production npm run build:env:prod && NODE_ENV=production npm run build:constants && NODE_ENV=production webpack -c webpack.config.cjs && NODE_ENV=production vite build && NODE_ENV=production node ./buildSveltekitForCSP.mjs",
+		"check:public": "node ./check-no-pro-private-imports.mjs",
+		"dev:chrome": "pnpm run check:public && NODE_ENV=development npm run build:env:dev && NODE_ENV=development npm run build:constants && NODE_ENV=development webpack -c webpack.config.cjs && NODE_ENV=development DEV_MODE=true vite build && NODE_ENV=development node ./buildSveltekitForCSP.mjs",
+		"dev:chrome:proprv": "NODE_ENV=development npm run build:env:dev && NODE_ENV=development npm run build:constants && NODE_ENV=development webpack -c webpack.config.cjs && NODE_ENV=development DEV_MODE=true vite build && NODE_ENV=development node ./buildSveltekitForCSP.mjs",
+		"build:chrome": "pnpm run check:public && NODE_ENV=production npm run build:env:prod && NODE_ENV=production npm run build:constants && NODE_ENV=production webpack -c webpack.config.cjs && NODE_ENV=production vite build && NODE_ENV=production node ./buildSveltekitForCSP.mjs",
+		"build:chrome:proprv": "NODE_ENV=production npm run build:env:prod && NODE_ENV=production npm run build:constants && NODE_ENV=production webpack -c webpack.config.cjs && NODE_ENV=production vite build && NODE_ENV=production node ./buildSveltekitForCSP.mjs",
 		"build:constants": "mustache package.json ./src/lib/common/constants.mustache > ./src/lib/common/constants.ts",
 		"build:env": "node ./build-env.js",
 		"build:env:dev": "node ./build-env.js dev",

@@ -5,8 +5,9 @@
   import ProtectedValue from './ProtectedValue.svelte';
   import Tooltip from './Tooltip.svelte';
 
-  let { token, className = '' } = $props<{
+  let { token, locked = true, className = '' } = $props<{
     token: TokenData;
+    locked?: boolean;
     className?: string;
   }>();
 
@@ -28,7 +29,7 @@
     valueFormatted = formatPrice(value);
   });
 
-  log.info('TokenLineView', false, { balance: token.balance, quantity: token.quantity, price: token.price?.price });
+  log.info('TokenLineView', false, { token, locked, balance: token.balance, quantity: token.quantity, price: token.price?.price });
 
   // Function to format the tooltip price based on the value
   function getTooltipPrice(): string {

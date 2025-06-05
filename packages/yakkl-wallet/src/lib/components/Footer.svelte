@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { PATH_WELCOME, PATH_LOGIN, YEAR, VERSION, PATH_ETHEREUM_TRANSACTIONS_SEND, RegistrationType, type Settings, type SwapPriceProvider, type ActiveTab } from "$lib/common";
+  import { PATH_WELCOME, PATH_LOGIN, YEAR, VERSION, PATH_ETHEREUM_TRANSACTIONS_SEND, RegisteredType, type Settings, type SwapPriceProvider, type ActiveTab, PlanType } from "$lib/common";
   import { getYakklCurrentlySelected } from '$lib/common/stores';
   import ChatbotModal from './ChatbotModal.svelte';
 	import Buy from "$lib/components/Buy.svelte";
@@ -32,7 +32,7 @@
 
   let w = 6;
   let h = 6;
-  let registeredType = $state(RegistrationType.PRO.toUpperCase()); // Default to Pro for now!!!!
+  let planType = $state(PlanType.STANDARD.toUpperCase()); // Default to Standard
 
   let yakklMiscStore: string;
   let yakklSettingsStore: Settings | null;
@@ -55,7 +55,7 @@
       // Get the settings
       yakklSettingsStore = await getSettings();
       if (yakklSettingsStore) {
-        registeredType = yakklSettingsStore.registeredType.toUpperCase();
+        planType = yakklSettingsStore.plan.type.toUpperCase();
       }
 
       const currentlySelected = await getYakklCurrentlySelected();
@@ -240,14 +240,14 @@
     <!-- <a href="https://yakkl.com?utm_source=yakkl"
        class="text-xs hover:text-opacity-75 hover:cursor-pointer"
        style="color: inherit; text-decoration: none; transition: color 0.3s ease, opacity 0.3s ease;"> -->
-      <span style="font-size: 10px;">YAKKL® ©Copyright {new Date().getFullYear().toString()}, Version: {VERSION} {registeredType}</span>
+      <span style="font-size: 10px;">YAKKL® ©Copyright {new Date().getFullYear().toString()}, Version: {VERSION} {planType}</span>
     <!-- </a> -->
   </div>
 
 
   <!-- <div class="inline-block mx-auto w-full text-center label-text">
     <a href="https://yakkl.com?utm_source=yakkl" class="text-xs text-primary/50 hover:text-primary/75">
-      <span style="font-size: 10px;">YAKKL® ©Copyright {YEAR}, Version: {VERSION} {registeredType}</span>
+      <span style="font-size: 10px;">YAKKL® ©Copyright {YEAR}, Version: {VERSION} {planType}</span>
     </a>
   </div> -->
 </footer>

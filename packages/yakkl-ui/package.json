@@ -1,0 +1,23 @@
+{
+  "name": "@yakkl/ui",
+  "version": "0.0.1",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts"
+    }
+  },
+  "files": [
+    "src"
+  ],
+  "svelte": "./src/index.ts",
+  "scripts": {
+    "dev": "vite build",
+    "build": "vite build"
+  },
+  "devDependencies": {
+    "@sveltejs/kit": "^2.0.0",
+    "svelte": "^5.0.0",
+    "typescript": "^5.0.0"
+  }
+}

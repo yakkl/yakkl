@@ -1,22 +1,39 @@
 <!-- src/lib/components/ExtensionRSSNewsFeed.svelte -->
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { ExtensionRSSFeedService, type RSSItem, type RSSFeed } from '$lib/plugins/ExtensionRSSFeedService';
   import NewsFeed from './NewsFeed.svelte';
+	import { log } from '$lib/plugins/Logger';
+  import RefreshIcon from './icons/RefreshIcon.svelte';
+  import { browser_ext } from '$lib/common/environment';
+
+  const FIVE_MINUTES = 5 * 60 * 1000;  // 5 minutes in milliseconds
+  const THIRTY_MINUTES = 30 * 60 * 1000;  // 30 minutes in milliseconds
 
   interface Props {
+    show?: boolean;
     feedUrls: string[];
     maxItemsPerFeed?: number;
     maxVisibleItems?: number;
     className?: string;
+    locked?: boolean;
+    title?: string;
+    interval?: number;
   }
 
   let {
+    show = $bindable(true),
     feedUrls,
-    maxItemsPerFeed = 10,
     maxVisibleItems = 3,
-    className = ''
+    className = '',
+    locked = true,
+    maxItemsPerFeed = locked ? 3 : 0,
+    title = 'Crypto News',
+    interval = FIVE_MINUTES
   }: Props = $props();
+
+  // Override interval if locked
+  const effectiveInterval = locked ? THIRTY_MINUTES : interval;
 
   let newsItems = $state<RSSItem[]>([]);
   let isLoading = $state(true);
@@ -28,20 +45,24 @@
   onMount(() => {
     loadFeeds();
 
-    // Set up refresh interval (5 minutes)
-    refreshTimer = window.setInterval(loadFeeds, 300000);
+    // Set up refresh interval
+    refreshTimer = window.setInterval(loadFeeds, effectiveInterval);
 
     // Listen for updates from background script
-    chrome.runtime.onMessage.addListener((request) => {
-      if (request.action === 'rssUpdated') {
+    const messageListener = (message: any, sender: any, sendResponse: any) => {
+      if (message.type === 'RSS_FEED_UPDATE') {
         loadFeeds();
       }
-    });
+      return Promise.resolve(true);
+    };
+
+    browser_ext.runtime.onMessage.addListener(messageListener);
 
     return () => {
       if (refreshTimer) {
         clearInterval(refreshTimer);
       }
+      browser_ext.runtime.onMessage.removeListener(messageListener);
     };
   });
 
@@ -55,7 +76,7 @@
       // Try to fetch fresh data
       const feedPromises = feedUrls.map((url: string): Promise<RSSFeed | null> =>
         rssService.fetchFeed(url).catch((err: unknown): null => {
-          console.error(`Failed to fetch feed ${url}:`, err);
+          log.warn(`Failed to fetch feed ${url}:`,false, err);
           return null;
         })
       );
@@ -79,7 +100,7 @@
       newsItems = allItems;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load RSS feeds';
-      console.error('RSS feed error:', err);
+      log.warn('RSS feed error:', false, err);
     } finally {
       isLoading = false;
     }
@@ -125,6 +146,7 @@
   }
 </script>
 
+{#if show}
 <div class={className}>
   {#if isLoading}
     <div class="flex items-center justify-center p-8">
@@ -142,19 +164,24 @@
       </button>
     </div>
   {:else}
-    <div class="flex items-center justify-between mb-2">
-      <h2 class="text-lg font-semibold">Crypto News</h2>
+    <div class="flex items-center justify-between mb-0">
+      <h2 class="text-lg font-semibold">{title}</h2>
       <button
         onclick={refreshFeeds}
-        class="text-sm text-blue-500 hover:text-blue-600"
+        class="p-1 text-blue-500 hover:text-blue-600 transition-colors"
+        aria-label="Refresh feeds"
       >
-        Refresh
+        <RefreshIcon className="w-4 h-4" />
       </button>
     </div>
     <NewsFeed
       newsItems={newsItems}
       maxVisibleItems={maxVisibleItems}
       className={className}
+      locked={locked}
+      maxItemsPerFeed={maxItemsPerFeed}
     />
   {/if}
 </div>
+{/if}
+

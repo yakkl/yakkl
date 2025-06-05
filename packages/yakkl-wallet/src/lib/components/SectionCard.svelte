@@ -1,15 +1,17 @@
+<!-- svelte-ignore non_reactive_update -->
+<!-- svelte-ignore non_reactive_update -->
 <!-- File: src/lib/components/SectionCard.svelte -->
 <script lang="ts">
   import { onMount } from 'svelte';
   import ChevronDownIcon from './icons/ChevronDownIcon.svelte';
   import ChevronUpIcon from './icons/ChevronUpIcon.svelte';
   import ResizeIcon from './icons/ResizeIcon.svelte';
-  import PinIcon from './icons/PinIcon.svelte';
   import EyeIcon from './icons/EyeIcon.svelte';
   import { cn } from '$lib/utils';
 	import Tooltip from './Tooltip.svelte';
 
-  let { title, icon: Icon = null, className = '', isPinned = false, eye = false, eyeTooltip = 'Toggle visibility of values', minHeight = '200px', maxHeight = '400px', children } = $props<{
+  let { show = $bindable(true), title, icon: Icon = null, className = '', isPinned = false, eye = false, eyeTooltip = 'Toggle visibility of values', minHeight = '200px', maxHeight = '400px', locked = true, footer: Footer = null, footerProps = {}, lockedFooter: LockedFooter = null, lockedFooterProps = {}, children } = $props<{
+    show?: boolean;
     title: string;
     icon?: any;
     className?: string;
@@ -18,6 +20,11 @@
     eyeTooltip?: string;
     minHeight?: string;
     maxHeight?: string;
+    locked?: boolean;
+    footer?: any;
+    footerProps?: Record<string, any>;
+    lockedFooter?: any;
+    lockedFooterProps?: Record<string, any>;
     children: () => any;
   }>();
 
@@ -26,8 +33,8 @@
   let cardHeight = $state(minHeight);
   let startY = $state(0);
   let startHeight = $state(0);
-  let cardElement: HTMLElement;
-  let contentElement: HTMLElement;
+  let cardElement = $state<HTMLElement | null>(null);
+  let contentElement = $state<HTMLElement | null>(null);
   let hasItems = $state(false);
   let calculatedMinHeight = $state('');
 
@@ -103,6 +110,7 @@
   });
 </script>
 
+{#if show}
 <div
   bind:this={cardElement}
   class={cn(
@@ -150,10 +158,23 @@
     class="flex-1 overflow-y-auto transition-all duration-200"
     style="height: {isCollapsed ? '0' : 'auto'}"
   >
-    <div class="p-4">
+    <div class="px-4 pb-4 pt-2">
       {@render children()}
     </div>
   </div>
+
+  <!-- Footer -->
+  {#if !isCollapsed}
+    {#if locked && LockedFooter}
+      <div class="border-t border-zinc-200 dark:border-zinc-700 p-4 bg-zinc-50 dark:bg-zinc-800/50">
+        <LockedFooter {...lockedFooterProps} />
+      </div>
+    {:else if Footer}
+      <div class="border-t border-zinc-200 dark:border-zinc-700 p-4 bg-zinc-50 dark:bg-zinc-800/50">
+        <Footer {...footerProps} />
+      </div>
+    {/if}
+  {/if}
 
   <!-- Resize Handle -->
   {#if !isCollapsed}
@@ -168,3 +189,4 @@
     </div>
   {/if}
 </div>
+{/if}

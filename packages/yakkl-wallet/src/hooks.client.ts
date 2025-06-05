@@ -1,6 +1,6 @@
 // src/hooks.client.ts
 import type { Browser } from 'webextension-polyfill';
-import { setContextTypeStore, syncStorageToStore } from '$lib/common/stores';
+import { getSettings, setContextTypeStore, syncStorageToStore } from '$lib/common/stores';
 import { loadTokens } from '$lib/common/stores/tokens';
 import { ErrorHandler } from '$lib/plugins/ErrorHandler';
 import { log } from '$lib/plugins/Logger';
@@ -135,6 +135,12 @@ export async function init() {
     // Use window state to prevent multiple initializations across contexts
     if (window.EXTENSION_INIT_STATE && window.EXTENSION_INIT_STATE.initialized) {
       return;
+    }
+
+    try {
+      await getSettings();
+    } catch (error) {
+      console.info(`[${CONTEXT_ID}] Failed to get settings in hooks - passing on:`, error);
     }
 
     // First get the browser API
