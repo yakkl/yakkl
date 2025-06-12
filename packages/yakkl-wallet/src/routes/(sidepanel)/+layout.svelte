@@ -4,6 +4,9 @@
   import { browserSvelte, browser_ext } from "$lib/common/environment";
   import { log } from '$lib/common/logger-wrapper';
   import { initializeUiContext } from '$lib/common/messaging';
+	import TrialCountdown from "$lib/components/TrialCountdown.svelte";
+	import { modal, modalName } from "$lib/common/stores/modal";
+	import Upgrade from "$lib/components/Upgrade.svelte";
 
   interface Props {
     children?: import('svelte').Snippet;
@@ -30,3 +33,6 @@
 <main class="w-full h-screen">
   {@render children?.()}
 </main>
+
+<TrialCountdown />
+<Upgrade show={$modal && $modalName === 'upgrade'} />

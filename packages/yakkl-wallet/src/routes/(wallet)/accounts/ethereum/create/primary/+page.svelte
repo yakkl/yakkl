@@ -3,7 +3,7 @@
   import { Button, Modal, Spinner } from 'flowbite-svelte';
   import { getProfile, getMiscStore, getSettings } from '$lib/common/stores';
   import { yakklRegisteredData } from '$lib/models/dataModels';
-  import { decryptData, type Profile, type ProfileData, type PrimaryAccountData, type YakklPrimaryAccount, isEncryptedData, type PrimaryAccountReturnValues, type Settings, type EmergencyKitAccountData } from '$lib/common';
+  import { decryptData, type Profile, type ProfileData, type PrimaryAccountData, type YakklPrimaryAccount, isEncryptedData, type PrimaryAccountReturnValues, type Settings, type EmergencyKitAccountData, PlanType } from '$lib/common';
   import { DEFAULT_DERIVED_PATH_ETH, VERSION, PATH_WELCOME, DEFAULT_TITLE } from '$lib/common';
   import { goto } from '$app/navigation';
   import { createPortfolioAccount } from '$lib/plugins/networks/ethereum/createPortfolioAccount';
@@ -36,7 +36,7 @@
   let displayDate: Date = $state();
   let derivedPath = $state(DEFAULT_DERIVED_PATH_ETH); // Account gets created with '/0/0' appended to represent the first
   let network: string = $state('');
-  let registeredType: string = $state('');
+  let planType: PlanType = $state(PlanType.STANDARD);
   let msgType = 'WARNING';
   let warning = $state(false);
   let warningValue: string;
@@ -53,7 +53,7 @@
       yakklMiscStore = getMiscStore();
 
       id = settings.id;
-      registeredType = settings.registeredType ?? 'unknown reg type';
+      planType = settings.plan.type ?? PlanType.STANDARD;
     }
   });
 
@@ -476,7 +476,7 @@
         <br/>
         <br/>
         <div class="w-full text-center">
-          YAKKL® Smart Wallet - Version {VERSION} {registeredType} - https://yakkl.com
+          YAKKL® Smart Wallet - Version {VERSION} {planType} - https://yakkl.com
         </div>
     </div>
     </div>

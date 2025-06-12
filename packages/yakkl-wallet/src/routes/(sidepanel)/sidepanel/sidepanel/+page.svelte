@@ -1,6 +1,6 @@
 <!-- File: src/routes/sidepanel/+page.svelte -->
 <script lang="ts">
-  import TokenListComponentList from '$lib/components/TokenComponentList.svelte';
+  import TokenComponentList from '$lib/components/TokenComponentList.svelte';
   import RotatingBanner from '$lib/components/RotatingBanner.svelte';
   import SectionCard from '$lib/components/SectionCard.svelte';
   import { browser_ext, browserSvelte } from '$lib/common/environment';
@@ -25,11 +25,17 @@
 	import LockedSectionCard from '$lib/components/LockedSectionCard.svelte';
 	import { isPro } from '$lib/common/utils';
 	import Upgrade from '$lib/components/Upgrade.svelte';
+	import UpgradeFooter from '$lib/components/UpgradeFooter.svelte';
 
   let showUpgradeModal = $state(false);
   let showEthConverter = $state(false);
   let showTokenFiatConverter = $state(false);
   let init = $state(false);
+  let locked = $state(true);
+  let foundingUser = $state(false);
+  let tokensLockedCount = $state(4);
+  let newsfeedsLockedCount = $state(6);
+  let maxVisibleTokens = $state(4);
 
   let storageListener: { (changes: any, areaName: any): void; (changes: { [key: string]: chrome.storage.StorageChange; }, areaName: string): void; };
 
@@ -146,6 +152,9 @@
         chrome.storage.onChanged.addListener(storageListener as any);
       } else {
         init = true;
+        locked = (await isPro() ? false : true);
+        tokensLockedCount = (await isPro() ? 0 : 4);
+        newsfeedsLockedCount = (await isPro() ? 10 : 4);
       }
     } catch (error) {
       log.error('Error initializing sidepanel:', false,error);
@@ -172,7 +181,7 @@
     <SimpleTooltip content="Click here to unlock your wallet" position="bottom">
       <button onclick={openWallet} class="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-xl shadow-md hover:from-green-600 hover:to-emerald-700 transition-all {!init ? 'animate-pulse' : ''}">
         <WalletIcon className="w-5 h-5" />
-        Open SmartWallet
+        Open Smart Wallet
       </button>
     </SimpleTooltip>
     {#if !init}
@@ -187,7 +196,7 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 py-4">
       <!-- Token Prices Card -->
        <!-- eye={false} for now but if we want to show the balances, we can set it to true -->
-      <LockedSectionCard
+      <SectionCard
         title="Token Prices"
         icon={TokenIcon}
         isPinned={false}
@@ -195,15 +204,15 @@
         eyeTooltip="Toggle visibility of balances"
         minHeight="300px"
         maxHeight="750px"
-        locked={true}
-        lockMessage="Upgrade to Pro to unlock this feature"
-        showButton={true}
-        onComplete={() => {
-          showUpgradeModal = true;
+        footer={UpgradeFooter}
+        footerProps={{
+          onUpgrade: () => showUpgradeModal = true,
+          text: 'Unlock visibility of all tokens by',
+          buttonText: 'Upgrading today!'
         }}
       >
-        <TokenListComponentList maxVisibleTokens={5} />
-      </LockedSectionCard>
+        <TokenComponentList maxVisibleTokens={maxVisibleTokens} maxTokens={tokensLockedCount} locked={locked} />
+      </SectionCard>
 
       <!-- Newsfeeds Card -->
       <SectionCard
@@ -211,17 +220,24 @@
         icon={NewsIcon}
         minHeight="350px"
         maxHeight="1000px"
+        footer={UpgradeFooter}
+        footerProps={{
+          onUpgrade: () => showUpgradeModal = true,
+          text: 'Unlock visibility of all newsfeeds with faster refresh times by',
+          buttonText: 'Upgrading today!'
+        }}
       >
         <ExtensionRSSNewsFeed
           feedUrls={cryptoFeeds}
-          maxVisibleItems={10}
-          maxItemsPerFeed={10}
+          maxVisibleItems={newsfeedsLockedCount}
+          maxItemsPerFeed={newsfeedsLockedCount}
           className="bg-white dark:bg-gray-900 rounded-lg shadow-md"
+          locked={locked}
         />
       </SectionCard>
 
       <!-- Bookmarked Articles Card -->
-      <BookmarkedArticles />
+      <BookmarkedArticles onComplete={onComplete} show={true} />
 
       <!-- Utilities Card -->
       <SectionCard
@@ -264,20 +280,33 @@
 
       </SectionCard>
 
-    <!-- Chart Section (for expanded view) -->
-    <div class="hidden md:block mt-4">
-      <SectionCard
-        title="Market Overview"
-        minHeight="300px"
-        maxHeight="600px"
-      >
-        <!-- Chart component will go here -->
-        <div class="h-[300px] flex items-center justify-center text-zinc-500">
-          Chart coming soon...
-        </div>
-      </SectionCard>
+      <!-- Chart Section (for expanded view) -->
+      <div class="hidden md:block mt-4">
+        <SectionCard
+          title="Market Overview"
+          minHeight="300px"
+          maxHeight="600px"
+          footer={UpgradeFooter}
+          footerProps={{
+            onUpgrade: () => showUpgradeModal = true,
+            text: 'Unlock visibility of the market overview by',
+            buttonText: 'Upgrading today!'
+          }}
+        >
+          <!-- Chart component will go here -->
+          <div class="h-[300px] flex items-center justify-center text-zinc-500">
+            Chart coming soon...
+          </div>
+        </SectionCard>
+      </div>
+
     </div>
   </main>
+
+  <!-- Responsive message for narrow viewports -->
+  <div class="md:hidden px-4 py-3 text-center text-sm text-zinc-600 dark:text-zinc-400 border-t border-zinc-200 dark:border-zinc-700">
+    <p>💡 Drag the edge of this panel to make it wider and discover more features!</p>
+  </div>
 
   <footer class="px-4 py-2 border-t border-zinc-200 dark:border-zinc-700 text-xs text-center font-bold flex flex-col items-center justify-center gap-2">
     <span class="text-zinc-500 mb-4">Smart Wallet Insights</span>

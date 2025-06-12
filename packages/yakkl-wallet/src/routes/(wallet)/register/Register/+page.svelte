@@ -14,19 +14,12 @@
   import ErrorNoAction from '$lib/components/ErrorNoAction.svelte';
   import Warning from '$lib/components/Warning.svelte';
 	import type { CurrentlySelectedData, Preferences, Profile, ProfileData, Settings, YakklCurrentlySelected } from '$lib/common/interfaces';
-	import { RegistrationType } from '$lib/common/types';
+	import { AccessSourceType, PlanType, PromoClassificationType, RegisteredType } from '$lib/common/types';
 	import { getUserId, isEncryptedData } from '$lib/common';
   import { dateString } from '$lib/common/datetime';
 	import { sendNotificationMessage } from '$lib/common/notifications';
   import { log } from '$lib/common/logger-wrapper';
 	import { updateTokenPrices } from '$lib/common/tokenPriceManager';
-
-	// import RegistrationOptionModal from '$lib/components/RegistrationOptionModal.svelte';
-  // import { GoogleAuth } from '$lib/index';
-	// import ImportPrivateKey from '$lib/components/ImportPrivateKey.svelte';
-	// import EmergencyKitModal from '$lib/components/EmergencyKitModal.svelte';
-	// import ImportOptionModal from '$lib/components/ImportOptionModal.svelte';
-	// import ImportPhrase from '$lib/components/ImportPhrase.svelte';
 
   let currentlySelected: YakklCurrentlySelected | null = null;
   let yakklSettings: Settings | null = null;
@@ -59,9 +52,9 @@
   let promoDate = new Date('2026-01-01T00:00:00');
   let date = new Date();
   if (date < promoDate) {
-    $yakklVersionStore = RegistrationType.PRO;
+    $yakklVersionStore = PlanType.PRO;
   } else {
-    $yakklVersionStore = RegistrationType.STANDARD;
+    $yakklVersionStore = PlanType.STANDARD;
   }
   ////
 
@@ -195,8 +188,14 @@
 
         if (date < promoDate) {
           profileData.registered = {
-            type: RegistrationType.PRO,
-            key: RegistrationType.PRO,
+            plan: {
+              type: PlanType.PRO,
+              source: AccessSourceType.STANDARD,
+              promo: PromoClassificationType.NONE,
+              trialEndDate: '',
+              upgradeDate: ''
+            },
+            key: PlanType.PRO,
             version: VERSION,
             createDate: dateString(),
             updateDate: dateString()
@@ -251,7 +250,7 @@
         // const settings = await getSettings();
         if (yakklSettings !== null) {
           yakklSettings.id = yakklProfile.id;
-          yakklSettings.registeredType = RegistrationType.PRO;
+          yakklSettings.plan.type = PlanType.STANDARD;
           yakklSettings.lastAccessDate = yakklSettings.updateDate = yakklProfile.createDate;
           yakklSettings.init = true;
           yakklSettings.isLocked = false;

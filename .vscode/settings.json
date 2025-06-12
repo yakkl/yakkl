@@ -1,4 +1,13 @@
 {
   "eslint.validate": ["javascript", "javascriptreact", "svelte"],
-  "solidity.compileUsingRemoteVersion": "v0.8.21+commit.d9974bed"
+  "solidity.compileUsingRemoteVersion": "v0.8.21+commit.d9974bed",
+  "python.defaultInterpreterPath": "packages/yakkl-ai-private/venv/bin/python",
+  "python.envFile": "packages/yakkl-ai-private/.env",
+  "python.analysis.extraPaths": [
+    "packages/yakkl-ai/src",
+    "packages/yakkl-ai-private/src"
+  ],
+  "python.linting.enabled": true,
+  "python.linting.pylintEnabled": true,
+  "python.testing.unittestEnabled": true
 }

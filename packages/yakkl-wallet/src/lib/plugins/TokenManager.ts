@@ -31,7 +31,8 @@ export class TokenManager {
         data.isStablecoin,
         this.blockchain,
         this.provider,
-        data.privateKey
+        data.privateKey,
+        data.url
       );
     }
     throw new Error(`Unsupported blockchain: ${this.blockchain.name}`);

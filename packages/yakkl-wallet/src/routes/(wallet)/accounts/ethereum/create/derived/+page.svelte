@@ -4,7 +4,7 @@
   import { Button, Modal, Spinner } from 'flowbite-svelte';
   import { getProfile, getYakklCurrentlySelected, getSettings, getMiscStore } from '$lib/common/stores';
   import { decryptData, type Profile, isEncryptedData, type ProfileData, type YakklRegisteredData, type CurrentlySelectedData, type AccountData, type PrimaryAccountData, type YakklPrimaryAccount, type YakklAccount, type EmergencyKitAccountData, type YakklCurrentlySelected, type Settings } from '$lib/common';
-  import { DEFAULT_DERIVED_PATH_ETH, PATH_WELCOME, DEFAULT_TITLE, VERSION } from '$lib/common';
+  import { DEFAULT_DERIVED_PATH_ETH, PATH_WELCOME, DEFAULT_TITLE, VERSION, PlanType } from '$lib/common';
   import { goto } from '$app/navigation';
   import { deepCopy } from '$lib/utilities/utilities';
   import { createSubportfolioAccount } from '$lib/plugins/networks/ethereum/createSubportfolioAccount';
@@ -36,7 +36,7 @@
   let successDialog = $state(false);
   let createDate: string;
   let updateDate: string;
-  let registeredType: string = $state('');
+  let planType: PlanType = $state(PlanType.STANDARD);
   let error = $state(false);
   let errorValue: string = $state('');
 
@@ -73,9 +73,9 @@
 
         settings = await getSettings();
         if (settings !== null) {
-          registeredType = settings.registeredType ? settings.registeredType : 'unknown reg type';
+          planType = settings.plan.type ? settings.plan.type : PlanType.STANDARD;
         } else {
-          registeredType = 'unknown reg type';
+          planType = PlanType.STANDARD;
         }
 
       }
@@ -433,7 +433,7 @@
         <br/>
         <br/>
         <div class="w-full text-center">
-          YAKKL® Smart Wallet - Version {VERSION} {registeredType} - https://yakkl.com
+          YAKKL® Smart Wallet - Version {VERSION} {planType} - https://yakkl.com
         </div>
       </div>
     </div>

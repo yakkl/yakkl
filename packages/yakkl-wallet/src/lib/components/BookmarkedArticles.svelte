@@ -2,7 +2,6 @@
 <!-- svelte-ignore state_referenced_locally -->
 <!-- BookmarkedArticles.svelte -->
 <script lang="ts">
-  import SectionCard from './SectionCard.svelte';
   import ArticleControls from './ArticleControls.svelte';
   import BookmarkIcon from './icons/BookmarkIcon.svelte';
   import NewsFeedLineView from './NewsFeedLineView.svelte';
@@ -10,6 +9,22 @@
   import type { RSSItem } from '$lib/plugins/ExtensionRSSFeedService';
   import { yakklBookmarkedArticlesStore, setYakklBookmarkedArticles } from '$lib/common/stores';
   import { derived, writable } from 'svelte/store';
+	import LockedSectionCard from './LockedSectionCard.svelte';
+	import Upgrade from './Upgrade.svelte';
+	import { onMount } from 'svelte';
+	import { isPro } from '$lib/common/utils';
+
+  interface Props {
+    show?: boolean;
+    locked?: boolean;
+    onComplete?: () => void;
+    footer?: any;
+    footerProps?: Record<string, any>;
+  }
+
+  let { show = $bindable(true), onComplete = $bindable(() => {}), locked = $bindable(true), footer = $bindable(null), footerProps = $bindable({}) }: Props = $props();
+
+  let showUpgradeModal = $state(false);
 
   const searchQuery = writable('');
   const sortOrder = writable<'date' | 'title'>('date');
@@ -41,6 +56,10 @@
     }
   );
 
+  onMount(async () => {
+    locked = (await isPro() ? false : true);
+  });
+
   function handleSearch(query: string) {
     searchQuery.set(query);
   }
@@ -62,11 +81,22 @@
   }
 </script>
 
-<SectionCard
+<Upgrade bind:show={showUpgradeModal} onComplete={onComplete} />
+
+<LockedSectionCard
+  bind:show={show}
   title="Bookmarked Articles"
   icon={BookmarkIcon}
   minHeight="300px"
   maxHeight="750px"
+  locked={true}
+  lockMessage="Upgrade to Pro to unlock this feature"
+  showButton={true}
+  onComplete={() => {
+    showUpgradeModal = true;
+  }}
+  {footer}
+  {footerProps}
 >
   <SearchSortControls
     searchQuery={$searchQuery}
@@ -103,4 +133,4 @@
       {/each}
     </div>
   {/if}
-</SectionCard>
+</LockedSectionCard>

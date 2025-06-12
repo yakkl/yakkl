@@ -1,5 +1,4 @@
 import type { TokenData } from './interfaces';
-import { log } from "$plugins/Logger";
 
 /**
  * Computes the balance and value of a token.

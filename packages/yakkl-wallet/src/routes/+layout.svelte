@@ -4,7 +4,6 @@
   import '../app.css';
 	import { browser_ext } from '$lib/common/environment';
 	import { sessionToken, sessionExpiresAt, storeSessionToken } from '$lib/common/auth/session';
-
 	import { get } from 'svelte/store';
 	import { log } from '$lib/plugins/Logger';
 
@@ -21,7 +20,7 @@
       });
       initializeBrowserAPI();
     } catch (error) {
-      log.error('Error initializing layout:', false, error);
+      log.warn('Error initializing layout:', false, error);
     }
   });
 </script>

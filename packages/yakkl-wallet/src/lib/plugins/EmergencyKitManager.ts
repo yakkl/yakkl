@@ -51,7 +51,7 @@ interface BulkEmergencyKitData {
 // When ready to implement S3, uncomment the following line
 // import { S3 } from 'aws-sdk';
 // import { profile } from '../models/dataModels';
-import { RegistrationType } from '../common/types';
+import { AccessSourceType, PlanType, PromoClassificationType, RegisteredType } from '../common/types';
 import { log } from './Logger';
 // import type { Token } from './Token';
 // Then do: npm install aws-sdk
@@ -93,12 +93,18 @@ export class EmergencyKitManager {
       updateDate,
       version,
       type: "yakkl",
-      registeredType: accountData[0].registered.type,
       portfolioName: accountData[0].portfolioName,
       subPortfolioName: accountData[0].subPortfolioName || '',
       subPortfolioAddress: accountData[0].subPortfolioAddress || '',
       hash: overallChecksum,
-      files: ['YakklAccount']
+      files: ['YakklAccount'],
+      plan: {
+        type: accountData[0].registered.plan.type,
+        source: AccessSourceType.STANDARD,
+        promo: PromoClassificationType.INFLUENCER,
+        trialEndDate: '',
+        upgradeDate: ''
+      }
     };
 
     const emergencyKit: EmergencyKitData = {
@@ -166,7 +172,13 @@ export class EmergencyKitManager {
       updateDate: createDate,
       version: VERSION,
       type: "yakkl_bulk",
-      registeredType: profileData?.registered?.type ?? RegistrationType.STANDARD,
+      plan: {
+        type: profileData?.registered?.plan.type ?? PlanType.STANDARD,
+        source: AccessSourceType.STANDARD,
+        promo: PromoClassificationType.INFLUENCER,
+        trialEndDate: '',
+        upgradeDate: ''
+      },
       hash: await this.createHash(JSON.stringify(encryptedData)),
       files: [
         'yakklPreferencesStore',

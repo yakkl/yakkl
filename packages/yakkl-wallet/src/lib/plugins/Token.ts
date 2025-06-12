@@ -18,6 +18,7 @@ export interface IToken {
   provider?: Provider;
   balance?: BigNumberish;
   privateKey?: string;
+  url?: string;
   getContract(): Promise<AbstractContract | null>;
   getBalance(userAddress: string): Promise<BigNumberish>;
   transfer(toAddress: string, amount: BigNumberish): Promise<TransactionResponse>;
@@ -36,6 +37,7 @@ export abstract class Token implements IToken {
   readonly blockchain?: Blockchain;
   readonly provider?: Provider;
   readonly privateKey?: string;
+  readonly url?: string;
   balance?: BigNumberish = 0n;
 
   constructor(
@@ -51,7 +53,8 @@ export abstract class Token implements IToken {
     blockchain?: Blockchain,
     provider?: Provider,
     balance?: BigNumberish,
-    privateKey?: string
+    privateKey?: string,
+    url?: string
   ) {
     this.address = address;
     this.name = name;
@@ -66,6 +69,7 @@ export abstract class Token implements IToken {
     this.provider = provider;
     this.balance = balance || 0n;
     this.privateKey = privateKey || '';
+    this.url = url || '';
   }
 
   abstract getContract(): Promise<AbstractContract | null>;
@@ -83,7 +87,8 @@ export abstract class Token implements IToken {
       description: this.description,
       chainId: this.chainId,
       isNative: this.isNative,
-      isStablecoin: this.isStablecoin
+      isStablecoin: this.isStablecoin,
+      url: this.url
     };
   }
 
@@ -109,7 +114,8 @@ export abstract class Token implements IToken {
       blockchain,
       provider,
       swapToken.balance || 0n, // Use 0 if balance is undefined
-      privateKey
+      privateKey,
+      swapToken.url || ''
     );
   }
 }

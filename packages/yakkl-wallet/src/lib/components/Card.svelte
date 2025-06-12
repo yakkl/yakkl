@@ -28,11 +28,9 @@
   import { browserSvelte, browser_ext } from '$lib/common/environment';
   import { log } from "$plugins/Logger";
 	import Copy from './Copy.svelte';
-  import { TimerManager } from '$lib/plugins/TimerManager';
   import { updateTokenPrices } from '$lib/common/tokenPriceManager';
   import { getSettings } from '$lib/common/stores';
-  import { RegistrationType } from '$lib/common/types';
-  // import { broadcastToEIP6963Ports } from '$lib/extensions/chrome/eip-6963'; // Test
+  import { PlanType, RegisteredType } from '$lib/common/types';
 
   interface Props {
     id?: string;
@@ -79,14 +77,6 @@
   let showRecv = $state(false);
   let showUpgradeModal = $state(false);
 
-  // let userName = $yakklUserNameStore;
-  // let upgrade = $state(false);
-  // let serialNumber = $state('');
-  // let promoCode = 'BETA';
-  // let step1 = $state(false);
-  // let checkPricesProvider: string = 'coinbase';
-  // let checkPricesInterval: number = 10; // Seconds
-
   let price: number = 0;
   let prevPrice: number = 0;
   let direction: string = $state('fl');
@@ -109,7 +99,7 @@
   let tokens: TokenData[] = [];
 
   let settings = $state<Settings | null>(null);
-  let registrationType = $state<RegistrationType>(RegistrationType.STANDARD);
+  let planType = $state<PlanType>(PlanType.STANDARD);
 
   $effect(() => {
     (async () => {
@@ -139,17 +129,6 @@
       }
     }
   });
-
-  // $effect(()=> {
-  //   clearTimeout(effectTimeout);
-  //     effectTimeout = setTimeout(() => {
-  //     startPricingChecks(); // Here because of different accounts with different values
-  //     (async () => {
-  //       await updateValuePriceFiat();
-  //       await updateWithCurrentlySelected();
-  //     })();
-  //   }, 200); // 200ms delay
-  // });
 
   $effect(() => {
     if (!address) {
@@ -226,11 +205,11 @@
 
         settings = await getSettings();
         if (settings) {
-          registrationType = settings.registeredType as RegistrationType;
+          planType = settings.plan.type as PlanType;
         }
       }
     } catch (e) {
-      log.error(`onMount: ${e}`);
+      log.warn(`onMount: ${e}`);
     }
   });
 
@@ -248,7 +227,7 @@
       shortcutsValue = EthereumBigNumber.from(quantity) ?? EthereumBigNumber.from(0); // .quantity is the amount of a given token the address holds
       chainId = network?.chainId ?? 1;
     } catch (e) {
-      log.error(e);
+      log.warn(e);
     }
   }
 
@@ -309,7 +288,7 @@
         log.info("updateValuePriceFiat - Value NOT updated.");
       }
     } catch (error) {
-      log.error("Error in updateValuePriceFiat:", false, error);
+      log.warn("Error in updateValuePriceFiat:", false, error);
       resetPriceData();
     }
   }
@@ -325,7 +304,7 @@
       }
       resetPriceData();
     } catch (e) {
-      log.error(e);
+      log.warn(e);
     }
   }
 
@@ -352,9 +331,6 @@
         log.warn("Account is not defined.");
         return;
       }
-
-      log.info('handleAccounts - Account received', false, account);
-
       let updatedCurrentlySelected = $yakklCurrentlySelectedStore;
 
       if (updatedCurrentlySelected && isEncryptedData(updatedCurrentlySelected.data)) {
@@ -393,7 +369,7 @@
             accounts: [account.address]
           }
         }).catch((error: Error) => {
-          log.error('Error sending account change message', true, error);
+          log.warn('Error sending account change message', true, error);
         });
       }
 
@@ -404,7 +380,7 @@
         await tokenService.updateTokenBalances($yakklCurrentlySelectedStore.shortcuts.address);
       }
     } catch (error) {
-      log.error("Error in handleAccounts:", false, error);
+      log.warn("Error in handleAccounts:", false, error);
       showAccountsModal = false;
     }
   }
@@ -449,7 +425,7 @@
             type: 'YAKKL_STATE_CHANGE',
             data: { chainId: net.chainId }
           }).catch((error: Error) => {
-            log.error('Error sending chain change message', true, error);
+            log.warn('Error sending chain change message', true, error);
           });
         }
 
@@ -457,7 +433,7 @@
         isDropdownOpen = false;
       }
     } catch (e) {
-      log.error(e);
+      log.warn(e);
       errorValue = e as string;
       error = true;
     }
@@ -468,7 +444,7 @@
       showAccountImportModal = false;
       updateValuePriceFiat();
     } catch (e) {
-      log.error(e);
+      log.warn(e);
     }
   }
 
@@ -477,7 +453,7 @@
       showAccountImportModal = false; // ?????????
       updateValuePriceFiat();
     } catch (e) {
-      log.error(e);
+      log.warn(e);
     }
   }
 
@@ -485,7 +461,7 @@
     try {
       log.info('handleImport - Not implemented');
     } catch (e) {
-      log.error(e);
+      log.warn(e);
     }
   }
 
@@ -501,7 +477,7 @@
       }
       return null;
     } catch (e) {
-      log.error(e);
+      log.warn(e);
       errorValue = e as string;
       error = true;
       return null;
@@ -514,93 +490,10 @@
       // Convert from Wei to Ether and get string representation
       return val.toEtherString();
     } catch (e) {
-      log.error(e);
+      log.warn(e);
       return '0.00000';
     }
   }
-
-  // NOTE: Move the related following functions and the Modal to Upgrade.svelte components
-  // const { form, errors, states, isValid, handleChange, handleSubmit } = createForm({
-  //   initialValues: { email: "" },
-  //   validationSchema: yup.object().shape({
-  //     email: yup.string().email('Must be a valid email.').required('Email is required.'),
-  //   }),
-  //   onSubmit: data => {
-  //     try {
-  //       // DURING BETA TESTING!
-  //       //handleUpgrade(data.email);
-  //     } catch (e) {
-  //       errorValue = `Following error occurred: ${e}`;
-  //       console.log(errorValue);
-  //     }
-  //   }
-  // });
-
-  // async function handleUpgrade(email: string) {
-  //   try {
-  //     if (!getUserName(email)) {
-  //       console.log('Username has not been defined yet.');
-  //       return;
-  //     }
-
-  //     let key = await getRegistrationKey(email);
-  //     if (key === '' && userName) {
-  //       handleOpenInTab(encodeURI("https://buy.stripe.com/test_28oaHm7Jt9lS9LqeUU?prefilled_promo_code=" + promoCode + "&client_reference_id=" + userName + "&prefilled_email=" + email + "&utm_source=yakkl&utm_medium=product&utm_campaign=" + promoCode));
-  //     } else {
-  //       console.log('Unable to return registration key.');
-  //       throw 'Unable to return registration key.';
-  //     }
-  //     step1 = true;
-  //     upgrade = true;
-  //   } catch (e) {
-  //     console.log(e);
-  //   }
-  // }
-
-  // async function handleUpgradeSave() {
-  //   try {
-  //     if (!yakklMiscStore) {
-  //       console.log('Username and/or password have not been defined at this time.');
-  //       return; // undefined;
-  //     }
-  //     await getProfile().then(async result => {
-  //       let profile = result as Profile;
-
-  //       if (isEncryptedData(profile.data)) {
-  //         await decryptData(profile.data, yakklMiscStore).then(async (result) => {
-  //           profile.data = result as ProfileData;
-  //           profile.data.registered.type = RegistrationType.PRO;
-  //           profile.data.registered.key = serialNumber;
-  //           yakklVersionStore.set('Pro - ' + serialNumber);
-
-  //           await encryptData(profile.data, yakklMiscStore).then(async (result) => {
-  //             profile.data = result;
-  //             await setProfileStorage(profile);
-  //           });
-  //         });
-  //       }
-  //     });
-
-  //     await getSettings().then(async result => {
-  //       yakklSettings = result as Settings;
-  //       yakklSettings.registeredType = RegistrationType.PRO;
-  //       await setSettings(yakklSettings);
-  //     });
-  //     upgrade = false;
-  //   } catch (e) {
-  //     console.log(e);
-  //   }
-  // }
-  // function updateUpgradeButton() {
-  //   if (checkUpgrade()) {
-  //     if (browserSvelte) {
-  //       const upgradeButton = document.getElementById('upgrade');
-  //       if (upgradeButton) {
-  //         upgradeButton.style.display = 'none';
-  //       }
-  //     }
-  //   }
-  // }
 
 </script>
 
@@ -628,10 +521,7 @@
       </div>
 
       <SpeedDial defaultClass="absolute right-1 bottom-1 z-10 bg-primary rounded-full" pill={false} tooltip="none" placement='bottom'>
-        <!-- {#snippet icon()} -->
-                <svg  aria-hidden="true" class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z"></path></svg>
-              <!-- {/snippet} -->
-        <!-- btnDefaultClass="w-16" -->
+        <svg  aria-hidden="true" class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z"></path></svg>
         <SpeedDialButton name="Accounts" on:click={() => {showAccountsModal = true}} class="w-16">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" aria-hidden="true" class="w-6 h-6" fill="currentColor">
             <path fill-rule="evenodd" d="M6 4.75A.75.75 0 016.75 4h10.5a.75.75 0 010 1.5H6.75A.75.75 0 016 4.75zM6 10a.75.75 0 01.75-.75h10.5a.75.75 0 010 1.5H6.75A.75.75 0 016 10zm0 5.25a.75.75 0 01.75-.75h10.5a.75.75 0 010 1.5H6.75a.75.75 0 01-.75-.75zM1.99 4.75a1 1 0 011-1H3a1 1 0 011 1v.01a1 1 0 01-1 1h-.01a1 1 0 01-1-1v-.01zM1.99 15.25a1 1 0 011-1H3a1 1 0 011 1v.01a1 1 0 01-1 1h-.01a1 1 0 01-1-1v-.01zM1.99 10a1 1 0 011-1H3a1 1 0 011 1v.01a1 1 0 01-1 1h-.01a1 1 0 01-1-1V10z" clip-rule="evenodd" />
@@ -676,19 +566,19 @@
           <span class="text-gray-100 text-center dark:text-white text-4xl ml-2 -mt-6 font-bold">
             {$yakklCurrentlySelectedStore && $yakklCurrentlySelectedStore.shortcuts.network.blockchain}
           </span>
-          {#if registrationType === RegistrationType.PRO}
+          <!-- {#if planType === PlanType.PRO}
             <span class="flex h-6 absolute z-100 top-2 right-24">
               <div class="px-3 py-1 bg-green-800/80 text-white font-medium text-xs leading-tight uppercase rounded-full shadow-md">
-                PRO
+                Pro
               </div>
             </span>
           {:else}
             <span class="flex h-6 absolute z-100 top-2 right-24">
               <div class="px-3 py-1 bg-yellow-800/80 text-white font-medium text-xs leading-tight uppercase rounded-full shadow-md">
-                STD
+                Standard
               </div>
             </span>
-          {/if}
+          {/if} -->
           {#if showTestNetworks}
           <span class="flex h-6 absolute z-100 top-2 right-24">
             <div class="dropdown dropdown-bottom relative">

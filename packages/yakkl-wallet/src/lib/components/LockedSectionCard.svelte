@@ -5,6 +5,7 @@
   import { cn } from '$lib/utils';
 
   let {
+    show = $bindable(true),
     locked = false,
     lockMessage = "Upgrade to unlock this feature",
     showButton = true,
@@ -17,8 +18,11 @@
     className,
     minHeight,
     maxHeight,
+    footer,
+    footerProps = {},
     children
   } = $props<{
+    show?: boolean;
     locked?: boolean;
     lockMessage?: string | (() => string);
     showButton?: boolean;
@@ -31,11 +35,15 @@
     eyeTooltip?: string;
     minHeight?: string;
     maxHeight?: string;
+    footer?: any;
+    footerProps?: Record<string, any>;
     children: () => any;
   }>();
 </script>
 
+{#if show}
 <SectionCard
+  bind:show={show}
   {title}
   {icon}
   {isPinned}
@@ -44,6 +52,8 @@
   {className}
   {minHeight}
   {maxHeight}
+  {footer}
+  {footerProps}
 >
   <div class="relative">
     <!-- The actual content -->
@@ -52,8 +62,8 @@
     </div>
 
     {#if locked}
-      <!-- Overlay with lock icon, message, and optional button -->
-      <div class="absolute inset-0 flex flex-col items-center justify-center bg-white/80 dark:bg-zinc-900/70 text-center p-4 rounded-xl z-10">
+      <!-- Overlay with lock icon, message, and optional button (justify-center if you want to center on the content) -->
+      <div class="absolute inset-0 flex flex-col items-center bg-white/80 dark:bg-zinc-900/70 text-center p-4 rounded-xl z-10">
         <LockIcon className="w-6 h-6 text-zinc-500 mb-2" />
         <div class="text-zinc-800 dark:text-zinc-200 text-sm mb-2">
           {typeof lockMessage === 'function' ? lockMessage() : lockMessage}
@@ -73,3 +83,4 @@
     {/if}
   </div>
 </SectionCard>
+{/if}

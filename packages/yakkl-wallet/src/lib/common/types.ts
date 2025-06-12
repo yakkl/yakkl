@@ -129,10 +129,39 @@ export enum AccountTypeStatus {
   DELETED = 'deleted',
 }
 
-export enum RegistrationType {
+export enum RegisteredType {
   STANDARD = 'standard',
   PRO = 'pro',
 }
+
+export enum PlanType {
+  TRIAL = 'trial',
+  STANDARD = 'standard',
+  PRO = 'pro',
+  INSTITUTION = 'institution',
+  BUSINESS = 'business',
+  ENTERPRISE = 'enterprise',
+}
+
+// accessSource?: AccessSourceType
+export enum AccessSourceType {
+  STANDARD = 'standard',         // normal free user
+  SUBSCRIBED = 'subscribed',     // paid user
+  TRIAL = 'trial',               // X-day trial
+  PROMO = 'promo',               // manual influencer / employee / etc
+}
+
+// trialEndDate?: string (ISO format)
+
+// promoType?: PromoClassificationType
+export enum PromoClassificationType {
+  INFLUENCER = 'influencer',
+  EMPLOYEE = 'employee',
+  SPECIAL = 'special',
+  EVENT = 'event',
+  OTHER = 'other',
+  NONE = 'none',
+} // Use for analytics, targeting, feature flags, etc.
 
 export enum NetworkType {
   MAINNET = 'mainnet',

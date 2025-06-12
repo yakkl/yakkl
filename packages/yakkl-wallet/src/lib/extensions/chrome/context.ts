@@ -191,21 +191,21 @@ function handleContextMessage(
     // Handle context initialization messages
     if (actualMessage.type === 'ui_context_initialized') {
       sendResponse({ success: true });
-      setImmediate(() => registerContext(actualMessage, sender));
+      setTimeout(() => registerContext(actualMessage, sender), 0);
       return true;
     }
 
     // Handle context activity
     if (actualMessage.type === 'ui_context_activity' || actualMessage.type === 'USER_ACTIVITY') {
       sendResponse({ success: true });
-      setImmediate(() => updateContextActivity(actualMessage));
+      setTimeout(() => updateContextActivity(actualMessage), 0);
       return true;
     }
 
     // Handle context closing
     if (actualMessage.type === 'ui_context_closing') {
       sendResponse({ success: true });
-      setImmediate(() => removeContext(actualMessage));
+      setTimeout(() => removeContext(actualMessage), 0);
       return true;
     }
 
@@ -213,7 +213,7 @@ function handleContextMessage(
     if (actualMessage.type === 'SET_LOGIN_VERIFIED') {
       log.info('[ContextTracker] SET_LOGIN_VERIFIED received:', false, actualMessage);
       sendResponse({ success: true });
-      setImmediate(() => setLoginVerified(actualMessage.verified, actualMessage.contextId));
+      setTimeout(() => setLoginVerified(actualMessage.verified, actualMessage.contextId), 0);
       return true;
     }
 
@@ -227,7 +227,7 @@ function handleContextMessage(
 
       log.info(`[ContextTracker] Starting idle manager from ${actualMessage.contextId || 'unknown'}`);
       sendResponse({ success: true, message: 'Idle manager started' });
-      setImmediate(() => setLoginVerified(true));
+      setTimeout(() => setLoginVerified(true), 0);
       return true;
     }
 
@@ -268,12 +268,12 @@ function handleWindowRemoved(windowId: number) {
         log.info(`[ContextTracker] Context ${contextId} removed due to window close`);
 
         // Notify other contexts (async, non-blocking)
-        setImmediate(() => {
+        setTimeout(() => {
           broadcastToOtherContexts('context_removed', {
             id: contextId,
             type: contextInfo.type
           }, contextId);
-        });
+        }, 0);
       }
     }
   } catch (error) {
@@ -321,12 +321,12 @@ function registerContext(message: any, sender: Runtime.MessageSender) {
     log.info(`[ContextTracker] UI Context initialized: ${contextType}`, false, contextInfo);
 
     // Broadcast to other contexts (async, non-blocking)
-    setImmediate(() => {
+    setTimeout(() => {
       broadcastToOtherContexts('context_added', {
         id: message.contextId,
         type: contextType
       }, message.contextId);
-    });
+    }, 0);
   } catch (error) {
     log.error('[ContextTracker] Error registering context:', false, error);
   }
@@ -513,12 +513,12 @@ function removeContext(message: any) {
       }
 
       // Notify other contexts (async, non-blocking)
-      setImmediate(() => {
+      setTimeout(() => {
         broadcastToOtherContexts('context_removed', {
           id: contextId,
           type: removedContext.type
         }, contextId);
-      });
+      }, 0);
     }
   } catch (error) {
     log.error('[ContextTracker] Error removing context:', false, error);
