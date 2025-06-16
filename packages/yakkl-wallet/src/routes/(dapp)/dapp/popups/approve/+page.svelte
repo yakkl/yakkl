@@ -280,6 +280,10 @@
         {:else if method === 'wallet_requestPermissions' || method === 'wallet_revokePermissions' || method === 'wallet_getPermissions'}
           <!-- wallet_requestPermissions is the only one requiring user approval but added the other two for completeness -->
           <span>1. Request approval to connect to your wallet addresses</span>
+        {:else if method === 'wallet_switchEthereumChain'}
+          <span>1. Request approval to switch to a different network</span>
+        <!-- {:else if method === 'wallet_addEthereumChain'}
+          <span>1. Request approval to add a new network</span> -->
         {:else}
           <span>Request approval for '{method}' but it is not supported by YAKKL® due to security concerns.</span>
         {/if}
@@ -302,7 +306,7 @@
 
     <div class="bg-base-200 rounded-lg p-4 mb-4 flex-shrink-0">
       <p class="text-sm text-base-content/70">
-        {#if method !== 'eth_requestAccounts' && method !== 'eth_sendTransaction' && method !== 'eth_signTypedData_v4' && method !== 'personal_sign' && method !== 'eth_signTransaction' && method !== 'wallet_requestPermissions' && method !== 'wallet_revokePermissions' && method !== 'wallet_getPermissions'}
+        {#if method !== 'eth_requestAccounts' && method !== 'eth_sendTransaction' && method !== 'eth_signTypedData_v4' && method !== 'personal_sign' && method !== 'eth_signTransaction' && method !== 'wallet_requestPermissions' && method !== 'wallet_revokePermissions' && method !== 'wallet_getPermissions' && method !== 'wallet_switchEthereumChain'}
         The request is a possible security risk and not allowed!
         {:else}
         By connecting, you agree to allow this site to connect to your addresses. Any signing or transaction requests will have an additional approval step.
@@ -314,7 +318,7 @@
   <!-- Footer -->
   <div class="p-4 border-t border-base-300 flex-shrink-0">
     <div class="flex gap-4 justify-end">
-      {#if method !== 'eth_requestAccounts' && method !== 'eth_sendTransaction' && method !== 'eth_signTypedData_v4' && method !== 'personal_sign' && method !== 'eth_signTransaction' && method !== 'wallet_requestPermissions' && method !== 'wallet_revokePermissions' && method !== 'wallet_getPermissions'}
+      {#if method !== 'eth_requestAccounts' && method !== 'eth_sendTransaction' && method !== 'eth_signTypedData_v4' && method !== 'personal_sign' && method !== 'eth_signTransaction' && method !== 'wallet_requestPermissions' && method !== 'wallet_revokePermissions' && method !== 'wallet_getPermissions' && method !== 'wallet_switchEthereumChain'}
         <button onclick={() => handleReject('Unsupported method - Security risk: ' + method)} class="btn btn-primary">
           Reject
         </button>
@@ -332,6 +336,8 @@
           Revoke Connection
         {:else if method === 'wallet_getPermissions'}
           View Permissions
+        {:else if method === 'wallet_switchEthereumChain'}
+          Switch Network
         {/if}
         </button>
       {/if}

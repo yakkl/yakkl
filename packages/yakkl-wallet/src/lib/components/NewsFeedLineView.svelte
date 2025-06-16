@@ -15,9 +15,10 @@
       publishedAt?: string;
     };
     className?: string;
+    locked?: boolean;
   }
 
-  let { newsItem, className = '' }: Props = $props();
+  let { newsItem, className = '', locked = true }: Props = $props();
 
   // Check if the news item has all required properties
   const isValidNewsItem = newsItem &&

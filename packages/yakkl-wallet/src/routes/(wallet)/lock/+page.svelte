@@ -1,8 +1,8 @@
 <script lang="ts">
   import { browserSvelte } from '$lib/common/environment';
   import { goto } from '$app/navigation';
-  import { resetStores, setMiscStore, setYakklTokenDataCustomStorage, syncStorageToStore, yakklCurrentlySelectedStore, yakklSettingsStore, yakklTokenDataCustomStore } from '$lib/common/stores';
-  import { PATH_LOGIN, PATH_LOGOUT } from '$lib/common/constants';
+  import { setMiscStore, yakklCurrentlySelectedStore, yakklSettingsStore } from '$lib/common/stores';
+  import { PATH_LOGOUT } from '$lib/common/constants';
 
 	import type { Settings, YakklCurrentlySelected } from '$lib/common/interfaces';
 	import { setIconLock } from '$lib/utilities';

@@ -16,6 +16,7 @@ import type { TokenData } from '$lib/common';
 //     timeline: '24h',
 //     percentChange: 0.5,
 //   }],
+//   url: 'https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
 // };
 
 // export const btcTokenData: TokenData = {

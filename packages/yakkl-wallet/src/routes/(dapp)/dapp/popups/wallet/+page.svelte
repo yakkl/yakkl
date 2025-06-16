@@ -11,7 +11,7 @@
   import type { BackgroundPendingRequest } from '$lib/extensions/chrome/background';
 	import Confirmation from '$lib/components/Confirmation.svelte';
 	import Copyright from '$lib/components/Copyright.svelte';
-	import Warning from '$lib/components/Warning.svelte';
+	// import Warning from '$lib/components/Warning.svelte';
 	import Failed from '$lib/components/Failed.svelte';
 	import { createPortManagerWithStream, PortManagerWithStream } from '$lib/plugins/PortManagerWithStream';
 	import type { PortDuplexStream } from '$lib/plugins/PortStreamManager';

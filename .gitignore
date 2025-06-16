@@ -8,6 +8,13 @@ node_modules/
 packages/yakkl-security/
 packages/yakkl-backend/
 
+# Ignore all pro/ and private/ folders recursively, but keep the folders themselves tracked
+**/pro/*
+!**/pro/.gitkeep
+
+**/private/*
+!**/private/.gitkeep
+
 # Wallet build artifacts
 packages/yakkl-wallet/.svelte-kit/
 packages/yakkl-wallet/build/
@@ -44,10 +51,6 @@ packages/yakkl-wallet/package
 packages/yakkl-wallet/deadcode
 packages/yakkl-wallet/research
 packages/yakkl-wallet/*.http
-packages/yakkl-wallet/.env
-packages/yakkl-wallet/.env.*
-!packages/yakkl-wallet/.env.example
-packages/**/.env
 packages/yakkl-wallet/test-data-keyring.json
 packages/yakkl-wallet/wip-colors
 packages/yakkl-wallet/background.js.LICENSE.txt
@@ -70,6 +73,16 @@ packages/yakkl-wallet/src/lib/**/*.tmp
 **/*.tmp
 **/*.wip
 **/anvil-state
+
+# Sensitive env files
+**/*.env
+**/*.env.*
+!**/.env.example
+
+# Restricted files
+# AI assistant files
+**/CLAUDE.md
+**/CLAUDE.md.*
 
 # Lock files
 # pnpm-lock.yaml

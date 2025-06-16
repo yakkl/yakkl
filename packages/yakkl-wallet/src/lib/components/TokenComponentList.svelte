@@ -13,10 +13,12 @@
 
   interface Props {
     maxVisibleTokens?: number; // 0 means show all
+    maxTokens?: number;
+    locked?: boolean;
     className?: string;
   }
 
-  let { maxVisibleTokens = 0, className = '' }: Props = $props();
+  let { maxVisibleTokens = 0, locked = true, maxTokens = locked ? 3 : 0, className = '' }: Props = $props();
 
   let tokens: TokenData[] = $state([]);
   let visibleTokens: TokenData[] = $state([]);
@@ -34,7 +36,26 @@
       updateTokenDisplay();
     } else {
       getYakklCombinedToken().then((initialTokens) => {
-        tokens = initialTokens;
+        console.log('TokenComponentList: combined tokens loaded', initialTokens.length);
+
+        // If no tokens are loaded, try to trigger loading them
+        if (initialTokens.length === 0) {
+          log.warn('TokenComponentList: No tokens loaded from combined store, attempting to load defaults');
+          import('$lib/plugins/tokens/loadDefaultTokens').then(({ loadDefaultTokens }) => {
+            loadDefaultTokens().then(() => {
+              // After loading defaults, attempt to get combined tokens again
+              getYakklCombinedToken().then((reloadedTokens) => {
+                console.log('TokenComponentList: tokens after reload', reloadedTokens.length);
+                const effectiveMaxTokens = locked ? maxTokens : (maxTokens > 0 ? maxTokens : 0);
+                tokens = effectiveMaxTokens > 0 ? reloadedTokens.slice(0, effectiveMaxTokens) : reloadedTokens;
+                updateTokenDisplay();
+              });
+            });
+          });
+        }
+
+        const effectiveMaxTokens = locked ? maxTokens : (maxTokens > 0 ? maxTokens : 0);
+        tokens = effectiveMaxTokens > 0 ? initialTokens.slice(0, effectiveMaxTokens) : initialTokens;
         updateTokenDisplay();
       });
     }
@@ -49,7 +70,9 @@
 
     // Subscribe to store changes
     const unsubscribe = yakklCombinedTokenStore.subscribe((newTokens) => {
-      tokens = newTokens;
+      // Apply the same token limit logic when store updates
+      const effectiveMaxTokens = locked ? maxTokens : (maxTokens > 0 ? maxTokens : 0);
+      tokens = effectiveMaxTokens > 0 ? newTokens.slice(0, effectiveMaxTokens) : newTokens;
       updateTokenDisplay();
     });
 
@@ -62,6 +85,7 @@
   });
 
   function updateTokenDisplay() {
+    // If maxVisibleTokens is 0 or we have fewer tokens than maxVisibleTokens, show all tokens
     if (maxVisibleTokens === 0 || tokens.length <= maxVisibleTokens) {
       visibleTokens = tokens;
       remainingTokens = [];
@@ -69,6 +93,7 @@
       visibleTokens = tokens.slice(0, maxVisibleTokens);
       remainingTokens = tokens.slice(maxVisibleTokens);
     }
+    console.log('updateTokenDisplay', { visibleTokens, remainingTokens, maxVisibleTokens, maxTokens, locked });
   }
 
   function toggleExpand() {
@@ -79,7 +104,7 @@
 <div class={cn("flex flex-col", className)}>
   <div class="space-y-1">
     {#each visibleTokens as token}
-      <TokenLineView {token} />
+      <TokenLineView {token} {locked} />
     {/each}
   </div>
 
@@ -92,8 +117,7 @@
         <Accordion.Content>
           <div class="space-y-1">
           {#each remainingTokens as token}
-            {log.info('TokenComponentList', false, { token })}
-            <TokenLineView {token} />
+            <TokenLineView {token} {locked} />
           {/each}
         </div>
         </Accordion.Content>

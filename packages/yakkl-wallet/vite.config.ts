@@ -7,6 +7,7 @@ import { isoImport } from 'vite-plugin-iso-import';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 import mockBrowserPolyfill from './vite-plugin-mock-browser-polyfill';
+import { getYakklAliases } from './vite.alias.config';
 
 const htmlContent = fs.readFileSync( path.resolve( 'static/snippet-terms.html' ), 'utf-8' );
 
@@ -52,13 +53,16 @@ export default defineConfig( ({ mode }) => {
         $components: path.resolve( './src/lib/components' ),
         $routes: path.resolve( './src/routes' ),
         $plugins: path.resolve( './src/lib/plugins' ),
-        // 'webextension-polyfill': path.resolve( __dirname, 'node_modules/webextension-polyfill/dist/browser-polyfill.js' ),
+        // ...(process.env.YAKKL_PRO === 'true' && { $pro: path.resolve('./src/pro') }),
+        // ...(process.env.YAKKL_PRIVATE === 'true' && { $private: path.resolve('./src/private') }),
+        //// 'webextension-polyfill': path.resolve( __dirname, 'node_modules/webextension-polyfill/dist/browser-polyfill.js' ),
         'webextension-polyfill': path.resolve( __dirname, 'static/ext/browser-polyfill.js' ), // We are using a local copy of the browser-polyfill.js file
         stream: 'stream-browserify',
         ethersv6: path.resolve( 'node_modules/ethers-v6' ),
         ethers: path.resolve( 'node_modules/ethers' ),
         '@yakkl/uniswap-alpha-router-service': '../uniswap-alpha-router-service/src',
         'events': 'events',
+        ...getYakklAliases(),
       },
     },
     define: {

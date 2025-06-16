@@ -9,6 +9,7 @@
 	import Tooltip from './Tooltip.svelte';
   import { yakklBookmarkedArticlesStore, setYakklBookmarkedArticles } from '$lib/common/stores';
   import { derived } from 'svelte/store';
+	import { log } from '$lib/plugins/Logger';
 
   let {
     article,
@@ -245,22 +246,185 @@
     showDeleteConfirmation = false;
   }
 
+  // Prints out the full article in a new window
+  // Example usage:
+  // <button onclick="printFullArticle('https://news.example.com/article/123')">
+  //   🖨️ Print Full Article
+  // </button>
+  function printFullArticle(articleUrl: string) {
+    const printWindow = window.open(articleUrl, '_blank');
+
+    printWindow.onload = () => {
+        printWindow.focus();
+        printWindow.print();
+    };
+  }
+
   // Function to handle printing
   function handlePrint(articleUrl: string = '') {
+    // if (articleUrl) {
+    //   console.log('Printing article from external source', articleUrl);
+    //   printFullArticle(articleUrl); // Optional external print
+    //   return;
+    // }
+
+    console.log('Printing article from internal source', articleUrl);
+    const sanitizedContent = sanitizeContent(article.content || article.description || article.title);
+    const html = generatePrintHtml(article, sanitizedContent);
+
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       console.error('Failed to open print window');
       return;
     }
 
-    const doc = printWindow.document;
+    // Wait until the new window DOM is available
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
 
-    // Sanitize the content
-    const sanitizedContent = sanitizeContent(article.content || article.description || article.title);
+    // Ensure content loads before printing
+    printWindow.onload = () => {
+      printWindow.focus();
+      printWindow.print();
+    };
 
-    doc.open();
-    doc.write(`
-      <!DOCTYPE html>
+    // const doc = printWindow.document;
+    // doc.open();
+    // doc.write(`
+    //   <!DOCTYPE html>
+    //   <html>
+    //     <head>
+    //       <title>${article.title}</title>
+    //       <meta charset="utf-8">
+    //       <link rel="shortcut icon" href="https://yakkl.com/images/favicon.png" />
+    //       <style>
+    //         body {
+    //           font-family: Arial, sans-serif;
+    //           padding: 20px;
+    //           max-width: 800px;
+    //           margin: 0 auto;
+    //           color: #333;
+    //         }
+    //         .header {
+    //           margin-bottom: 20px;
+    //           border-bottom: 1px solid #eee;
+    //           padding-bottom: 20px;
+    //         }
+    //         .metadata {
+    //           color: #666;
+    //           font-size: 0.9em;
+    //           margin: 10px 0;
+    //         }
+    //         .metadata span {
+    //           margin-right: 15px;
+    //         }
+    //         .content {
+    //           line-height: 1.6;
+    //           font-size: 1.1em;
+    //           white-space: pre-wrap;
+    //           margin: 20px 0;
+    //         }
+    //         .content img {
+    //           max-width: 100%;
+    //           height: auto;
+    //           margin: 10px 0;
+    //         }
+    //         .content a {
+    //           color: #0066cc;
+    //           text-decoration: none;
+    //         }
+    //         .content a:hover {
+    //           text-decoration: underline;
+    //         }
+    //         .tags {
+    //           margin-top: 20px;
+    //           padding-top: 20px;
+    //           border-top: 1px solid #eee;
+    //         }
+    //         .tag {
+    //           display: inline-block;
+    //           background: #f0f0f0;
+    //           padding: 3px 8px;
+    //           border-radius: 3px;
+    //           margin-right: 5px;
+    //           font-size: 0.9em;
+    //         }
+    //         .source-link {
+    //           margin-top: 20px;
+    //           font-size: 0.9em;
+    //           color: #666;
+    //           border-top: 1px solid #eee;
+    //           padding-top: 20px;
+    //         }
+    //         @media print {
+    //           body { padding: 0; }
+    //           .header { border-bottom: 1px solid #000; }
+    //           .tags { border-top: 1px solid #000; }
+    //           .source-link { border-top: 1px solid #000; }
+    //         }
+    //       </style>
+    //     </head>
+    //     <body>
+    //       <div class="header">
+    //         <h1>${article.title}</h1>
+    //         <div class="metadata">
+    //           <span><strong>Source:</strong> ${article.source}</span>
+    //           ${article.author ? `<span><strong>Author:</strong> ${article.author}</span>` : ''}
+    //           <span><strong>Published:</strong> ${article.publishedAt || article.date}</span>
+    //         </div>
+    //       </div>
+    //       <div class="content">
+    //         ${sanitizedContent}
+    //       </div>
+    //       ${article.categories && article.categories.length > 0 ? `
+    //         <div class="tags">
+    //           Tags: ${article.categories.map((tag: string) => `<span class="tag">${tag}</span>`).join('')}
+    //         </div>
+    //       ` : ''}
+    //       <div class="source-link">
+    //         <p>Source: <a href="${article.url}" target="_blank">${article.url}</a></p>
+    //         <p>Printed on: ${new Date().toLocaleString()}</p>
+    //         <p>Printed by: <a href="https://yakkl.com/?utm_source=yakkl-wallet&utm_medium=print&utm_campaign=${encodeURIComponent(article.source)}&utm_content=${encodeURIComponent(article.title)}" target="_blank">YAKKL Smart Wallet</a></p>
+    //       </div>
+    //     </body>
+    //   </html>
+    // `);
+    // doc.close();
+
+    // Ensure the content is loaded before printing
+    // setTimeout(() => {
+    //   printWindow.focus();
+    //   printWindow.print();
+    // }, 500);
+  }
+
+  // Not for printing from extension context. Use in normal browser context window.
+  function printArticle(article: RSSItem, sanitizedContent: string) {
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+
+    // Set the HTML via srcdoc
+    iframe.srcdoc = generatePrintHtml(article, sanitizedContent);
+
+    document.body.appendChild(iframe);
+
+    iframe.onload = () => {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      // Optionally remove the iframe afterward
+      setTimeout(() => iframe.remove(), 1000);
+    };
+  }
+
+  function generatePrintHtml(article: RSSItem, sanitizedContent: string) {
+    return `
+    <!DOCTYPE html>
       <html>
         <head>
           <title>${article.title}</title>
@@ -357,16 +521,8 @@
           </div>
         </body>
       </html>
-    `);
-    doc.close();
-
-    // Ensure the content is loaded before printing
-    setTimeout(() => {
-      printWindow.focus();
-      printWindow.print();
-    }, 500);
+    `
   }
-
 </script>
 
 <div

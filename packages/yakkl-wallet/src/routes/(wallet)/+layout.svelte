@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-  import { getSettings, sessionInitialized } from "$lib/common/stores";
-  import { DEFAULT_POPUP_HEIGHT, DEFAULT_TITLE, DEFAULT_POPUP_WIDTH, PATH_LEGAL, PATH_REGISTER, PATH_LOGIN } from '$lib/common';
+  import { sessionInitialized } from "$lib/common/stores";
+  import { DEFAULT_POPUP_HEIGHT, DEFAULT_TITLE, DEFAULT_POPUP_WIDTH } from '$lib/common';
   import Header from '$components/Header.svelte';
   import Footer from '$components/Footer.svelte';
   import { blockContextMenu, blockWindowResize } from '$lib/utilities';
@@ -10,9 +10,12 @@
   import { log } from '$lib/common/logger-wrapper';
   import { initializeUiContext } from '$lib/common/messaging';
 	import InAppNotifications from "$lib/components/InAppNotifications.svelte";
-	import { goto } from "$app/navigation";
 	import SecurityWarningEnhanced from "$lib/components/SecurityWarningEnhanced.svelte";
-	import WalletDimmingOverlay from "$lib/components/WalletDimmingOverlay.svelte";
+  import Card from '$lib/components/Card.svelte';
+  import { getMiscStore } from '$lib/common/stores';
+	import TrialCountdown from "$lib/components/TrialCountdown.svelte";
+	import Upgrade from "$lib/components/Upgrade.svelte";
+	import { modal, modalName } from "$lib/common/stores/modal";
 
   interface Props {
     children?: import('svelte').Snippet;
@@ -20,7 +23,7 @@
 
   let { children }: Props = $props();
 
-  // const EXCLUDED_PATHS = [PATH_LOGIN, PATH_REGISTER, PATH_LEGAL, PATH_LOCK, PATH_LOGOUT, '/', '/index.html'];
+  const yakklMiscStore = getMiscStore();
 
   // UI State
   let popupWidth: number = $state(DEFAULT_POPUP_WIDTH);
@@ -75,11 +78,15 @@
 </svelte:head>
 
 <SecurityWarningEnhanced />
-
 <ErrorNoAction bind:show={error} title="Error" value={errorValue} />
 
 <div id="wrapper" class="w-[{popupWidth}px] rounded-md flex flex-col  bg-gradient-to-br from-gray-900 via-gray-800 to-black min-h-screen transition-opacity duration-500 animate-fade-in">
-  <Header containerWidth={popupWidth} />
+  <!-- containerWidth={popupWidth} /> -->
+  <Header />
+
+  {#if yakklMiscStore}
+    <Card />
+  {/if}
 
   <div class="min-h-[40rem] mx-2">
     <div class="relative mt-1">
@@ -93,5 +100,7 @@
   <Footer containerWidth={popupWidth.toString()} />
 </div>
 
-<!-- <WalletDimmingOverlay /> -->
 <InAppNotifications />
+
+<TrialCountdown />
+<Upgrade show={$modal && $modalName === 'upgrade'} />

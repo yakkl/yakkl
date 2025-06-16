@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { AccessList, Log, Transaction } from '$lib/common/evm';
-import type { AccountTypeCategory, BytesLike, NetworkType, RegistrationType, SystemTheme, URL } from '$lib/common/types';
+import type { AccessSourceType, AccountTypeCategory, BytesLike, NetworkType, PlanType, PromoClassificationType, RegisteredType, SystemTheme, URL } from '$lib/common/types';
 import type { BigNumberish } from '$lib/common/bignumber';
 import type { Token } from '$lib/plugins/Token';
 import type { Runtime } from 'webextension-polyfill';
@@ -173,7 +173,14 @@ export interface EmergencyKitMetaData {
   updateDate: string;
   version: string;
   type: string;
-  registeredType: string;
+  plan: {
+    type: PlanType;
+    // Remaining fields are the same as the Settings.plan object and may not need to be here?
+    source?: AccessSourceType;
+    promo?: PromoClassificationType;
+    trialEndDate?: string;
+    upgradeDate?: string;
+  };
   portfolioName?: string;
   subPortfolioName?: string;
   subPortfolioAddress?: string;
@@ -498,6 +505,7 @@ export interface SwapToken {
   isNative?: boolean;
   isStablecoin?: boolean;
   description?: string;
+  url?: string;
   tags?: string[]; // key
   version?: string; // Symantic versioning
 };
@@ -512,7 +520,6 @@ export interface TokenData extends SwapToken {
   customDefault?: 'custom' | 'default'; // If 'custom' then it's a custom token and if 'default' then it's a default token
   sidepanel?: boolean; // If true then the token is only available in the sidepanel
   evmCompatible?: boolean; // If true then the token is EVM compatible
-  url?: string; // URL to the token
 }
 
 // Currently only used for the token list and not as a stand alone data store
@@ -713,7 +720,13 @@ export interface YakklRegisteredData {
   id?: string;
   persona?: string; // The persona that is associated with the account
   key: string;
-  type: RegistrationType; // Consider using a union type if there are specific allowed values
+  plan: {
+    type: PlanType;
+    source: AccessSourceType;
+    promo: PromoClassificationType;
+    trialEndDate: string;
+    upgradeDate: string;
+  };
   version: string;
   createDate: string;
   updateDate: string;
@@ -797,13 +810,23 @@ export interface Preferences {
   updateDate: string;
 }
 
-export interface Settings{
-  id: string; // Profile id
+export interface Settings {
+  id: string; // Profile id (aka user id)
   persona?: string; // The persona that is associated with the account
   previousVersion?: string;
-  registeredType: string; // This data comes from yakklRegisteredData.type
+  // accessSource?: AccessSourceType; // This is the source of the access to the wallet
+  // promoType?: PromoClassificationType; // This is the type of promo code used
+  // trialEndDate?: string; // This is the end date of the trial
+  trialCountdownPinned?: boolean; // This is the pinned state of the trial countdown
   legal: Legal;
   platform: Platform;
+  plan: {
+    type: PlanType;
+    source?: AccessSourceType;
+    promo?: PromoClassificationType;
+    trialEndDate?: string;
+    upgradeDate?: string;
+  };
   init: boolean;
   showHints?: boolean;
   isLocked: boolean;
