@@ -4,7 +4,6 @@
   import ChevronUpIcon from '$lib/components/icons/ChevronUpIcon.svelte';
   import NewsFeedLineView from './NewsFeedLineView.svelte';
   import ArticleControls from './ArticleControls.svelte';
-	import { yakklBookmarkedArticlesStore } from '$lib/common/stores';
 
   interface NewsItem {
     title: string;
@@ -25,26 +24,35 @@
     newsItems?: NewsItem[];
     maxVisibleItems?: number;
     className?: string;
+    locked?: boolean;
+    maxItemsPerFeed?: number;
   }
 
   let {
     newsItems = [],
     maxVisibleItems = 3,
-    className = ''
+    className = '',
+    locked = true,
+    maxItemsPerFeed = locked ? 3 : 0
   }: Props = $props();
 
-  let visibleItems = $state(newsItems.slice(0, maxVisibleItems));
-  let remainingItems = $state(newsItems.slice(maxVisibleItems));
+  // Apply maxItemsPerFeed limit if locked
+  const effectiveMaxItems = locked ? (maxItemsPerFeed === 0 ? 3 : maxItemsPerFeed) : 0;
+  const limitedItems = effectiveMaxItems > 0 ? newsItems.slice(0, effectiveMaxItems) : newsItems;
+  let visibleItems = $state(limitedItems.slice(0, maxVisibleItems));
+  let remainingItems = $state(limitedItems.slice(maxVisibleItems));
   let isRemainingSectionCollapsed = $state(true);
 
   // Update when newsItems prop changes
   $effect(() => {
-    visibleItems = newsItems.slice(0, maxVisibleItems);
-    remainingItems = newsItems.slice(maxVisibleItems);
+    const effectiveMaxItems = locked ? (maxItemsPerFeed === 0 ? 3 : maxItemsPerFeed) : 0;
+    const limitedItems = effectiveMaxItems > 0 ? newsItems.slice(0, effectiveMaxItems) : newsItems;
+    visibleItems = limitedItems.slice(0, maxVisibleItems);
+    remainingItems = limitedItems.slice(maxVisibleItems);
   });
 
   // Check if we have any valid news items
-  const hasValidItems = newsItems.length > 0;
+  const hasValidItems = limitedItems.length > 0;
 </script>
 
 <div class={className}>
@@ -54,7 +62,7 @@
       {#each visibleItems as item, index}
         <div class="relative group">
           <div class="group-hover:bg-gray-50 dark:group-hover:bg-zinc-800/50 transition-colors duration-200">
-            <NewsFeedLineView newsItem={item} />
+            <NewsFeedLineView newsItem={item} {locked} />
           </div>
           <ArticleControls article={item} />
           {#if index < visibleItems.length - 1}

@@ -1,7 +1,7 @@
 import type { TokenData, MarketPriceData } from '$lib/common/interfaces'; // Assume the minimal TokenData interface is in a file
 import { setYakklTokenDataStorage } from '$lib/common/stores';
-import { log } from '../Logger';
-import defaultTokens from './defaultTokens.json';
+import { log } from '$plugins/Logger';
+import defaultTokens from '$plugins/tokens/defaultTokens.json';
 
 /**
  * Load default tokens from JSON and populate setYakklTokensStorage.
@@ -9,6 +9,8 @@ import defaultTokens from './defaultTokens.json';
 export async function loadDefaultTokens(): Promise<void> {
   try {
     // Validate and transform each token from JSON
+    console.log('>>>> loadDefaultTokens');
+
     const tokens: TokenData[] = defaultTokens.map((token: any) => {
       if (!validateToken(token)) {
         throw new Error(`Invalid token data: ${JSON.stringify(token)}`);
@@ -47,9 +49,14 @@ export async function loadDefaultTokens(): Promise<void> {
     });
 
     // Update the storage and store
-    setYakklTokenDataStorage(tokens);
+    await setYakklTokenDataStorage(tokens);
+
+    // Log success information
+    log.info(`Successfully loaded ${tokens.length} default tokens`, false, { tokenSymbols: tokens.map(t => t.symbol) });
+    console.log('>>>>>>>>>>>>loadDefaultTokens<<<<<<<<<<<<', tokens);
+
   } catch (error) {
-    log.error('Failed to load default tokens:', false, error);
+    log.warn('Failed to load default tokens:', false, error);
   }
 }
 
@@ -78,5 +85,6 @@ function validateToken(token: any): boolean {
 //   "chainId": 1,
 //   "isNative": false,
 //   "isStablecoin": false,
+//   "url": "https://etherscan.io/token/0x514910771AF9Ca656af840dff83E8264EcF986CA",
 //   "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x514910771AF9Ca656af840dff83E8264EcF986CA/logo.png"
 // },

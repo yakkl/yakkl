@@ -17,18 +17,20 @@
   import Tokens from './Tokens.svelte';
 	import Receive from './Receive.svelte';
 	import ImportPrivateKey from './ImportPrivateKey.svelte';
+	import Upgrade from './Upgrade.svelte';
 	import type { Blockchain } from '$lib/plugins/Blockchain';
 	import type { TokenService } from '$lib/plugins/blockchains/evm/TokenService';
 	import type { Provider } from '$lib/plugins/Provider';
+	import type { Settings } from '$lib/common/interfaces';
 	import EyeIcon from './icons/EyeIcon.svelte';
 	import ProtectedValue from './ProtectedValue.svelte';
 	import { tokenTotals } from '$lib/common/stores/tokenTotals'; // Used to display portfolio value in html below
   import { browserSvelte, browser_ext } from '$lib/common/environment';
   import { log } from "$plugins/Logger";
 	import Copy from './Copy.svelte';
-  import { TimerManager } from '$lib/plugins/TimerManager';
   import { updateTokenPrices } from '$lib/common/tokenPriceManager';
-  // import { broadcastToEIP6963Ports } from '$lib/extensions/chrome/eip-6963'; // Test
+  import { getSettings } from '$lib/common/stores';
+  import { PlanType, RegisteredType } from '$lib/common/types';
 
   interface Props {
     id?: string;
@@ -73,14 +75,7 @@
   let showContacts = $state(false);
   let showTokens = $state(false);
   let showRecv = $state(false);
-
-  // let userName = $yakklUserNameStore;
-  // let upgrade = $state(false);
-  // let serialNumber = $state('');
-  // let promoCode = 'BETA';
-  // let step1 = $state(false);
-  // let checkPricesProvider: string = 'coinbase';
-  // let checkPricesInterval: number = 10; // Seconds
+  let showUpgradeModal = $state(false);
 
   let price: number = 0;
   let prevPrice: number = 0;
@@ -102,6 +97,9 @@
   let isDropdownOpen = $state(false);
 
   let tokens: TokenData[] = [];
+
+  let settings = $state<Settings | null>(null);
+  let planType = $state<PlanType>(PlanType.STANDARD);
 
   $effect(() => {
     (async () => {
@@ -131,17 +129,6 @@
       }
     }
   });
-
-  // $effect(()=> {
-  //   clearTimeout(effectTimeout);
-  //     effectTimeout = setTimeout(() => {
-  //     startPricingChecks(); // Here because of different accounts with different values
-  //     (async () => {
-  //       await updateValuePriceFiat();
-  //       await updateWithCurrentlySelected();
-  //     })();
-  //   }, 200); // 200ms delay
-  // });
 
   $effect(() => {
     if (!address) {
@@ -215,9 +202,14 @@
           if ($yakklCurrentlySelectedStore.shortcuts.quantity) await updateValuePriceFiat();
           // updateUpgradeButton();
         }
+
+        settings = await getSettings();
+        if (settings) {
+          planType = settings.plan.type as PlanType;
+        }
       }
     } catch (e) {
-      log.error(`onMount: ${e}`);
+      log.warn(`onMount: ${e}`);
     }
   });
 
@@ -235,7 +227,7 @@
       shortcutsValue = EthereumBigNumber.from(quantity) ?? EthereumBigNumber.from(0); // .quantity is the amount of a given token the address holds
       chainId = network?.chainId ?? 1;
     } catch (e) {
-      log.error(e);
+      log.warn(e);
     }
   }
 
@@ -296,7 +288,7 @@
         log.info("updateValuePriceFiat - Value NOT updated.");
       }
     } catch (error) {
-      log.error("Error in updateValuePriceFiat:", false, error);
+      log.warn("Error in updateValuePriceFiat:", false, error);
       resetPriceData();
     }
   }
@@ -312,7 +304,7 @@
       }
       resetPriceData();
     } catch (e) {
-      log.error(e);
+      log.warn(e);
     }
   }
 
@@ -339,9 +331,6 @@
         log.warn("Account is not defined.");
         return;
       }
-
-      log.info('handleAccounts - Account received', false, account);
-
       let updatedCurrentlySelected = $yakklCurrentlySelectedStore;
 
       if (updatedCurrentlySelected && isEncryptedData(updatedCurrentlySelected.data)) {
@@ -380,7 +369,7 @@
             accounts: [account.address]
           }
         }).catch((error: Error) => {
-          log.error('Error sending account change message', true, error);
+          log.warn('Error sending account change message', true, error);
         });
       }
 
@@ -391,7 +380,7 @@
         await tokenService.updateTokenBalances($yakklCurrentlySelectedStore.shortcuts.address);
       }
     } catch (error) {
-      log.error("Error in handleAccounts:", false, error);
+      log.warn("Error in handleAccounts:", false, error);
       showAccountsModal = false;
     }
   }
@@ -436,7 +425,7 @@
             type: 'YAKKL_STATE_CHANGE',
             data: { chainId: net.chainId }
           }).catch((error: Error) => {
-            log.error('Error sending chain change message', true, error);
+            log.warn('Error sending chain change message', true, error);
           });
         }
 
@@ -444,7 +433,7 @@
         isDropdownOpen = false;
       }
     } catch (e) {
-      log.error(e);
+      log.warn(e);
       errorValue = e as string;
       error = true;
     }
@@ -455,7 +444,7 @@
       showAccountImportModal = false;
       updateValuePriceFiat();
     } catch (e) {
-      log.error(e);
+      log.warn(e);
     }
   }
 
@@ -464,7 +453,7 @@
       showAccountImportModal = false; // ?????????
       updateValuePriceFiat();
     } catch (e) {
-      log.error(e);
+      log.warn(e);
     }
   }
 
@@ -472,7 +461,7 @@
     try {
       log.info('handleImport - Not implemented');
     } catch (e) {
-      log.error(e);
+      log.warn(e);
     }
   }
 
@@ -488,7 +477,7 @@
       }
       return null;
     } catch (e) {
-      log.error(e);
+      log.warn(e);
       errorValue = e as string;
       error = true;
       return null;
@@ -501,93 +490,10 @@
       // Convert from Wei to Ether and get string representation
       return val.toEtherString();
     } catch (e) {
-      log.error(e);
+      log.warn(e);
       return '0.00000';
     }
   }
-
-  // NOTE: Move the related following functions and the Modal to Upgrade.svelte components
-  // const { form, errors, states, isValid, handleChange, handleSubmit } = createForm({
-  //   initialValues: { email: "" },
-  //   validationSchema: yup.object().shape({
-  //     email: yup.string().email('Must be a valid email.').required('Email is required.'),
-  //   }),
-  //   onSubmit: data => {
-  //     try {
-  //       // DURING BETA TESTING!
-  //       //handleUpgrade(data.email);
-  //     } catch (e) {
-  //       errorValue = `Following error occurred: ${e}`;
-  //       console.log(errorValue);
-  //     }
-  //   }
-  // });
-
-  // async function handleUpgrade(email: string) {
-  //   try {
-  //     if (!getUserName(email)) {
-  //       console.log('Username has not been defined yet.');
-  //       return;
-  //     }
-
-  //     let key = await getRegistrationKey(email);
-  //     if (key === '' && userName) {
-  //       handleOpenInTab(encodeURI("https://buy.stripe.com/test_28oaHm7Jt9lS9LqeUU?prefilled_promo_code=" + promoCode + "&client_reference_id=" + userName + "&prefilled_email=" + email + "&utm_source=yakkl&utm_medium=product&utm_campaign=" + promoCode));
-  //     } else {
-  //       console.log('Unable to return registration key.');
-  //       throw 'Unable to return registration key.';
-  //     }
-  //     step1 = true;
-  //     upgrade = true;
-  //   } catch (e) {
-  //     console.log(e);
-  //   }
-  // }
-
-  // async function handleUpgradeSave() {
-  //   try {
-  //     if (!yakklMiscStore) {
-  //       console.log('Username and/or password have not been defined at this time.');
-  //       return; // undefined;
-  //     }
-  //     await getProfile().then(async result => {
-  //       let profile = result as Profile;
-
-  //       if (isEncryptedData(profile.data)) {
-  //         await decryptData(profile.data, yakklMiscStore).then(async (result) => {
-  //           profile.data = result as ProfileData;
-  //           profile.data.registered.type = RegistrationType.PRO;
-  //           profile.data.registered.key = serialNumber;
-  //           yakklVersionStore.set('Pro - ' + serialNumber);
-
-  //           await encryptData(profile.data, yakklMiscStore).then(async (result) => {
-  //             profile.data = result;
-  //             await setProfileStorage(profile);
-  //           });
-  //         });
-  //       }
-  //     });
-
-  //     await getSettings().then(async result => {
-  //       yakklSettings = result as Settings;
-  //       yakklSettings.registeredType = RegistrationType.PRO;
-  //       await setSettings(yakklSettings);
-  //     });
-  //     upgrade = false;
-  //   } catch (e) {
-  //     console.log(e);
-  //   }
-  // }
-  // function updateUpgradeButton() {
-  //   if (checkUpgrade()) {
-  //     if (browserSvelte) {
-  //       const upgradeButton = document.getElementById('upgrade');
-  //       if (upgradeButton) {
-  //         upgradeButton.style.display = 'none';
-  //       }
-  //     }
-  //   }
-  // }
 
 </script>
 
@@ -602,69 +508,7 @@
 <Tokens bind:show={showTokens} onTokenSelect={handleToken} />
 <Receive bind:show={showRecv} address={address} />
 <ImportPrivateKey bind:show={showAccountImportModal} onComplete={handleImport} className="text-gray-600 z-[999]"/>
-
-<!-- Move to Upgrade.svelte -->
-<!-- <Modal title="Upgrade to Pro" bind:open={upgrade} size="xs" class="xs" color="purple">
-  <div class="text-center m-2">
-    {#if !step1}
-    <div id="step1" class="border border-purple-500 rounded-lg w-full mb-2 p-2 ">
-      <form class="w-full" onsubmit={preventDefault(handleSubmit)}>
-        <div class="pt-1 item-center w-full text-left mb-2">
-          <span class="text-md text-purple-800 font-bold text-left mt-2 mb-1">Email required for upgrading:*</span>
-          <input id="email"
-              class="w-full px-3 md:py-2 py-1 text-lg font-normal text-gray-700 bg-gray-100  border border-solid border-gray-300 transition ease-in-out m-0 focus:text-gray-700 focus:bg-white focus:border-blue-600 focus:outline-none"
-              placeholder="Email"
-              autocomplete="off"
-              bind:value="{$form.email}"
-              onchange={handleChange}
-              aria-label="Email"
-              required />
-          {#if $errors.email}
-          <small class="text-red-600 font-bold animate-pulse">{$errors.email}</small>
-          {/if}
-
-          <p class="text-md font-normal">Step 1. <span class="font-bold">Email is required for LATER billing.</span> Entering it here will automatically prefill the billing page (browser window). Billing is handled by Stripe and billing data is maintained there as well. Once you do that you can remove it, but the vendor requires it.</p>
-          {#if promoCode === 'IYO'}
-          <p class="text-md text-red">NOTE: The <span class="font-bold">IYO</span> promo code is being automatically passed to the processor. This means you get the Pro version for FREE because you're participating in our BETA release. Stripe, our processor, will prompt for a credit/debit card even though there will be NO CHARGE! This is for the annual recurring billing of $29.99. You can cancel that at any time.</p>
-          {/if}
-        </div>
-        <div class="mb-2">
-          <Button type="submit" id="continue">1. Continue
-            <span class="ml-2">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-              </svg>
-            </span>
-          </Button>
-        </div>
-      </form>
-    </div>
-    {/if}
-
-    {#if step1}
-    <div id="step2" class="border border-primary rounded-lg w-full my-2 p-2 ">
-      <form class="w-full" onsubmit={handleUpgradeSave}>
-        <div class="pt-1 item-center w-full text-left">
-        <span class="text-md text-purple-800 font-bold text-left mt-2 mb-1">Pro Serial Number:*</span>
-        <input id="serialNumber"
-            class="w-full px-3 md:py-2 py-1 text-lg font-normal text-gray-700 bg-gray-100  border border-solid border-gray-300 transition ease-in-out m-0 focus:text-gray-700 focus:bg-white focus:border-blue-600 focus:outline-none"
-            placeholder="Serial Number" autocomplete="off" bind:value="{serialNumber}" aria-label="Serial Number" required />
-        <p class="text-md font-normal">Step 2 (Final). After entering the billing information in the browser window, a serial number will be generated and emailed to you. Copy that value and paste it in the Registration Dialog that will popup prompting for the registration key. Click complete and that's it!</p>
-        </div>
-        <div class="mb-2">
-          <Button type="submit" id="complete" >2. Complete</Button>
-        </div>
-      </form>
-    </div>
-    {/if}
-  </div>
-  {#snippet footer()}
-
-      <p class="text-lg font-bold">Great choice!</p>
-      <p class="text-sm font-normal">A number of advanced features can be unlocked by upgrading to Pro. Copy the serial number from the website (after completing the purchase) and paste it into the serial number field above and save. That's it!</p>
-
-          {/snippet}
-</Modal> -->
+<Upgrade bind:show={showUpgradeModal} />
 {/if}
 {/await}
 
@@ -677,10 +521,7 @@
       </div>
 
       <SpeedDial defaultClass="absolute right-1 bottom-1 z-10 bg-primary rounded-full" pill={false} tooltip="none" placement='bottom'>
-        <!-- {#snippet icon()} -->
-                <svg  aria-hidden="true" class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z"></path></svg>
-              <!-- {/snippet} -->
-        <!-- btnDefaultClass="w-16" -->
+        <svg  aria-hidden="true" class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z"></path></svg>
         <SpeedDialButton name="Accounts" on:click={() => {showAccountsModal = true}} class="w-16">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" aria-hidden="true" class="w-6 h-6" fill="currentColor">
             <path fill-rule="evenodd" d="M6 4.75A.75.75 0 016.75 4h10.5a.75.75 0 010 1.5H6.75A.75.75 0 016 4.75zM6 10a.75.75 0 01.75-.75h10.5a.75.75 0 010 1.5H6.75A.75.75 0 016 10zm0 5.25a.75.75 0 01.75-.75h10.5a.75.75 0 010 1.5H6.75a.75.75 0 01-.75-.75zM1.99 4.75a1 1 0 011-1H3a1 1 0 011 1v.01a1 1 0 01-1 1h-.01a1 1 0 01-1-1v-.01zM1.99 15.25a1 1 0 011-1H3a1 1 0 011 1v.01a1 1 0 01-1 1h-.01a1 1 0 01-1-1v-.01zM1.99 10a1 1 0 011-1H3a1 1 0 011 1v.01a1 1 0 01-1 1h-.01a1 1 0 01-1-1V10z" clip-rule="evenodd" />
@@ -706,12 +547,12 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
           </svg>
         </SpeedDialButton>
-        <!-- <SpeedDialButton name="Lock" on:click={() => goto(PATH_LOCK)} class="w-16">
-          <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" stroke="currentColor" class="w-6 h-6">
-            <path fill-rule="evenodd" d="M3 4.25A2.25 2.25 0 015.25 2h10.5A2.25 2.25 0 0118 4.25v10.5A2.25 2.25 0 0115.75 18h-10.5A2.25 2.25 0 013 15.75V4.25z" clip-rule="evenodd" />
-            <path fill-rule="evenodd" d="M8.704 10.943l1.048.943H3.75a.75.75 0 000 1.5h6.002l-1.048.943a.75.75 0 101.004 1.114l2.5-2.25a.75.75 0 000-1.114l-2.5-2.25a.75.75 0 10-1.004 1.114z" clip-rule="evenodd" />
+        <SpeedDialButton name="Upgrade" on:click={() => {showUpgradeModal = true}} class="w-16">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" aria-hidden="true" class="w-6 h-6" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 2a.75.75 0 01.75.75v5.59l1.95-2.1a.75.75 0 111.1 1.02l-3.25 3.5a.75.75 0 01-1.1 0L6.2 7.26a.75.75 0 111.1-1.02l1.95 2.1V2.75A.75.75 0 0110 2z" clip-rule="evenodd" />
+            <path fill-rule="evenodd" d="M10 18a.75.75 0 01-.75-.75v-5.59l-1.95 2.1a.75.75 0 11-1.1-1.02l3.25-3.5a.75.75 0 011.1 0l3.25 3.5a.75.75 0 11-1.1 1.02l-1.95-2.1v5.59a.75.75 0 01-.75.75z" clip-rule="evenodd" />
           </svg>
-        </SpeedDialButton> -->
+        </SpeedDialButton>
         <SpeedDialButton name="Lock/Exit" on:click={() => goto(PATH_LOGOUT)} class="w-16">
           <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" stroke="currentColor" class="w-6 h-6">
             <path fill-rule="evenodd" d="M3 4.25A2.25 2.25 0 015.25 2h5.5A2.25 2.25 0 0113 4.25v2a.75.75 0 01-1.5 0v-2a.75.75 0 00-.75-.75h-5.5a.75.75 0 00-.75.75v11.5c0 .414.336.75.75.75h5.5a.75.75 0 00.75-.75v-2a.75.75 0 011.5 0v2A2.25 2.25 0 0110.75 18h-5.5A2.25 2.25 0 013 15.75V4.25z" clip-rule="evenodd" />
@@ -721,12 +562,12 @@
       </SpeedDial>
 
       <nav id="{id}" class="print:hidden visible relative row-span-1 inset-x-0 navbar navbar-expand-sm p-2 flex items-center w-full justify-between">
-        <div class="flex text-center justify-left w-[410px]">
+        <div class="flex justify-between w-full items-center">
           <span class="text-gray-100 text-center dark:text-white text-4xl ml-2 -mt-6 font-bold">
             {$yakklCurrentlySelectedStore && $yakklCurrentlySelectedStore.shortcuts.network.blockchain}
           </span>
           {#if showTestNetworks}
-          <span class="flex h-6 absolute z-100 top-2 right-24">
+          <span class="flex h-6">
             <div class="dropdown dropdown-bottom relative">
               {#if networkLabel.toLowerCase() === 'mainnet'}
               <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -755,15 +596,6 @@
               >
                 {#each networks as network}
                 <li>
-                    <!-- role="button"
-                    tabindex="0"
-                                  onkeydown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        handleNetworkTypeChange(network);
-                      }
-                    }}
-                    -->
                   <!-- svelte-ignore a11y_click_events_have_key_events -->
                   <!-- svelte-ignore a11y_no_static_element_interactions -->
                   <div
@@ -785,7 +617,7 @@
             </div>
           </span>
           {:else}
-          <span class="flex h-6 absolute top-2 right-24">
+          <span class="flex h-6">
             <!-- svelte-ignore a11y_label_has_associated_control -->
             <label
               class="w-28 px-3 py-1 bg-red-800/80 text-white font-medium text-xs leading-tight uppercase rounded-full shadow-md hover:bg-red-700 hover:shadow-lg focus:bg-red-700 focus:shadow-lg focus:outline-none focus:ring-0 active:bg-red-800 active:shadow-lg active:text-white transition duration-150 ease-in-out flex items-center whitespace-nowrap"

@@ -56,7 +56,7 @@
 
   // Determine which approval page to go to based on method
   // Handle successful login in dapp context
-  function handleLoginSuccess(profile: Profile, digest: string, isMinimal: boolean) {
+  function onSuccess(profile: Profile, digest: string, isMinimal: boolean) {
     try {
       if (!browserSvelte) return;
       // Set the username in the global store
@@ -92,7 +92,7 @@
   }
 
   // Handle login errors
-  function handleLoginError(value: string) {
+  function onError(value: string) {
     if (!browserSvelte) return;
 
     errorValue = value;
@@ -106,20 +106,20 @@
   }
 
   // Handle login cancel
-  function handleLoginCancel() {
+  function onCancel() {
     if (!browserSvelte) return;
     safeLogout();
   }
 
-  // Handle custom action
-  function handleCustomAction() {
+  // Handle close
+  function onClose() {
     if (!browserSvelte) return;
     showError = false;
     errorValue = '';
   }
 </script>
 
-<ErrorNoAction bind:show={showError} title="ERROR!" value={errorValue} handle={handleCustomAction} />
+<ErrorNoAction bind:show={showError} title="ERROR!" value={errorValue} onClose={onClose} />
 
 <!-- relative bg-gradient-to-b from-indigo-700 to-indigo-500/15 m-1 ml-2 mr-2 dark:bg-gray-900 rounded-t-xl overflow-hidden -->
 <div class="relative h-[98vh] text-base-content">
@@ -131,9 +131,9 @@
         minimumAuth={true}
         requestId={requestId}
         method={method}
-        onLoginSuccess={handleLoginSuccess}
-        onLoginError={handleLoginError}
-        onLoginCancel={handleLoginCancel}
+        onSuccess={onSuccess}
+        onError={onError}
+        onCancel={onCancel}
         loginButtonText="Unlock"
         cancelButtonText="Exit/Logout"
       />

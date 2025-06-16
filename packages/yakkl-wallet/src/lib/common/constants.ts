@@ -1,9 +1,22 @@
 // IMPORTANT NOTE: Edit 'constants.mustache' since it is the template for 'constants.ts'
 
 // Global shared constants. Network specifics are in the network/<whatever>/contants.js file
-export const VERSION = "1.5.4";
+export const VERSION = "1.5.6";
 
 export const YEAR = "2025"; // Instead of computing year since user can change date on system - use a constant
+
+export const TRIAL_DAYS = 14;
+export const PRO_ELIGIBLE_PROMO_TYPES = [
+  'investor',
+  'influencer',
+  'employee',
+  'special',
+  'early',
+  'partner',
+  'founder',
+  'internal',
+  'press'
+];
 
 export const DEFAULT_PERSONA = "default";
 export const GAS_PER_BLOB = 131072; // 2**17

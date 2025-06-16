@@ -239,7 +239,7 @@ export class ExtensionRSSFeedService {
     return 'article';
   }
 
-  private async parseRSSFeed(xmlText: string, feedUrl: string): Promise<RSSFeed> {
+  async parseRSSFeed(xmlText: string, feedUrl: string): Promise<RSSFeed> {
     const parser = new DOMParser();
     const doc = parser.parseFromString(xmlText, 'text/xml');
 

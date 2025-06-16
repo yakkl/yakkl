@@ -1,20 +1,208 @@
 /* eslint-disable no-debugger */
-import { type ErrorBody, type ParsedError } from '$lib/common';
-import { AccountTypeCategory } from '$lib/common/types';
-import type { YakklAccount, YakklPrimaryAccount } from '$lib/common/interfaces';
-import { getYakklAccounts, getYakklPrimaryAccounts, yakklAccountsStore, setYakklAccountsStorage, setYakklPrimaryAccountsStorage, yakklPrimaryAccountsStore } from '$lib/common/stores';
+import { PRO_ELIGIBLE_PROMO_TYPES, TRIAL_DAYS, type ErrorBody, type ParsedError } from '$lib/common';
+import { AccessSourceType, AccountTypeCategory, PlanType, RegisteredType } from '$lib/common/types';
+import type { Settings, YakklAccount, YakklPrimaryAccount } from '$lib/common/interfaces';
+import { getYakklAccounts, getYakklPrimaryAccounts, yakklAccountsStore, setYakklAccountsStorage, setYakklPrimaryAccountsStorage, yakklPrimaryAccountsStore, getSettings, setSettingsStorage } from '$lib/common/stores';
 import { browser_ext } from './environment';
 import { ethers as ethersv6 } from 'ethers-v6';
 import { get } from 'svelte/store';
 import { log } from "$lib/plugins/Logger";
 import type { Runtime } from 'webextension-polyfill';
 
+// Global flag to track extension context validity
+let extensionContextValid = true;
+
+// Queue for operations that need valid extension context
+const contextDependentOperations: Array<() => void> = [];
+
 export function isExtensionContextValid(): boolean {
   try {
-    return !!(chrome?.runtime?.id || browser_ext?.runtime?.id);
-  } catch {
+    // Multiple checks to ensure context is valid
+    if (!browser_ext?.runtime?.id) {
+      return false;
+    }
+
+    // Try to access extension URL to test context
+    if (browser_ext.runtime.getURL) {
+      browser_ext.runtime.getURL('/');
+    }
+
+    return true;
+  } catch (error) {
     return false;
   }
+}
+
+/**
+ * Validate extension context and update global flag
+ */
+function validateExtensionContext(): boolean {
+  const wasValid = extensionContextValid;
+  extensionContextValid = isExtensionContextValid();
+
+  if (wasValid && !extensionContextValid) {
+    log.warn('[ExtensionContext] Extension context became invalid');
+    // Clear any pending operations
+    contextDependentOperations.length = 0;
+  } else if (!wasValid && extensionContextValid) {
+    log.info('[ExtensionContext] Extension context restored');
+    // Execute queued operations
+    while (contextDependentOperations.length > 0) {
+      const operation = contextDependentOperations.shift();
+      try {
+        operation?.();
+      } catch (error) {
+        log.warn('[ExtensionContext] Error executing queued operation:', false, error);
+      }
+    }
+  }
+
+  return extensionContextValid;
+}
+
+// This is used to get the current function name and location
+export function getCurrentFunctionInfo(depth = 2): { name: string; location: string } {
+  const err = new Error();
+  const stack = err.stack?.split('\n');
+
+  if (!stack || stack.length <= depth) {
+    return { name: 'unknown', location: 'unknown' };
+  }
+
+  const rawLine = stack[depth].trim(); // e.g., at myFunction (src/myfile.ts:10:5)
+
+  const match = rawLine.match(/at\s+(.*)\s+\((.*)\)/) || rawLine.match(/at\s+(.*)/);
+
+  if (match) {
+    const [, name, location] = match;
+    return {
+      name: name?.split(' ')[0] ?? 'anonymous',
+      location: location ?? 'unknown'
+    };
+  }
+
+  return { name: 'unknown', location: 'unknown' };
+}
+
+export async function isPro(): Promise<boolean> {
+  const settings = await getSettings();
+  return settings?.plan.type === PlanType.PRO || settings?.plan.type === PlanType.ENTERPRISE || settings?.plan.type === PlanType.BUSINESS || settings?.plan.type === PlanType.INSTITUTION;
+}
+
+export async function isStandard(): Promise<boolean> {
+  const settings = await getSettings();
+  return settings?.plan.type === PlanType.STANDARD;
+}
+
+export async function setRegisteredType(type: PlanType): Promise<void> {
+  const settings = await getSettings();
+  if (settings) {
+    settings.plan.type = type;
+    await setSettingsStorage(settings); // You should have something that handles both local state and extension storage sync
+  }
+}
+
+export async function isTrialing(): Promise<boolean> {
+  const settings = await getSettings();
+  return settings.plan.source === AccessSourceType.TRIAL;
+}
+
+export async function trialExpiresSoon(): Promise<boolean> {
+  const settings = await getSettings();
+  if (!settings.plan.trialEndDate) return false;
+  return new Date(settings.plan.trialEndDate).getTime() - Date.now() < 1000 * 60 * 60 * 24; // < 1 day
+}
+
+export async function isFullyPro(providedSettings?: Settings): Promise<boolean> {
+  const settings = providedSettings ?? await getSettings();
+
+  if (!settings) return false;
+
+  const { plan } = settings;
+
+  return (
+    plan.type === PlanType.PRO &&
+    plan.source !== AccessSourceType.TRIAL &&
+    !plan.trialEndDate &&
+    !plan.promo
+  );
+}
+
+export async function canUpgrade(providedSettings?: Settings): Promise<boolean> {
+  const settings = providedSettings ?? await getSettings();
+
+  if (!settings) return false;
+
+  const { plan } = settings;
+
+  // Fully Pro users (paid or promo) can't upgrade
+  if (
+    plan.type === PlanType.PRO &&
+    plan.source !== AccessSourceType.TRIAL &&
+    !plan.trialEndDate &&
+    !plan.promo // optional check: may allow influencer accounts to upgrade again
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+export function normalizeUserPlan(settings: Settings): Settings {
+  const now = new Date();
+
+  const isTrialExpired =
+    settings.plan.trialEndDate &&
+    new Date(settings.plan.trialEndDate).getTime() < now.getTime();
+
+  const hasPromo =
+    settings.plan.promo &&
+    PRO_ELIGIBLE_PROMO_TYPES.includes(settings.plan.promo.toLowerCase());
+
+  if (isTrialExpired && !hasPromo) {
+    return {
+      ...settings,
+      plan: {
+        ...settings.plan,
+        type: PlanType.STANDARD,
+        source: AccessSourceType.STANDARD,
+        trialEndDate: null,
+        promo: null,
+        upgradeDate: null
+      }
+    };
+  }
+
+  return settings;
+}
+
+
+export async function getNormalizedSettings(): Promise<Settings> {
+  const raw = await getSettings();
+  const normalized = normalizeUserPlan(raw);
+
+  if (JSON.stringify(normalized.plan) !== JSON.stringify(raw.plan)) {
+    await setSettingsStorage(normalized);
+  }
+
+  return normalized;
+}
+
+// Use for messaging to let the user know that their trial has expired
+export function wasTrialExpiredRecently(settings: Settings, thresholdInMs = 1000 * 60 * 60 * 24): boolean {
+  if (!settings.plan.trialEndDate) return false;
+
+  const trialEndedAt = new Date(settings.plan.trialEndDate).getTime();
+  const now = Date.now();
+
+  return trialEndedAt < now && now - trialEndedAt < thresholdInMs;
+}
+
+export function getTrialEndDate(): string {
+  const days = TRIAL_DAYS;
+  const now = new Date();
+  now.setDate(now.getDate() + days);
+  return now.toISOString();
 }
 
 export function safeRuntimeCall<T>(

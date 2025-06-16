@@ -7,9 +7,9 @@
 
   // Props using runes syntax
   const props = $props<{
-    onLoginSuccess: (profile: any, digest: string, isMinimal: boolean) => void,
-    onLoginError: (error: any) => void,
-    onLoginCancel: () => void,
+    onSuccess: (profile: any, digest: string, isMinimal: boolean) => void,
+    onError: (error: any) => void,
+    onCancel: () => void,
     loginButtonText?: string,
     cancelButtonText?: string,
     minimumAuth?: boolean,
@@ -69,7 +69,7 @@
       }
 
       // Call success handler with profile, digest and minimal flag
-      props.onLoginSuccess(profile, digest, minimumAuth);
+      props.onSuccess(profile, digest, minimumAuth);
     } catch(e) {
       // Format error for display
       errorMessage = typeof e === 'string' ? e : 'Authentication failed';

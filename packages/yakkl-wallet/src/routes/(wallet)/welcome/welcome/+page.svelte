@@ -11,6 +11,7 @@
 	import { yakklCombinedTokenStore } from "$lib/common/stores";
   import { log } from '$lib/common/logger-wrapper';
 	import { goto } from '$app/navigation';
+	import Placeholder from '$lib/components/Placeholder.svelte';
 
   let error = $state(false);
   let errorValue: any = $state(null);
@@ -68,7 +69,15 @@
 {#if $yakklCombinedTokenStore.length > 0}
   <TokenViews />
 {:else}
-  <div class="flex items-center justify-center w-full h-full">
+  <Placeholder
+    text="No additional tokens found"
+    className="flex items-center justify-center"
+    anchorTop={true}
+    centerHorizontal={true}
+    centerVertical={true}
+    showBorderTop={false}
+  />
+  <!-- <div class="flex items-center justify-center w-full h-full">
     <p class="text-lg text-gray-400">No additional tokens found</p>
-  </div>
+  </div> -->
 {/if}

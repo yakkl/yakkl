@@ -15,8 +15,11 @@ import type { Preferences, YakklWatch, YakklSecurity, YakklBlocked, YakklRegiste
 import {
   SystemTheme,
   AccountTypeCategory,
-  RegistrationType,
+  RegisteredType,
   NetworkType,
+  AccessSourceType,
+  PromoClassificationType,
+  PlanType,
 } from '$lib/common/types';
 
 import {
@@ -129,7 +132,14 @@ export let yakklSettings: Settings = {
   persona: DEFAULT_PERSONA,
   version: VERSION,  // Uses semversion format but puts 'default' as a placeholder
   previousVersion: '',
-  registeredType: RegistrationType.STANDARD,  // This data comes from yakklRegisteredData.type
+  plan: {
+    type: PlanType.STANDARD,
+    source: AccessSourceType.STANDARD,
+    promo: null,
+    trialEndDate: null,
+    upgradeDate: null
+  },
+  trialCountdownPinned: false,
   legal: {
     termsAgreed: false,
     privacyViewed: false,
@@ -218,7 +228,13 @@ export let yakklRegisteredData: YakklRegisteredData = {
   id: '',
   persona: DEFAULT_PERSONA,
   key: '',
-  type: RegistrationType.STANDARD,
+  plan: {
+    type: PlanType.STANDARD,
+    source: AccessSourceType.STANDARD,
+    promo: PromoClassificationType.NONE,
+    trialEndDate: '',
+    upgradeDate: ''
+  },
   version: VERSION,
   createDate: dateString(),
   updateDate: dateString(),
