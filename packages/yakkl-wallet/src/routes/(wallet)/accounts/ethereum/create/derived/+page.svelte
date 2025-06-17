@@ -7,8 +7,8 @@
   import { DEFAULT_DERIVED_PATH_ETH, PATH_WELCOME, DEFAULT_TITLE, VERSION, PlanType } from '$lib/common';
   import { goto } from '$app/navigation';
   import { deepCopy } from '$lib/utilities/utilities';
-  import { createSubportfolioAccount } from '$lib/plugins/networks/ethereum/createSubportfolioAccount';
-	import { EmergencyKitManager } from '$plugins/EmergencyKitManager';
+  import { createSubportfolioAccount } from '$lib/managers/networks/ethereum/createSubportfolioAccount';
+	import { EmergencyKitManager } from '$managers/EmergencyKitManager';
 	import { onMount } from 'svelte';
 	import { dateString } from '$lib/common/datetime';
 	import { sendNotificationMessage } from '$lib/common/notifications';

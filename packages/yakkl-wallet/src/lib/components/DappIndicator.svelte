@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { log } from '$lib/plugins/Logger';
+	import { log } from '$lib/managers/Logger';
   import { browserSvelte, browser_ext } from '$lib/common/environment';
 	import { onDestroy, onMount } from 'svelte';
 

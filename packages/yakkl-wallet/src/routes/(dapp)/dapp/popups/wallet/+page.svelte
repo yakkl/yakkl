@@ -5,7 +5,7 @@
   import { type YakklCurrentlySelected } from '$lib/common';
   import { DEFAULT_TITLE, YAKKL_DAPP } from '$lib/common/constants';
   import { onMount } from 'svelte';
-  import { log } from '$plugins/Logger';
+  import { log } from '$managers/Logger';
   import type { Runtime } from 'webextension-polyfill';
   import type { JsonRpcResponse, SessionInfo } from '$lib/common/interfaces';
   import type { BackgroundPendingRequest } from '$lib/extensions/chrome/background';
@@ -13,8 +13,8 @@
 	import Copyright from '$lib/components/Copyright.svelte';
 	// import Warning from '$lib/components/Warning.svelte';
 	import Failed from '$lib/components/Failed.svelte';
-	import { createPortManagerWithStream, PortManagerWithStream } from '$lib/plugins/PortManagerWithStream';
-	import type { PortDuplexStream } from '$lib/plugins/PortStreamManager';
+	import { createPortManagerWithStream, PortManagerWithStream } from '$lib/managers/PortManagerWithStream';
+	import type { PortDuplexStream } from '$lib/managers/PortStreamManager';
 	import { sessionToken, verifySessionToken } from '$lib/common/auth/session';
 	import { safeLogout } from '$lib/common/safeNavigate';
 

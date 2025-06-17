@@ -3,7 +3,7 @@ import { get } from 'svelte/store';
 import { ethers } from 'ethers-v6';
 import { yakklTokenDataStore, yakklTokenDataCustomStore, setYakklTokenDataCustomStorage, setYakklTokenDataStorage, updateCombinedTokenStore, yakklCombinedTokenStore } from '$lib/common/stores';
 import { isEqual } from 'lodash-es';
-import { log } from "$plugins/Logger";
+import { log } from "$lib/managers/Logger";
 import { computeTokenValue } from './computeTokenValue';
 
 // Helper functions to get balance for a token

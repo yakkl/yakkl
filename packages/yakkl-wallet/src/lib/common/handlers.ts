@@ -6,7 +6,7 @@ import { isBrowserEnv } from "./environment";
 import { stopLockIconTimer } from "$lib/extensions/chrome/iconTimer";
 import { yakklCurrentlySelectedStore } from "./stores";
 import { get } from "svelte/store";
-import { log } from "$plugins/Logger";
+import { log } from "$lib/managers/Logger";
 
 // Handlers / Callbacks that are not used as listeners in the extension
 

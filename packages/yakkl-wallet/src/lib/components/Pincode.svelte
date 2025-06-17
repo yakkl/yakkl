@@ -6,7 +6,7 @@
   import { deepCopy } from '$lib/utilities/utilities';
   import { isEncryptedData, isProfileData, type CurrentlySelectedData, type EncryptedData, type Profile, type ProfileData, type YakklCurrentlySelected } from '$lib/common';
   import Modal from './Modal.svelte';
-	import { log } from "$lib/plugins/Logger";
+	import { log } from "$lib/managers/Logger";
 
   interface Props {
     show?: boolean;

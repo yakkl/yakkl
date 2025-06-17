@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store';
 import type { TokenData } from './interfaces';
-import type { PriceManager } from '$lib/plugins/PriceManager';
-import { log } from "$plugins/Logger";
+import type { PriceManager } from '$lib/managers/PriceManager';
+import { log } from "$lib/managers/Logger";
 
 // Utility for debouncing
 function debounce(func: (...args: any[]) => void, delay: number) {

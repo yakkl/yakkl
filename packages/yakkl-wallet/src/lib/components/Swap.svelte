@@ -9,16 +9,16 @@
   import Modal from './Modal.svelte';
   import { BigNumber, decryptData, ETH_BASE_SWAP_GAS_UNITS, isEncryptedData, parseAmount, TIMER_SWAP_FETCH_PRICES_TIME, YAKKL_FEE_BASIS_POINTS, type BigNumberish } from '$lib/common';
   import { ethers as ethersv6 } from 'ethers-v6';
-  import { UniswapSwapManager } from '$lib/plugins/UniswapSwapManager';
-  import { TokenService } from '$lib/plugins/blockchains/evm/TokenService';
-  import { Ethereum } from '$lib/plugins/blockchains/evm/ethereum/Ethereum';
-  import { Token } from '$lib/plugins/Token';
-  import type { Provider } from '$lib/plugins/Provider';
+  import { UniswapSwapManager } from '$lib/managers/UniswapSwapManager';
+  import { TokenService } from '$lib/managers/blockchains/evm/TokenService';
+  import { Ethereum } from '$lib/managers/blockchains/evm/ethereum/Ethereum';
+  import { Token } from '$lib/managers/Token';
+  import type { Provider } from '$lib/managers/Provider';
   import { derived, writable } from 'svelte/store';
   import { getTokenBalance } from '$lib/utilities/balanceUtils';
   import debounce from 'lodash/debounce';
   import { toBigInt } from '$lib/common/math';
-	import { GasToken } from '$lib/plugins/GasToken';
+	import { GasToken } from '$lib/managers/GasToken';
 	import { validateSwapQuote, type ValidationResult } from '$lib/common/validation';
   import { getMiscStore, getProfile } from '$lib/common/stores';
 	import { deepCopy } from '$lib/utilities';
@@ -27,13 +27,13 @@
 	import PincodeVerify from './PincodeVerify.svelte';
 	import Confirmation from './Confirmation.svelte';
 	import { sendNotificationMessage } from '$lib/common/notifications';
-	import { timerManager } from '$lib/plugins/TimerManager';
+	import { timerManager } from '$lib/managers/TimerManager';
 
   // import { browserSvelte } from '$lib/utilities/browserSvelte';
   // import { getBrowserExt } from '$lib/browser-polyfill-wrapper';
 	// import type { Browser } from 'webextension-polyfill';
 
-	// import { multiHopQuoteAlphaRouter } from '$lib/plugins/alphaRouter';
+	// import { multiHopQuoteAlphaRouter } from '$lib/managers/alphaRouter';
   // Add back to package.json - 		"@yakkl/uniswap-alpha-router-service": "workspace:*",
 
   ///////////////////////

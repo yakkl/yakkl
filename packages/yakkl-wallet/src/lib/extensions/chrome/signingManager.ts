@@ -1,14 +1,14 @@
-import { log } from '$lib/plugins/Logger';
-import { KeyManager } from '$lib/plugins/KeyManager';
-import WalletManager from '$lib/plugins/WalletManager';
+import { log } from '$lib/managers/Logger';
+import { KeyManager } from '$lib/managers/KeyManager';
+import WalletManager from '$lib/managers/WalletManager';
 import type { YakklCurrentlySelected, YakklResponse } from '$lib/common/interfaces';
 import { getYakklCurrentlySelected } from '$lib/common/stores';
 import { STORAGE_YAKKL_ACCOUNTS } from '$lib/common';
 import type { YakklAccount } from '$lib/common';
-import type { Wallet } from '$lib/plugins';
-import type { EthereumSigner } from '$lib/plugins/blockchains/evm/ethereum/EthereumSigner';
+import type { Wallet } from '$lib/managers';
+import type { EthereumSigner } from '$lib/managers/blockchains/evm/ethereum/EthereumSigner';
 import { getObjectFromLocalStorage } from '$lib/common/backgroundStorage';
-import type { Signer } from '$lib/plugins/Signer';
+import type { Signer } from '$lib/managers/Signer';
 import { decryptDataBackground } from '$lib/common/listeners/background/unifiedMessageListener';
 
 export class SigningManager {

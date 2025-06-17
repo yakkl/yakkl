@@ -8,7 +8,7 @@
   import { goto } from "$app/navigation";
   import { incrementProperty } from '$lib/utilities';
   import { getWallet } from '$lib/utilities/ethereum';
-  // import { getTransactionCount, setProvider } from '$lib/plugins/networks/ethereum/providers';
+  // import { getTransactionCount, setProvider } from '$lib/managers/networks/ethereum/providers';
   import { deepCopy, getSymbol } from '$lib/utilities';
   // import { Confetti } from "svelte-confetti";
   // import { confetti } from '@neoconfetti/svelte';

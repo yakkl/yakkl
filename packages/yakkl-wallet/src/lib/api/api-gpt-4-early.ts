@@ -1,4 +1,4 @@
-import { log } from "$lib/plugins/Logger";
+import { log } from "$lib/managers/Logger";
 import { isOnline } from "$lib/utilities/utilities";
 
 const API_ENDPOINT = 'https://api.openai.com/v1/engines/gpt-4/completions';

@@ -1,4 +1,4 @@
-import { log } from "$lib/plugins/Logger";
+import { log } from "$lib/managers/Logger";
 
 // Fetch a given key using the API
 export async function apiKeyFetch(apiUrl: string, keyId: string) {

@@ -1,6 +1,6 @@
 // src/lib/extensions/chrome/handlers/writeMethodHandler.ts
 
-import { log } from '$lib/plugins/Logger';
+import { log } from '$lib/managers/Logger';
 import { sendErrorResponse } from '$lib/extensions/chrome/errorResponseHandler';
 import { pendingRequests, type BackgroundPendingRequest } from '$lib/extensions/chrome/background';
 import { showEIP6963Popup } from '$lib/extensions/chrome/eip-6963';
@@ -113,7 +113,7 @@ async function handleApprovalRequest(request: YakklRequest, port: Runtime.Port):
  * Executes write methods that don't require approval
  */
 async function executeWriteMethod(method: string, params: any[]): Promise<any> {
-  const { getAlchemyProvider } = await import('$lib/plugins/providers/network/ethereum_provider/alchemy');
+  const { getAlchemyProvider } = await import('$lib/managers/providers/network/ethereum_provider/alchemy');
   const provider = await getAlchemyProvider();
 
   // Execute the method via RPC

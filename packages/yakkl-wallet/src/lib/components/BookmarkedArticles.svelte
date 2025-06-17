@@ -6,7 +6,7 @@
   import BookmarkIcon from './icons/BookmarkIcon.svelte';
   import NewsFeedLineView from './NewsFeedLineView.svelte';
   import SearchSortControls from './SearchSortControls.svelte';
-  import type { RSSItem } from '$lib/plugins/ExtensionRSSFeedService';
+  import type { RSSItem } from '$lib/managers/ExtensionRSSFeedService';
   import { yakklBookmarkedArticlesStore, setYakklBookmarkedArticles } from '$lib/common/stores';
   import { derived, writable } from 'svelte/store';
 	import LockedSectionCard from './LockedSectionCard.svelte';

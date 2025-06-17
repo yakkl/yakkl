@@ -3,7 +3,7 @@
   import * as yup from 'yup';
   import Modal from './Modal.svelte';
   import { VERSION, type TokenData } from '$lib/common';
-	import { log } from '$lib/plugins/Logger';
+	import { log } from '$lib/managers/Logger';
   import Tooltip from './Tooltip.svelte';
 
   interface Props {

@@ -6,7 +6,7 @@ import { getYakklAccounts, getYakklPrimaryAccounts, yakklAccountsStore, setYakkl
 import { browser_ext } from './environment';
 import { ethers as ethersv6 } from 'ethers-v6';
 import { get } from 'svelte/store';
-import { log } from "$lib/plugins/Logger";
+import { log } from "$lib/managers/Logger";
 import type { Runtime } from 'webextension-polyfill';
 
 // Global flag to track extension context validity

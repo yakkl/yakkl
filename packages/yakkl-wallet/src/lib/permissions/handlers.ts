@@ -3,7 +3,7 @@
 import { type PermissionResponse, SecurityLevel } from "./types";
 import { getPermission, getCurrentSessionId } from "./storage";
 import { getSecurityLevel } from "./security";
-import { log } from "$lib/plugins/Logger";
+import { log } from "$lib/managers/Logger";
 
 // NOTE: This is currently not used, but it is a good starting point for the permission handling
 

@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { eip6963Providers, selectedEIP6963Provider, requestEIP6963Providers, selectEIP6963Provider } from '$lib/stores/eip6963';
-  import type { EIP6963ProviderDetail } from '$lib/plugins/providers/network/ethereum_provider/eip-types';
-  import { log } from '$lib/plugins/Logger';
+  import type { EIP6963ProviderDetail } from '$lib/managers/providers/network/ethereum_provider/eip-types';
+  import { log } from '$lib/managers/Logger';
 
   let accounts: string[] = [];
   let chainId: string | null = null;

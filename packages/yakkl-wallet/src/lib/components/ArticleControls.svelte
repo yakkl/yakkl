@@ -5,11 +5,11 @@
   import TrashIcon from './icons/TrashIcon.svelte';
   import Confirmation from './Confirmation.svelte';
   import { fade } from 'svelte/transition';
-  import type { RSSItem } from '$lib/plugins/ExtensionRSSFeedService';
+  import type { RSSItem } from '$lib/managers/ExtensionRSSFeedService';
 	import Tooltip from './Tooltip.svelte';
   import { yakklBookmarkedArticlesStore, setYakklBookmarkedArticles } from '$lib/common/stores';
   import { derived } from 'svelte/store';
-	import { log } from '$lib/plugins/Logger';
+	import { log } from '$lib/managers/Logger';
 
   let {
     article,

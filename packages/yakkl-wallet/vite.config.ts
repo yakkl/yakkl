@@ -52,6 +52,7 @@ export default defineConfig( ({ mode }) => {
         $lib: path.resolve( './src/lib' ),
         $components: path.resolve( './src/lib/components' ),
         $routes: path.resolve( './src/routes' ),
+        $managers: path.resolve( './src/lib/managers' ),
         $plugins: path.resolve( './src/lib/plugins' ),
         // ...(process.env.YAKKL_PRO === 'true' && { $pro: path.resolve('./src/pro') }),
         // ...(process.env.YAKKL_PRIVATE === 'true' && { $private: path.resolve('./src/private') }),

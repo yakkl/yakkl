@@ -1,4 +1,4 @@
-import { log } from "$lib/plugins/Logger";
+import { log } from "$lib/managers/Logger";
 
 /**
  * Play a beep sound immediately

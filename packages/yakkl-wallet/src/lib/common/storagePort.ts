@@ -1,5 +1,5 @@
 import { getBrowserExt } from "$lib/browser-polyfill-wrapper";
-import { log } from "$lib/plugins/Logger";
+import { log } from "$lib/managers/Logger";
 import type { Runtime } from "webextension-polyfill";
 import type { StorageRequest, StorageResponse } from "./storageTypes";
 import { getSafeUUID } from "./uuid";

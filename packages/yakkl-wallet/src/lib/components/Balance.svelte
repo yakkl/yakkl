@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import type { BigNumberish, BlockTag } from '$lib/common';
   import { ethers as ethersv6 } from 'ethers-v6';
-	import type { Provider } from '$lib/plugins';
+	import type { Provider } from '$lib/managers';
 
   interface Props {
     symbol: string;

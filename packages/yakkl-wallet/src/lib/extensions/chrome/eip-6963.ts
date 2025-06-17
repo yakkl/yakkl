@@ -1,4 +1,4 @@
-import { log } from "$lib/plugins/Logger";
+import { log } from "$lib/managers/Logger";
 import type { Runtime } from "webextension-polyfill";
 import { ProviderRpcError } from "$lib/common";
 import browser from "webextension-polyfill";
@@ -7,7 +7,7 @@ import { getBlock, getLatestBlock, getGasPrice, getBalance, getCode, getNonce, g
 import type { Block, BlockTag } from 'alchemy-sdk';
 import type { YakklCurrentlySelected } from '../../common/interfaces';
 import { STORAGE_YAKKL_CURRENTLY_SELECTED, YAKKL_PROVIDER_EIP6963 } from '$lib/common/constants';
-// import { KeyManager } from '$lib/plugins/KeyManager';
+// import { KeyManager } from '$lib/managers/KeyManager';
 import { estimateGas as estimateGasLegacy } from './legacy';
 import { requestManager } from './requestManager';
 import type { PendingRequestData } from '$lib/common/interfaces';
@@ -22,7 +22,7 @@ import { handleSimulationRequest } from '$lib/common/listeners/background/simula
 import { handleWriteRequest } from '$lib/common/listeners/background/writeMethodHandler';
 import { sendErrorResponse } from '$lib/extensions/chrome/errorResponseHandler';
 import { MessageAnalyzer } from "./messageAnalyzer";
-import { showPopupForMethod } from "$lib/plugins/DAppPopupManager";
+import { showPopupForMethod } from "$lib/managers/DAppPopupManager";
 
 export { requestManager };
 

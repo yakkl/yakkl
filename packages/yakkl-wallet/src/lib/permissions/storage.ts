@@ -3,7 +3,7 @@
 import browser from "webextension-polyfill";
 import type { PermissionData, EncryptedPermissionStore, SecurityLevel } from "./types";
 import { encryptWithDomainKey, decryptWithDomainKey, generateSessionId } from "../utilities/crypto";
-import { log } from "$lib/plugins/Logger";
+import { log } from "$lib/managers/Logger";
 
 // Storage keys
 const PERMISSIONS_PREFIX = 'wallet_permission_';

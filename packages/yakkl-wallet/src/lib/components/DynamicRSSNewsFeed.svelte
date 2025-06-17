@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { DynamicRSSFeedService, type RSSFeed } from '$lib/plugins/DynamicRSSFeedService';
+  import { DynamicRSSFeedService, type RSSFeed } from '$lib/managers/DynamicRSSFeedService';
   import NewsFeed from './NewsFeed.svelte';
-  import { log } from '$lib/plugins/Logger';
+  import { log } from '$lib/managers/Logger';
   import { browser_ext } from '$lib/common/environment';
 
   interface Props {

@@ -4,7 +4,7 @@ ensureProcessPolyfill();
 
 import { initializeEIP6963 } from './eip-6963';
 import { addBackgroundListeners } from '$lib/common/listeners/background/backgroundListeners';
-import { log } from '$lib/plugins/Logger';
+import { log } from '$lib/managers/Logger';
 import browser from 'webextension-polyfill';
 import { onAlarmListener } from '$lib/common/listeners/background/alarmListeners';
 import type { Runtime } from 'webextension-polyfill';
@@ -13,7 +13,7 @@ import { initializePermissions } from '$lib/permissions';
 import { initializeStorageDefaults, watchLockedState } from '$lib/common/backgroundUtils';
 import { getObjectFromLocalStorage } from '$lib/common/backgroundSecuredStorage';
 import { SecurityLevel } from '$lib/permissions/types';
-import { getAlchemyProvider } from '$lib/plugins/providers/network/ethereum_provider/alchemy';
+import { getAlchemyProvider } from '$lib/managers/providers/network/ethereum_provider/alchemy';
 import type { PendingRequestData } from '$lib/common/interfaces';
 import { extractSecureDomain } from '$lib/common/security';
 import { sendErrorResponse } from '$lib/extensions/chrome/errorResponseHandler';

@@ -1,4 +1,4 @@
-import { log } from '$lib/plugins/Logger';
+import { log } from '$lib/managers/Logger';
 import { signingManager } from './signingManager';
 import type { Runtime } from 'webextension-polyfill';
 

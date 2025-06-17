@@ -10,7 +10,7 @@
 	import { resetTokenDataStoreValues } from '$lib/common/resetTokenDataStoreValues';
   import { log } from '$lib/common/logger-wrapper';
 	import { stopActivityTracking } from '$lib/common/messaging';
-  import { ErrorHandler } from '$lib/plugins/ErrorHandler';
+  import { ErrorHandler } from '$lib/managers/ErrorHandler';
 
   // Initialize error handler
   if (browserSvelte) {

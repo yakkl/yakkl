@@ -1,6 +1,6 @@
 import { yakklStoredObjects } from "../models/dataModels";
 import browser from "webextension-polyfill"; // This will cause a build error if not used in a background script.
-import { log } from "$plugins/Logger";
+import { log } from "$lib/managers/Logger";
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from "./backgroundSecuredStorage";
 import { STORAGE_YAKKL_CURRENTLY_SELECTED, STORAGE_YAKKL_SETTINGS } from "./constants";
 import type { Settings, YakklCurrentlySelected } from "./interfaces";

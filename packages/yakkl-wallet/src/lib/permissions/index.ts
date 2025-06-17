@@ -8,7 +8,7 @@ export * from './handlers';
 
 import { resolvePermissionRequest, rejectPermissionRequest } from './handlers';
 // Main initialization function
-import { log } from "$lib/plugins/Logger";
+import { log } from "$lib/managers/Logger";
 import browser from "webextension-polyfill";
 
 /**

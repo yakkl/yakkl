@@ -3,7 +3,7 @@
   // NOTE: This for the Bulk Emergency Kit. The single EmergencyKit is only for YakklAccount or yakklPrimaryAccount.
   //
 
-  import { EmergencyKitManager } from '$lib/plugins/EmergencyKitManager';
+  import { EmergencyKitManager } from '$lib/managers/EmergencyKitManager';
   import {
     getProfile, getPreferences, getSettings, getYakklCurrentlySelected,
     getYakklContacts, getYakklChats, getYakklAccounts, getYakklPrimaryAccounts,
@@ -34,7 +34,7 @@
   import { browserSvelte, browser_ext } from '$lib/common/environment';
   import { decryptData } from '$lib/common/encryption';
   import Confirmation from './Confirmation.svelte';
-  import { log } from '$lib/plugins/Logger';
+  import { log } from '$lib/managers/Logger';
 	import { safeLogout } from '$lib/common/safeNavigate';
 
   interface Props {

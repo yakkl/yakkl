@@ -1,6 +1,6 @@
 // import { browser_ext } from '$lib/common/environment';
 import browser from 'webextension-polyfill';
-import { log } from '$lib/plugins/Logger';
+import { log } from '$lib/managers/Logger';
 
 // WIP - do not use
 export async function restartExtension() {

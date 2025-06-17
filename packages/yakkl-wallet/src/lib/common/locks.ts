@@ -3,7 +3,7 @@ import { dateString } from "./datetime";
 import type { Settings, YakklCurrentlySelected } from "./interfaces";
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from "./storage";
 import { yakklCurrentlySelectedStore, yakklSettingsStore } from "./stores";
-import { log } from "$plugins/Logger";
+import { log } from "$lib/managers/Logger";
 import { PlanType } from "./types";
 
 // Will keep this for now but may want to deprecate it and use the new background script to handle locks

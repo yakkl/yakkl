@@ -1,6 +1,6 @@
 // $lib/browser-polyfill-wrapper.ts
 import type { Browser } from 'webextension-polyfill';
-import { log } from "$plugins/Logger";
+import { log } from "$lib/managers/Logger";
 
 let browser_ext: Browser | null = null;
 let initialized = false;

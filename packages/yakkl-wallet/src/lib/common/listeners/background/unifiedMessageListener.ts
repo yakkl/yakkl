@@ -19,8 +19,8 @@ import { showPopup } from '$lib/extensions/chrome/ui';
 import { startLockIconTimer, stopLockIconTimer } from '$lib/extensions/chrome/iconTimer';
 import { setIconLock, setIconUnlock } from '$lib/utilities';
 import { isBackgroundContext } from '$lib/common/backgroundSecurity';
-import { sessionPortManager } from "$lib/plugins/SessionPortManager";
-import { requestManager as newRequestManager, type ExtendedBackgroundPendingRequest } from "$lib/plugins/RequestManager";
+import { sessionPortManager } from "$lib/managers/SessionPortManager";
+import { requestManager as newRequestManager, type ExtendedBackgroundPendingRequest } from "$lib/managers/RequestManager";
 
 // Interface for tracking active tabs
 interface ActiveTab {

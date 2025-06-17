@@ -7,7 +7,7 @@
   import { isEncryptedData, type AccountData, type CurrentlySelectedData, type EncryptedData, type YakklCurrentlySelected } from '$lib/common';
   import PincodeVerify from './PincodeVerify.svelte';
   import Modal from './Modal.svelte';
-	import { log } from '$lib/plugins/Logger';
+	import { log } from '$lib/managers/Logger';
 	import Copy from './Copy.svelte';
 
   interface Props {

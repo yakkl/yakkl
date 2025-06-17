@@ -1,5 +1,5 @@
 import type { SigningRequest } from './signingHandler';
-import { log } from '$lib/plugins/Logger';
+import { log } from '$lib/managers/Logger';
 import { browser_ext, browserSvelte } from '$lib/common/environment';
 import { sessionToken } from '$lib/common/auth/session';
 import { get } from 'svelte/store';

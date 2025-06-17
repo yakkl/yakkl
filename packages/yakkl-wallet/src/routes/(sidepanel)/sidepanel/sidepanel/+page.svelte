@@ -10,7 +10,7 @@
   import ToolIcon from '$lib/components/icons/ToolIcon.svelte';
 	import { onDestroy, onMount } from 'svelte';
 	import { getSettings, setYakklCombinedTokenStorage, updateCombinedTokenStore, yakklCombinedTokenStore } from '$lib/common/stores';
-	import { loadDefaultTokens } from '$lib/plugins/tokens/loadDefaultTokens';
+	import { loadDefaultTokens } from '$lib/managers/tokens/loadDefaultTokens';
 	import { get } from 'svelte/store';
 	import ExtensionRSSNewsFeed from '$lib/components/ExtensionRSSNewsFeed.svelte';
 	import CalcIcon from '$lib/components/icons/CalcIcon.svelte';
