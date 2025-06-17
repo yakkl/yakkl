@@ -1,4 +1,4 @@
-import { log } from "$lib/plugins/Logger";
+import { log } from "$lib/managers/Logger";
 
 /**
  * Safely checks whether the current context is inside an iframe.

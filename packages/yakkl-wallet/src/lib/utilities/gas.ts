@@ -2,8 +2,8 @@
 import { get } from "svelte/store";
 import { yakklGasTransStore, yakklConnectionStore } from "$lib/common/stores";
 import type { GasFeeTrend, BlocknativeResponse, GasTransStore, EstimatedPrice } from '$lib/common/interfaces';
-import { timerManager } from "$lib/plugins/TimerManager";
-import { log } from "$plugins/Logger";
+import { timerManager } from "$lib/managers/TimerManager";
+import { log } from "$lib/managers/Logger";
 import { TIMER_CHECK_GAS_PRICE_INTERVAL_TIME, TIMER_GAS_PRICE_CHECK } from "$lib/common";
 
 const now = () => +Date.now() / 1000;

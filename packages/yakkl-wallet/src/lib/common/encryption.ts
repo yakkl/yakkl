@@ -3,7 +3,7 @@ export const prerender = false;
 
 import {type SaltedKey } from "$lib/common";
 import type { EncryptedData } from "$lib/common";
-import { log } from "$lib/plugins/Logger";
+import { log } from "$lib/managers/Logger";
 // import { encodeJSON } from '$lib/utilities/utilities';
 import { Buffer } from "buffer";
 

@@ -1,5 +1,5 @@
 import { browser_ext, browserSvelte } from '$lib/common/environment';
-import { ConnectionType } from '$plugins/BackgroundManager';
+import { ConnectionType } from '$managers/BackgroundManager';
 import { log } from '$lib/common/logger-wrapper';
 import type { MessageTypes, TabChangeData, WindowFocusData } from '$lib/common/types';
 import { MessageType } from '$lib/common/types';

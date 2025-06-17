@@ -7,14 +7,14 @@
 	import { onMount } from 'svelte';
 	import { getMiscStore, getSettings } from '$lib/common/stores';
 	import Swap from "./Swap.svelte";
-	import type { Provider } from "$lib/plugins/Provider";
-	import type { Ethereum } from "$lib/plugins/blockchains/evm/ethereum/Ethereum";
-	import { UniswapSwapManager } from "$lib/plugins/UniswapSwapManager";
-	import { TokenService } from "$lib/plugins/blockchains/evm/TokenService";
-	import type { Wallet } from "$lib/plugins/Wallet";
-	import WalletManager from "$lib/plugins/WalletManager";
+	import type { Provider } from "$lib/managers/Provider";
+	import type { Ethereum } from "$lib/managers/blockchains/evm/ethereum/Ethereum";
+	import { UniswapSwapManager } from "$lib/managers/UniswapSwapManager";
+	import { TokenService } from "$lib/managers/blockchains/evm/TokenService";
+	import type { Wallet } from "$lib/managers/Wallet";
+	import WalletManager from "$lib/managers/WalletManager";
 	import { getYakklCurrentlySelectedAccountKey } from "$lib/common/security";
-	import { log } from "$lib/plugins/Logger";
+	import { log } from "$lib/managers/Logger";
 	import { openSidePanelOnActiveTab } from "$lib/common/sidepanel";
 
   interface Props {

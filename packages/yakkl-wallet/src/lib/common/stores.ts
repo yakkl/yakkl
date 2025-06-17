@@ -65,15 +65,15 @@ import type {
   ActiveTab,
 } from '$lib/common/interfaces';
 
-import { walletStore, type Wallet } from '$plugins/Wallet';
-import type { Blockchain, Provider } from '$lib/plugins';
-import type { TokenService } from '$lib/plugins/blockchains/evm/TokenService';
+import { walletStore, type Wallet } from '$lib/managers/Wallet';
+import type { Blockchain, Provider } from '$lib/managers';
+import type { TokenService } from '$lib/managers/blockchains/evm/TokenService';
 import { tokens } from './stores/tokens';
-// import { timerManagerStore } from '$lib/plugins/TimerManager';
-import { log } from "$plugins/Logger";
+// import { timerManagerStore } from '$lib/managers/TimerManager';
+import { log } from '$lib/managers/Logger';
 import { AccountTypeCategory, NetworkType } from '$lib/common/types';
 import { browser_ext } from '$lib/common/environment';
-import type { RSSItem } from '$lib/plugins/ExtensionRSSFeedService';
+import type { RSSItem } from '$lib/managers/ExtensionRSSFeedService';
 
 // Svelte writeable stores
 export const alert = writable({

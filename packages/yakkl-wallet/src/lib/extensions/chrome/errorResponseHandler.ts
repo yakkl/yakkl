@@ -1,6 +1,6 @@
 // src/lib/extensions/chrome/utils/errorResponseHandler.ts
 
-import { log } from '$lib/plugins/Logger';
+import { log } from '$lib/managers/Logger';
 import type { Runtime } from 'webextension-polyfill';
 
 /**

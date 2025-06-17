@@ -1,9 +1,9 @@
 <!-- src/lib/components/ExtensionRSSNewsFeed.svelte -->
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
-  import { ExtensionRSSFeedService, type RSSItem, type RSSFeed } from '$lib/plugins/ExtensionRSSFeedService';
+  import { onMount } from 'svelte';
+  import { ExtensionRSSFeedService, type RSSItem, type RSSFeed } from '$lib/managers/ExtensionRSSFeedService';
   import NewsFeed from './NewsFeed.svelte';
-	import { log } from '$lib/plugins/Logger';
+	import { log } from '$lib/managers/Logger';
   import RefreshIcon from './icons/RefreshIcon.svelte';
   import { browser_ext } from '$lib/common/environment';
 

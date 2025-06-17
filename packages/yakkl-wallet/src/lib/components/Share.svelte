@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { log } from '$lib/plugins/Logger';
+	import { log } from '$lib/managers/Logger';
   import { handleOpenInTab } from '$lib/utilities';
   import { Popover } from 'flowbite-svelte';
 

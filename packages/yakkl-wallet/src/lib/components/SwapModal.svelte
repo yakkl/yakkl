@@ -1,10 +1,10 @@
 <script lang="ts">
   import type { Profile, ProfileData, SwapToken } from '$lib/common/interfaces';
 	import { decryptData, isEncryptedData, type BigNumberish } from '$lib/common';
-	import type { Provider } from '$lib/plugins/Provider';
-	import type { Ethereum } from '$lib/plugins/blockchains/evm/ethereum/Ethereum';
-	import type { UniswapSwapManager } from '$lib/plugins/UniswapSwapManager';
-	import type { TokenService } from '$lib/plugins/blockchains/evm/TokenService';
+	import type { Provider } from '$lib/managers/Provider';
+	import type { Ethereum } from '$lib/managers/blockchains/evm/ethereum/Ethereum';
+	import type { UniswapSwapManager } from '$lib/managers/UniswapSwapManager';
+	import type { TokenService } from '$lib/managers/blockchains/evm/TokenService';
 	import Swap from './Swap.svelte';
 	import { getMiscStore, getProfile } from '$lib/common/stores';
 	import { deepCopy } from '$lib/utilities';

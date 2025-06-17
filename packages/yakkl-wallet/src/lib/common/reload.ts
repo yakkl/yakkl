@@ -1,5 +1,5 @@
 import { browserSvelte, browser_ext } from "./environment";
-import { log } from "$plugins/Logger";
+import { log } from "$lib/managers/Logger";
 import { openWindows } from "$lib/extensions/chrome/ui";
 
 

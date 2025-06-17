@@ -3,9 +3,9 @@ import type { Preferences } from '$lib/common/interfaces';
 import type { Windows } from 'webextension-polyfill';
 import browser from 'webextension-polyfill';
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from '$lib/common/storage';
-import { log } from '$lib/plugins/Logger';
+import { log } from '$lib/managers/Logger';
 import type { ExtendedBrowser } from '$lib/common/types/browser-extensions';
-import { SingletonWindowManager } from '$lib/plugins/SingletonWindowManager';
+import { SingletonWindowManager } from '$lib/managers/SingletonWindowManager';
 
 // NOTE: For background usage
 type WindowsWindow = Windows.Window;

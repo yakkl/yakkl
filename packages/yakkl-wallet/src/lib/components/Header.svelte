@@ -11,7 +11,7 @@
   import PlanBadge from '$lib/components/PlanBadge.svelte';
 	import OffcanvasMainMenu from './OffcanvasMainMenu.svelte';
 	import GraduationCapButton from './icons/GraduationCapButton.svelte';
-  import { log } from '$lib/plugins/Logger';
+  import { log } from '$lib/managers/Logger';
 	import SimpleTooltip from './SimpleTooltip.svelte';
 	import OffcanvasProfileMenu from './OffcanvasProfileMenu.svelte';
 	import Avatar from './Avatar.svelte';

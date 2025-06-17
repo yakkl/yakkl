@@ -1,7 +1,7 @@
 <!-- File: src/lib/components/Podcasts.svelte -->
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { log } from '$lib/plugins/Logger';
+	import { log } from '$lib/managers/Logger';
 	import PodcastLineView from './PodcastLineView.svelte';
 	import ChevronDownIcon from '$lib/components/icons/ChevronDownIcon.svelte';
 	import ChevronUpIcon from '$lib/components/icons/ChevronUpIcon.svelte';

@@ -2,7 +2,7 @@
 import type { AccessList, Log, Transaction } from '$lib/common/evm';
 import type { AccessSourceType, AccountTypeCategory, BytesLike, NetworkType, PlanType, PromoClassificationType, RegisteredType, SystemTheme, URL } from '$lib/common/types';
 import type { BigNumberish } from '$lib/common/bignumber';
-import type { Token } from '$lib/plugins/Token';
+import type { Token } from '$lib/managers/Token';
 import type { Runtime } from 'webextension-polyfill';
 
 // Session Info is used to check if the session is valid and if the port is open - mainly used for the dapp popups

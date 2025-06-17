@@ -2,12 +2,12 @@
 // import { fetchJson } from "@ethersproject/web";
 import { get } from 'svelte/store';
 import { yakklPricingStore, yakklConnectionStore } from "$lib/common/stores";
-import { PriceManager } from '$lib/plugins/PriceManager';
-import { KrakenPriceProvider } from '$lib/plugins/providers/price/kraken/KrakenPriceProvider';
-import { CoingeckoPriceProvider } from '$lib/plugins/providers/price/coingecko/CoingeckoPriceProvider';
-import { CoinbasePriceProvider } from '$lib/plugins/providers/price/coinbase/CoinbasePriceProvider';
-import { log } from "$plugins/Logger";
-import { timerManager } from "$lib/plugins/TimerManager";
+import { PriceManager } from '$lib/managers/PriceManager';
+import { KrakenPriceProvider } from '$lib/managers/providers/price/kraken/KrakenPriceProvider';
+import { CoingeckoPriceProvider } from '$lib/managers/providers/price/coingecko/CoingeckoPriceProvider';
+import { CoinbasePriceProvider } from '$lib/managers/providers/price/coinbase/CoinbasePriceProvider';
+import { log } from "$lib/managers/Logger";
+import { timerManager } from "$lib/managers/TimerManager";
 import { TIMER_CHECK_PRICE_INTERVAL_TIME } from '$lib/common';
 
 // Use these globally if needed

@@ -2,7 +2,7 @@
   import { getYakklCombinedToken, yakklCombinedTokenStore, getSettings } from '$lib/common/stores';
   import type { Settings, TokenData } from '$lib/common';
   import { onMount } from 'svelte';
-	import { log } from '$lib/plugins/Logger';
+	import { log } from '$lib/managers/Logger';
   import { browser_ext } from '$lib/common/environment';
 	import { handleOnMessageForPricing } from '$lib/common/listeners/ui/uiListeners';
 	import { startPricingChecks } from '$lib/tokens/prices';
@@ -41,7 +41,7 @@
         // If no tokens are loaded, try to trigger loading them
         if (initialTokens.length === 0) {
           log.warn('TokenComponentList: No tokens loaded from combined store, attempting to load defaults');
-          import('$lib/plugins/tokens/loadDefaultTokens').then(({ loadDefaultTokens }) => {
+          import('$lib/managers/tokens/loadDefaultTokens').then(({ loadDefaultTokens }) => {
             loadDefaultTokens().then(() => {
               // After loading defaults, attempt to get combined tokens again
               getYakklCombinedToken().then((reloadedTokens) => {

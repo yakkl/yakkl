@@ -9,9 +9,9 @@
   import { setYakklAccountsStorage, setYakklPrimaryAccountsStorage } from '$lib/common/stores';
   import { AccountTypeCategory } from '$lib/common/types';
   import EditControls from './EditControls.svelte';
-	import WalletManager from '$lib/plugins/WalletManager';
-  import type { Wallet } from '$lib/plugins/Wallet';
-	import { log } from '$lib/plugins/Logger';
+	import WalletManager from '$lib/managers/WalletManager';
+  import type { Wallet } from '$lib/managers/Wallet';
+	import { log } from '$lib/managers/Logger';
   import { collectAccountData, type AccountData } from '$lib/utilities/accountData';
 
   interface Props {

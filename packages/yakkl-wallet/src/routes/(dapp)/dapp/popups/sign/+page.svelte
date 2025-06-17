@@ -14,14 +14,14 @@
   import Copyright from '$lib/components/Copyright.svelte';
   import Warning from '$lib/components/Warning.svelte';
   import Failed from '$lib/components/Failed.svelte';
-  import { createPortManagerWithStream, PortManagerWithStream } from '$lib/plugins/PortManagerWithStream';
-  import type { PortDuplexStream } from '$lib/plugins/PortStreamManager';
+  import { createPortManagerWithStream, PortManagerWithStream } from '$lib/managers/PortManagerWithStream';
+  import type { PortDuplexStream } from '$lib/managers/PortStreamManager';
   import { sessionToken, verifySessionToken } from '$lib/common/auth/session';
   import { safeLogout } from '$lib/common/safeNavigate';
   import { decryptData } from '$lib/common/encryption';
   import { isEncryptedData } from '$lib/common/misc';
-  import WalletManager from '$lib/plugins/WalletManager';
-  import type { Wallet } from '$lib/plugins/Wallet';
+  import WalletManager from '$lib/managers/WalletManager';
+  import type { Wallet } from '$lib/managers/Wallet';
   import { formatEther } from '$lib/utilities/utilities';
 
   type RuntimePort = Runtime.Port | undefined;

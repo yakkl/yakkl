@@ -1,9 +1,9 @@
 // dapp.ts - Complete implementation with unified architecture support
 import { requestManager } from "$lib/extensions/chrome/eip-6963";
-import { log } from "$lib/plugins/Logger";
+import { log } from "$lib/managers/Logger";
 import { verifyDomainConnected } from "$lib/extensions/chrome/verifyDomainConnectedBackground";
 import type { Runtime } from "webextension-polyfill";
-import { portManager } from "$lib/plugins/PortManager";
+import { portManager } from "$lib/managers/PortManager";
 
 // Port registry to track connected ports
 interface PortRegistry {

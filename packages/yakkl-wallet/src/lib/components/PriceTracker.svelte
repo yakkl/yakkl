@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import type { PriceProvider } from '$lib/common/interfaces';
-  import { CoinbasePriceProvider } from '$lib/plugins/providers/price/coinbase/CoinbasePriceProvider';
-	import { timerManager } from '$lib/plugins/TimerManager';
+  import { CoinbasePriceProvider } from '$lib/managers/providers/price/coinbase/CoinbasePriceProvider';
+	import { timerManager } from '$lib/managers/TimerManager';
 	import { priceStore } from '$lib/common/stores';
-  import { log } from "$plugins/Logger";
+  import { log } from "$lib/managers/Logger";
 	import { TIMER_PRICE_INTERVAL_TIME } from '$lib/common';
 
   interface Props {

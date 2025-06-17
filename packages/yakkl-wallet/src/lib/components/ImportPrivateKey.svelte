@@ -12,12 +12,12 @@
   // import { Confetti } from 'svelte-confetti';
   // import { confetti } from '@neoconfetti/svelte';
   import { AccountTypeCategory, addressExist, isEncryptedData, NetworkType, type AccountData, type CurrentlySelectedData, type Profile, type ProfileData, type YakklAccount, type YakklCurrentlySelected } from '$lib/common';
-  import WalletManager from '$lib/plugins/WalletManager';
-  import type { Wallet } from '$lib/plugins/Wallet';
+  import WalletManager from '$lib/managers/WalletManager';
+  import type { Wallet } from '$lib/managers/Wallet';
   import { onMount } from 'svelte';
   import { dateString } from '$lib/common/datetime';
   import Modal from './Modal.svelte';
-	import { log } from '$lib/plugins/Logger';
+	import { log } from '$lib/managers/Logger';
 
   let wallet: Wallet;
   let currentlySelected: YakklCurrentlySelected;

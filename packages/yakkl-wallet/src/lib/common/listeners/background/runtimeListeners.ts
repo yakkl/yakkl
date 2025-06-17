@@ -3,7 +3,7 @@ import browser from 'webextension-polyfill';
 import type { Runtime } from 'webextension-polyfill';
 import { startLockIconTimer, stopLockIconTimer } from '$lib/extensions/chrome/iconTimer';
 import { setIconLock, setIconUnlock } from '$lib/utilities/utilities';
-import { log } from '$lib/plugins/Logger';
+import { log } from '$lib/managers/Logger';
 
 type RuntimeSender = Runtime.MessageSender;
 

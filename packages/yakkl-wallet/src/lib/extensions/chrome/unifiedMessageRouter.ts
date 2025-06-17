@@ -4,7 +4,7 @@
 import { onEIP6963PortListener } from './eip-6963';
 import { onDappListener } from './dapp';
 import { onPortInternalListener } from '$lib/common/listeners/ui/portListeners';
-import { log } from '$lib/plugins/Logger';
+import { log } from '$lib/managers/Logger';
 import type { Runtime } from 'webextension-polyfill';
 import browser from 'webextension-polyfill';
 import { YAKKL_DAPP } from '$lib/common/constants';

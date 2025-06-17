@@ -14,8 +14,8 @@
 	import Copyright from '$lib/components/Copyright.svelte';
 	import Warning from '$lib/components/Warning.svelte';
 	import Failed from '$lib/components/Failed.svelte';
-	import { createPortManagerWithStream, PortManagerWithStream } from '$lib/plugins/PortManagerWithStream';
-	import type { PortDuplexStream } from '$lib/plugins/PortStreamManager';
+	import { createPortManagerWithStream, PortManagerWithStream } from '$lib/managers/PortManagerWithStream';
+	import type { PortDuplexStream } from '$lib/managers/PortStreamManager';
 	import { sessionToken, verifySessionToken } from '$lib/common/auth/session';
 	import { safeLogout } from '$lib/common/safeNavigate';
 

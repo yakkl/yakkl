@@ -1,6 +1,6 @@
 // src/lib/extensions/chrome/handlers/simulationMethodHandler.ts
 
-import { log } from '$lib/plugins/Logger';
+import { log } from '$lib/managers/Logger';
 import { getYakklCurrentlySelected } from '$lib/common/stores';
 import { sendErrorResponse } from '$lib/extensions/chrome/errorResponseHandler';
 import type { Runtime } from 'webextension-polyfill';
@@ -222,7 +222,7 @@ async function handleCreateAccessList(params: any[]): Promise<any> {
  * Estimates gas via RPC provider
  */
 async function estimateGasViaRPC(txParams: any, chainId: number): Promise<string> {
-  const { getAlchemyProvider } = await import('$lib/plugins/providers/network/ethereum_provider/alchemy');
+  const { getAlchemyProvider } = await import('$lib/managers/providers/network/ethereum_provider/alchemy');
   const provider = await getAlchemyProvider();
 
   // Use your corrected estimateGas method that returns hex string
@@ -235,7 +235,7 @@ async function estimateGasViaRPC(txParams: any, chainId: number): Promise<string
  * Makes eth_call via RPC provider
  */
 async function callViaRPC(callParams: any, blockNumber: string, chainId: number): Promise<string> {
-  const { getAlchemyProvider } = await import('$lib/plugins/providers/network/ethereum_provider/alchemy');
+  const { getAlchemyProvider } = await import('$lib/managers/providers/network/ethereum_provider/alchemy');
   const provider = await getAlchemyProvider();
 
   const result = await provider.request({
@@ -250,7 +250,7 @@ async function callViaRPC(callParams: any, blockNumber: string, chainId: number)
  * Creates access list via RPC provider
  */
 async function createAccessListViaRPC(txParams: any, chainId: number): Promise<any> {
-  const { getAlchemyProvider } = await import('$lib/plugins/providers/network/ethereum_provider/alchemy');
+  const { getAlchemyProvider } = await import('$lib/managers/providers/network/ethereum_provider/alchemy');
   const provider = await getAlchemyProvider();
 
   const result = await provider.request({

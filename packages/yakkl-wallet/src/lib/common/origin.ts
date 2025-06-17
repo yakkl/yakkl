@@ -1,5 +1,5 @@
 // import type { RuntimePort } from "$lib/extensions/chrome/background";
-import { log } from "$lib/plugins/Logger";
+import { log } from "$lib/managers/Logger";
 import { isFrameAccessible } from "./frameInspector";
 // import browser from "webextension-polyfill";
 

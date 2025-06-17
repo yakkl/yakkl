@@ -1,4 +1,4 @@
-import { log } from '$lib/plugins/Logger';
+import { log } from '$lib/managers/Logger';
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from '../storage';
 
 export interface DAppActivity {

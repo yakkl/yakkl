@@ -2,12 +2,12 @@
 import browser from 'webextension-polyfill';
 import { isBlacklisted } from "$lib/extensions/chrome/database";
 import { portsExternal } from "$lib/extensions/chrome/ports";
-import { log } from "$lib/plugins/Logger";
+import { log } from "$lib/managers/Logger";
 import type { Tabs } from "webextension-polyfill";
 import { activeTabBackgroundStore, activeTabUIStore } from "$lib/common/stores";
 import { get } from "svelte/store";
 import { setObjectInLocalStorage } from "$lib/common/storage";
-import { backgroundManager } from "$lib/plugins/BackgroundManager";
+import { backgroundManager } from "$lib/managers/BackgroundManager";
 import { MessageType } from '$lib/common/types';
 import type { WindowFocusData } from '$lib/common/types';
 

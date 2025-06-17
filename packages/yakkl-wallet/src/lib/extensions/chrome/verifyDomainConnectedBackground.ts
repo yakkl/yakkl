@@ -1,5 +1,5 @@
 import { requestManager } from "$lib/extensions/chrome/requestManager";
-import { log } from "$lib/plugins/Logger";
+import { log } from "$lib/managers/Logger";
 // import { getYakklConnectedDomains } from "$lib/common/stores";
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from "$lib/common/backgroundStorage";
 import { STORAGE_YAKKL_CONNECTED_DOMAINS, STORAGE_YAKKL_ACCOUNTS } from "$lib/common/constants";

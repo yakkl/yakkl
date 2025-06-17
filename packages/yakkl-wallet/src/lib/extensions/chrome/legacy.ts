@@ -1,7 +1,7 @@
-import { log } from '$lib/plugins/Logger';
+import { log } from '$lib/managers/Logger';
 import { Alchemy, Network, type TransactionRequest, type BlockTag, BigNumber } from 'alchemy-sdk';
-import { keyManager } from '$lib/plugins/KeyManager';
-import { RPCAlchemy } from '$lib/plugins/providers/network/alchemy/RPCAlchemy';
+import { keyManager } from '$lib/managers/KeyManager';
+import { RPCAlchemy } from '$lib/managers/providers/network/alchemy/RPCAlchemy';
 import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
 
 /**********************************************************************************************************************/

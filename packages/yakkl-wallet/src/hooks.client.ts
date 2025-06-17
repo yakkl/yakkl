@@ -2,10 +2,10 @@
 import type { Browser } from 'webextension-polyfill';
 import { getSettings, setContextTypeStore, syncStorageToStore } from '$lib/common/stores';
 import { loadTokens } from '$lib/common/stores/tokens';
-import { ErrorHandler } from '$lib/plugins/ErrorHandler';
-import { log } from '$lib/plugins/Logger';
+import { ErrorHandler } from '$lib/managers/ErrorHandler';
+import { log } from '$lib/managers/Logger';
 import { addUIListeners, removeUIListeners } from '$lib/common/listeners/ui/uiListeners';
-import { globalListenerManager } from '$lib/plugins/GlobalListenerManager';
+import { globalListenerManager } from '$lib/managers/GlobalListenerManager';
 import { uiListenerManager } from '$lib/common/listeners/ui/uiListeners';
 import { protectedContexts } from '$lib/common/globals';
 

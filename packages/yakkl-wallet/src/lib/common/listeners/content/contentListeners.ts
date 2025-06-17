@@ -1,8 +1,8 @@
 // listeners/contentListeners.ts
-import { ListenerManager } from '$lib/plugins/ListenerManager';
+import { ListenerManager } from '$lib/managers/ListenerManager';
 import browser from 'webextension-polyfill';
-import { globalListenerManager } from '$lib/plugins/GlobalListenerManager';
-import { log } from '$lib/plugins/Logger';
+import { globalListenerManager } from '$lib/managers/GlobalListenerManager';
+import { log } from '$lib/managers/Logger';
 
 // NOTE: Only for background
 

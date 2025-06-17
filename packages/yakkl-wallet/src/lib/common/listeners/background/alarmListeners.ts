@@ -1,5 +1,5 @@
 import browser from 'webextension-polyfill';
-import { log } from "$lib/plugins/Logger";
+import { log } from "$lib/managers/Logger";
 
 export async function onAlarmListener(alarm: any) {
   try {

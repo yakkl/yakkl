@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { log } from '$lib/plugins/Logger';
+	import { log } from '$lib/managers/Logger';
   import { onMount, onDestroy } from 'svelte';
 
   let { symbol = 'COINBASE:ETHUSD' } = $props();

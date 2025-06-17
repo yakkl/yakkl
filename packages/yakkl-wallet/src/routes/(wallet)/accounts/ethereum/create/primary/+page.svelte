@@ -6,9 +6,9 @@
   import { decryptData, type Profile, type ProfileData, type PrimaryAccountData, type YakklPrimaryAccount, isEncryptedData, type PrimaryAccountReturnValues, type Settings, type EmergencyKitAccountData, PlanType } from '$lib/common';
   import { DEFAULT_DERIVED_PATH_ETH, VERSION, PATH_WELCOME, DEFAULT_TITLE } from '$lib/common';
   import { goto } from '$app/navigation';
-  import { createPortfolioAccount } from '$lib/plugins/networks/ethereum/createPortfolioAccount';
+  import { createPortfolioAccount } from '$lib/managers/networks/ethereum/createPortfolioAccount';
 	import { onMount } from 'svelte';
-	import { EmergencyKitManager } from '$lib/plugins/EmergencyKitManager';
+	import { EmergencyKitManager } from '$lib/managers/EmergencyKitManager';
 	import { sendNotificationMessage } from '$lib/common/notifications';
   // import { jsPDF } from "jspdf";
 

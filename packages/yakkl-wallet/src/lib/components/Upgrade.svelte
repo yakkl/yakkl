@@ -4,13 +4,13 @@
   import * as yup from 'yup';
   import Modal from './Modal.svelte';
   import { getProfile, getSettings, yakklMiscStore } from '$lib/common/stores';
-  import { log } from '$lib/plugins/Logger';
+  import { log } from '$lib/managers/Logger';
   import { dateString } from '$lib/common/datetime';
   import ErrorNoAction from './ErrorNoAction.svelte';
   import Confirmation from './Confirmation.svelte';
   import { safeLogout } from '$lib/common/safeNavigate';
   import Notification from './Notification.svelte';
-  import { UpgradeManager, type UpgradeResponseMessage } from '$lib/plugins/UpgradeManager';
+  import { UpgradeManager, type UpgradeResponseMessage } from '$lib/managers/UpgradeManager';
   import { canUpgrade } from '$lib/common/utils';
 	import type { ProfileData } from '$lib/common/interfaces';
 	import { decryptData } from '$lib/common/encryption';

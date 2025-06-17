@@ -1,12 +1,12 @@
 <script lang="ts">
   import type { PriceProvider } from '$lib/common/interfaces';
-  import { CoinbasePriceProvider } from '$lib/plugins/providers/price/coinbase/CoinbasePriceProvider';
-  import { CoingeckoPriceProvider } from '$lib/plugins/providers/price/coingecko/CoingeckoPriceProvider';
+  import { CoinbasePriceProvider } from '$lib/managers/providers/price/coinbase/CoinbasePriceProvider';
+  import { CoingeckoPriceProvider } from '$lib/managers/providers/price/coingecko/CoingeckoPriceProvider';
   import { onMount } from 'svelte';
   import PriceTracker from './PriceTracker.svelte';
   import { formatPrice } from '$lib/utilities';
   import { formatDate } from '$lib/common/datetime';
-	import { log } from '$lib/plugins/Logger';
+	import { log } from '$lib/managers/Logger';
 
 
   interface Props {

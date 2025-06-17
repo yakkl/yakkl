@@ -9,7 +9,7 @@
 	import { setLocks } from '$lib/common/locks';
 	// import { removeTimers } from '$lib/common/timers';
 	// import { removeListeners } from '$lib/common/listeners';
-	// import { timerManager } from '$lib/plugins/TimerManager';
+	// import { timerManager } from '$lib/managers/TimerManager';
   import { log } from '$lib/common/logger-wrapper';
 	// import { resetTokenDataStoreValues } from '$lib/common/resetTokenDataStoreValues';
 

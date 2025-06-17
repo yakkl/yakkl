@@ -14,7 +14,7 @@ import { yakklVersionStore } from '$lib/common/stores';
 import { Utils } from "alchemy-sdk";
 import { ethers as ethersv6 } from 'ethers-v6';
 import { browserSvelte, browser_ext } from '$lib/common/environment';
-import { log } from "$plugins/Logger";
+import { log } from "$lib/managers/Logger";
 
 export function getTokenChange(
   changeArray: TokenChange[],
