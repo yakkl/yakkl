@@ -10,7 +10,7 @@ export * from '$lib/common/network';
 export * from '$lib/common/utils';
 export * from '$lib/common/storage';
 export * from '$lib/common/evm';
-export * from '$lib/plugins/EventManager';
+export * from '$lib/managers/EventManager';
 export * from '$lib/common/icon';
 export * from '$lib/common/bignumber';
 export * from '$lib/common/debug-error';

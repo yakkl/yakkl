@@ -15,7 +15,7 @@
   import { dateString } from '$lib/common/datetime';
   import PincodeVerify from './PincodeVerify.svelte';
   import Modal from './Modal.svelte';
-	import { log } from '$lib/plugins/Logger';
+	import { log } from '$lib/managers/Logger';
 
   interface Props {
     show?: boolean;

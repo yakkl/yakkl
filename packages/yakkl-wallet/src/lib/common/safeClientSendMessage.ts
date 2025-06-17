@@ -1,5 +1,5 @@
 import { browser_ext } from '$lib/common/environment';
-import { log } from '$lib/plugins/Logger';
+import { log } from '$lib/managers/Logger';
 
 // Example:
 // const res = await safeClientSendMessage<StoreHashResponse>({

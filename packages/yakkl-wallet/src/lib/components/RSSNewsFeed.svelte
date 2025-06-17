@@ -2,7 +2,7 @@
 <script lang="ts">
   // For non-extension builds, we use the RSSFeedService
   import { onMount } from 'svelte';
-  import { RSSFeedService, type RSSItem, type RSSFeed } from '$lib/plugins/RSSFeedService';
+  import { RSSFeedService, type RSSItem, type RSSFeed } from '$lib/managers/RSSFeedService';
   import NewsFeed from './NewsFeed.svelte';
 
   interface Props {

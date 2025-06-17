@@ -1,9 +1,9 @@
-import { ListenerManager } from '$lib/plugins/ListenerManager';
+import { ListenerManager } from '$lib/managers/ListenerManager';
 import { browser_ext, isBrowserEnv } from '$lib/common/environment'; // UI context only
 import type { Runtime } from 'webextension-polyfill';  // Correct Type Import
 import { startCheckPrices, stopCheckPrices } from '$lib/tokens/prices';
 import { handleLockDown } from '$lib/common/handlers';
-import { globalListenerManager } from '$lib/plugins/GlobalListenerManager';
+import { globalListenerManager } from '$lib/managers/GlobalListenerManager';
 import { log } from '$lib/common/logger-wrapper';
 import { NotificationService } from '$lib/common/notifications';
 import { activeTabUIStore } from '$lib/common/stores';

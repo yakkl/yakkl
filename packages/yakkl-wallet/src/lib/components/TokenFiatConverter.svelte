@@ -3,10 +3,10 @@
   import Modal from './Modal.svelte';
   import { onMount } from 'svelte';
   import type { TokenData } from '$lib/common';
-  import { PriceManager } from '$lib/plugins/PriceManager';
-  import { CoinbasePriceProvider } from '$lib/plugins/providers/price/coinbase/CoinbasePriceProvider';
-  import { CoingeckoPriceProvider } from '$lib/plugins/providers/price/coingecko/CoingeckoPriceProvider';
-  import { KrakenPriceProvider } from '$lib/plugins/providers/price/kraken/KrakenPriceProvider';
+  import { PriceManager } from '$lib/managers/PriceManager';
+  import { CoinbasePriceProvider } from '$lib/managers/providers/price/coinbase/CoinbasePriceProvider';
+  import { CoingeckoPriceProvider } from '$lib/managers/providers/price/coingecko/CoingeckoPriceProvider';
+  import { KrakenPriceProvider } from '$lib/managers/providers/price/kraken/KrakenPriceProvider';
 
   let {
     show = $bindable(false),

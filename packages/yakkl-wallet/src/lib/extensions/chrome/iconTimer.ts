@@ -4,8 +4,8 @@ import { setIconLock, setIconUnlock } from "$lib/utilities";
 import { browser_ext } from "$lib/common/environment";
 import { STORAGE_YAKKL_CURRENTLY_SELECTED, STORAGE_YAKKL_SETTINGS, TIMER_ICON_CHECK_TIME } from "$lib/common/constants";
 import { yakklCurrentlySelectedStore } from "$lib/common/stores";
-import { timerManager } from "$lib/plugins/TimerManager";
-import { log } from "$plugins/Logger";
+import { timerManager } from "$lib/managers/TimerManager";
+import { log } from "$lib/managers/Logger";
 
 // NOTE: This is used on extension UI side as well which could be a problem
 

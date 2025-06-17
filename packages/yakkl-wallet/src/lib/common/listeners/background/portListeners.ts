@@ -10,13 +10,13 @@ import { supportedChainId } from "$lib/common/utils";
 import { onPortInternalListener } from "$lib/common/listeners/ui/portListeners";
 import { onEthereumListener } from "$lib/common/listeners/background/backgroundListeners";
 import browser from "webextension-polyfill";
-import { log } from "$lib/plugins/Logger";
+import { log } from "$lib/managers/Logger";
 import { addDAppActivity } from '../../activities/dapp-activity';
 import type { DAppActivity } from '../../activities/dapp-activity';
-import { portManager } from '$plugins/PortManager';
+import { portManager } from '$lib/managers/PortManager';
 import { onUnifiedMessageHandler } from "$lib/extensions/chrome/unifiedMessageRouter";
-import { sessionPortManager } from "$lib/plugins/SessionPortManager";
-import { showPopupForMethod } from "$lib/plugins/DAppPopupManager";
+import { sessionPortManager } from "$lib/managers/SessionPortManager";
+import { showPopupForMethod } from "$lib/managers/DAppPopupManager";
 
 // Browser extension reference
 const browser_ext = browser;

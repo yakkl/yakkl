@@ -1,6 +1,6 @@
 // $lib/shared/BrowserAccessor.ts
 import type { Runtime, Tabs, Alarms } from 'webextension-polyfill';
-import { log } from "$plugins/Logger";
+import { log } from "$lib/managers/Logger";
 import type { ExtendedBrowser } from '../types/browser-extensions';
 import { browser_ext } from '../environment';
 

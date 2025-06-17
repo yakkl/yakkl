@@ -1,6 +1,6 @@
 // $lib/common/environment.ts
 import type { Browser } from "webextension-polyfill";
-import { log } from "$plugins/Logger";
+import { log } from "$lib/managers/Logger";
 
 // Helper function to check if we're in a browser environment
 function isBrowserSide(): boolean {

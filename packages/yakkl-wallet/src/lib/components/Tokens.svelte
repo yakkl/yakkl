@@ -10,10 +10,10 @@
   import TokenList from './TokenList.svelte';
   import TokenForm from './TokenForm.svelte';
   import { onMount } from 'svelte';
-  import type { TokenService } from '$lib/plugins/blockchains/evm/TokenService';
-  import type { Provider } from '$lib/plugins/Provider';
+  import type { TokenService } from '$lib/managers/blockchains/evm/TokenService';
+  import type { Provider } from '$lib/managers/Provider';
   import { getTokenBalance } from '$lib/utilities/balanceUtils';
-	import { log } from '$lib/plugins/Logger';
+	import { log } from '$lib/managers/Logger';
 
   interface Props {
     show?: boolean;

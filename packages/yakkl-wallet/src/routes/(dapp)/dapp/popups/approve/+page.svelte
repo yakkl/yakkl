@@ -11,7 +11,7 @@
   import type { Runtime } from 'webextension-polyfill';
 	import Warning from '$lib/components/Warning.svelte';
 	import Confirmation from '$lib/components/Confirmation.svelte';
-	import { createPortManagerWithStream } from '$lib/plugins/PortManagerWithStream';
+	import { createPortManagerWithStream } from '$lib/managers/PortManagerWithStream';
   import { safeNavigate, safeLogout } from '$lib/common/safeNavigate';
 	import { safeClientSendMessage } from '$lib/common/safeClientSendMessage';
 

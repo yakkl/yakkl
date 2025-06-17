@@ -1,8 +1,8 @@
 import { TIMER_CONNECTION_INTERVAL_TIME } from "$lib/common";
 import { yakklConnectionStore } from "$lib/common/stores";
-import { timerManager } from "$lib/plugins/TimerManager";
+import { timerManager } from "$lib/managers/TimerManager";
 import { isOnline } from '$lib/utilities/utilities';
-import { log } from "$plugins/Logger";
+import { log } from "$lib/managers/Logger";
 
 let urlCheck: string | undefined;
 

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { log } from '$lib/plugins/Logger';
+import { log } from '$lib/managers/Logger';
 import { browser_ext } from './environment';
 
 

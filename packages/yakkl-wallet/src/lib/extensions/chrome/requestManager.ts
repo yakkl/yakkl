@@ -1,5 +1,5 @@
 import type { PendingRequestData } from '$lib/common/interfaces';
-import { log } from '$lib/plugins/Logger';
+import { log } from '$lib/managers/Logger';
 import type { BackgroundPendingRequest } from './background';
 
 

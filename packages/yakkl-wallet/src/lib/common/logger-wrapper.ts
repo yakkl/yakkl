@@ -1,5 +1,5 @@
 // $lib/common/logger-wrapper.ts
-import { log as LoggerInstance, LogLevel } from '$plugins/Logger';
+import { log as LoggerInstance, LogLevel } from '$managers/Logger';
 
 // Production-safe logger that tree-shakes debug and info calls
 export const log = {
@@ -32,5 +32,5 @@ export const log = {
 };
 
 // Re-export types
-export { LogLevel, LogLevelDirection } from '$plugins/Logger';
-export type { LogEntry } from '$plugins/Logger';
+export { LogLevel, LogLevelDirection } from '$managers/Logger';
+export type { LogEntry } from '$managers/Logger';

@@ -1,6 +1,6 @@
 // src/lib/extensions/chrome/handlers/readMethodHandler.ts
 
-import { log } from '$lib/plugins/Logger';
+import { log } from '$lib/managers/Logger';
 import { getYakklCurrentlySelected } from '$lib/common/stores';
 import { sendErrorResponse } from '$lib/extensions/chrome/errorResponseHandler';
 import { extractSecureDomain } from '$lib/common/security';
@@ -131,7 +131,7 @@ async function handleGetAccounts(request: any): Promise<string[]> {
 async function callRPCProvider(method: string, params: any[], chainId: number): Promise<any> {
   try {
     // Import your RPC provider
-    const { getAlchemyProvider } = await import('$lib/plugins/providers/network/ethereum_provider/alchemy');
+    const { getAlchemyProvider } = await import('$lib/managers/providers/network/ethereum_provider/alchemy');
     const provider = getAlchemyProvider();
 
     // Make the RPC call

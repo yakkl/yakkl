@@ -7,7 +7,7 @@ import { WALLET_SECURITY_CONFIG, YAKKL_DAPP } from '$lib/common/constants';
 import type { SecurityLevel } from '$lib/permissions/types';
 import { SecurityLevel as SecurityLevelEnum } from '$lib/permissions/types';
 import browser, { type Runtime } from 'webextension-polyfill';
-import { log } from '$lib/plugins/Logger';
+import { log } from '$lib/managers/Logger';
 import { isExtensionContextValid } from '$lib/common';
 import {
   isValidOrigin,
@@ -966,7 +966,7 @@ initializeContentScript();
 // import type { SecurityLevel } from '$lib/permissions/types';
 // import { SecurityLevel as SecurityLevelEnum } from '$lib/permissions/types';
 // import browser, { type Runtime } from 'webextension-polyfill';
-// import { log } from '$lib/plugins/Logger';
+// import { log } from '$lib/managers/Logger';
 // import { isValidOrigin, getTargetOrigin, safePostMessage } from '$lib/common/origin';
 
 // // Chrome types for compatibility
@@ -1866,7 +1866,7 @@ initializeContentScript();
 // import type { SecurityLevel } from '$lib/permissions/types';
 // import { SecurityLevel as SecurityLevelEnum } from '$lib/permissions/types';
 // import browser, { type Runtime } from 'webextension-polyfill';
-// import { log } from '$lib/plugins/Logger';
+// import { log } from '$lib/managers/Logger';
 // import { isValidOrigin, getTargetOrigin, safePostMessage } from '$lib/common/origin';
 
 // // Chrome types for compatibility

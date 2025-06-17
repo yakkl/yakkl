@@ -2,7 +2,7 @@
 
 import browser from "webextension-polyfill";
 import { SecurityLevel } from "./types";
-import { log } from "$lib/plugins/Logger";
+import { log } from "$lib/managers/Logger";
 
 const SECURITY_LEVEL_KEY = 'walletSecurityLevel';
 

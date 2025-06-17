@@ -12,9 +12,9 @@
 	import { startCheckGasPrices, stopCheckGasPrices, debounce } from '$lib/utilities/gas';
 	import ErrorNoAction from '$lib/components/ErrorNoAction.svelte';
 	import Warning from '$lib/components/Warning.svelte';
-	import WalletManager from '$lib/plugins/WalletManager';
-  import type { Wallet } from '$lib/plugins/Wallet';
-	import { isEthereum } from '$lib/plugins/BlockchainGuards';
+	import WalletManager from '$lib/managers/WalletManager';
+  import type { Wallet } from '$lib/managers/Wallet';
+	import { isEthereum } from '$lib/managers/BlockchainGuards';
 	import { BigNumber, isEncryptedData, parseJsonRpcError, toHex, type AccountData, type Currency, type CurrentlySelectedData, type Profile, type ProfileData, type TransactionRequest, type TransactionResponse, type YakklContact, type YakklCurrentlySelected } from '$lib/common';
 	import type { BigNumberish } from '$lib/common/bignumber';
 	import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
@@ -27,7 +27,7 @@
 	import Contacts from '$lib/components/Contacts.svelte';
 	import PincodeVerify from '$lib/components/PincodeVerify.svelte';
 	import { EOA_FALLBACK_GAS } from '$lib/common/gas-types';
-	// import { EthereumGasProvider } from '$lib/plugins/providers/fees/ethereum/EthereumGasProvider';
+	// import { EthereumGasProvider } from '$lib/managers/providers/fees/ethereum/EthereumGasProvider';
 
   // Toast
 

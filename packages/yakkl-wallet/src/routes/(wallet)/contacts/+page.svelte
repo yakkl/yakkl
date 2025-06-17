@@ -13,9 +13,9 @@
   // import ChevronDoubleUpOutline from '$lib/components/ChevronDoubleUpOutline.svelte.tmp';
   import Back from '$lib/components/Back.svelte';
   import type { YakklContact, YakklCurrentlySelected } from '$lib/common';
-  import WalletManager from '$lib/plugins/WalletManager';
-  import type { Wallet } from '$lib/plugins/Wallet';
-  import { isEthereum } from '$lib/plugins/BlockchainGuards';
+  import WalletManager from '$lib/managers/WalletManager';
+  import type { Wallet } from '$lib/managers/Wallet';
+  import { isEthereum } from '$lib/managers/BlockchainGuards';
 
   let wallet: Wallet;
 

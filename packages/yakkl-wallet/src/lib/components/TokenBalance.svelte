@@ -3,8 +3,8 @@
   import type { SwapToken } from '$lib/common/interfaces';
   import { ethers as ethersv6 } from 'ethers-v6';
   import { getTokenBalance } from '$lib/utilities/balanceUtils';
-  import type { TokenService } from '$lib/plugins/blockchains/evm/TokenService';
-  import type { Provider } from '$lib/plugins';
+  import type { TokenService } from '$lib/managers/blockchains/evm/TokenService';
+  import type { Provider } from '$lib/managers';
 
   interface Props {
     token: SwapToken;
@@ -72,8 +72,8 @@
   import type { SwapToken } from '$lib/common/interfaces';
   import { ethers as ethersv6 } from 'ethers-v6';
   import { getTokenBalance } from '$lib/utilities/balanceUtils';
-	import type { TokenService } from '$lib/plugins/blockchains/evm/TokenService';
-	import type { Provider } from '$lib/plugins';
+	import type { TokenService } from '$lib/managers/blockchains/evm/TokenService';
+	import type { Provider } from '$lib/managers';
 
   interface Props {
     token: SwapToken;

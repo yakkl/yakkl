@@ -97,8 +97,8 @@ module.exports = {
       'webextension-polyfill': require.resolve('webextension-polyfill'),
       '$lib': path.resolve(__dirname, 'src/lib'),
       '$lib/common': path.resolve(__dirname, 'src/lib/common'),
+      '$managers': path.resolve(__dirname, 'src/lib/managers'),
       '$plugins': path.resolve(__dirname, 'src/lib/plugins'),
-      '$lib/plugins': path.resolve(__dirname, 'src/lib/plugins'),
     },
     fallback: {
       crypto: require.resolve('crypto-browserify'),

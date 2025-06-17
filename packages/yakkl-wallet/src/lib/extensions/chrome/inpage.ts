@@ -1,11 +1,11 @@
 // inpage.ts - Complete implementation with safe postMessage and extension context handling
-import { log } from "$lib/plugins/Logger";
+import { log } from "$lib/managers/Logger";
 import {
   type EIP6963ProviderDetail,
   type EIP6963Provider,
   type EIP6963ProviderInfo,
   EIP1193_ERRORS
-} from '$lib/plugins/providers/network/ethereum_provider/eip-types';
+} from '$lib/managers/providers/network/ethereum_provider/eip-types';
 import type { RequestArguments } from '$lib/common';
 import { EventEmitter } from 'events';
 import {
@@ -1072,13 +1072,13 @@ export { provider };
 
 
 // // inpage.ts - Complete implementation with robust connection handling
-// import { log } from "$lib/plugins/Logger";
+// import { log } from "$lib/managers/Logger";
 // import {
 //   type EIP6963ProviderDetail,
 //   type EIP6963Provider,
 //   type EIP6963ProviderInfo,
 //   EIP1193_ERRORS
-// } from '$lib/plugins/providers/network/ethereum_provider/eip-types';
+// } from '$lib/managers/providers/network/ethereum_provider/eip-types';
 // import type { RequestArguments } from '$lib/common';
 // import { EventEmitter } from 'events';
 // import { isValidOrigin } from '$lib/common/origin';

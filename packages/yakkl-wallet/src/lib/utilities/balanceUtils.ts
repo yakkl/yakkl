@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // balanceUtils.ts
 import type { SwapToken } from '$lib/common/interfaces';
-import type { Provider } from '../plugins/Provider';
-import type { TokenService } from '$lib/plugins/blockchains/evm/TokenService';
-import { log } from '$lib/plugins/Logger';
+import type { Provider } from '$managers/Provider';
+import type { TokenService } from '$lib/managers/blockchains/evm/TokenService';
+import { log } from '$lib/managers/Logger';
 
 export async function getTokenBalance(
   token: SwapToken,

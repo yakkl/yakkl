@@ -1,5 +1,5 @@
-import { TimerManager } from "$lib/plugins/TimerManager";
-import { log } from "$plugins/Logger";
+import { TimerManager } from "$lib/managers/TimerManager";
+import { log } from "$lib/managers/Logger";
 
 export async function stopTimers() {
   try {

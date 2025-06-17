@@ -1,12 +1,12 @@
-import type { Blockchain } from "$lib/plugins/Blockchain";
-import type { Provider } from "$lib/plugins/Provider";
-import type { Wallet } from "$lib/plugins/Wallet";
-import WalletManager from "$lib/plugins/WalletManager";
+import type { Blockchain } from "$lib/managers/Blockchain";
+import type { Provider } from "$lib/managers/Provider";
+import type { Wallet } from "$lib/managers/Wallet";
+import WalletManager from "$lib/managers/WalletManager";
 import { getYakklCurrentlySelectedAccountKey } from "./security";
 import { getMiscStore, getYakklCurrentlySelected } from "./stores";
-import type { Ethereum } from "$lib/plugins/blockchains/evm/ethereum/Ethereum";
-import { TokenService } from "$lib/plugins/blockchains/evm/TokenService";
-import { log } from "$plugins/Logger";
+import type { Ethereum } from "$lib/managers/blockchains/evm/ethereum/Ethereum";
+import { TokenService } from "$lib/managers/blockchains/evm/TokenService";
+import { log } from "$lib/managers/Logger";
 
 export async function getInstances(): Promise<[Wallet | null, Provider | null, Blockchain | null, TokenService<any> | null]> {
   try {

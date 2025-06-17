@@ -1,4 +1,4 @@
-import { globalListenerManager } from "$lib/plugins/GlobalListenerManager";
+import { globalListenerManager } from "$lib/managers/GlobalListenerManager";
 
 export function removeListeners() {
   if (globalListenerManager) {

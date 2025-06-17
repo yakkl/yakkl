@@ -1,7 +1,7 @@
 import { writable, derived } from 'svelte/store';
 import type { SwapToken } from '$lib/common/interfaces';
-import { ADDRESSES } from '$lib/plugins/contracts/evm/constants-evm';
-import { log } from '$lib/plugins/Logger';
+import { ADDRESSES } from '$lib/managers/contracts/evm/constants-evm';
+import { log } from '$lib/managers/Logger';
 
 // Writable store to hold all tokens
 export const tokens = writable<SwapToken[]>([]);

@@ -5,7 +5,7 @@
 	import { browser_ext } from '$lib/common/environment';
 	import { sessionToken, sessionExpiresAt, storeSessionToken } from '$lib/common/auth/session';
 	import { get } from 'svelte/store';
-	import { log } from '$lib/plugins/Logger';
+	import { log } from '$lib/managers/Logger';
 
   let { children } = $props();
 

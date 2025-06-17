@@ -1,9 +1,9 @@
 import { writable, get } from "svelte/store";
 import { yakklCombinedTokenStore, setYakklCombinedTokenStorage } from "$lib/common/stores";
-import { log } from "$lib/plugins/Logger";
-import { PriceManager } from "$lib/plugins/PriceManager";
+import { log } from "$lib/managers/Logger";
+import { PriceManager } from "$lib/managers/PriceManager";
 import { createPriceUpdater } from "./createPriceUpdater";
-import { TimerManager } from "$lib/plugins/TimerManager";
+import { TimerManager } from "$lib/managers/TimerManager";
 import type { TokenData } from "$lib/common/interfaces";
 import { TIMER_TOKEN_PRICE_CYCLE_TIME } from "./constants";
 

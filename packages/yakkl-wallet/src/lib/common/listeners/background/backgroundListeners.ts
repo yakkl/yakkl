@@ -1,17 +1,17 @@
 // listeners/backgroundListeners.ts
-import { ListenerManager } from '$lib/plugins/ListenerManager';
+import { ListenerManager } from '$lib/managers/ListenerManager';
 import browser from 'webextension-polyfill';
 import type { Runtime } from 'webextension-polyfill';
 import { initializeBlacklistDatabase } from '$lib/extensions/chrome/database';
 import { yakklStoredObjects } from '$lib/models/dataModels';
 import { setObjectInLocalStorage } from '$lib/common/storage';
 import { setLocalObjectStorage } from '$lib/extensions/chrome/storage';
-import { loadDefaultTokens } from '$lib/plugins/tokens/loadDefaultTokens';
+import { loadDefaultTokens } from '$lib/managers/tokens/loadDefaultTokens';
 import { VERSION } from '$lib/common/constants';
 import { onPortConnectListener, onPortDisconnectListener } from './portListeners';
 import { onTabActivatedListener, onTabRemovedListener, onTabUpdatedListener, onWindowsFocusChangedListener } from './tabListeners';
-import { globalListenerManager } from '$lib/plugins/GlobalListenerManager';
-import { log } from '$lib/plugins/Logger';
+import { globalListenerManager } from '$lib/managers/GlobalListenerManager';
+import { log } from '$lib/managers/Logger';
 import { openWindows } from '$lib/extensions/chrome/ui';
 import { onUnifiedMessageListener} from './unifiedMessageListener';
 import { isYakklPage } from '$lib/common/isYakklPage';

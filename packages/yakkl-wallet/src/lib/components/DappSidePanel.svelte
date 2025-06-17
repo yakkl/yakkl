@@ -2,7 +2,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/state';
-  import { log } from '$lib/plugins/Logger';
+  import { log } from '$lib/managers/Logger';
   import { browser } from '$app/environment';
 
   let currentView: string = '';

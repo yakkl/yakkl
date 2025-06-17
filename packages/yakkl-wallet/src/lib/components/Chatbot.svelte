@@ -12,7 +12,7 @@
   import { apiKeyFetch } from '$lib/api/apis';
   import ClipboardJS from 'clipboard';
   import { DEFAULT_PERSONA, VERSION, type YakklChat } from '$lib/common';
-	import { log } from '$lib/plugins/Logger';
+	import { log } from '$lib/managers/Logger';
 
   let messages = $state<YakklChat[]>([]);
   let error = $state(false);

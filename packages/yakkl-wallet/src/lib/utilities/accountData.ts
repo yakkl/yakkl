@@ -1,5 +1,5 @@
 import type { YakklAccount } from '$lib/common';
-import type { Wallet } from '$lib/plugins/Wallet';
+import type { Wallet } from '$lib/managers/Wallet';
 import { yakklPricingStore } from '$lib/common/stores';
 import { get } from 'svelte/store';
 

@@ -1,5 +1,5 @@
 import { getYakklGPTKeyStore } from "$lib/common/stores";
-import { log } from "$lib/plugins/Logger";
+import { log } from "$lib/managers/Logger";
 import OpenAI from "openai";
 
 

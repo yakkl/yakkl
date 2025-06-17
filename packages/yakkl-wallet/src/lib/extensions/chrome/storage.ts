@@ -1,7 +1,7 @@
 import { VERSION } from "$lib/common/constants";
 import type { Preferences, Settings } from "$lib/common/interfaces";
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from "$lib/common/storage";
-import { log } from "$lib/plugins/Logger";
+import { log } from "$lib/managers/Logger";
 import { upgrade } from "$lib/upgrades/upgrades";
 import { detect } from "detect-browser";
 import type { Runtime } from "webextension-polyfill";

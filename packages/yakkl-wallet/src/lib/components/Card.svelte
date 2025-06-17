@@ -10,7 +10,7 @@
   import ErrorNoAction from '$lib/components/ErrorNoAction.svelte';
   import { NetworkType, getInstances, isEncryptedData, type CurrentlySelectedData, type Network, type TokenData, type YakklAccount } from '$lib/common';
   import type { BigNumberish } from '$lib/common/bignumber';
-  import { Wallet } from '$lib/plugins/Wallet';
+  import { Wallet } from '$lib/managers/Wallet';
   import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
 	import Accounts from './Accounts.svelte';
 	import Contacts from './Contacts.svelte';
@@ -18,15 +18,15 @@
 	import Receive from './Receive.svelte';
 	import ImportPrivateKey from './ImportPrivateKey.svelte';
 	import Upgrade from './Upgrade.svelte';
-	import type { Blockchain } from '$lib/plugins/Blockchain';
-	import type { TokenService } from '$lib/plugins/blockchains/evm/TokenService';
-	import type { Provider } from '$lib/plugins/Provider';
+	import type { Blockchain } from '$lib/managers/Blockchain';
+	import type { TokenService } from '$lib/managers/blockchains/evm/TokenService';
+	import type { Provider } from '$lib/managers/Provider';
 	import type { Settings } from '$lib/common/interfaces';
 	import EyeIcon from './icons/EyeIcon.svelte';
 	import ProtectedValue from './ProtectedValue.svelte';
 	import { tokenTotals } from '$lib/common/stores/tokenTotals'; // Used to display portfolio value in html below
   import { browserSvelte, browser_ext } from '$lib/common/environment';
-  import { log } from "$plugins/Logger";
+  import { log } from "$lib/managers/Logger";
 	import Copy from './Copy.svelte';
   import { updateTokenPrices } from '$lib/common/tokenPriceManager';
   import { getSettings } from '$lib/common/stores';

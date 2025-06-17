@@ -5,6 +5,8 @@
     "paths": {
       "$lib": ["src/lib"],
       "$lib/*": ["src/lib/*"],
+      "$managers": ["src/lib/managers"],
+      "$managers/*": ["src/lib/managers/*"],
       "$plugins": ["src/lib/plugins"],
       "$plugins/*": ["src/lib/plugins/*"],
       "$components": ["src/lib/components"],

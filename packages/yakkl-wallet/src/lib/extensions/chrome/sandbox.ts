@@ -1,4 +1,4 @@
-import { log } from "$lib/plugins/Logger";
+import { log } from "$lib/managers/Logger";
 
 // This script runs in a restricted environment
 window.addEventListener("message", (event) => {

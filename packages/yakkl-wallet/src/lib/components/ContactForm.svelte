@@ -7,10 +7,10 @@
   import { dateString } from '$lib/common/datetime';
   import { onMount } from 'svelte';
   import { yakklCurrentlySelectedStore, yakklContactsStore } from '$lib/common/stores';
-  import WalletManager from '$lib/plugins/WalletManager';
-  import type { Wallet } from '$lib/plugins/Wallet';
+  import WalletManager from '$lib/managers/WalletManager';
+  import type { Wallet } from '$lib/managers/Wallet';
   import { VERSION } from '$lib/common/constants';
-	import { log } from '$lib/plugins/Logger';
+	import { log } from '$lib/managers/Logger';
 
   interface Props {
     // import { Input } from './ui/input';

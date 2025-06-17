@@ -3,7 +3,7 @@
 // Upgrades for the app...
 import { getObjectFromLocalStorage, removeObjectFromLocalStorage, setObjectInLocalStorage } from '$lib/common/storage';
 import { AccessSourceType, PromoClassificationType, type Settings } from '$lib/common';
-import { log } from '$lib/plugins/Logger';
+import { log } from '$lib/managers/Logger';
 
 // This list gets updated with each new version
 const yakklUpdateStorage = [
