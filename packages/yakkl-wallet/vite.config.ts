@@ -33,6 +33,12 @@ export default defineConfig( ({ mode }) => {
       isoImport(),
       nodePolyfills({
         protocolImports: true,
+        include: ['buffer', 'process', 'util', 'stream', 'events', 'path', 'crypto'],
+        exclude: ['fs', 'net'],
+        globals: {
+          Buffer: true,
+          process: true,
+        },
       }),
       viteStaticCopy( {
         targets: [
@@ -57,8 +63,12 @@ export default defineConfig( ({ mode }) => {
         // ...(process.env.YAKKL_PRO === 'true' && { $pro: path.resolve('./src/pro') }),
         // ...(process.env.YAKKL_PRIVATE === 'true' && { $private: path.resolve('./src/private') }),
         //// 'webextension-polyfill': path.resolve( __dirname, 'node_modules/webextension-polyfill/dist/browser-polyfill.js' ),
-        'webextension-polyfill': path.resolve( __dirname, 'static/ext/browser-polyfill.js' ), // We are using a local copy of the browser-polyfill.js file
+        'webextension-polyfill': path.resolve( __dirname, 'src/lib/polyfill-mock.js' ), // Use mock for SSR safety
         stream: 'stream-browserify',
+        net: 'net-browserify',
+        fs: path.resolve(__dirname, 'empty.js'),
+        path: 'path-browserify',
+        crypto: 'crypto-browserify',
         ethersv6: path.resolve( 'node_modules/ethers-v6' ),
         ethers: path.resolve( 'node_modules/ethers' ),
         '@yakkl/uniswap-alpha-router-service': '../uniswap-alpha-router-service/src',
@@ -82,6 +92,7 @@ export default defineConfig( ({ mode }) => {
       include: ['dexie'],
       exclude: [
         'webextension-polyfill',
+        'ethers',
         '**/*.tmp/**/*',  // Exclude .tmp directories - the .tmp items here do not seem to be working as expected. I will keep it and handle it another way.
         '**/*.tmp',       // Exclude .tmp files
       ],
@@ -96,7 +107,8 @@ export default defineConfig( ({ mode }) => {
       },
     },
     ssr: {
-      noExternal: [ 'webextension-polyfill', '@walletconnect/web3wallet', '@walletconnect/core' ]
+      noExternal: [ '@walletconnect/web3wallet', '@walletconnect/core' ],
+      external: [ 'webextension-polyfill' ]
     },
     build: {
       sourcemap: true,
@@ -119,6 +131,39 @@ export default defineConfig( ({ mode }) => {
       rollupOptions: {
         external: [
           'webextension-polyfill',
+        ],
+        plugins: [
+          // Prevent webextension-polyfill from being loaded during build
+          {
+            name: 'block-webextension-polyfill',
+            resolveId(id) {
+              if (id === 'webextension-polyfill' || id.includes('webextension-polyfill')) {
+                return false; // Don't resolve this import
+              }
+              return null;
+            }
+          },
+          {
+            name: 'ignore-node-stuff',
+            resolveId(source) {
+              if (source === 'net' || source.includes('provider-ipcsocket')) {
+                return { id: 'net', external: true, moduleSideEffects: false };
+              }
+              if (source === 'fs' || source === 'fs/promises') {
+                return { id: source, external: true, moduleSideEffects: false };
+              }
+              return null;
+            },
+            load(id) {
+              if (id === 'net') {
+                return 'export const connect = () => { throw new Error("net.connect not available in browser") };';
+              }
+              if (id === 'fs' || id === 'fs/promises') {
+                return 'export default {}; export const readFileSync = () => ""; export const existsSync = () => false; export const promises = {};';
+              }
+              return null;
+            }
+          }
         ]
       }
     },

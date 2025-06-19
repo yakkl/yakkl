@@ -52,5 +52,6 @@
   "exclude": [
     "**/node_modules/**",
     "dist",
+    "src/lib/polyfill-mock.js"
   ]
 }

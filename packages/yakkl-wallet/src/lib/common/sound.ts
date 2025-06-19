@@ -1,4 +1,5 @@
 import { log } from "$lib/managers/Logger";
+import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 
 /**
  * Play a beep sound immediately
@@ -30,10 +31,12 @@ export function playBeep(frequency: number = 800, duration: number = 0.2, volume
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + duration);
 
-    // Clean up after sound finishes
-    setTimeout(() => {
+    // Clean up after sound finishes using UnifiedTimerManager
+    const timerManager = UnifiedTimerManager.getInstance();
+    timerManager.addTimeout('sound-cleanup', () => {
       audioContext.close().catch(() => {});
     }, (duration + 0.1) * 1000);
+    timerManager.startTimeout('sound-cleanup');
   } catch (error) {
     log.error('[Sound] Failed to play beep:', false, error);
   }

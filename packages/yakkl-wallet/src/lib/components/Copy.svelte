@@ -3,6 +3,7 @@
   import { log } from '$lib/common/logger-wrapper';
   import { browser_ext } from '$lib/common/environment';
 	import { timeoutClipboard } from '$lib/utilities';
+  import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 
   type CopyTarget = {
     id?: string;
@@ -32,7 +33,8 @@
   }>();
 
   let isCopied = $state(false);
-  let timeoutIds: Map<string, number> = new Map();
+  let timeoutIds: Map<string, string> = new Map(); // Now stores timer IDs instead of timeout numbers
+  const timerManager = UnifiedTimerManager.getInstance();
 
   // Add reactive tracking for the target value
   // $effect(() => {
@@ -109,18 +111,20 @@
       onClick(combinedValue);
     }
 
-    // Handle individual timeouts
+    // Handle individual timeouts using UnifiedTimerManager
     copyTargets.forEach((target, index) => {
       if (target.timeout) {
-        const timeoutId = setTimeout(async () => {
+        const timerId = `copy-timeout-${target.id || index}`;
+        timerManager.addTimeout(timerId, async () => {
           const currentValues = [...values];
           const redactText = target.redactText || defaultRedactText;
           currentValues[index] = redactText;
           await navigator.clipboard.writeText(currentValues.join('\n'));
           timeoutIds.delete(target.id || values[index]);
-        }, target.timeout) as unknown as number;
+        }, target.timeout);
+        timerManager.startTimeout(timerId);
 
-        timeoutIds.set(target.id || values[index], timeoutId);
+        timeoutIds.set(target.id || values[index], timerId);
       }
     });
   }
@@ -135,9 +139,10 @@
 
       if (showFeedback) {
         isCopied = true;
-        setTimeout(() => {
+        timerManager.addTimeout('copy-feedback', () => {
           isCopied = false;
         }, feedbackDuration);
+        timerManager.startTimeout('copy-feedback');
       }
     } catch (err) {
       // log.error('Failed to copy:', err);
@@ -148,7 +153,10 @@
   // Cleanup timeouts
   $effect(() => {
     return () => {
-      timeoutIds.forEach((id) => clearTimeout(id));
+      timeoutIds.forEach((timerId) => {
+        timerManager.stopTimeout(timerId);
+        timerManager.removeTimeout(timerId);
+      });
       timeoutIds.clear();
     };
   });

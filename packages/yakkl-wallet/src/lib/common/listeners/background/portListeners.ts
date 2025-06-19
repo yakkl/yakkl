@@ -17,12 +17,16 @@ import { portManager } from '$lib/managers/PortManager';
 import { onUnifiedMessageHandler } from "$lib/extensions/chrome/unifiedMessageRouter";
 import { sessionPortManager } from "$lib/managers/SessionPortManager";
 import { showPopupForMethod } from "$lib/managers/DAppPopupManager";
+import { UnifiedTimerManager } from "$lib/managers/UnifiedTimerManager";
 
 // Browser extension reference
 const browser_ext = browser;
 
+// Initialize timer manager
+const timerManager = UnifiedTimerManager.getInstance();
+
 // Define a type-safe timer type that works in both Node and browser environments
-type IntervalId = NodeJS.Timer | number;
+type IntervalId = string;
 
 // Port metadata storage using WeakMap for type safety
 interface PortMetadata {
@@ -87,8 +91,9 @@ function cleanupExpiredHistory() {
   }
 }
 
-// Set up periodic cleanup
-setInterval(cleanupExpiredHistory, HISTORY_EXPIRY);
+// Set up periodic cleanup using UnifiedTimerManager
+timerManager.addInterval('cleanup-expired-history', cleanupExpiredHistory, HISTORY_EXPIRY);
+timerManager.startInterval('cleanup-expired-history');
 
 // Port collections
 export const portsExternal = new Map<number, Runtime.Port>();
@@ -283,6 +288,19 @@ export async function onPortDisconnectListener(
       default:
         log.debug(`Unknown port disconnected: ${port.name}`);
     }
+
+    // Clean up health check interval if exists
+    const metadata = portMetadata.get(port);
+    if (metadata && metadata.healthCheckInterval) {
+      const healthCheckId = metadata.healthCheckInterval;
+      if (healthCheckId.startsWith('port-health-check-')) {
+        timerManager.stopInterval(healthCheckId);
+        timerManager.removeInterval(healthCheckId);
+      }
+    }
+    
+    // Clean up metadata
+    portMetadata.delete(port);
 
     // Clean up our connection mappings
     if (connectionId) {
@@ -692,8 +710,10 @@ export async function onPopupLaunchListener(
 
 // Helper function to set up port health monitoring
 function setupPortHealthCheck(port: Runtime.Port, connectionId: string): void {
+  const healthCheckId = `port-health-check-${connectionId}`;
+  
   // Set up a periodic health check for this port
-  const healthCheckInterval: IntervalId = setInterval(() => {
+  const healthCheckFunction = () => {
     try {
       // Try to send a ping message
       port.postMessage({ type: 'health_check', timestamp: Date.now() });
@@ -709,15 +729,19 @@ function setupPortHealthCheck(port: Runtime.Port, connectionId: string): void {
         connectionId,
         error: error.message
       });
-      clearInterval(healthCheckInterval as NodeJS.Timeout);
+      timerManager.stopInterval(healthCheckId);
+      timerManager.removeInterval(healthCheckId);
       portMetadata.delete(port);
     }
-  }, 30000); // Check every 30 seconds
+  };
+  
+  timerManager.addInterval(healthCheckId, healthCheckFunction, 30000); // Check every 30 seconds
+  timerManager.startInterval(healthCheckId);
 
-  // Update metadata with health check interval
+  // Update metadata with health check ID
   const metadata = portMetadata.get(port);
   if (metadata) {
-    metadata.healthCheckInterval = healthCheckInterval;
+    metadata.healthCheckInterval = healthCheckId;
   }
 }
 
@@ -784,6 +808,7 @@ export function cleanupDeadPorts(): void {
   });
 }
 
-// Schedule periodic cleanup
-setInterval(cleanupDeadPorts, 60000); // Every minute
+// Schedule periodic cleanup using UnifiedTimerManager
+timerManager.addInterval('cleanup-dead-ports', cleanupDeadPorts, 60000); // Every minute
+timerManager.startInterval('cleanup-dead-ports');
 

@@ -15,6 +15,7 @@ import { Utils } from "alchemy-sdk";
 import { ethers as ethersv6 } from 'ethers-v6';
 import { browserSvelte, browser_ext } from '$lib/common/environment';
 import { log } from "$lib/managers/Logger";
+import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 
 export function getTokenChange(
   changeArray: TokenChange[],
@@ -262,15 +263,17 @@ export function blockContextMenu() {
   }
 }
 
-let resizeTimeout: NodeJS.Timeout | undefined = undefined;
+const timerManager = UnifiedTimerManager.getInstance();
 
 export function blockWindowResize(width: number, height: number) {
   window.addEventListener("resize", function () {
-    clearTimeout(resizeTimeout);
-    resizeTimeout = setTimeout(() => {
+    timerManager.stopTimeout('resize-debounce');
+    timerManager.removeTimeout('resize-debounce');
+    timerManager.addTimeout('resize-debounce', () => {
       console.log("🔲 Resizing window");
       window.resizeTo(width, height);
-    }, 500); // Debounce resizing
+    }, 500);
+    timerManager.startTimeout('resize-debounce');
   });
 }
 
@@ -516,10 +519,10 @@ export function changeBackground(id: string, image: { src: string; }) {
 export function timeoutClipboard(ms: number, redactText: string = '<redacted>') {
   try {
     if (browserSvelte) {
-      const timeoutID = setTimeout(() => {
+      timerManager.addTimeout('clipboard-timeout', () => {
         ClipboardJS.copy(redactText);
-        clearTimeout(timeoutID);
       }, ms);
+      timerManager.startTimeout('clipboard-timeout');
     }
   } catch (e) {
     log.error(e);

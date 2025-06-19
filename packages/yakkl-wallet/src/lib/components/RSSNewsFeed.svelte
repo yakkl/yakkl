@@ -1,9 +1,10 @@
 <!-- src/lib/components/RSSNewsFeed.svelte -->
 <script lang="ts">
   // For non-extension builds, we use the RSSFeedService
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { RSSFeedService, type RSSItem, type RSSFeed } from '$lib/managers/RSSFeedService';
   import NewsFeed from './NewsFeed.svelte';
+  import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 
   interface Props {
     feedUrls: string[];
@@ -28,20 +29,21 @@
   let error = $state<string | null>(null);
 
   const rssService = RSSFeedService.getInstance();
-  let refreshTimer: number;
+  const timerManager = UnifiedTimerManager.getInstance();
+  const timerId = 'rss-news-feed-refresh';
 
   onMount(() => {
     loadFeeds();
 
-    // Set up refresh interval
+    // Set up refresh interval using UnifiedTimerManager
     if (refreshInterval > 0) {
-      refreshTimer = window.setInterval(loadFeeds, refreshInterval);
+      timerManager.addInterval(timerId, loadFeeds, refreshInterval);
+      timerManager.startInterval(timerId);
     }
 
     return () => {
-      if (refreshTimer) {
-        clearInterval(refreshTimer);
-      }
+      timerManager.stopInterval(timerId);
+      timerManager.removeInterval(timerId);
     };
   });
 

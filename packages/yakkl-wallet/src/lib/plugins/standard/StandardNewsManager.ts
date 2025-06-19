@@ -20,7 +20,7 @@ import { UpgradeRequiredError } from '../errors/UpgradeRequiredError';
  * Pro features throw UpgradeRequiredError
  */
 export class StandardNewsManager implements INewsManager {
-  private planType: PlanType = PlanType.STANDARD;
+  private planType: PlanType = PlanType.MEMBER;
   private initialized = false;
   private bookmarks: BookmarkedArticle[] = [];
   private readHistory: NewsItem[] = [];
@@ -46,7 +46,7 @@ export class StandardNewsManager implements INewsManager {
   }
 
   isAdvancedFeaturesEnabled(): boolean {
-    return this.planType === PlanType.PRO || this.planType === PlanType.ENTERPRISE;
+    return this.planType === PlanType.YAKKL_PRO || this.planType === PlanType.ENTERPRISE;
   }
 
   private async loadBookmarks(): Promise<void> {

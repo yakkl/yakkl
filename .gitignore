@@ -5,8 +5,14 @@
 node_modules/
 
 # Closed-source packages (completely ignored)
+packages/yakkl-ai-private/
 packages/yakkl-security/
 packages/yakkl-backend/
+packages/yakkl-wallet-private/
+packages/yakkl-wallet-pro/
+
+# This is temporary
+packages/yakkl-contracts/ 
 
 # Ignore all pro/ and private/ folders recursively, but keep the folders themselves tracked
 **/pro/*

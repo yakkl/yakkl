@@ -4,6 +4,7 @@
   import messagingService from '$lib/common/messaging';
   import { NotificationService } from '$lib/common/notifications';
   import { browser_ext } from '$lib/common/environment';
+  import { createCountdownTimer, type CountdownTimer } from '$lib/managers/CountdownTimer';
 
   interface Props {
     warningTime?: number;
@@ -13,7 +14,7 @@
   let { warningTime = 30, onComplete = () => {} } = $props();
 
   let timeLeft = $state(warningTime);
-  let timer = $state<number | undefined>(undefined);
+  let countdownTimer: CountdownTimer | null = null;
 
   async function triggerLockdown() {
     try {
@@ -36,17 +37,22 @@
   }
 
   onMount(() => {
-    timer = window.setInterval(() => {
-      timeLeft--;
-      if (timeLeft <= 0) {
-        clearInterval(timer);
-        triggerLockdown();
-      }
-    }, 1000);
+    countdownTimer = createCountdownTimer(
+      'security-warning',
+      warningTime,
+      (remaining) => {
+        timeLeft = remaining;
+      },
+      triggerLockdown
+    );
+    countdownTimer.start();
   });
 
   onDestroy(() => {
-    if (timer) clearInterval(timer);
+    if (countdownTimer) {
+      countdownTimer.destroy();
+      countdownTimer = null;
+    }
   });
 </script>
 

@@ -7,7 +7,7 @@ import { KrakenPriceProvider } from '$lib/managers/providers/price/kraken/Kraken
 import { CoingeckoPriceProvider } from '$lib/managers/providers/price/coingecko/CoingeckoPriceProvider';
 import { CoinbasePriceProvider } from '$lib/managers/providers/price/coinbase/CoinbasePriceProvider';
 import { log } from "$lib/managers/Logger";
-import { timerManager } from "$lib/managers/TimerManager";
+import { getTimerManager } from "$lib/managers/TimerManager";
 import { TIMER_CHECK_PRICE_INTERVAL_TIME } from '$lib/common';
 
 // Use these globally if needed
@@ -56,7 +56,7 @@ function setProviderCallback(provider: string) {
 
 // Use this function instead of -1 in checkPrices
 export function stopCheckPrices() {
-  timerManager.stopTimer('prices_checkPrices');
+  getTimerManager().stopTimer('prices_checkPrices');
   setProviderCallback('');
 }
 
@@ -70,15 +70,15 @@ export function startCheckPrices(provider = 'coinbase', ms = TIMER_CHECK_PRICE_I
 
   try {
     if (ms > 0) {
-      if ( timerManager.isRunning('prices_checkPrices') ) {
+      if ( getTimerManager().isRunning('prices_checkPrices') ) {
         return; // Already running
       }
-      timerManager.addTimer('prices_checkPrices', () => {checkPricesCallback(symbol)}, ms);
-      timerManager.startTimer('prices_checkPrices');
+      getTimerManager().addTimer('prices_checkPrices', () => {checkPricesCallback(symbol)}, ms);
+      getTimerManager().startTimer('prices_checkPrices');
     }
   } catch (e) {
     log.error(`startCheckPrices: ${e}`);
-    timerManager.stopTimer('prices_checkPrices');
+    getTimerManager().stopTimer('prices_checkPrices');
     setProviderCallback('');
   }
 

@@ -36,7 +36,7 @@
   let successDialog = $state(false);
   let createDate: string;
   let updateDate: string;
-  let planType: PlanType = $state(PlanType.STANDARD);
+  let planType: PlanType = $state(PlanType.MEMBER);
   let error = $state(false);
   let errorValue: string = $state('');
 
@@ -73,9 +73,9 @@
 
         settings = await getSettings();
         if (settings !== null) {
-          planType = settings.plan.type ? settings.plan.type : PlanType.STANDARD;
+          planType = settings.plan.type ? settings.plan.type : PlanType.MEMBER;
         } else {
-          planType = PlanType.STANDARD;
+          planType = PlanType.MEMBER;
         }
 
       }

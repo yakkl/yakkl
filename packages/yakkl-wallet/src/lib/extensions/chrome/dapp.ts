@@ -4,6 +4,7 @@ import { log } from "$lib/managers/Logger";
 import { verifyDomainConnected } from "$lib/extensions/chrome/verifyDomainConnectedBackground";
 import type { Runtime } from "webextension-polyfill";
 import { portManager } from "$lib/managers/PortManager";
+import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 
 // Port registry to track connected ports
 interface PortRegistry {
@@ -209,7 +210,11 @@ async function handleDefaultMessage(event: any, port: Runtime.Port, portId: stri
     port.postMessage(response);
 
     // Add a small delay to ensure the port is idle
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => {
+      const timerManager = UnifiedTimerManager.getInstance();
+      timerManager.addTimeout('port-delay', () => resolve(undefined), 100);
+      timerManager.startTimeout('port-delay');
+    });
   } catch (error) {
     log.error('Error handling default message:', false, error);
     sendErrorResponse(port, event.id, error);
@@ -384,8 +389,9 @@ async function routeUnifiedMessage(message: any, port: Runtime.Port): Promise<vo
   }
 }
 
-// Clean up inactive ports periodically
-setInterval(() => {
+// Clean up inactive ports periodically using UnifiedTimerManager
+const timerManager = UnifiedTimerManager.getInstance();
+timerManager.addInterval('dapp-port-cleanup', () => {
   const now = Date.now();
 
   // Clean up inactive DApp ports
@@ -408,6 +414,7 @@ setInterval(() => {
     }
   }
 }, 60000); // Every minute
+timerManager.startInterval('dapp-port-cleanup');
 
 // Export the registry for debugging
 export { portRegistry };

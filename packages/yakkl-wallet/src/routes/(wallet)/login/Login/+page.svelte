@@ -6,7 +6,7 @@
   import { startActivityTracking } from '$lib/common/messaging';
   import { log } from '$lib/common/logger-wrapper';
 	import type { Profile, Settings } from '$lib/common/interfaces';
-	import { getNormalizedSettings, PATH_WELCOME, PlanType } from '$lib/common';
+	import { getNormalizedSettings, isProLevel, PATH_WELCOME, PlanType } from '$lib/common';
 	import Welcome from '$lib/components/Welcome.svelte';
 	import Copyright from '$lib/components/Copyright.svelte';
 	import ErrorNoAction from '$lib/components/ErrorNoAction.svelte';
@@ -16,27 +16,13 @@
   // State
   let showError = $state(false);
   let errorValue = $state('');
-  let planType = $state(PlanType.STANDARD);
+  let planType = $state(PlanType.MEMBER);
   let yakklSettings: Settings | null = $state(null);
 
   onMount(async () => {
     yakklSettings = await getNormalizedSettings();
     await setSettingsStorage(yakklSettings);
-    planType = yakklSettings?.plan.type ?? PlanType.STANDARD;
-    // if (!checkUpgrade()) { // The checkUpgrade is not valid until after user is validated
-    // if (planType && planType !== PlanType.PRO) {
-    //   planType = PlanType.STANDARD;
-    // }
-
-    // PROMO
-    // let promoDate = new Date('2026-01-01T00:00:00');
-    // let date = new Date();
-    // if (date < promoDate) {
-
-      // planType = PlanType.PRO;
-
-    // }
-    ////
+    planType = yakklSettings?.plan.type ?? PlanType.MEMBER;
   });
 
   // Handle successful login in the main wallet
@@ -106,9 +92,15 @@
       <div class="card bg-base-100 shadow-xl image-full animate-pulse">
         <figure><img src="/images/logoBullFav128x128.png" alt="upgrade" /></figure>
         <div class="card-body">
-          {#if planType.toLowerCase() === PlanType.PRO.toLowerCase()}
+          {#if planType.toLowerCase() === PlanType.YAKKL_PRO.toLowerCase()}
             <h2 class="card-title self-center">PRO!</h2>
             <p>Welcome to our Pro version. We have a lot of additional features waiting on you. We're also working hard on advanced features to make your digital asset experience a dream! We also need your suggestions! Enjoy!</p>
+          {:else if planType.toLowerCase() === PlanType.FOUNDING_MEMBER.toLowerCase()}
+            <h2 class="card-title self-center">FOUNDING MEMBER!</h2>
+            <p>Welcome to our Founding Member version. We have a lot of additional features waiting on you. We're also working hard on advanced features to make your digital asset experience a dream! We also need your suggestions! Enjoy!</p>
+          {:else if planType.toLowerCase() === PlanType.EARLY_ADOPTER.toLowerCase()}
+            <h2 class="card-title self-center">EARLY ADOPTER!</h2>
+            <p>Welcome to our Early Adopter version. We have a lot of additional features waiting on you. We're also working hard on advanced features to make your digital asset experience a dream! We also need your suggestions! Enjoy!</p>
           {:else}
             <h2 class="card-title self-center">STANDARD!</h2>
             <p>Welcome to our Standard version. The core wallet features are waiting on you. If you desire more, you can upgrade to Pro. We're also working hard on advanced features to make your digital asset experience a dream! We also need your suggestions! Enjoy!</p>

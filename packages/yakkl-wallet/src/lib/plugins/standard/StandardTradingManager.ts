@@ -15,7 +15,7 @@ import { UpgradeRequiredError } from '../errors/UpgradeRequiredError';
  * Pro features throw UpgradeRequiredError
  */
 export class StandardTradingManager implements ITradingManager {
-  private planType: PlanType = PlanType.STANDARD;
+  private planType: PlanType = PlanType.MEMBER;
   private initialized = false;
 
   async initialize(planType: PlanType): Promise<void> {
@@ -24,7 +24,7 @@ export class StandardTradingManager implements ITradingManager {
   }
 
   isAdvancedFeaturesEnabled(): boolean {
-    return this.planType === PlanType.PRO || this.planType === PlanType.ENTERPRISE;
+    return this.planType === PlanType.YAKKL_PRO || this.planType === PlanType.ENTERPRISE;
   }
 
   /**

@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import type { PriceProvider } from '$lib/common/interfaces';
   import { CoinbasePriceProvider } from '$lib/managers/providers/price/coinbase/CoinbasePriceProvider';
-	import { timerManager } from '$lib/managers/TimerManager';
+	import { getTimerManager } from '$lib/managers/TimerManager';
 	import { priceStore } from '$lib/common/stores';
   import { log } from "$lib/managers/Logger";
 	import { TIMER_PRICE_INTERVAL_TIME } from '$lib/common';
@@ -55,8 +55,8 @@
 
       updatePrice();
       // Add and start timer
-      timerManager.addTimer("priceTracker_updatePrice", updatePrice, updateInterval);
-      timerManager.startTimer("priceTracker_updatePrice");
+      getTimerManager().addTimer("priceTracker_updatePrice", updatePrice, updateInterval);
+      getTimerManager().startTimer("priceTracker_updatePrice");
 
     } catch (error) {
       log.error(error);
@@ -64,7 +64,7 @@
   });
 
   onDestroy(() => {
-    timerManager.stopTimer("priceTracker_updatePrice");
+    getTimerManager().stopTimer("priceTracker_updatePrice");
     priceStore.set(null);
   });
 </script>

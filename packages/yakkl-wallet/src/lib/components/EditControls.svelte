@@ -2,6 +2,7 @@
 <script lang="ts">
   import { Edit2Icon, TrashIcon, ClipboardIcon } from 'svelte-feather-icons';
   import { fade } from 'svelte/transition';
+  import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 
   interface Props {
     onEdit?: () => void;
@@ -22,38 +23,46 @@
   let deleted = $state(false);
   let hoverText = $state('');
 
+  const timerManager = UnifiedTimerManager.getInstance();
+
   function handleCopy(event: MouseEvent) {
     event.stopPropagation();
     onCopy();
     copied = true;
-    setTimeout(() => {
+    timerManager.addTimeout('copy-feedback', () => {
       copied = false;
     }, 1000);
+    timerManager.startTimeout('copy-feedback');
   }
 
   function handleEdit(event: MouseEvent) {
     event.stopPropagation();
     onEdit();
     edited = true;
-    setTimeout(() => {
+    timerManager.addTimeout('edit-feedback', () => {
       edited = false;
     }, 1000);
+    timerManager.startTimeout('edit-feedback');
   }
 
   function handleDelete(event: MouseEvent) {
     event.stopPropagation();
     onDelete();
     deleted = true;
-    setTimeout(() => {
+    timerManager.addTimeout('delete-feedback', () => {
       deleted = false;
     }, 1000);
+    timerManager.startTimeout('delete-feedback');
   }
 
   function showHoverText(text: string) {
     hoverText = text;
-    setTimeout(() => {
+    timerManager.stopTimeout('hover-text');
+    timerManager.removeTimeout('hover-text');
+    timerManager.addTimeout('hover-text', () => {
       hoverText = '';
     }, 1000);
+    timerManager.startTimeout('hover-text');
   }
 </script>
 

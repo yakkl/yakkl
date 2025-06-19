@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 
   const {
     className = '',
@@ -12,10 +13,14 @@
   }>();
 
   let animate = $state(false);
+  const timerManager = UnifiedTimerManager.getInstance();
 
   onMount(() => {
     animate = true;
-    setTimeout(() => (animate = false), 1000);
+    timerManager.addTimeout('animate-button', () => {
+      animate = false;
+    }, 1000);
+    timerManager.startTimeout('animate-button');
   });
 </script>
 

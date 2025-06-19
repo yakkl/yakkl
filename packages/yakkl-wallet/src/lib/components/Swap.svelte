@@ -27,7 +27,7 @@
 	import PincodeVerify from './PincodeVerify.svelte';
 	import Confirmation from './Confirmation.svelte';
 	import { sendNotificationMessage } from '$lib/common/notifications';
-	import { timerManager } from '$lib/managers/TimerManager';
+	import { getTimerManager } from '$lib/managers/TimerManager';
 
   // import { browserSvelte } from '$lib/utilities/browserSvelte';
   // import { getBrowserExt } from '$lib/browser-polyfill-wrapper';
@@ -209,8 +209,8 @@
         updateSwapPriceData( { marketPriceGas: price.price });
       }
       // Add and start timer
-      timerManager.addTimer("swap_fetchPrices", fetchPrices, TIMER_SWAP_FETCH_PRICES_TIME);
-      timerManager.startTimer("swap_fetchPrices");
+      getTimerManager().addTimer("swap_fetchPrices", fetchPrices, TIMER_SWAP_FETCH_PRICES_TIME);
+      getTimerManager().startTimer("swap_fetchPrices");
     } catch (error) {
       log.error('Error initializing swap:', false, error);
       $swapStateStore.error = 'Failed to initialize swap. Please try again.';
@@ -220,7 +220,7 @@
   onDestroy(() => {
     const yakklMiscStore = getMiscStore();
     if (yakklMiscStore) {
-      timerManager.stopTimer("swap_fetchPrices");
+      getTimerManager().stopTimer("swap_fetchPrices");
       debouncedGetQuote.cancel();
       debouncedCheckBalance.cancel();
       debouncedGetMarketPrice.cancel();
