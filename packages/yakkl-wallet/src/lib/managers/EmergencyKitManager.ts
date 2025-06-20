@@ -163,7 +163,7 @@ export class EmergencyKitManager {
       version: VERSION,
       type: "yakkl_bulk",
       plan: {
-        type: profileData?.registered?.plan.type ?? PlanType.MEMBER,
+        type: profileData?.registered?.plan.type ?? PlanType.BASIC_MEMBER,
         source: AccessSourceType.STANDARD,
         promo: PromoClassificationType.INFLUENCER,
         trialEndDate: '',

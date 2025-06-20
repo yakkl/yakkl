@@ -39,9 +39,9 @@
       return set(null);
     }
 
-    if ($s.plan.type === PlanType.MEMBER) {
+    if ($s.plan.type === PlanType.BASIC_MEMBER) {
       return set({
-        label: '⬆️ Standard Plan (upgrade)',
+        label: '⬆️ Basic Member Plan (upgrade)',
         color: 'bg-red-200 text-red-900 dark:bg-red-800 dark:text-red-100',
         tooltip: 'Upgrade to PRO to unlock it all!',
         upgradeable: true

@@ -41,7 +41,7 @@
   async function initializePlugins() {
     try {
       const settings = await getSettings();
-      const planType = settings.plan?.type || PlanType.MEMBER;
+      const planType = settings.plan?.type || PlanType.BASIC_MEMBER;
 
       const result = await pluginRegistry.initialize(planType);
 

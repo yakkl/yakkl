@@ -91,7 +91,7 @@ export async function isProLevel(): Promise<boolean> {
 
 export async function isStandard(): Promise<boolean> {
   const settings = await getSettings();
-  return settings?.plan.type === PlanType.MEMBER;
+  return settings?.plan.type === PlanType.BASIC_MEMBER;
 }
 
 export async function setRegisteredType(type: PlanType): Promise<void> {
@@ -164,7 +164,7 @@ export function normalizeUserPlan(settings: Settings): Settings {
       ...settings,
       plan: {
         ...settings.plan,
-        type: PlanType.MEMBER,
+        type: PlanType.BASIC_MEMBER,
         source: AccessSourceType.STANDARD,
         trialEndDate: null,
         promo: null,

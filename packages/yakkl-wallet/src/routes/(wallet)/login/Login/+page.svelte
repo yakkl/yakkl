@@ -6,7 +6,7 @@
   import { startActivityTracking } from '$lib/common/messaging';
   import { log } from '$lib/common/logger-wrapper';
 	import type { Profile, Settings } from '$lib/common/interfaces';
-	import { getNormalizedSettings, isProLevel, PATH_WELCOME, PlanType } from '$lib/common';
+	import { getNormalizedSettings, PATH_WELCOME, PlanType } from '$lib/common';
 	import Welcome from '$lib/components/Welcome.svelte';
 	import Copyright from '$lib/components/Copyright.svelte';
 	import ErrorNoAction from '$lib/components/ErrorNoAction.svelte';
@@ -16,13 +16,13 @@
   // State
   let showError = $state(false);
   let errorValue = $state('');
-  let planType = $state(PlanType.MEMBER);
+  let planType = $state(PlanType.BASIC_MEMBER);
   let yakklSettings: Settings | null = $state(null);
 
   onMount(async () => {
     yakklSettings = await getNormalizedSettings();
     await setSettingsStorage(yakklSettings);
-    planType = yakklSettings?.plan.type ?? PlanType.MEMBER;
+    planType = yakklSettings?.plan.type ?? PlanType.BASIC_MEMBER;
   });
 
   // Handle successful login in the main wallet
@@ -102,8 +102,8 @@
             <h2 class="card-title self-center">EARLY ADOPTER!</h2>
             <p>Welcome to our Early Adopter version. We have a lot of additional features waiting on you. We're also working hard on advanced features to make your digital asset experience a dream! We also need your suggestions! Enjoy!</p>
           {:else}
-            <h2 class="card-title self-center">STANDARD!</h2>
-            <p>Welcome to our Standard version. The core wallet features are waiting on you. If you desire more, you can upgrade to Pro. We're also working hard on advanced features to make your digital asset experience a dream! We also need your suggestions! Enjoy!</p>
+            <h2 class="card-title self-center">BASIC MEMBER!</h2>
+            <p>Welcome to our free Basic Member version. The core wallet features are waiting on you. If you desire more, you can upgrade to our Pro levels. We're also working hard on advanced features to make your digital asset experience a dream! We also need your suggestions! Enjoy!</p>
           {/if}
         </div>
       </div>

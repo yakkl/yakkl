@@ -34,7 +34,7 @@ The hardware wallet system follows the YAKKL plugin architecture pattern:
 import { pluginRegistry } from '$lib/plugins/registry/PluginRegistry';
 
 // Initialize the plugin registry
-await pluginRegistry.initialize(PlanType.MEMBER);
+await pluginRegistry.initialize(PlanType.BASIC_MEMBER);
 
 // Check if hardware wallets are supported
 const isSupported = await pluginRegistry.hardwareWallet.isSupported();
@@ -47,11 +47,11 @@ if (!isSupported) {
 try {
   const device = await pluginRegistry.hardwareWallet.connect();
   console.log('Connected to:', device.model);
-  
+
   // Discover accounts
   const accounts = await pluginRegistry.hardwareWallet.discoverAccounts(device.id);
   console.log('Discovered accounts:', accounts);
-  
+
   // Sign a transaction
   const transaction = {
     to: '0x742d35CC6635C0532925a3b8D0B8d9d4A3d5b2B4',
@@ -61,15 +61,15 @@ try {
     nonce: '0x0',
     chainId: 1
   };
-  
+
   const signature = await pluginRegistry.hardwareWallet.signTransaction(
     device.id,
     accounts[0].derivationPath,
     transaction
   );
-  
+
   console.log('Transaction signature:', signature);
-  
+
 } catch (error) {
   if (error instanceof UpgradeRequiredError) {
     console.log('Pro feature required:', error.message);

@@ -54,7 +54,7 @@ export interface PluginFeatures {
 export class PluginRegistry {
   private static instance: PluginRegistry;
   private managers: PluginManagerConfig | null = null;
-  private currentPlan: PlanType = PlanType.MEMBER;
+  private currentPlan: PlanType = PlanType.BASIC_MEMBER;
   private initialized = false;
 
   private constructor() {}
@@ -110,19 +110,19 @@ export class PluginRegistry {
       // Fallback to standard managers on error
       this.managers = await this.loadStandardManagers();
       await Promise.all([
-        this.managers.trading.initialize(PlanType.MEMBER),
-        this.managers.accounts.initialize(PlanType.MEMBER),
-        this.managers.news.initialize(PlanType.MEMBER),
+        this.managers.trading.initialize(PlanType.BASIC_MEMBER),
+        this.managers.accounts.initialize(PlanType.BASIC_MEMBER),
+        this.managers.news.initialize(PlanType.BASIC_MEMBER),
         this.managers.hardwareWallet.initialize()
       ]);
 
       this.initialized = true;
-      this.currentPlan = PlanType.MEMBER;
+      this.currentPlan = PlanType.BASIC_MEMBER;
 
       return {
         success: false,
-        planType: PlanType.MEMBER,
-        features: this.getAvailableFeatures(PlanType.MEMBER),
+        planType: PlanType.BASIC_MEMBER,
+        features: this.getAvailableFeatures(PlanType.BASIC_MEMBER),
         errors: [error instanceof Error ? error.message : 'Unknown error occurred']
       };
     }
@@ -299,7 +299,7 @@ export class PluginRegistry {
     }
 
     this.initialized = false;
-    this.currentPlan = PlanType.MEMBER;
+    this.currentPlan = PlanType.BASIC_MEMBER;
   }
 }
 

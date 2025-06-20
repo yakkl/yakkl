@@ -42,7 +42,7 @@
     email: '',
   };
   let isLoggedIn = $state(false);
-  let planLevelAvailable = $state('yakkl_pro');
+  let planLevelAvailable = $state(getAvailableMemberUpgradePlanLevel()?.toString()?.toUpperCase()?.replace('_', ' ') ?? 'YAKKL PRO');
 
   const upgradeManager = UpgradeManager.getInstance();
   let unregisterHandler: (() => void) | null = null;
@@ -50,7 +50,7 @@
   // Check YAKKL Pro status when modal is shown
   $effect(() => {
     if (show) {
-      checkProStatus();
+      checkProLevelStatus();
     }
   });
 
@@ -88,7 +88,7 @@
     }
   }
 
-  async function checkProStatus() {
+  async function checkProLevelStatus() {
     try {
       const upgradeAllowed = await canUpgrade();
       isProUser = !upgradeAllowed;
@@ -158,8 +158,8 @@
         user_agent: navigator?.userAgent ?? 'unknown',
       };
 
-      const planLevelAvailable = getAvailableMemberUpgradePlanLevel();
-      analyticsData.utm_campaign = planLevelAvailable.includes('_upgrade') ? planLevelAvailable : planLevelAvailable + '_upgrade';
+      const planLevel = planLevelAvailable?.replace(' ', '_ ')?.toLowerCase() ?? 'yakkl_pro';
+      analyticsData.utm_campaign = planLevel.includes('_upgrade') ? planLevel : planLevel + '_upgrade';
 
       await upgradeManager.processUpgrade({
         userName: formValues.userName,
@@ -221,16 +221,16 @@
 
 </script>
 
-<ErrorNoAction bind:show={showError} value="You are already using a PRO level plan" title="Congratulations!" onClose={onCancel} />
-<Confirmation bind:show={showConfirmation} title="Upgrading to Pro!" message="Are you sure you want to upgrade to Pro?" onConfirm={onConfirm} onCancel={onCancel}  />
-<Notification bind:show={showNotification} title="Upgraded to Pro!" message="You are now using the PRO plan. You can now access all the features of the PRO plan." onClose={onClose} />
+<ErrorNoAction bind:show={showError} value="You are already using a {planLevelAvailable.toUpperCase()} level plan" title="Congratulations!" onClose={onCancel} />
+<Confirmation bind:show={showConfirmation} title="Upgrading to {planLevelAvailable.toUpperCase()}!" message="Are you sure you want to upgrade to {planLevelAvailable.toUpperCase()}?" onConfirm={onConfirm} onCancel={onCancel}  />
+<Notification bind:show={showNotification} title="Upgraded to {planLevelAvailable.toUpperCase()}!" message="You are now using the {planLevelAvailable.toUpperCase()} plan. You can now access all the features of the {planLevelAvailable.toUpperCase()} plan." onClose={onClose} />
 
-<Modal bind:show title="Upgrade to Pro">
+<Modal bind:show title="Upgrade to {planLevelAvailable.toUpperCase()}">
   <div class="space-y-6 p-6">
     <div class="text-center">
-      <h3 class="text-lg font-medium text-gray-900">YAKKL Smart Wallet Pro</h3>
+      <h3 class="text-lg font-medium text-gray-900">YAKKL Smart Wallet - {planLevelAvailable.toUpperCase()}</h3>
       <p class="mt-2 text-sm text-gray-500">
-        Unlock advanced features and enhanced security for your crypto assets
+        Unlock advanced features and enhanced security for your crypto assets.
       </p>
     </div>
 
@@ -264,6 +264,12 @@
             <svg class="h-5 w-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
+            Participate in early access to new features and products
+          </li>
+          <li class="flex items-center">
+            <svg class="h-5 w-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
             Reduced swap fees for DeFi platforms
           </li>
           <li class="flex items-center">
@@ -276,19 +282,19 @@
             <svg class="h-5 w-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
-            Emergency Kit for wallet recovery
+            Full Emergency Kit for wallet recovery
           </li>
           <li class="flex items-center">
             <svg class="h-5 w-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
-            Unlimited EOA accounts
+            Unlimited accounts
           </li>
           <li class="flex items-center">
             <svg class="h-5 w-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
-            Biometric authentication
+            Advanced security features and more...
           </li>
         </ul>
       </div>
@@ -395,7 +401,7 @@
                 class="rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                 disabled={isUpgrading}
               >
-                {isUpgrading ? 'Upgrading...' : 'Upgrade to Pro'}
+                {isUpgrading ? 'Upgrading...' : 'Upgrade to Pro Level'}
               </button>
             </div>
           </div>
@@ -416,7 +422,7 @@
               disabled={isUpgrading}
               onclick={onProcessUpgrade}
             >
-              {isUpgrading ? 'Upgrading...' : 'Upgrade to Pro'}
+              {isUpgrading ? 'Upgrading...' : 'Upgrade to Pro Level'}
             </button>
           </div>
         </div>
