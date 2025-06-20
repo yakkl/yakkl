@@ -99,7 +99,7 @@
   let tokens: TokenData[] = [];
 
   let settings = $state<Settings | null>(null);
-  let planType = $state<PlanType>(PlanType.STANDARD);
+  let planType = $state<PlanType>(PlanType.MEMBER);
 
   $effect(() => {
     (async () => {

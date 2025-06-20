@@ -3,6 +3,7 @@ import { browser as isBrowser } from '$app/environment';
 import { log } from '$lib/common/logger-wrapper';
 import type { Browser, Runtime } from 'webextension-polyfill';
 import { protectedContexts } from './globals';
+import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 
 // Helper function to check if context needs idle protection
 function contextNeedsIdleProtection(contextType: string): boolean {
@@ -27,6 +28,7 @@ class ExtensionMessaging {
     reject: (error: any) => void,
     timestamp: number
   }>();
+  private timerManager = UnifiedTimerManager.getInstance();
 
   // Add a list of message types that don't need responses
   private readonly FIRE_AND_FORGET_MESSAGES = [
@@ -74,8 +76,9 @@ class ExtensionMessaging {
       this.browserApi.runtime.onMessage.addListener(this.handleIncomingMessage.bind(this));
     }
 
-    // Start cleanup interval
-    setInterval(() => this.cleanup(), 60000); // Every minute
+    // Start cleanup interval using UnifiedTimerManager
+    this.timerManager.addInterval('messaging-cleanup', () => this.cleanup(), 60000);
+    this.timerManager.startInterval('messaging-cleanup');
   }
 
   /**

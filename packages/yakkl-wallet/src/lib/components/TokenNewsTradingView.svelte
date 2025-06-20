@@ -17,6 +17,7 @@
         "locale": "en"
         }
       </script>
+    </div>
   </div>
   <div class="tradingview-widget-copyright"><a href="{URL}" rel="noopener nofollow" target="_blank"><span class="blue-text">Track all markets on TradingView</span></a></div>
 </section>

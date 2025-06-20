@@ -11,12 +11,22 @@ export const PRO_ELIGIBLE_PROMO_TYPES = [
   'influencer',
   'employee',
   'special',
-  'early',
+  'founding', // Founding members
+  'early',  // Early adopters
   'partner',
   'founder',
   'internal',
   'press'
 ];
+
+export const FOUNDING_MEMBER_DEADLINE = '2025-08-15T04:00:00.000Z'; // UTC time with 4 hour difference for est
+export const EARLY_ADOPTER_DEADLINES = [
+  { date: '2025-10-01T04:00:00.000Z', price: 120 },
+  { date: '2025-11-15T04:00:00.000Z', price: 132 },
+  { date: '2026-01-01T04:00:00.000Z', price: 144 }
+];
+
+export const YAKKL_PRO_ANNUAL_FEE = 144;
 
 export const DEFAULT_PERSONA = "default";
 export const GAS_PER_BLOB = 131072; // 2**17

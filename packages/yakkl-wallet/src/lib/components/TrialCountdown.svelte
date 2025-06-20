@@ -1,12 +1,17 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { getSettings, setSettings } from '$lib/common/stores';
   import { AccessSourceType } from '$lib/common/types';
   import { openModal } from '$lib/common/stores/modal';
+  import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
+  import { CountdownTimer } from '$lib/managers/CountdownTimer';
 
   let remaining = '';
   let visible = true;
   let pinned = false;
+  let countdownTimer: CountdownTimer | null = null;
+  let hideTimeoutId = 'trial-hide-timeout';
+  const timerManager = UnifiedTimerManager.getInstance();
 
   async function updateCountdown() {
     const settings = await getSettings();
@@ -18,31 +23,38 @@
     pinned = settings.trialCountdownPinned ?? false;
 
     const end = new Date(settings.plan.trialEndDate).getTime();
+    const now = Date.now();
+    const durationMs = end - now;
 
-    const update = () => {
-      const now = Date.now();
-      const diff = end - now;
+    if (durationMs <= 0) {
+      visible = false;
+      return;
+    }
 
-      if (diff <= 0) {
+    // Create countdown timer
+    countdownTimer = new CountdownTimer(
+      'trial-countdown',
+      durationMs,
+      (remainingSeconds) => {
+        const hours = Math.floor(remainingSeconds / 3600);
+        const minutes = Math.floor((remainingSeconds % 3600) / 60);
+        const seconds = remainingSeconds % 60;
+        remaining = `${hours}h ${minutes}m ${seconds}s`;
+      },
+      () => {
         visible = false;
-        return;
       }
+    );
 
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+    countdownTimer.start();
 
-      remaining = `${hours}h ${minutes}m ${seconds}s`;
-
-      if (!pinned) {
-        setTimeout(() => (visible = false), 30000);
-      }
-    };
-
-    update();
-    const interval = setInterval(update, 1000);
-
-    return () => clearInterval(interval);
+    // Schedule auto-hide if not pinned
+    if (!pinned) {
+      timerManager.addTimeout(hideTimeoutId, () => {
+        visible = false;
+      }, 30000);
+      timerManager.startTimeout(hideTimeoutId);
+    }
   }
 
   function handleUpgrade() {
@@ -57,14 +69,29 @@
     setSettings(updated);
 
     if (!pinned) {
-      setTimeout(() => (visible = false), 30000);
+      timerManager.addTimeout(hideTimeoutId, () => {
+        visible = false;
+      }, 30000);
+      timerManager.startTimeout(hideTimeoutId);
     } else {
       visible = true;
+      // Cancel the hide timeout if we're pinning
+      timerManager.stopTimeout(hideTimeoutId);
+      timerManager.removeTimeout(hideTimeoutId);
     }
   }
 
   onMount(async () => {
     await updateCountdown();
+  });
+
+  onDestroy(() => {
+    if (countdownTimer) {
+      countdownTimer.destroy();
+      countdownTimer = null;
+    }
+    timerManager.stopTimeout(hideTimeoutId);
+    timerManager.removeTimeout(hideTimeoutId);
   });
 </script>
 

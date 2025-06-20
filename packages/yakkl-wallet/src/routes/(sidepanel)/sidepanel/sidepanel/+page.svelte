@@ -23,7 +23,7 @@
 	import Copyright from '$lib/components/Copyright.svelte';
 	import BookmarkedArticles from '$lib/components/BookmarkedArticles.svelte';
 	// import LockedSectionCard from '$lib/components/LockedSectionCard.svelte';
-	import { isPro } from '$lib/common/utils';
+	import { isProLevel } from '$lib/common/utils';
 	import Upgrade from '$lib/components/Upgrade.svelte';
 	import GenericFooter from '$lib/components/GenericFooter.svelte';
 	import UpgradeFooter from '$lib/components/UpgradeFooter.svelte';
@@ -206,9 +206,9 @@
         return;
       } else {
         init = true;
-        locked = (await isPro() ? false : true);
-        tokensLockedCount = (await isPro() ? 0 : 4);
-        newsfeedsLockedCount = (await isPro() ? 10 : 4);
+        locked = (await isProLevel() ? false : true);
+        tokensLockedCount = (await isProLevel() ? 0 : 4);
+        newsfeedsLockedCount = (await isProLevel() ? 10 : 4);
       }
 
       // Always load default tokens regardless of init state

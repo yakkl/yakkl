@@ -484,6 +484,6 @@ export class KeyManager {
   }
 }
 
-// Export a singleton instance
-export const keyManager = KeyManager.getInstance();
+// Export a function to get the singleton instance
+export const getKeyManager = () => KeyManager.getInstance();
 

@@ -32,7 +32,7 @@
 
   let w = 6;
   let h = 6;
-  let planType = $state(PlanType.STANDARD.toUpperCase()); // Default to Standard
+  let planType = $state(PlanType.MEMBER.toUpperCase()); // Default to Standard
 
   let yakklMiscStore: string;
   let yakklSettingsStore: Settings | null;

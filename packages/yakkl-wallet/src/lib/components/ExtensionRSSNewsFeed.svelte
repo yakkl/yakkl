@@ -1,11 +1,12 @@
 <!-- src/lib/components/ExtensionRSSNewsFeed.svelte -->
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { ExtensionRSSFeedService, type RSSItem, type RSSFeed } from '$lib/managers/ExtensionRSSFeedService';
   import NewsFeed from './NewsFeed.svelte';
 	import { log } from '$lib/managers/Logger';
   import RefreshIcon from './icons/RefreshIcon.svelte';
   import { browser_ext } from '$lib/common/environment';
+  import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 
   const FIVE_MINUTES = 5 * 60 * 1000;  // 5 minutes in milliseconds
   const THIRTY_MINUTES = 30 * 60 * 1000;  // 30 minutes in milliseconds
@@ -40,13 +41,15 @@
   let error = $state<string | null>(null);
 
   const rssService = ExtensionRSSFeedService.getInstance();
-  let refreshTimer: number;
+  const timerManager = UnifiedTimerManager.getInstance();
+  const timerId = 'rss-feed-refresh';
 
   onMount(() => {
     loadFeeds();
 
-    // Set up refresh interval
-    refreshTimer = window.setInterval(loadFeeds, effectiveInterval);
+    // Set up refresh interval using UnifiedTimerManager
+    timerManager.addInterval(timerId, loadFeeds, effectiveInterval);
+    timerManager.startInterval(timerId);
 
     // Listen for updates from background script
     const messageListener = (message: any, sender: any, sendResponse: any) => {
@@ -59,9 +62,8 @@
     browser_ext.runtime.onMessage.addListener(messageListener);
 
     return () => {
-      if (refreshTimer) {
-        clearInterval(refreshTimer);
-      }
+      timerManager.stopInterval(timerId);
+      timerManager.removeInterval(timerId);
       browser_ext.runtime.onMessage.removeListener(messageListener);
     };
   });

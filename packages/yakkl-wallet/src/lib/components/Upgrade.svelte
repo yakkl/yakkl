@@ -14,7 +14,8 @@
   import { canUpgrade } from '$lib/common/utils';
 	import type { ProfileData } from '$lib/common/interfaces';
 	import { decryptData } from '$lib/common/encryption';
-	import { isEncryptedData, RegisteredType } from '$lib/common';
+	import { isEncryptedData } from '$lib/common';
+	import { getAvailableMemberUpgradePlanLevel } from '$lib/common/member_pricing';
 
   interface Props {
     show?: boolean;
@@ -41,11 +42,12 @@
     email: '',
   };
   let isLoggedIn = $state(false);
+  let planLevelAvailable = $state('yakkl_pro');
 
   const upgradeManager = UpgradeManager.getInstance();
   let unregisterHandler: (() => void) | null = null;
 
-  // Check pro status when modal is shown
+  // Check YAKKL Pro status when modal is shown
   $effect(() => {
     if (show) {
       checkProStatus();
@@ -101,7 +103,7 @@
   const { form, errors, handleChange, handleSubmit } = createForm({
     initialValues: formValues,
     validationSchema: yup.object().shape({
-      userName: yup.string().required('Username is required'),
+      userName: yup.string().required('Member username is required'),
       password: yup.string().required('Password is required'),
       email: yup.string().email('Must be a valid email.').required('Email is required.'),
     }),
@@ -148,13 +150,16 @@
     try {
       const analyticsData = {
         utm_source: 'wallet',
-        utm_campaign: 'pro_upgrade',
+        utm_campaign: 'yakkl_pro_upgrade',
         user_location: navigator.language,
         upgrade_date: dateString(),
         current_version: (await getSettings())?.version ?? 'unknown',
         platform: navigator?.platform ?? 'unknown',
         user_agent: navigator?.userAgent ?? 'unknown',
       };
+
+      const planLevelAvailable = getAvailableMemberUpgradePlanLevel();
+      analyticsData.utm_campaign = planLevelAvailable.includes('_upgrade') ? planLevelAvailable : planLevelAvailable + '_upgrade';
 
       await upgradeManager.processUpgrade({
         userName: formValues.userName,
@@ -216,7 +221,7 @@
 
 </script>
 
-<ErrorNoAction bind:show={showError} value="You are already using the PRO plan" title="Congratulations!" onClose={onCancel} />
+<ErrorNoAction bind:show={showError} value="You are already using a PRO level plan" title="Congratulations!" onClose={onCancel} />
 <Confirmation bind:show={showConfirmation} title="Upgrading to Pro!" message="Are you sure you want to upgrade to Pro?" onConfirm={onConfirm} onCancel={onCancel}  />
 <Notification bind:show={showNotification} title="Upgraded to Pro!" message="You are now using the PRO plan. You can now access all the features of the PRO plan." onClose={onClose} />
 

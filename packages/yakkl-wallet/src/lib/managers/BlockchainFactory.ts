@@ -1,5 +1,6 @@
 // BlockchainFactory.ts
-import type { Provider, Blockchain } from '$lib/managers';
+import type { Provider } from '$lib/managers/Provider';
+import type { Blockchain } from '$lib/managers/Blockchain';
 import { Ethereum } from '$lib/managers/blockchains/evm/ethereum/Ethereum';
 // Import other blockchains here
 

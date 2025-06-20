@@ -1,5 +1,7 @@
 import { log } from '$lib/common/logger-wrapper';
-import { browser as isBrowser } from '$app/environment';
+
+// Check if we're in browser environment without using SvelteKit imports
+const isBrowser = typeof window !== 'undefined';
 
 interface ExtendedPerformance extends Performance {
   memory?: {

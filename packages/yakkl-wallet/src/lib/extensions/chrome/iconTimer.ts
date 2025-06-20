@@ -4,14 +4,14 @@ import { setIconLock, setIconUnlock } from "$lib/utilities";
 import { browser_ext } from "$lib/common/environment";
 import { STORAGE_YAKKL_CURRENTLY_SELECTED, STORAGE_YAKKL_SETTINGS, TIMER_ICON_CHECK_TIME } from "$lib/common/constants";
 import { yakklCurrentlySelectedStore } from "$lib/common/stores";
-import { timerManager } from "$lib/managers/TimerManager";
+import { getTimerManager } from "$lib/managers/TimerManager";
 import { log } from "$lib/managers/Logger";
 
 // NOTE: This is used on extension UI side as well which could be a problem
 
 export function startLockIconTimer() {
   try {
-    timerManager.addTimer('iconTimer_lockIcon', async () => {
+    getTimerManager().addTimer('iconTimer_lockIcon', async () => {
       try {
         const yakklSettings = await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS) as Settings;
         const yakklCurrentlySelected = await getObjectFromLocalStorage(STORAGE_YAKKL_CURRENTLY_SELECTED) as YakklCurrentlySelected;
@@ -34,7 +34,7 @@ export function startLockIconTimer() {
         log.error('Error in lock icon timer interval:', false, error);
       }
     }, TIMER_ICON_CHECK_TIME);
-    timerManager.startTimer('iconTimer_lockIcon');
+    getTimerManager().startTimer('iconTimer_lockIcon');
   } catch (error: any) {
     log.error('Error starting lock icon timer:', false, error, error?.stack);
   }
@@ -45,7 +45,7 @@ export async function stopLockIconTimer() {
     await setIconLock();
     const yakklSettings = await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS) as Settings;
     if (yakklSettings) {
-      timerManager.removeTimer('iconTimer_lockIcon'); // Stops and clears the timer
+      getTimerManager().removeTimer('iconTimer_lockIcon'); // Stops and clears the timer
       if (browser_ext) {
         await browser_ext.runtime.sendMessage({type: 'lockdown',});
       }

@@ -2,9 +2,10 @@
 import { get } from "svelte/store";
 import { yakklGasTransStore, yakklConnectionStore } from "$lib/common/stores";
 import type { GasFeeTrend, BlocknativeResponse, GasTransStore, EstimatedPrice } from '$lib/common/interfaces';
-import { timerManager } from "$lib/managers/TimerManager";
+import { getTimerManager } from "$lib/managers/TimerManager";
 import { log } from "$lib/managers/Logger";
 import { TIMER_CHECK_GAS_PRICE_INTERVAL_TIME, TIMER_GAS_PRICE_CHECK } from "$lib/common";
+import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 
 const now = () => +Date.now() / 1000;
 
@@ -13,11 +14,11 @@ const gasFeeTrend: GasFeeTrend[] = [];
 
 async function checkGasPricesCB() {
   try {
-    if (timerManager.isRunning(TIMER_GAS_PRICE_CHECK)) {
+    if (getTimerManager().isRunning(TIMER_GAS_PRICE_CHECK)) {
       if (get(yakklConnectionStore) === true) {
         const results = await fetchBlocknativeData();
         // log.debug('gas.ts - checkGasPricesCB', false, results);
-        yakklGasTransStore.set({ provider: providerGasCB, id: timerManager.getTimeoutID(TIMER_GAS_PRICE_CHECK), results });
+        yakklGasTransStore.set({ provider: providerGasCB, id: getTimerManager().getTimeoutID(TIMER_GAS_PRICE_CHECK), results });
       }
     }
   } catch (error) {
@@ -31,7 +32,7 @@ function setGasCBProvider(provider: string | null) {
 
 export function stopCheckGasPrices() {
   try {
-    timerManager.stopTimer(TIMER_GAS_PRICE_CHECK);
+    getTimerManager().stopTimer(TIMER_GAS_PRICE_CHECK);
     setGasCBProvider(null);
   } catch (error) {
     log.error(error);
@@ -41,19 +42,19 @@ export function stopCheckGasPrices() {
 export function startCheckGasPrices(provider = 'blocknative', ms = TIMER_CHECK_GAS_PRICE_INTERVAL_TIME) {
   try {
     if (ms > 0) {
-      if (timerManager.isRunning(TIMER_GAS_PRICE_CHECK)) {
+      if (getTimerManager().isRunning(TIMER_GAS_PRICE_CHECK)) {
         return; // Already running
       }
 
       setGasCBProvider(provider);
-      if (!timerManager.isRunning(TIMER_GAS_PRICE_CHECK)) {
-        timerManager.addTimer(TIMER_GAS_PRICE_CHECK, checkGasPricesCB, ms);
-        timerManager.startTimer(TIMER_GAS_PRICE_CHECK);
+      if (!getTimerManager().isRunning(TIMER_GAS_PRICE_CHECK)) {
+        getTimerManager().addTimer(TIMER_GAS_PRICE_CHECK, checkGasPricesCB, ms);
+        getTimerManager().startTimer(TIMER_GAS_PRICE_CHECK);
       }
     }
   } catch (error) {
     log.error(error);
-    timerManager.stopTimer(TIMER_GAS_PRICE_CHECK);
+    getTimerManager().stopTimer(TIMER_GAS_PRICE_CHECK);
   }
 }
 
@@ -75,12 +76,13 @@ const memoizeAsync = <T>(fn: () => Promise<T>): () => Promise<T> => {
 };
 
 const debounce = <T>(fn: () => Promise<T>): () => Promise<T> => {
-  let timeoutId: ReturnType<typeof setTimeout>;
+  const debouncedFn = UnifiedTimerManager.createDebounce(async () => {
+    return fn();
+  }, 500);
 
   return () =>
     new Promise((resolve) => {
-      if (timeoutId) clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => resolve(fn()), 500);
+      debouncedFn().then(resolve);
     });
 };
 

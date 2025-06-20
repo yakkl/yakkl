@@ -219,7 +219,12 @@
 
         // Write to stream and add a small delay to ensure the write completes
         stream.write(jsonRpcResponse);
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(async resolve => {
+          const { UnifiedTimerManager } = await import('$lib/managers/UnifiedTimerManager');
+          const timerManager = UnifiedTimerManager.getInstance();
+          timerManager.addTimeout('wallet-popup-delay', () => resolve(undefined), 100);
+          timerManager.startTimeout('wallet-popup-delay');
+        });
 
         log.info('ChainId change approved: handleProcess - response:', false, {jsonRpcResponse});
       }

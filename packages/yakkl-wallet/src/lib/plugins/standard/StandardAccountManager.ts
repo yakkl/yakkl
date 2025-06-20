@@ -17,7 +17,7 @@ import { UpgradeRequiredError } from '../errors/UpgradeRequiredError';
  * Pro features throw UpgradeRequiredError
  */
 export class StandardAccountManager implements IAccountManager {
-  private planType: PlanType = PlanType.STANDARD;
+  private planType: PlanType = PlanType.MEMBER;
   private initialized = false;
   private accounts: Account[] = [];
 
@@ -34,7 +34,7 @@ export class StandardAccountManager implements IAccountManager {
   }
 
   isAdvancedFeaturesEnabled(): boolean {
-    return this.planType === PlanType.PRO || this.planType === PlanType.ENTERPRISE;
+    return this.planType === PlanType.YAKKL_PRO || this.planType === PlanType.ENTERPRISE;
   }
 
   private async loadAccounts(): Promise<void> {

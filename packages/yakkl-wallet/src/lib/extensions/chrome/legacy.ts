@@ -1,6 +1,6 @@
 import { log } from '$lib/managers/Logger';
 import { Alchemy, Network, type TransactionRequest, type BlockTag, BigNumber } from 'alchemy-sdk';
-import { keyManager } from '$lib/managers/KeyManager';
+import { getKeyManager } from '$lib/managers/KeyManager';
 import { RPCAlchemy } from '$lib/managers/providers/network/alchemy/RPCAlchemy';
 import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
 
@@ -15,7 +15,7 @@ export async function getRPCAlchemy(chainId: any, apiKeyOverride: string = '') {
     // If no key was provided, try to get it from KeyManager
     if (!apiKey) {
       try {
-        const keyManagerInstance = await keyManager;
+        const keyManagerInstance = await getKeyManager();
         apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD');
       } catch (error) {
         log.warn('Could not get API key from KeyManager, using fallback', false, error);

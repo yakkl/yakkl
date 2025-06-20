@@ -26,7 +26,7 @@
 
       if (daysLeft > 0) {
         return set({
-          label: `⏳ Pro Trial: ${daysLeft} day${daysLeft > 1 ? 's' : ''} left`,
+          label: `⏳ YAKKL Pro Level Trial: ${daysLeft} day${daysLeft > 1 ? 's' : ''} left`,
           color: 'bg-yellow-200 text-yellow-900 dark:bg-yellow-800 dark:text-yellow-100',
           tooltip: 'On the path to greatness!',
           upgradeable: true
@@ -39,7 +39,7 @@
       return set(null);
     }
 
-    if ($s.plan.type === PlanType.STANDARD) {
+    if ($s.plan.type === PlanType.MEMBER) {
       return set({
         label: '⬆️ Standard Plan (upgrade)',
         color: 'bg-red-200 text-red-900 dark:bg-red-800 dark:text-red-100',
@@ -48,11 +48,29 @@
       });
     }
 
-    if ($s.plan.type === PlanType.PRO) {
+    if ($s.plan.type === PlanType.YAKKL_PRO) {
       return set({
         label: '🪙 YAKKL PRO',
         color: 'bg-green-200 text-green-900 dark:bg-green-800 dark:text-green-100',
-        tooltip: 'You are already on your way to the moon with the PRO plan!',
+        tooltip: 'You are already on your way to the moon with the YAKKL PRO plan!',
+        upgradeable: false
+      });
+    }
+
+    if ($s.plan.type === PlanType.FOUNDING_MEMBER) {
+      return set({
+        label: '🔑 FOUNDING MEMBER',
+        color: 'bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100',
+        tooltip: 'Founding Member - You hold the keys to YAKKL\'s origins and perks.',
+        upgradeable: false
+      });
+    }
+
+    if ($s.plan.type === PlanType.EARLY_ADOPTER) {
+      return set({
+        label: '🚀 EARLY ADOPTER',
+        color: 'bg-blue-200 text-blue-900 dark:bg-blue-800 dark:text-blue-100',
+        tooltip: 'Early Adopter - You saw the vision early and joined the movement!',
         upgradeable: false
       });
     }

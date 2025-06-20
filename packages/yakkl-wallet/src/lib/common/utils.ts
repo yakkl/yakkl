@@ -1,6 +1,6 @@
 /* eslint-disable no-debugger */
 import { PRO_ELIGIBLE_PROMO_TYPES, TRIAL_DAYS, type ErrorBody, type ParsedError } from '$lib/common';
-import { AccessSourceType, AccountTypeCategory, PlanType, RegisteredType } from '$lib/common/types';
+import { AccessSourceType, AccountTypeCategory, PlanType } from '$lib/common/types';
 import type { Settings, YakklAccount, YakklPrimaryAccount } from '$lib/common/interfaces';
 import { getYakklAccounts, getYakklPrimaryAccounts, yakklAccountsStore, setYakklAccountsStorage, setYakklPrimaryAccountsStorage, yakklPrimaryAccountsStore, getSettings, setSettingsStorage } from '$lib/common/stores';
 import { browser_ext } from './environment';
@@ -84,14 +84,14 @@ export function getCurrentFunctionInfo(depth = 2): { name: string; location: str
   return { name: 'unknown', location: 'unknown' };
 }
 
-export async function isPro(): Promise<boolean> {
+export async function isProLevel(): Promise<boolean> {
   const settings = await getSettings();
-  return settings?.plan.type === PlanType.PRO || settings?.plan.type === PlanType.ENTERPRISE || settings?.plan.type === PlanType.BUSINESS || settings?.plan.type === PlanType.INSTITUTION;
+  return settings?.plan.type === PlanType.YAKKL_PRO || settings?.plan.type === PlanType.FOUNDING_MEMBER || settings?.plan.type === PlanType.EARLY_ADOPTER;
 }
 
 export async function isStandard(): Promise<boolean> {
   const settings = await getSettings();
-  return settings?.plan.type === PlanType.STANDARD;
+  return settings?.plan.type === PlanType.MEMBER;
 }
 
 export async function setRegisteredType(type: PlanType): Promise<void> {
@@ -121,7 +121,7 @@ export async function isFullyPro(providedSettings?: Settings): Promise<boolean> 
   const { plan } = settings;
 
   return (
-    plan.type === PlanType.PRO &&
+    (plan.type === PlanType.YAKKL_PRO || plan.type === PlanType.FOUNDING_MEMBER || plan.type === PlanType.EARLY_ADOPTER) &&
     plan.source !== AccessSourceType.TRIAL &&
     !plan.trialEndDate &&
     !plan.promo
@@ -137,7 +137,7 @@ export async function canUpgrade(providedSettings?: Settings): Promise<boolean> 
 
   // Fully Pro users (paid or promo) can't upgrade
   if (
-    plan.type === PlanType.PRO &&
+    (plan.type === PlanType.YAKKL_PRO || plan.type === PlanType.FOUNDING_MEMBER || plan.type === PlanType.EARLY_ADOPTER) &&
     plan.source !== AccessSourceType.TRIAL &&
     !plan.trialEndDate &&
     !plan.promo // optional check: may allow influencer accounts to upgrade again
@@ -164,7 +164,7 @@ export function normalizeUserPlan(settings: Settings): Settings {
       ...settings,
       plan: {
         ...settings.plan,
-        type: PlanType.STANDARD,
+        type: PlanType.MEMBER,
         source: AccessSourceType.STANDARD,
         trialEndDate: null,
         promo: null,
