@@ -24,11 +24,11 @@ export const PlanMetadata: Record<PlanType, {
     priority: 3,
     description: 'Early adopter plan which includes the YAKKL PRO plan',
   },
-  member: {
-    label: 'Member',
+  basic_member: {
+    label: 'Basic Member',
     color: 'red',
     priority: 4,
-    description: 'Basic plan for all users',
+    description: 'Basic member plan for all users',
   },
   yakkl_pro: {
     label: 'YAKKL PRO',

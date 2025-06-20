@@ -36,7 +36,7 @@
   let displayDate: Date = $state();
   let derivedPath = $state(DEFAULT_DERIVED_PATH_ETH); // Account gets created with '/0/0' appended to represent the first
   let network: string = $state('');
-  let planType: PlanType = $state(PlanType.MEMBER);
+  let planType: PlanType = $state(PlanType.BASIC_MEMBER);
   let msgType = 'WARNING';
   let warning = $state(false);
   let warningValue: string;
@@ -53,7 +53,7 @@
       yakklMiscStore = getMiscStore();
 
       id = settings.id;
-      planType = settings.plan.type ?? PlanType.MEMBER;
+      planType = settings.plan.type ?? PlanType.BASIC_MEMBER;
     }
   });
 

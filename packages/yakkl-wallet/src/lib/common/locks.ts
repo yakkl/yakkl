@@ -8,7 +8,7 @@ import { PlanType } from "./types";
 
 // Will keep this for now but may want to deprecate it and use the new background script to handle locks
 
-export async function setLocks(locked: boolean = true, planType: PlanType = PlanType.MEMBER) {
+export async function setLocks(locked: boolean = true, planType: PlanType = PlanType.BASIC_MEMBER) {
   try {
     let dirty = false;
 

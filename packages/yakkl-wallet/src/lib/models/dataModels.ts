@@ -133,7 +133,7 @@ export let yakklSettings: Settings = {
   version: VERSION,  // Uses semversion format but puts 'default' as a placeholder
   previousVersion: '',
   plan: {
-    type: PlanType.MEMBER,
+    type: PlanType.BASIC_MEMBER,
     source: AccessSourceType.STANDARD,
     promo: null,
     trialEndDate: null,
@@ -229,7 +229,7 @@ export let yakklRegisteredData: YakklRegisteredData = {
   persona: DEFAULT_PERSONA,
   key: '',
   plan: {
-    type: PlanType.MEMBER,
+    type: PlanType.BASIC_MEMBER,
     source: AccessSourceType.STANDARD,
     promo: PromoClassificationType.NONE,
     trialEndDate: '',

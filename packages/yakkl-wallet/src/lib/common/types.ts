@@ -141,7 +141,7 @@ export enum RegisteredType {
 
 export enum PlanType {
   TRIAL = 'trial',
-  MEMBER = 'member',
+  BASIC_MEMBER = 'basic_member',
   FOUNDING_MEMBER = 'founding_member',
   EARLY_ADOPTER = 'early_adopter',
   YAKKL_PRO = 'yakkl_pro',

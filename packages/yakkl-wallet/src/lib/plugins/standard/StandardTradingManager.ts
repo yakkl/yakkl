@@ -15,7 +15,7 @@ import { UpgradeRequiredError } from '../errors/UpgradeRequiredError';
  * Pro features throw UpgradeRequiredError
  */
 export class StandardTradingManager implements ITradingManager {
-  private planType: PlanType = PlanType.MEMBER;
+  private planType: PlanType = PlanType.BASIC_MEMBER;
   private initialized = false;
 
   async initialize(planType: PlanType): Promise<void> {
