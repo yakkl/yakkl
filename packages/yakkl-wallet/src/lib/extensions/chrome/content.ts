@@ -193,7 +193,14 @@ class ContentScriptManager {
       log.debug('Initializing content script connection...', false);
 
       // Create a unified port for all communication using safe API
-      this.port = browser.runtime.connect({ name: YAKKL_DAPP });
+      try {
+        this.port = browser.runtime.connect({ name: YAKKL_DAPP });
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('Extension context invalidated')) {
+          throw new Error('Extension context invalidated during connection');
+        }
+        throw error;
+      }
 
       if (!this.port) {
         throw new Error('Failed to create connection port - extension context may be invalid');
@@ -349,11 +356,19 @@ class ContentScriptManager {
       });
     }
 
-    // Handle runtime messages
-    browser.runtime.onMessage.addListener((message: unknown, sender: Runtime.MessageSender, sendResponse: (response?: any) => void): any => {
-      this.handleRuntimeMessage(message, sender, sendResponse);
-      return false;
-    });
+    // Handle runtime messages with extension context check
+    try {
+      browser.runtime.onMessage.addListener((message: unknown, sender: Runtime.MessageSender, sendResponse: (response?: any) => void): any => {
+        this.handleRuntimeMessage(message, sender, sendResponse);
+        return false;
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Extension context invalidated')) {
+        log.warn('Extension context invalidated during onMessage.addListener', false);
+        return;
+      }
+      throw error;
+    }
   }
 
   // Handle messages from the inpage script
@@ -877,7 +892,17 @@ class ContentScriptManager {
       const container = targetWindow.document.head || targetWindow.document.documentElement;
       const script = targetWindow.document.createElement("script");
       script.setAttribute("async", "false");
-      script.src = browser.runtime.getURL("/ext/inpage.js");
+      
+      try {
+        script.src = browser.runtime.getURL("/ext/inpage.js");
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('Extension context invalidated')) {
+          log.warn('Extension context invalidated during getURL', false);
+          return;
+        }
+        throw error;
+      }
+      
       script.id = 'yakkl-provider';
       script.onload = () => {
         log.debug('Inpage script loaded', false, {
