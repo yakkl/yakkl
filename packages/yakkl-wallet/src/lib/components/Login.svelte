@@ -4,21 +4,34 @@
   import { verify } from '$lib/common/security';
   import { getContextTypeStore } from '$lib/common/stores';
   import { log } from '$lib/common/logger-wrapper';
+  import { authStore } from '$lib/stores/auth-store';
+  import AuthError from './AuthError.svelte';
+  import AuthLoading from './AuthLoading.svelte';
+  import { sessionManager } from '$lib/managers/SessionManager';
+  import { jwtManager } from '$lib/utilities/jwt';
 
   // Props using runes syntax
   const props = $props<{
-    onSuccess: (profile: any, digest: string, isMinimal: boolean) => void,
+    onSuccess: (profile: any, digest: string, isMinimal: boolean, jwtToken?: string) => void,
     onError: (error: any) => void,
     onCancel: () => void,
     loginButtonText?: string,
     cancelButtonText?: string,
     minimumAuth?: boolean,
     requestId?: string,
-    method?: string
+    method?: string,
+    useAuthStore?: boolean, // Optional flag to update auth store on login
+    generateJWT?: boolean, // Optional flag to generate JWT token on login
+    inputTextClass?: string, // Custom text color class for inputs
+    inputBgClass?: string // Custom background class for inputs
   }>();
 
   const loginButtonText = $derived(props.loginButtonText ?? 'Unlock');
   const cancelButtonText = $derived(props.cancelButtonText ?? 'Exit/Logout');
+
+  // Default to DaisyUI default colors (no explicit text/bg colors)
+  const inputTextClass = $derived(props.inputTextClass ?? 'text-base-content');
+  const inputBgClass = $derived(props.inputBgClass ?? '');
 
   // Local state
   const contextType = $state(getContextTypeStore());
@@ -30,6 +43,8 @@
   let errorMessage = $state('');
   let pweyeOpen = $state(false);
   let isLoggingIn = $state(false);
+  let retryCount = $state(0);
+  const maxRetries = 3;
 
   // Form setup with svelte-forms-lib
   const { form, errors, handleSubmit } = createForm({
@@ -49,6 +64,25 @@
 
   async function verifyUser(userName: string, password: string) {
     try {
+      let jwtToken: string | undefined;
+
+      // If useAuthStore is enabled, use the auth store login method
+      if (props.useAuthStore) {
+        const profile = await authStore.login(userName, password);
+        const digest = await import('$lib/common/stores').then(module => module.getMiscStore());
+
+        if (!digest) {
+          throw "Authentication succeeded but failed to retrieve security digest";
+        }
+
+        // Get JWT token from auth store if available
+        jwtToken = authStore.getCurrentJWTToken() || undefined;
+
+        props.onSuccess(profile, digest, minimumAuth, jwtToken);
+        return;
+      }
+
+      // Original verification method
       // Format the username properly (removing .nfs.id if already present, then adding it)
       const normalizedUsername = userName.toLowerCase().trim().replace('.nfs.id', '');
       const loginString = normalizedUsername + '.nfs.id' + password;
@@ -68,14 +102,67 @@
         throw "Authentication succeeded but failed to retrieve security digest";
       }
 
-      // Call success handler with profile, digest and minimal flag
-      props.onSuccess(profile, digest, minimumAuth);
+      // Generate JWT token if requested
+      if (props.generateJWT) {
+        try {
+          // Get user's plan level for JWT
+          const { getSettings } = await import('$lib/common/stores');
+          const settings = await getSettings();
+          const planLevel = settings?.plan?.type || 'basic';
+
+          // Generate JWT token
+          jwtToken = await jwtManager.generateToken(
+            profile.id || profile.userName,
+            profile.userName,
+            profile.id || profile.userName,
+            planLevel
+          );
+
+          // Also start session management if not using auth store
+          if (!props.useAuthStore) {
+            await sessionManager.startSession(
+              profile.id || profile.userName,
+              profile.userName,
+              profile.id || profile.userName,
+              planLevel
+            );
+          }
+
+          log.debug('JWT token generated for login', false, {
+            username: normalizedUsername,
+            hasToken: !!jwtToken
+          });
+        } catch (jwtError) {
+          log.warn('Failed to generate JWT token:', false, jwtError);
+          // Continue without JWT - don't fail the login
+        }
+      }
+
+      // Call success handler with profile, digest, minimal flag, and optional JWT
+      props.onSuccess(profile, digest, minimumAuth, jwtToken);
     } catch(e) {
-      // Format error for display
-      errorMessage = typeof e === 'string' ? e : 'Authentication failed';
+      // Increment retry count
+      retryCount++;
+
+      // Format error for display with more specific messages
+      if (typeof e === 'string') {
+        errorMessage = e;
+      } else if (e instanceof Error) {
+        errorMessage = e.message;
+      } else {
+        errorMessage = 'Authentication failed';
+      }
+
+      // Add retry guidance if max retries not reached
+      if (retryCount < maxRetries) {
+        errorMessage += ` (Attempt ${retryCount}/${maxRetries})`;
+      } else {
+        errorMessage += ' - Maximum retry attempts reached.';
+      }
+
       showError = true;
-      log.error('Login verification failed', false, e);
-      props.onLoginError(e);
+      log.error('Login verification failed', false, { error: e, retryCount, maxRetries });
+      props.onError(e);
     }
   }
 
@@ -99,6 +186,23 @@
       pwEyeClosed.removeAttribute('hidden');
       pweyeOpen = false;
     }
+  }
+
+  // Retry function
+  async function handleRetry() {
+    if (retryCount < maxRetries) {
+      showError = false;
+      errorMessage = '';
+      // Re-enable form and try again with current form values
+      await verifyUser($form.userName, $form.password);
+    }
+  }
+
+  // Dismiss error
+  function handleDismiss() {
+    showError = false;
+    errorMessage = '';
+    retryCount = 0; // Reset retry count on manual dismiss
   }
 
   // Initialize eye icons on component mount
@@ -128,7 +232,7 @@
           <input
             id="userName"
             type="text"
-            class="input input-bordered input-primary w-full join-item"
+            class="input input-bordered input-primary w-full join-item {inputTextClass} {inputBgClass}"
             placeholder="Username"
             autocomplete="off"
             bind:value="{$form.userName}"
@@ -146,7 +250,7 @@
         <input
           id="password"
           type="password"
-          class="input input-bordered input-primary w-full mt-2"
+          class="input input-bordered input-primary w-full mt-2 {inputTextClass} {inputBgClass}"
           placeholder="Password"
           autocomplete="off"
           bind:value="{$form.password}"
@@ -201,7 +305,7 @@
         </div>
       </button>
 
-      <button type="button" onclick={props.onLoginCancel}
+      <button type="button" onclick={props.onCancel}
         class="bg-slate-400 hover:bg-slate-500 w-64 rounded-full py-2 px-4 mt-3 font-bold text-white">
         <div class="inline-flex items-center align-middle">
           <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" stroke="currentColor" class="w-6 h-6 mx-2">
@@ -215,9 +319,20 @@
     </div>
   </form>
 
-  {#if showError}
-    <div class="error-message mt-3 text-red-500">
-      {errorMessage}
-    </div>
+  <!-- Loading state -->
+  {#if isLoggingIn}
+    <AuthLoading
+      message="Authenticating..."
+      variant="spinner"
+      size="md"
+      className="mt-4"
+    />
   {/if}
+
+  <!-- Error handling with retry -->
+  <AuthError
+    error={showError ? errorMessage : null}
+    onRetry={retryCount < maxRetries && !isLoggingIn ? handleRetry : undefined}
+    onDismiss={!isLoggingIn ? handleDismiss : undefined}
+  />
 </div>

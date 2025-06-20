@@ -499,27 +499,67 @@ class ExtensionMessaging {
    * Notify the background script that login is verified or not (only for protected contexts)
    */
   public async setLoginVerified(verified: boolean, contextType?: string): Promise<void> {
-    if (!isBrowser || !this.browserApi) return;
-
-    const actualContextType = contextType || this.getContextType();
-
-    // Only send login verification for protected contexts
-    if (!contextNeedsIdleProtection(actualContextType)) {
-      log.info(`[Messaging - setLoginVerified] Skipping login verification for non-protected context: ${actualContextType}`);
+    if (!isBrowser || !this.browserApi) {
+      log.warn(`[Messaging - setLoginVerified] ❌ CANNOT SET LOGIN VERIFIED:`, false, {
+        isBrowser,
+        hasBrowserApi: !!this.browserApi,
+        verified,
+        contextType
+      });
       return;
     }
 
-    await this.sendMessage('SET_LOGIN_VERIFIED', {
+    const actualContextType = contextType || this.getContextType();
+
+    log.info(`[Messaging - setLoginVerified] 🔐 LOGIN VERIFICATION REQUEST:`, false, {
+      verified,
+      providedContextType: contextType,
+      actualContextType,
+      contextId: this.contextId,
+      isProtectedContext: contextNeedsIdleProtection(actualContextType),
+      protectedContexts
+    });
+
+    // Only send login verification for protected contexts
+    if (!contextNeedsIdleProtection(actualContextType)) {
+      log.warn(`[Messaging - setLoginVerified] ❌ SKIPPING - not a protected context:`, false, {
+        contextType: actualContextType,
+        protectedContexts,
+        reason: 'Context type not in protected contexts list'
+      });
+      return;
+    }
+
+    const messageData = {
       verified,
       contextId: this.contextId,
       contextType: actualContextType
-    }, {
-      priority: 'high',
-      retryOnFail: true,
-      deduplicate: false
-    });
+    };
 
-    log.info(`[Messaging - setLoginVerified] Login ${verified ? 'verified' : 'unverified'} for protected context: ${this.contextId}`);
+    log.info(`[Messaging - setLoginVerified] 📤 SENDING SET_LOGIN_VERIFIED message:`, false, messageData);
+
+    try {
+      await this.sendMessage('SET_LOGIN_VERIFIED', messageData, {
+        priority: 'high',
+        retryOnFail: true,
+        deduplicate: false
+      });
+
+      log.info(`[Messaging - setLoginVerified] ✅ SET_LOGIN_VERIFIED sent successfully:`, false, {
+        verified,
+        contextId: this.contextId,
+        contextType: actualContextType
+      });
+    } catch (error) {
+      log.error(`[Messaging - setLoginVerified] ❌ ERROR sending SET_LOGIN_VERIFIED:`, false, {
+        error,
+        messageData,
+        contextId: this.contextId
+      });
+      throw error;
+    }
+
+    log.info(`[Messaging - setLoginVerified] 🎉 Login ${verified ? 'verified' : 'unverified'} for protected context: ${this.contextId}`);
   }
 
   /**
@@ -709,19 +749,45 @@ export async function startActivityTracking(contextType?: string): Promise<void>
 
   const actualContextType = contextType || determineBestContextType();
 
+  log.info(`[Messaging - startActivityTracking] 🚀 STARTING ACTIVITY TRACKING:`, false, {
+    providedContextType: contextType,
+    actualContextType,
+    isProtectedContext: contextNeedsIdleProtection(actualContextType),
+    expectedProtectedTypes: protectedContexts,
+    isBrowser: isBrowser,
+    messagingServiceExists: !!messagingService
+  });
+
   // Only start activity tracking for protected contexts
   if (!contextNeedsIdleProtection(actualContextType)) {
-    log.info(`[Messaging - startActivityTracking] Skipping activity tracking start for non-protected context: ${actualContextType}`);
+    log.warn(`[Messaging - startActivityTracking] ❌ SKIPPING - not a protected context:`, false, {
+      contextType: actualContextType,
+      protectedContexts,
+      reason: 'Context type not in protected contexts list'
+    });
     return;
   }
 
-  // Verify the login
-  await messagingService.setLoginVerified(true, actualContextType);
+  log.info(`[Messaging - startActivityTracking] 🔐 Setting login verified for protected context: ${actualContextType}`);
 
-  // Ensure activity tracking is set up - should have been called in +layout.svelte at route level
-  messagingService.setupActivityTracking();
+  try {
+    // Verify the login - this should trigger idle detection
+    await messagingService.setLoginVerified(true, actualContextType);
+    log.info(`[Messaging - startActivityTracking] ✅ Login verification message sent successfully`);
+  } catch (error) {
+    log.error(`[Messaging - startActivityTracking] ❌ ERROR sending login verification:`, false, error);
+    throw error;
+  }
 
-  log.info(`[Messaging - startActivityTracking] Activity tracking started for protected context: ${actualContextType}`);
+  try {
+    // Ensure activity tracking is set up - should have been called in +layout.svelte at route level
+    messagingService.setupActivityTracking();
+    log.info(`[Messaging - startActivityTracking] ✅ Activity tracking setup completed`);
+  } catch (error) {
+    log.error(`[Messaging - startActivityTracking] ❌ ERROR setting up activity tracking:`, false, error);
+  }
+
+  log.info(`[Messaging - startActivityTracking] 🎉 ACTIVITY TRACKING STARTED for protected context: ${actualContextType}`);
 }
 
 /**

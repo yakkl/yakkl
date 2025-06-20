@@ -6,6 +6,7 @@
 	import { sessionToken, sessionExpiresAt, storeSessionToken } from '$lib/common/auth/session';
 	import { get } from 'svelte/store';
 	import { log } from '$lib/managers/Logger';
+	import SessionProvider from '$lib/components/SessionProvider.svelte';
 
   let { children } = $props();
 
@@ -25,4 +26,6 @@
   });
 </script>
 
-{@render children?.()}
+<SessionProvider>
+  {@render children?.()}
+</SessionProvider>
