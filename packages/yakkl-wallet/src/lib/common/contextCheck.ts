@@ -1,5 +1,3 @@
-import browser from 'webextension-polyfill';
-
 /**
  * Background context detection (for Manifest V3 service worker).
  * `importScripts` is available only in service worker scripts.
@@ -7,12 +5,21 @@ import browser from 'webextension-polyfill';
 declare const importScripts: (...args: string[]) => void; // avoid lint/TS error
 
 export function isBackgroundContext(): boolean {
-  return (
-    typeof self !== 'undefined' &&
-    typeof importScripts === 'function' &&
-    typeof browser !== 'undefined' &&
-    typeof browser.runtime !== 'undefined'
-  );
+  // SSR guard
+  if (typeof window === 'undefined') return false;
+  
+  try {
+    // Dynamic import to avoid SSR issues
+    const browser = (globalThis as any).browser || (globalThis as any).chrome;
+    return (
+      typeof self !== 'undefined' &&
+      typeof importScripts === 'function' &&
+      typeof browser !== 'undefined' &&
+      typeof browser.runtime !== 'undefined'
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -30,14 +37,22 @@ export function isExtensionPage(): boolean {
  * True if running in a content script injected into a web page.
  */
 export function isContentScript(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    typeof document !== 'undefined' &&
-    typeof browser !== 'undefined' &&
-    !!browser.runtime &&
-    window.location.protocol !== 'chrome-extension:' &&
-    window.location.protocol !== 'moz-extension:'
-  );
+  // SSR guard
+  if (typeof window === 'undefined') return false;
+  
+  try {
+    const browser = (globalThis as any).browser || (globalThis as any).chrome;
+    return (
+      typeof window !== 'undefined' &&
+      typeof document !== 'undefined' &&
+      typeof browser !== 'undefined' &&
+      !!browser.runtime &&
+      window.location.protocol !== 'chrome-extension:' &&
+      window.location.protocol !== 'moz-extension:'
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**

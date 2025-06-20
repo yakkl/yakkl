@@ -12,7 +12,7 @@
 	import LockedSectionCard from './LockedSectionCard.svelte';
 	import Upgrade from './Upgrade.svelte';
 	import { onMount } from 'svelte';
-	import { isPro } from '$lib/common/utils';
+	import { isProLevel } from '$lib/common/utils';
 
   interface Props {
     show?: boolean;
@@ -59,7 +59,7 @@
   );
 
   onMount(async () => {
-    locked = (await isPro() ? false : true);
+    locked = (await isProLevel() ? false : true);
   });
 
   function handleSearch(query: string) {
@@ -86,7 +86,7 @@
   let showLockedFooter = $state(false);
 
   async function updateLockedFooterState() {
-    showLockedFooter = !(await isPro());
+    showLockedFooter = !(await isProLevel());
   }
 
   $effect(() => {

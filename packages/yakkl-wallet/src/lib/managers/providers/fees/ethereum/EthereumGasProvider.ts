@@ -16,7 +16,8 @@ import {
   EOA_FALLBACK_GAS,
 } from '$lib/common/gas-types';
 import type { PriceProvider, SwapToken, TransactionRequest } from '$lib/common/interfaces';
-import type { Blockchain, Wallet } from '$lib/managers';
+import type { Blockchain } from '$lib/managers/Blockchain';
+import type { Wallet } from '$lib/managers/Wallet';
 import { Ethereum } from '$lib/managers/blockchains/evm/ethereum/Ethereum';
 import { log } from '$lib/common/logger-wrapper';
 import type { UniswapSwapManager } from '$lib/managers/UniswapSwapManager';

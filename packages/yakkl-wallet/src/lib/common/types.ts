@@ -132,12 +132,19 @@ export enum AccountTypeStatus {
 export enum RegisteredType {
   STANDARD = 'standard',
   PRO = 'pro',
+  INSTITUTION = 'institution',
+  BUSINESS = 'business',
+  ENTERPRISE = 'enterprise',
+  GENESIS_FOUNDING_PRO = 'genesis_founding_pro',
+  EARLY_ADOPTER_PRO = 'early_adopter_pro',
 }
 
 export enum PlanType {
   TRIAL = 'trial',
-  STANDARD = 'standard',
-  PRO = 'pro',
+  MEMBER = 'member',
+  FOUNDING_MEMBER = 'founding_member',
+  EARLY_ADOPTER = 'early_adopter',
+  YAKKL_PRO = 'yakkl_pro',
   INSTITUTION = 'institution',
   BUSINESS = 'business',
   ENTERPRISE = 'enterprise',
@@ -155,6 +162,9 @@ export enum AccessSourceType {
 
 // promoType?: PromoClassificationType
 export enum PromoClassificationType {
+  FOUNDING_MEMBER = 'founding_member',
+  EARLY_ADOPTER = 'early_adopter',
+  YAKKL_PRO = 'yakkl_pro',
   INFLUENCER = 'influencer',
   EMPLOYEE = 'employee',
   SPECIAL = 'special',

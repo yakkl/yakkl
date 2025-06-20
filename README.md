@@ -13,6 +13,7 @@ YAKKL Smart Wallet is a multi-platform cryptocurrency wallet designed for seamle
 - [YAKKL Smart Wallet](#yakkl-smart-wallet)
   - [Overview](#overview)
   - [Table of Contents](#table-of-contents)
+  - [Utilities](#utilities)
   - [Introduction](#introduction)
   - [Features](#features)
       - [Important](#important)
@@ -48,6 +49,10 @@ YAKKL Smart Wallet is a multi-platform cryptocurrency wallet designed for seamle
   - [Acknowledgements](#acknowledgements)
     - [Final Notes](#final-notes)
   - [EXPERIMENTAL](#experimental)
+
+## Utilities
+
+We use tokei for giving us basic analytics on our projects such as loc (lines of code), etc.
 
 ## Introduction
 

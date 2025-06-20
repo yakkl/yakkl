@@ -1,5 +1,5 @@
 import { log } from '$lib/managers/Logger';
-import { signingManager } from './signingManager';
+import { getSigningManager } from './signingManager';
 import type { Runtime } from 'webextension-polyfill';
 
 export type SigningRequest = {
@@ -44,7 +44,7 @@ export async function onSigningRequestListener(
 
     log.info('onSigningRequestListener - Handling signing request', false, { request });
 
-    const signingManagerInstance = await signingManager;
+    const signingManagerInstance = await getSigningManager();
     const result = await signingManagerInstance.handleSigningRequest(
       request.requestId,
       request.type,

@@ -118,7 +118,7 @@ export class UpgradeManager {
         decryptedData.registered = {
           ...decryptedData.registered,
           plan: {
-            type: PlanType.PRO,
+            type: PlanType.YAKKL_PRO,
             source: AccessSourceType.SUBSCRIBED,
             promo: PromoClassificationType.NONE, // These values need to be updated to the correct values - TODO: Add the correct values
             trialEndDate: '',
@@ -132,7 +132,7 @@ export class UpgradeManager {
 
       // Update settings
       settings.plan = {
-        type: PlanType.PRO,
+        type: PlanType.YAKKL_PRO,
         source: AccessSourceType.SUBSCRIBED,
         promo: PromoClassificationType.NONE, // These values need to be updated to the correct values - TODO: Add the correct values
         trialEndDate: '',

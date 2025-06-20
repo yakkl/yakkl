@@ -28,7 +28,7 @@
   import { CoinbasePriceProvider } from '$lib/managers/providers/price/coinbase/CoinbasePriceProvider';
 	import type { Wallet } from '$lib/managers/Wallet';
 	import WalletManager from '$lib/managers/WalletManager';
-	import type { Provider } from '$lib/managers';
+	import type { Provider } from '$lib/managers/Provider';
 	import type { Ethereum } from '$lib/managers/blockchains/evm/ethereum/Ethereum';
 	import { TokenService } from '$lib/managers/blockchains/evm/TokenService';
 	import { UniswapSwapManager } from '$lib/managers/UniswapSwapManager';

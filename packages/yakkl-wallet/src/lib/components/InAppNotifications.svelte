@@ -4,6 +4,7 @@
   import { browser_ext } from '$lib/common/environment';
   import { fade, fly, scale } from 'svelte/transition';
   import { NotificationService } from '$lib/common/notifications';
+  import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 
   // State
   let notifications = $state<Array<{
@@ -13,7 +14,7 @@
     message: string;
     timestamp: number;
     countdown?: number;
-    countdownInterval?: number;
+    countdownInterval?: string; // Now stores timer ID
     delayMs?: number;
   }>>([]);
 
@@ -21,6 +22,8 @@
   let isLockdownActive = $state(false);
   let lockdownTimeLeft = $state(0);
   let isUrgent = $state(false);
+
+  const timerManager = UnifiedTimerManager.getInstance();
 
   // Initialize listener
   onMount(() => {
@@ -61,14 +64,16 @@
           delayMs
         });
 
-        // Start countdown
-        const interval = window.setInterval(() => {
+        // Start countdown using UnifiedTimerManager
+        const intervalId = `countdown-${id}`;
+        timerManager.addInterval(intervalId, () => {
           updateCountdown(id);
         }, 1000);
+        timerManager.startInterval(intervalId);
 
         // Store the interval ID
         notifications = notifications.map(n =>
-          n.id === id ? { ...n, countdownInterval: interval } : n
+          n.id === id ? { ...n, countdownInterval: intervalId } : n
         );
 
         if (browser_ext.runtime && browser_ext.runtime.onMessage) {
@@ -154,7 +159,8 @@
     // Clear any countdown interval
     const notification = notifications.find(n => n.id === id);
     if (notification && notification.countdownInterval) {
-      clearInterval(notification.countdownInterval);
+      timerManager.stopInterval(notification.countdownInterval);
+      timerManager.removeInterval(notification.countdownInterval);
     }
 
     // If removing lockdown notification, clear lockdown state
@@ -194,7 +200,8 @@
   function clearAllIntervals() {
     notifications.forEach(notification => {
       if (notification.countdownInterval) {
-        clearInterval(notification.countdownInterval);
+        timerManager.stopInterval(notification.countdownInterval);
+        timerManager.removeInterval(notification.countdownInterval);
       }
     });
   }

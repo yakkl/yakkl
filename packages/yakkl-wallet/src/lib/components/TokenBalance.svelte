@@ -4,7 +4,7 @@
   import { ethers as ethersv6 } from 'ethers-v6';
   import { getTokenBalance } from '$lib/utilities/balanceUtils';
   import type { TokenService } from '$lib/managers/blockchains/evm/TokenService';
-  import type { Provider } from '$lib/managers';
+  import type { Provider } from '$lib/managers/Provider';
 
   interface Props {
     token: SwapToken;

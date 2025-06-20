@@ -5,7 +5,7 @@ import type { YakklCurrentlySelected, YakklResponse } from '$lib/common/interfac
 import { getYakklCurrentlySelected } from '$lib/common/stores';
 import { STORAGE_YAKKL_ACCOUNTS } from '$lib/common';
 import type { YakklAccount } from '$lib/common';
-import type { Wallet } from '$lib/managers';
+import type { Wallet } from '$lib/managers/Wallet';
 import type { EthereumSigner } from '$lib/managers/blockchains/evm/ethereum/EthereumSigner';
 import { getObjectFromLocalStorage } from '$lib/common/backgroundStorage';
 import type { Signer } from '$lib/managers/Signer';
@@ -211,4 +211,4 @@ export class SigningManager {
   }
 }
 
-export const signingManager = SigningManager.getInstance();
+export const getSigningManager = () => SigningManager.getInstance();

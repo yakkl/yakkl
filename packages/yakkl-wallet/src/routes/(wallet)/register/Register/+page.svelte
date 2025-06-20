@@ -52,9 +52,9 @@
   let promoDate = new Date('2026-01-01T00:00:00');
   let date = new Date();
   if (date < promoDate) {
-    $yakklVersionStore = PlanType.PRO;
+    $yakklVersionStore = PlanType.YAKKL_PRO;
   } else {
-    $yakklVersionStore = PlanType.STANDARD;
+    $yakklVersionStore = PlanType.MEMBER;
   }
   ////
 
@@ -189,13 +189,13 @@
         if (date < promoDate) {
           profileData.registered = {
             plan: {
-              type: PlanType.PRO,
+              type: PlanType.YAKKL_PRO,
               source: AccessSourceType.STANDARD,
               promo: PromoClassificationType.NONE,
               trialEndDate: '',
               upgradeDate: ''
             },
-            key: PlanType.PRO,
+            key: PlanType.YAKKL_PRO,
             version: VERSION,
             createDate: dateString(),
             updateDate: dateString()
@@ -250,7 +250,7 @@
         // const settings = await getSettings();
         if (yakklSettings !== null) {
           yakklSettings.id = yakklProfile.id;
-          yakklSettings.plan.type = PlanType.STANDARD;
+          yakklSettings.plan.type = PlanType.MEMBER;
           yakklSettings.lastAccessDate = yakklSettings.updateDate = yakklProfile.createDate;
           yakklSettings.init = true;
           yakklSettings.isLocked = false;

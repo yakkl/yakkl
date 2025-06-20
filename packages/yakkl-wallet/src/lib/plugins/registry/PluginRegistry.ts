@@ -2,10 +2,12 @@ import { PlanType } from '$lib/common';
 import type { ITradingManager } from '../interfaces/ITradingManager';
 import type { IAccountManager } from '../interfaces/IAccountManager';
 import type { INewsManager } from '../interfaces/INewsManager';
+import type { IHardwareWalletManager } from '../interfaces/IHardwareWalletManager';
 
 import { StandardTradingManager } from '../standard/StandardTradingManager';
 import { StandardAccountManager } from '../standard/StandardAccountManager';
 import { StandardNewsManager } from '../standard/StandardNewsManager';
+import { StandardHardwareWalletManager } from '../standard/StandardHardwareWalletManager';
 
 /**
  * Plugin configuration interface
@@ -14,6 +16,7 @@ export interface PluginManagerConfig {
   trading: ITradingManager;
   accounts: IAccountManager;
   news: INewsManager;
+  hardwareWallet: IHardwareWalletManager;
 }
 
 /**
@@ -38,6 +41,10 @@ export interface PluginFeatures {
   dataExport: boolean;
   advancedSearch: boolean;
   personalization: boolean;
+  hardwareWallets: boolean;
+  multipleHardwareWallets: boolean;
+  bulkHardwareSigning: boolean;
+  customDerivationPaths: boolean;
 }
 
 /**
@@ -47,7 +54,7 @@ export interface PluginFeatures {
 export class PluginRegistry {
   private static instance: PluginRegistry;
   private managers: PluginManagerConfig | null = null;
-  private currentPlan: PlanType = PlanType.STANDARD;
+  private currentPlan: PlanType = PlanType.MEMBER;
   private initialized = false;
 
   private constructor() {}
@@ -75,7 +82,7 @@ export class PluginRegistry {
       }
 
       // Load appropriate implementations based on plan
-      if (planType === PlanType.PRO || planType === PlanType.ENTERPRISE) {
+      if (planType === PlanType.YAKKL_PRO || planType === PlanType.ENTERPRISE) {
         this.managers = await this.loadProManagers();
       } else {
         this.managers = await this.loadStandardManagers();
@@ -85,7 +92,8 @@ export class PluginRegistry {
       await Promise.all([
         this.managers.trading.initialize(planType),
         this.managers.accounts.initialize(planType),
-        this.managers.news.initialize(planType)
+        this.managers.news.initialize(planType),
+        this.managers.hardwareWallet.initialize()
       ]);
 
       this.initialized = true;
@@ -102,18 +110,19 @@ export class PluginRegistry {
       // Fallback to standard managers on error
       this.managers = await this.loadStandardManagers();
       await Promise.all([
-        this.managers.trading.initialize(PlanType.STANDARD),
-        this.managers.accounts.initialize(PlanType.STANDARD),
-        this.managers.news.initialize(PlanType.STANDARD)
+        this.managers.trading.initialize(PlanType.MEMBER),
+        this.managers.accounts.initialize(PlanType.MEMBER),
+        this.managers.news.initialize(PlanType.MEMBER),
+        this.managers.hardwareWallet.initialize()
       ]);
 
       this.initialized = true;
-      this.currentPlan = PlanType.STANDARD;
+      this.currentPlan = PlanType.MEMBER;
 
       return {
         success: false,
-        planType: PlanType.STANDARD,
-        features: this.getAvailableFeatures(PlanType.STANDARD),
+        planType: PlanType.MEMBER,
+        features: this.getAvailableFeatures(PlanType.MEMBER),
         errors: [error instanceof Error ? error.message : 'Unknown error occurred']
       };
     }
@@ -132,7 +141,8 @@ export class PluginRegistry {
         return {
           trading: new proManagers.ProTradingManager(),
           accounts: new proManagers.ProAccountManager(),
-          news: new proManagers.ProNewsManager()
+          news: new proManagers.ProNewsManager(),
+          hardwareWallet: new proManagers.ProHardwareWalletManager()
         };
       }
 
@@ -170,7 +180,8 @@ export class PluginRegistry {
     return {
       trading: new StandardTradingManager(),
       accounts: new StandardAccountManager(),
-      news: new StandardNewsManager()
+      news: new StandardNewsManager(),
+      hardwareWallet: new StandardHardwareWalletManager()
     };
   }
 
@@ -178,7 +189,7 @@ export class PluginRegistry {
    * Get available features based on plan type
    */
   private getAvailableFeatures(planType: PlanType): PluginFeatures {
-    const isAdvanced = planType === PlanType.PRO || planType === PlanType.ENTERPRISE;
+    const isAdvanced = planType === PlanType.YAKKL_PRO || planType === PlanType.ENTERPRISE;
 
     return {
       advancedTrading: isAdvanced,
@@ -188,7 +199,11 @@ export class PluginRegistry {
       customRSSFeeds: isAdvanced,
       dataExport: isAdvanced,
       advancedSearch: isAdvanced,
-      personalization: isAdvanced
+      personalization: isAdvanced,
+      hardwareWallets: true, // Available to all users
+      multipleHardwareWallets: isAdvanced,
+      bulkHardwareSigning: isAdvanced,
+      customDerivationPaths: isAdvanced
     };
   }
 
@@ -220,6 +235,16 @@ export class PluginRegistry {
       throw new Error('Plugin registry not initialized');
     }
     return this.managers.news;
+  }
+
+  /**
+   * Get hardware wallet manager
+   */
+  get hardwareWallet(): IHardwareWalletManager {
+    if (!this.initialized || !this.managers) {
+      throw new Error('Plugin registry not initialized');
+    }
+    return this.managers.hardwareWallet;
   }
 
   /**
@@ -267,13 +292,14 @@ export class PluginRegistry {
       await Promise.all([
         this.managers.trading.dispose(),
         this.managers.accounts.dispose(),
-        this.managers.news.dispose()
+        this.managers.news.dispose(),
+        this.managers.hardwareWallet.dispose()
       ]);
       this.managers = null;
     }
 
     this.initialized = false;
-    this.currentPlan = PlanType.STANDARD;
+    this.currentPlan = PlanType.MEMBER;
   }
 }
 

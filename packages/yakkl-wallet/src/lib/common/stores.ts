@@ -66,7 +66,8 @@ import type {
 } from '$lib/common/interfaces';
 
 import { walletStore, type Wallet } from '$lib/managers/Wallet';
-import type { Blockchain, Provider } from '$lib/managers';
+import type { Blockchain } from '$lib/managers/Blockchain';
+import type { Provider } from '$lib/managers/Provider';
 import type { TokenService } from '$lib/managers/blockchains/evm/TokenService';
 import { tokens } from './stores/tokens';
 // import { timerManagerStore } from '$lib/managers/TimerManager';

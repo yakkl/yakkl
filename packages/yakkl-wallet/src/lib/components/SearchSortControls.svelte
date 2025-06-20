@@ -2,6 +2,7 @@
 <script lang="ts">
   import SearchIcon from './icons/SearchIcon.svelte';
   import SortIcon from './icons/SortIcon.svelte';
+  import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 
   let {
     searchQuery = '',
@@ -19,14 +20,14 @@
     onSortDirectionChange: () => void;
   }>();
 
-  // Handle search input with debounce
-  let searchTimeout: NodeJS.Timeout;
+  // Handle search input with debounce using UnifiedTimerManager
+  const debouncedSearch = UnifiedTimerManager.createDebounce((value: string) => {
+    onSearch(value);
+  }, 300);
+
   function handleSearch(e: Event) {
     const value = (e.target as HTMLInputElement).value;
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-      onSearch(value);
-    }, 300);
+    debouncedSearch(value);
   }
 
   // Handle sort order change

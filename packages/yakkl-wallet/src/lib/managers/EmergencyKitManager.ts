@@ -56,18 +56,8 @@ import { log } from './Logger';
 // import type { Token } from './Token';
 // Then do: npm install aws-sdk
 
-// Add conditional import to handle server-side only
-let fs: typeof import('fs') | undefined;
-let promisify: typeof import('util').promisify | undefined;
-if (typeof window === 'undefined') {
-  // Use dynamic import to ensure it works in a server environment
-  import('fs').then((module) => {
-    fs = module;
-  });
-  import('util').then((module) => {
-    promisify = module.promisify;
-  });
-}
+// Note: Browser extension environment - Node.js modules not available
+// File operations are handled through browser File API only
 
 
 export class EmergencyKitManager {
@@ -173,7 +163,7 @@ export class EmergencyKitManager {
       version: VERSION,
       type: "yakkl_bulk",
       plan: {
-        type: profileData?.registered?.plan.type ?? PlanType.STANDARD,
+        type: profileData?.registered?.plan.type ?? PlanType.MEMBER,
         source: AccessSourceType.STANDARD,
         promo: PromoClassificationType.INFLUENCER,
         trialEndDate: '',
@@ -217,10 +207,6 @@ export class EmergencyKitManager {
       // Browser environment
       this.downloadObjectAsJson(emergencyKit, fileName);
       return fileName;
-    } else if (filePath && fs && promisify) {
-      // Node.js or other non-browser environment
-      await this.saveJsonToFile(emergencyKit, filePath);
-      return filePath;
     } else {
       throw new Error('Download not supported in this environment');
     }
@@ -245,11 +231,7 @@ export class EmergencyKitManager {
   static async importEmergencyKit(source: File | string | { bucket: string, key: string }, passwordOrSaltedKey: string | SaltedKey): Promise<EmergencyKitData> {
     let fileContent: string;
 
-    if (typeof source === 'string' && fs && promisify) {
-      // Node.js or other non-browser environment
-      const readFile = promisify(fs.readFile);
-      fileContent = await readFile(source, 'utf-8');
-    } else if (source instanceof File) {
+    if (source instanceof File) {
       // Browser environment
       fileContent = await source.text();
     } else {
@@ -273,13 +255,7 @@ export class EmergencyKitManager {
     try {
       let fileContent: string;
 
-      if (typeof source === 'string' && typeof window === 'undefined') {
-        // Node.js environment
-        const fs = await import('fs');
-        const { promisify } = await import('util');
-        const readFile = promisify(fs.readFile);
-        fileContent = await readFile(source, 'utf-8');
-      } else if (source instanceof File) {
+      if (source instanceof File) {
         // Browser environment
         fileContent = await source.text();
       } else {
@@ -320,13 +296,7 @@ export class EmergencyKitManager {
   static async readEmergencyKitMetadata(source: File | string): Promise<EmergencyKitMetaData | undefined> {
     let fileContent: string;
 
-    if (typeof source === 'string' && typeof window === 'undefined') {
-      // Node.js environment
-      const fs = await import('fs');
-      const { promisify } = await import('util');
-      const readFile = promisify(fs.readFile);
-      fileContent = await readFile(source, 'utf-8');
-    } else if (source instanceof File) {
+    if (source instanceof File) {
       // Browser environment
       fileContent = await source.text();
     } else {
@@ -341,13 +311,7 @@ export class EmergencyKitManager {
     try {
       let fileContent: string;
 
-      if (typeof source === 'string' && typeof window === 'undefined') {
-        // Node.js environment
-        const fs = await import('fs');
-        const { promisify } = await import('util');
-        const readFile = promisify(fs.readFile);
-        fileContent = await readFile(source, 'utf-8');
-      } else if (source instanceof File) {
+      if (source instanceof File) {
         // Browser environment
         fileContent = await source.text();
       } else {
@@ -429,18 +393,8 @@ export class EmergencyKitManager {
     return 'xxxxxx'.replace(/x/g, () => Math.floor(Math.random() * 16).toString(16));
   }
 
-  private static async saveJsonToFile(exportObj: any, filePath: string) {
-    if (fs && promisify) {
-      const writeFile = promisify(fs.writeFile);
-      try {
-        const dataStr = JSON.stringify(exportObj, null, 2); // Pretty print JSON
-        await writeFile(filePath, dataStr, 'utf8');
-        log.info(`Emergency kit saved to ${filePath}`);
-      } catch (e) {
-        log.error(`Failed to save emergency kit: ${e}`);
-      }
-    }
-  }
+  // File saving is not supported in browser extension environment
+  // Use downloadObjectAsJson for browser-based downloads
 
 }
 

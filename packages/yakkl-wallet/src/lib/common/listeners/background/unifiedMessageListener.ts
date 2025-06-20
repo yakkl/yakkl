@@ -9,7 +9,7 @@ import type { SessionToken } from '$lib/common/interfaces';
 import type { YakklResponse } from '$lib/common/interfaces';
 import { getSafeUUID } from '$lib/common/uuid';
 import { requestManager } from '$lib/extensions/chrome/requestManager';
-import { signingManager } from '$lib/extensions/chrome/signingManager';
+import { getSigningManager } from '$lib/extensions/chrome/signingManager';
 import { getYakklCurrentlySelected } from '$lib/common/stores';
 import { showEIP6963Popup } from '$lib/extensions/chrome/eip-6963';
 import type { BackgroundPendingRequest } from '$lib/extensions/chrome/background';
@@ -619,7 +619,7 @@ async function handleSigningMessage(
     }
 
     // Handle the signing request
-    const signingManagerInstance = await signingManager;
+    const signingManagerInstance = await getSigningManager();
     const result = await signingManagerInstance.handleSigningRequest(requestId, type, params, token);
     log.info('Signing request completed', false, { result });
 

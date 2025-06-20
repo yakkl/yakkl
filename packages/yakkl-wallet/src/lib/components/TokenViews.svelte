@@ -13,6 +13,7 @@
 	import { onMount } from 'svelte';
   import { sessionInitialized } from '$lib/common/stores';
 	import TokenSymbolOverviewView from './TokenSymbolOverviewView.svelte';
+  import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 
   let tokens = $state<TokenData[]>([]);
   let sortedTokens = $state<TokenData[]>([]);
@@ -30,13 +31,18 @@
     // Always start loading when component mounts
     if (!$sessionInitialized) {
       isLoading = true;
+      const timerManager = UnifiedTimerManager.getInstance();
 
-      const timer = setTimeout(() => {
+      timerManager.addTimeout('token-views-loading', () => {
         isLoading = false;
         sessionInitialized.set(true); // Set to true for current session only
       }, 3000);
+      timerManager.startTimeout('token-views-loading');
 
-      return () => clearTimeout(timer);
+      return () => {
+        timerManager.stopTimeout('token-views-loading');
+        timerManager.removeTimeout('token-views-loading');
+      };
     }
   });
 

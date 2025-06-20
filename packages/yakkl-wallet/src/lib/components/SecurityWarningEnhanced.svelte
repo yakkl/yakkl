@@ -6,6 +6,8 @@
   import { browser_ext } from '$lib/common/environment';
   import { securityWarningStore, hideSecurityWarning } from '$lib/common/stores/securityWarning';
 	import { log } from '$lib/common/logger-wrapper';
+  import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
+  import { createCountdownTimer, type CountdownTimer } from '$lib/managers/CountdownTimer';
 
   interface Props {
     warningTime?: number;
@@ -15,12 +17,12 @@
   let { warningTime = 30, onComplete = () => {} } = $props();
 
   let timeLeft = $state(warningTime);
-  let timer = $state<number | undefined>(undefined);
+  let countdownTimer: CountdownTimer | null = null;
   let show = $state(false);
   let isUrgent = $state(false);
   let originalTitle = '';
-  let titleFlashInterval = $state<number | undefined>(undefined);
   let isCleaningUp = $state(false);
+  let timerManager = UnifiedTimerManager.getInstance();
 
   // Subscribe to the security warning store
   let unsubscribe: (() => void) | undefined;
@@ -60,16 +62,14 @@
 
   function cleanup() {
     // Clear main countdown timer
-    if (timer) {
-      clearInterval(timer);
-      timer = undefined;
+    if (countdownTimer) {
+      countdownTimer.destroy();
+      countdownTimer = null;
     }
 
-    // Clear title flash interval
-    if (titleFlashInterval) {
-      clearInterval(titleFlashInterval);
-      titleFlashInterval = undefined;
-    }
+    // Clear title flash timer
+    timerManager.stopTimeout('title-flash');
+    timerManager.removeTimeout('title-flash');
 
     // Close audio context
     if (typeof window !== 'undefined') {
@@ -98,50 +98,43 @@
     // Store original title for restoration
     originalTitle = document.title;
 
-    timer = window.setInterval(() => {
-      timeLeft--;
-      log.debug('⏱️ [SecurityWarningEnhanced] Time left:', false, timeLeft);
+    countdownTimer = createCountdownTimer(
+      'security-warning-enhanced',
+      timeLeft,
+      (remaining) => {
+        timeLeft = remaining;
+        log.debug('⏱️ [SecurityWarningEnhanced] Time left:', false, timeLeft);
 
-      // Update urgency state
-      isUrgent = timeLeft <= 10;
+        // Update urgency state
+        isUrgent = timeLeft <= 10;
 
-      // Start title flashing at 15 seconds if not already flashing
-      if (timeLeft <= 15 && !titleFlashInterval && !document.title.includes('🚨 URGENT')) {
-        startTitleFlash();
-      }
+        // Start title flashing at 15 seconds if not already started
+        if (timeLeft <= 15 && !timerManager.isTimeoutRunning('title-flash') && !document.title.includes('🚨 URGENT')) {
+          startTitleFlash();
+        }
 
-      // Play final warning sound at 5 seconds
-      if (timeLeft === 5) {
-        playFinalWarningSound();
-      }
+        // Play final warning sound at 5 seconds
+        if (timeLeft === 5) {
+          playFinalWarningSound();
+        }
+      },
+      triggerLockdown
+    );
 
-      if (timeLeft <= 0) {
-        clearInterval(timer);
-        timer = undefined;
-        triggerLockdown();
-      }
-    }, 1000);
-
-    // Store reference for cleanup
-    if (typeof window !== 'undefined') {
-      (window as any).__yakklSecurityWarningTimer = timer;
-    }
-
+    countdownTimer.start();
     log.info('✅ [SecurityWarningEnhanced] Countdown started');
   }
 
   function startTitleFlash() {
-    if (titleFlashInterval || !originalTitle) return;
+    if (timerManager.isTimeoutRunning('title-flash') || !originalTitle) return;
 
     log.info('⚡ [SecurityWarningEnhanced] Starting title flash');
 
     let flashCount = 0;
-    titleFlashInterval = window.setInterval(() => {
+    const flashFunction = () => {
       if (flashCount >= 20) { // Flash 10 times total
-        if (titleFlashInterval) {
-          clearInterval(titleFlashInterval);
-          titleFlashInterval = undefined;
-        }
+        timerManager.stopTimeout('title-flash');
+        timerManager.removeTimeout('title-flash');
         if (originalTitle) {
           document.title = originalTitle;
         }
@@ -151,12 +144,15 @@
       const flashTitle = flashCount % 2 === 0 ? '🚨 URGENT: Security Warning!' : originalTitle;
       document.title = flashTitle;
       flashCount++;
-    }, 500);
 
-    // Store reference for cleanup
-    if (typeof window !== 'undefined') {
-      (window as any).__yakklSecurityTitleFlash = titleFlashInterval;
-    }
+      // Schedule next flash
+      timerManager.addTimeout('title-flash', flashFunction, 500);
+      timerManager.startTimeout('title-flash');
+    };
+
+    // Start the first flash
+    timerManager.addTimeout('title-flash', flashFunction, 500);
+    timerManager.startTimeout('title-flash');
   }
 
   function stopCountdown() {

@@ -3,6 +3,7 @@
   import { onDestroy } from 'svelte';
   import Banner from './Banner.svelte';
   import Ad from './Ad.svelte';
+  import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 
   type BannerItem = {
     type: 'banner';
@@ -41,7 +42,8 @@
   }>();
 
   let currentIndex = $state(0);
-  let timer: ReturnType<typeof setInterval>;
+  const timerManager = UnifiedTimerManager.getInstance();
+  const timerId = 'rotating-banner';
   let current = $derived(items[currentIndex]);
 
   function next() {
@@ -54,13 +56,19 @@
 
   $effect(() => {
     if (autoRotate && interval > 0 && items.length > 1) {
-      clearInterval(timer);
-      timer = setInterval(next, interval);
+      timerManager.stopInterval(timerId);
+      timerManager.removeInterval(timerId);
+      timerManager.addInterval(timerId, next, interval);
+      timerManager.startInterval(timerId);
+    } else {
+      timerManager.stopInterval(timerId);
+      timerManager.removeInterval(timerId);
     }
   });
 
   onDestroy(() => {
-    if (timer) clearInterval(timer);
+    timerManager.stopInterval(timerId);
+    timerManager.removeInterval(timerId);
   });
 </script>
 

@@ -1,5 +1,5 @@
 import { writable } from "svelte/store";
-import { log } from "$lib/managers/Logger";
+import { UnifiedTimerManager } from "./UnifiedTimerManager";
 
 type TimerCallback = () => void;
 
@@ -12,9 +12,11 @@ export interface Timer {
 
 export const timerManagerStore = writable<TimerManager | null>(null);
 
+// TimerManager wraps UnifiedTimerManager for backward compatibility
 export class TimerManager {
   private timers: Map<string, Timer> = new Map();
   private static instance: TimerManager | null = null;
+  private unifiedManager: UnifiedTimerManager;
 
   constructor() {
     if (TimerManager.instance) {
@@ -23,6 +25,7 @@ export class TimerManager {
       }
       return TimerManager.instance;
     }
+    this.unifiedManager = UnifiedTimerManager.getInstance();
     TimerManager.instance = this;
     timerManagerStore.set(this);
   }
@@ -33,8 +36,7 @@ export class TimerManager {
 
   public static clearInstance(): void {
     if (this.instance) {
-      this.instance.stopAll(); // Fully clear all timers
-      this.instance.removeAll();
+      this.instance.unifiedManager.clearAll();
     }
     this.instance = null;
     timerManagerStore.set(null);
@@ -52,113 +54,85 @@ export class TimerManager {
    * @param duration - Duration in milliseconds.
    */
   addTimer(id: string, callback: TimerCallback, duration: number): void {
-    if (this.timers.has(id)) {
-      // log.info(`Timer "${id}" already exists.`);
-      return;
-    }
+    // Store locally for backward compatibility
     this.timers.set(id, { id, callback, duration, handleIntervalID: null });
-    // log.info(`Timer "${id}" added.`);
+    // Delegate to unified manager
+    this.unifiedManager.addInterval(id, callback, duration);
   }
 
-  hasTimer(id: string) {
-    if (this.timers.has(id)) {
-      // log.info(`Timer "${id}" exists.`);
-      return true;
-    }
-    return false;
+  hasTimer(id: string): boolean {
+    return this.timers.has(id);
   }
 
   /**
    * Start a timer by ID.
    */
   startTimer(id: string): void {
-    this.startTimerDelayed(id);
+    this.unifiedManager.startInterval(id);
   }
 
-  // This and startTimerImmediate are the same. This is for consistency with TimeoutManagerTimeout
   startTimerDelayed(id: string): void {
-    const timer = this.timers.get(id);
-    if (!timer) return log.error(`Timer "${id}" not found.`);
-    if (timer.handleIntervalID) return log.warn(`Timer "${id}" is already running.`);
-
-    timer.handleIntervalID = setInterval(timer.callback, timer.duration);
-    // log.info(`Started timer "${id}" (${timer.duration}ms).`);
+    this.unifiedManager.startInterval(id);
   }
 
   startTimerImmediate(id: string): void {
-    const timer = this.timers.get(id);
-    if (!timer) return log.error(`Timer "${id}" not found.`);
-    if (timer.handleIntervalID) return log.warn(`Timer "${id}" is already running.`);
-
-    timer.handleIntervalID = setInterval(timer.callback, timer.duration);
-    // log.info(`Started timer "${id}" (${timer.duration}ms).`);
+    this.unifiedManager.startInterval(id, true);
   }
 
   /**
    * Stop a timer by ID.
    */
   stopTimer(id: string): void {
-    const timer = this.timers.get(id);
-    if (!timer) return log.warn(`Timer "${id}" not found.`);
-    if (!timer.handleIntervalID) return log.warn(`Timer "${id}" is not running.`);
-
-    clearInterval(timer.handleIntervalID);
-    timer.handleIntervalID = null;
-    // log.info(`Stopped timer "${id}".`);
+    this.unifiedManager.stopInterval(id);
   }
 
   /**
    * Start all timers.
    */
   startAll(): void {
-    this.timers.forEach((_, id) => this.startTimer(id));
+    this.timers.forEach((_, id) => this.unifiedManager.startInterval(id));
   }
 
   /**
    * Stop all timers.
    */
   stopAll(): void {
-    this.timers.forEach((_, id) => this.stopTimer(id));
+    this.timers.forEach((_, id) => this.unifiedManager.stopInterval(id));
   }
 
   /**
    * Remove a timer by ID.
    */
   removeTimer(id: string): void {
-    this.stopTimer(id); // Ensure cleanup before removal
-    if (!this.timers.delete(id)) {
-      log.warn(`Attempted to remove non-existent timer "${id}".`);
-    } else {
-      log.info(`Removed timer "${id}".`);
-    }
+    this.unifiedManager.removeInterval(id);
+    this.timers.delete(id);
   }
 
   /**
    * Remove all timers.
    */
   removeAll(): void {
-    this.stopAll();
+    this.unifiedManager.clearAll();
     this.timers.clear();
-    // log.info(`Removed all timers.`);
   }
 
   /**
    * Check if a timer is running.
    */
   isRunning(id: string): boolean {
-    return !!this.timers.get(id)?.handleIntervalID;
+    return this.unifiedManager.isIntervalRunning(id);
   }
 
-  getTimeoutID(id: string): NodeJS.Timeout | null {
-    return this.timers.get(id)?.handleIntervalID ?? null;
+  getTimeoutID(_id: string): NodeJS.Timeout | null {
+    // This method name is misleading but kept for backward compatibility
+    return null; // UnifiedTimerManager doesn't expose handles directly
   }
+
   /**
    * List active timers.
    */
   getRunningTimers(): string[] {
-    return Array.from(this.timers.entries())
-      .filter(([_, timer]) => timer.handleIntervalID !== null)
-      .map(([id]) => id);
+    return this.unifiedManager.getRunningTimers().intervals;
   }
 
   /**
@@ -169,5 +143,5 @@ export class TimerManager {
   }
 }
 
-// Singleton instance
-export const timerManager = TimerManager.getInstance();
+// Lazy instantiation function to prevent circular dependencies
+export const getTimerManager = () => TimerManager.getInstance();

@@ -2,6 +2,7 @@ import { log } from "$lib/managers/Logger";
 import type { Runtime } from "webextension-polyfill";
 import { ProviderRpcError } from "$lib/common";
 import browser from "webextension-polyfill";
+import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 import { initializePermissions } from "$lib/permissions";
 import { getBlock, getLatestBlock, getGasPrice, getBalance, getCode, getNonce, getTransactionReceipt, getTransaction, getLogs } from './legacy';
 import type { Block, BlockTag } from 'alchemy-sdk';
@@ -73,8 +74,9 @@ const activeRequests = new Map<string, {
   promise: Promise<any>;
 }>();
 
-// Clean up old requests every 5 minutes
-setInterval(() => {
+// Clean up old requests every 5 minutes using UnifiedTimerManager
+const timerManager = UnifiedTimerManager.getInstance();
+timerManager.addInterval('eip6963-cleanup', () => {
   const now = Date.now();
   for (const [requestId, request] of activeRequests.entries()) {
     if (now - request.timestamp > 5 * 60 * 1000) {
@@ -82,6 +84,7 @@ setInterval(() => {
     }
   }
 }, 5 * 60 * 1000);
+timerManager.startInterval('eip6963-cleanup');
 
 // Add at the top with other imports
 const processedEIP6963Requests = new Set<string>();
