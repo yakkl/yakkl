@@ -59,12 +59,16 @@ export function getMemberUpgradePrice(now: Date = new Date()): number {
 export function getAvailableMemberUpgradePlanLevel(now: Date = new Date()): 'founding_member' | 'early_adopter' | 'yakkl_pro' {
   try {
     // Check if still eligible for founding member status
+    console.log('now, date', now, new Date(FOUNDING_MEMBER_DEADLINE));
+
     if (now < new Date(FOUNDING_MEMBER_DEADLINE)) {
       return 'founding_member';
     }
 
     // Check if still eligible for early adopter status
     for (const offer of EARLY_ADOPTER_DEADLINES) {
+      console.log('offer', offer.date, now);
+
       if (now < new Date(offer.date)) {
         return 'early_adopter';
       }
@@ -74,6 +78,7 @@ export function getAvailableMemberUpgradePlanLevel(now: Date = new Date()): 'fou
     return 'yakkl_pro';
 
   } catch (error) {
+    console.log('error in getAvailableMemberUpgradePlanLevel', error);
     log.warn('Error determining available member upgrade plan level:', false, error);
     return 'yakkl_pro';
   }

@@ -68,7 +68,7 @@ export function initContextTracker() {
       browser.windows.onRemoved.addListener(handleWindowRemoved);
     }
 
-    // Set up alarm listener for lockdown
+    // Set up alarm listener for lockdown and keepalive
     if (browser.alarms && browser.alarms.onAlarm) {
       browser.alarms.onAlarm.addListener((alarm) => {
         log.info('[IdleManager] Alarm received:', false, alarm);
@@ -80,13 +80,26 @@ export function initContextTracker() {
         } else if (alarm.name === "yakkl-lock-notification") {
           log.info('[IdleManager] Sending lockdown warning from alarm');
           NotificationService.sendLockdownWarning(idleLockDelay);
+        } else if (alarm.name === "yakkl-keepalive") {
+          // Keepalive alarm - just log to keep service worker active
+          log.debug('[ContextTracker] ⏰ Keepalive alarm - checking idle state');
+          
+          // If we have protected contexts and login is verified, check inactivity
+          if (isLoginVerified) {
+            checkInactivity().catch(error => {
+              log.error('[ContextTracker] Error in keepalive activity check:', false, error);
+            });
+          }
         }
       });
     }
 
-    log.info('[ContextTracker] Initialized with idle threshold:', false, {
+    log.info('[ContextTracker] 🚀 INITIALIZED with idle threshold:', false, {
       threshold: idleThreshold / 1000,
-      lockDelay: idleLockDelay / 1000
+      lockDelay: idleLockDelay / 1000,
+      browserIdleSupported: !!(browser.idle && browser.idle.setDetectionInterval),
+      alarmSupported: !!(browser.alarms && browser.alarms.onAlarm),
+      notificationSupported: !!(browser.notifications)
     });
 
     // Start cleanup interval for processed messages
@@ -405,7 +418,8 @@ async function clearLockdownState(): Promise<void> {
         if (browser.alarms) {
           await Promise.all([
             browser.alarms.clear("yakkl-lock-alarm"),
-            browser.alarms.clear("yakkl-lock-notification")
+            browser.alarms.clear("yakkl-lock-notification"),
+            browser.alarms.clear("yakkl-keepalive")
           ]);
         }
       } catch (error) {
@@ -601,27 +615,55 @@ export function broadcastToProtectedContexts(
  */
 export function setLoginVerified(verified: boolean, contextId?: string): void {
   try {
-    log.info(`[ContextTracker] Setting login verified: ${verified}`, false, { contextId });
+    log.info(`[ContextTracker] 🔐 LOGIN VERIFICATION REQUEST:`, false, { 
+      verified,
+      contextId,
+      currentLoginState: isLoginVerified,
+      totalContexts: activeContexts.size,
+      activeContextTypes: Array.from(activeContexts.values()).map(ctx => ctx.type)
+    });
 
     // Only set login verified if we have at least one protected context
-    const hasProtectedContext = Array.from(activeContexts.values())
-      .some(context => needsIdleProtection(context.type));
+    const protectedContexts = Array.from(activeContexts.values())
+      .filter(context => needsIdleProtection(context.type));
+    const hasProtectedContext = protectedContexts.length > 0;
+
+    log.info(`[ContextTracker] 🛡️ PROTECTED CONTEXTS ANALYSIS:`, false, {
+      hasProtectedContext,
+      protectedCount: protectedContexts.length,
+      protectedTypes: protectedContexts.map(ctx => ctx.type),
+      allContexts: Array.from(activeContexts.values()).map(ctx => ({ id: ctx.id, type: ctx.type }))
+    });
 
     if (!hasProtectedContext && verified) {
-      log.info('[ContextTracker] No protected contexts found, not starting idle detection');
+      log.warn('[ContextTracker] ❌ NO PROTECTED CONTEXTS - not starting idle detection:', false, {
+        reason: 'No popup-wallet or popup-dapp contexts found',
+        allContextTypes: Array.from(activeContexts.values()).map(ctx => ctx.type),
+        expectedProtectedTypes: ['popup-wallet', 'popup-dapp']
+      });
       return;
     }
 
+    const wasVerified = isLoginVerified;
     isLoginVerified = verified;
 
+    log.info(`[ContextTracker] 🔄 LOGIN STATE CHANGED:`, false, {
+      from: wasVerified,
+      to: verified,
+      willStartIdle: verified && hasProtectedContext,
+      willStopIdle: !verified && wasVerified
+    });
+
     if (verified) {
+      log.info('[ContextTracker] 🚀 STARTING idle detection due to login verification');
       startIdleDetection();
       broadcastIdleStatus('active');
     } else {
+      log.info('[ContextTracker] 🛑 STOPPING idle detection due to login unverification');
       stopIdleDetection();
     }
   } catch (error) {
-    log.error('[ContextTracker] Error setting login verified:', false, error);
+    log.error('[ContextTracker] ❌ CRITICAL ERROR setting login verified:', false, error);
   }
 }
 
@@ -630,48 +672,93 @@ export function setLoginVerified(verified: boolean, contextId?: string): void {
  */
 function startIdleDetection(): void {
   try {
+    log.info('[ContextTracker] 🎯 ATTEMPTING to start idle detection');
+    
     if (!isLoginVerified) {
-      log.info('[ContextTracker] Not starting - login not verified');
+      log.warn('[ContextTracker] ❌ NOT STARTING - login not verified:', false, {
+        isLoginVerified,
+        activeContextsCount: activeContexts.size,
+        protectedContextsPresent: Array.from(activeContexts.values()).filter(ctx => ['popup-wallet', 'popup-dapp'].includes(ctx.type)).length
+      });
       return;
     }
 
+    log.info('[ContextTracker] ✅ Login verified, proceeding with idle detection setup');
+
     // Set up system idle detection
     if (browser.idle && browser.idle.setDetectionInterval) {
-      browser.idle.setDetectionInterval(Math.floor(idleThreshold / 1000));
+      const detectionInterval = Math.floor(idleThreshold / 1000);
+      browser.idle.setDetectionInterval(detectionInterval);
+      log.info('[ContextTracker] ✅ Browser idle detection interval set:', false, { 
+        intervalSeconds: detectionInterval,
+        idleThreshold: idleThreshold 
+      });
+    } else {
+      log.error('[ContextTracker] ❌ Browser idle API not available:', false, {
+        hasIdleAPI: !!browser.idle,
+        hasSetInterval: !!(browser.idle && browser.idle.setDetectionInterval),
+        hasOnStateChanged: !!(browser.idle && browser.idle.onStateChanged)
+      });
     }
-
-    log.info('[ContextTracker] Starting idle detection', false, Math.floor(idleThreshold / 1000));
 
     // Add state change listener
     if (!stateChangeListener && browser.idle && browser.idle.onStateChanged) {
       stateChangeListener = (state: IdleState) => {
+        log.info('[ContextTracker] 🔄 IDLE STATE CHANGED:', false, { 
+          newState: state, 
+          timestamp: new Date().toISOString(),
+          lastActivity: new Date(lastActivity).toISOString()
+        });
         handleStateChanged(state).catch(error => {
-          log.error('[ContextTracker] Error in state change listener:', false, error);
+          log.error('[ContextTracker] ❌ Error in state change listener:', false, error);
         });
       };
       browser.idle.onStateChanged.addListener(stateChangeListener);
+      log.info('[ContextTracker] ✅ Idle state change listener added');
+    } else if (stateChangeListener) {
+      log.info('[ContextTracker] ℹ️ State change listener already exists');
+    } else {
+      log.error('[ContextTracker] ❌ Cannot add state change listener - browser API not available');
     }
 
     // Start activity check timer
     if (!activityCheckTimer && typeof setInterval !== 'undefined') {
       activityCheckTimer = setInterval(
         () => {
+          log.debug('[ContextTracker] 🔍 Running periodic activity check');
           checkInactivity().catch(error => {
-            log.error('[ContextTracker] Error in activity check:', false, error);
+            log.error('[ContextTracker] ❌ Error in activity check:', false, error);
           });
         },
         TIMER_IDLE_CHECK_INTERVAL
       ) as any;
+      log.info('[ContextTracker] ✅ Activity check timer started:', false, { 
+        intervalMs: TIMER_IDLE_CHECK_INTERVAL 
+      });
+    } else if (activityCheckTimer) {
+      log.info('[ContextTracker] ℹ️ Activity check timer already running');
+    }
+
+    // Set up keepalive alarm to prevent service worker from going dormant
+    if (browser.alarms) {
+      // Create a recurring alarm every 15 seconds to keep service worker active
+      // This matches our idle check interval
+      browser.alarms.create("yakkl-keepalive", {
+        periodInMinutes: 0.25 // 15 seconds
+      });
+      log.info('[ContextTracker] ✅ Keepalive alarm created (every 15 seconds)');
     }
 
     // Set initial state
     checkCurrentState().then(state => {
-      log.info(`[ContextTracker] Initial state: ${state}`);
+      log.info(`[ContextTracker] 📊 Initial idle state: ${state}`);
     }).catch(error => {
-      log.error('[ContextTracker] Error checking initial state:', false, error);
+      log.error('[ContextTracker] ❌ Error checking initial state:', false, error);
     });
+
+    log.info('[ContextTracker] 🎉 IDLE DETECTION SETUP COMPLETE');
   } catch (error) {
-    log.error('[ContextTracker] Error starting idle detection:', false, error);
+    log.error('[ContextTracker] ❌ CRITICAL ERROR starting idle detection:', false, error);
   }
 }
 
@@ -706,7 +793,8 @@ function stopIdleDetection(): void {
     if (browser.alarms) {
       Promise.allSettled([
         browser.alarms.clear("yakkl-lock-alarm"),
-        browser.alarms.clear("yakkl-lock-notification")
+        browser.alarms.clear("yakkl-lock-notification"),
+        browser.alarms.clear("yakkl-keepalive")
       ]).catch(() => {});
     }
 
@@ -733,16 +821,20 @@ async function checkInactivity(): Promise<void> {
       return;
     }
 
+    // First, query the browser idle state directly
+    const currentIdleState = await checkCurrentState();
+    
+    // If browser reports idle/locked, handle it immediately
+    if (currentIdleState !== 'active' && !isLockdownInitiated) {
+      log.info(`[ContextTracker] Browser reports ${currentIdleState} state - handling immediately`);
+      await handleStateChanged(currentIdleState);
+      return;
+    }
+
     // If we've passed the idle threshold and not already initiated lockdown
     if (timeSinceLastActivity >= idleThreshold && !isLockdownInitiated) {
-      // Double-check system idle state
-      const systemState = await checkCurrentState();
-
-      // Only proceed if system also reports idle and we're not in the debounce period
-      if (systemState !== 'active' && timeSinceLastStateChange >= STATE_CHANGE_DEBOUNCE) {
-        log.info(`[ContextTracker] Idle threshold reached: ${timeSinceLastActivity}ms`);
-        await handleStateChanged('idle');
-      }
+      log.info(`[ContextTracker] Idle threshold reached: ${timeSinceLastActivity}ms`);
+      await handleStateChanged('idle');
     }
   } catch (error) {
     log.error('[ContextTracker] Error checking inactivity:', false, error);
@@ -757,7 +849,20 @@ async function checkCurrentState(): Promise<IdleState> {
 
   try {
     if (browser.idle && browser.idle.queryState) {
-      const state = await browser.idle.queryState(Math.floor(idleThreshold / 1000));
+      const querySeconds = Math.floor(idleThreshold / 1000);
+      const state = await browser.idle.queryState(querySeconds);
+      
+      // Log state queries periodically for debugging
+      const now = Date.now();
+      if (!checkCurrentState.lastLogTime || now - checkCurrentState.lastLogTime > 10000) {
+        log.debug('[ContextTracker] Idle state query:', false, { 
+          state, 
+          querySeconds,
+          timeSinceLastActivity: now - lastActivity
+        });
+        checkCurrentState.lastLogTime = now;
+      }
+      
       return state as IdleState;
     }
     return 'active';
@@ -766,6 +871,9 @@ async function checkCurrentState(): Promise<IdleState> {
     return 'active'; // Default to active on error
   }
 }
+
+// Add property to track last log time
+checkCurrentState.lastLogTime = 0;
 
 /**
  * Handle state changes with improved race condition prevention
@@ -1192,6 +1300,7 @@ function initializeDebugAPI(): void {
     // Expose for debugging in browser console
     if (typeof globalThis !== 'undefined') {
       (globalThis as any).YAKKLBackgroundDebug = {
+        // Existing debugging functions
         getIdleStatus,
         getActiveContexts,
         getProtectedContextCount,
@@ -1218,10 +1327,149 @@ function initializeDebugAPI(): void {
         },
         clearAllContexts,
         recentMessagesCount: () => recentMessages.size,
-        clearRecentMessages: () => recentMessages.clear()
+        clearRecentMessages: () => recentMessages.clear(),
+        
+        // NEW: Enhanced idle detection debugging functions
+        getDetailedIdleStatus: () => ({
+          isLoginVerified,
+          isLockdownInitiated,
+          previousState,
+          lastActivity,
+          timeSinceLastActivity: Date.now() - lastActivity,
+          idleThreshold,
+          idleLockDelay,
+          hasStateChangeListener: !!stateChangeListener,
+          hasActivityCheckTimer: !!activityCheckTimer,
+          browserIdleAPI: {
+            available: !!(browser.idle && browser.idle.setDetectionInterval),
+            hasOnStateChanged: !!(browser.idle && browser.idle.onStateChanged),
+            hasQueryState: !!(browser.idle && browser.idle.queryState)
+          },
+          activeContexts: Array.from(activeContexts.values()).map(ctx => ({
+            id: ctx.id,
+            type: ctx.type,
+            isProtected: needsIdleProtection(ctx.type),
+            lastActive: ctx.lastActive,
+            timeSinceActive: Date.now() - ctx.lastActive
+          }))
+        }),
+        
+        // NEW: Manual idle detection testing
+        manuallySetLoginVerified: (verified: boolean) => {
+          log.info(`[Debug] 🔧 Manually setting login verified to: ${verified}`);
+          setLoginVerified(verified, 'debug-manual');
+        },
+        
+        manuallyStartIdleDetection: () => {
+          log.info('[Debug] 🔧 Manually starting idle detection');
+          startIdleDetection();
+        },
+        
+        manuallyStopIdleDetection: () => {
+          log.info('[Debug] 🔧 Manually stopping idle detection');
+          stopIdleDetection();
+        },
+        
+        // NEW: Test idle flow end-to-end
+        testIdleFlow: async () => {
+          log.info('[Debug] 🧪 TESTING COMPLETE IDLE FLOW');
+          
+          // 1. Check initial state
+          const initialStatus = getIdleStatus();
+          log.info('[Debug] 📊 Initial status:', false, initialStatus);
+          
+          // 2. Verify browser APIs
+          const browserAPIs = {
+            hasIdle: !!browser.idle,
+            hasSetInterval: !!(browser.idle && browser.idle.setDetectionInterval),
+            hasOnStateChanged: !!(browser.idle && browser.idle.onStateChanged),
+            hasQueryState: !!(browser.idle && browser.idle.queryState)
+          };
+          log.info('[Debug] 🔍 Browser APIs:', false, browserAPIs);
+          
+          // 3. Test state query
+          if (browser.idle && browser.idle.queryState) {
+            const currentState = await browser.idle.queryState(Math.floor(idleThreshold / 1000));
+            log.info('[Debug] 📊 Current browser idle state:', false, currentState);
+          }
+          
+          // 4. Check contexts
+          const contexts = Array.from(activeContexts.values());
+          log.info('[Debug] 🎯 Active contexts:', false, contexts);
+          
+          // 5. Check protected contexts
+          const protectedContexts = contexts.filter(ctx => needsIdleProtection(ctx.type));
+          log.info('[Debug] 🛡️ Protected contexts:', false, protectedContexts);
+          
+          return {
+            initialStatus,
+            browserAPIs,
+            contexts,
+            protectedContexts,
+            recommendation: protectedContexts.length > 0 && browserAPIs.hasIdle 
+              ? 'All components available for idle detection' 
+              : 'Missing components - see logs for details'
+          };
+        },
+        
+        // NEW: Simulate user activity
+        simulateActivity: () => {
+          log.info('[Debug] 🔧 Simulating user activity');
+          lastActivity = Date.now();
+          
+          // Broadcast to all protected contexts
+          const protectedContexts = Array.from(activeContexts.values())
+            .filter(ctx => needsIdleProtection(ctx.type));
+            
+          protectedContexts.forEach(ctx => {
+            if (ctx.tabId) {
+              browser.tabs.sendMessage(ctx.tabId, {
+                type: 'USER_ACTIVITY',
+                timestamp: Date.now(),
+                contextId: ctx.id,
+                source: 'debug-simulation'
+              }).catch(() => {}); // Ignore errors
+            }
+          });
+        },
+        
+        // NEW: Force idle detection interval
+        forceSetIdleInterval: (seconds: number) => {
+          if (browser.idle && browser.idle.setDetectionInterval) {
+            browser.idle.setDetectionInterval(seconds);
+            log.info(`[Debug] 🔧 Forced idle detection interval to ${seconds} seconds`);
+          } else {
+            log.error('[Debug] ❌ Browser idle API not available');
+          }
+        },
+        
+        // NEW: Test the new idle warning notification system
+        testIdleWarningNotification: (delaySeconds: number = 15) => {
+          log.info(`[Debug] 🧪 Testing idle warning notification for ${delaySeconds} seconds`);
+          
+          // Send enhanced lockdown warning to UI contexts
+          const protectedContexts = Array.from(activeContexts.values())
+            .filter(ctx => needsIdleProtection(ctx.type));
+            
+          protectedContexts.forEach(ctx => {
+            if (ctx.tabId) {
+              browser.tabs.sendMessage(ctx.tabId, {
+                type: 'LOCKDOWN_WARNING_ENHANCED',
+                message: `Test idle warning notification - wallet will lock in ${delaySeconds} seconds`,
+                timestamp: Date.now(),
+                delayMs: delaySeconds * 1000,
+                delaySeconds: delaySeconds,
+                notificationId: `test-lockdown-warning-${Date.now()}`,
+                windowFocused: false
+              }).catch(() => {}); // Ignore errors
+            }
+          });
+        }
       };
 
-      log.info('[ContextTracker] Background debug helper available via YAKKLBackgroundDebug global object');
+      log.info('[ContextTracker] 🧰 Enhanced debug API available via YAKKLBackgroundDebug global object');
+      log.info('[ContextTracker] 💡 Try: YAKKLBackgroundDebug.testIdleFlow() or YAKKLBackgroundDebug.getDetailedIdleStatus()');
+      log.info('[ContextTracker] 🎯 NEW: YAKKLBackgroundDebug.testIdleWarningNotification(15) - Test new visual notification system!');
     }
   } catch (error) {
     log.warn('[ContextTracker] Failed to initialize debug API:', false, error);

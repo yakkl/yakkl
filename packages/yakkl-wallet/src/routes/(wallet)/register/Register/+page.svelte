@@ -54,7 +54,7 @@
   if (date < promoDate) {
     $yakklVersionStore = PlanType.YAKKL_PRO;
   } else {
-    $yakklVersionStore = PlanType.MEMBER;
+    $yakklVersionStore = PlanType.BASIC_MEMBER;
   }
   ////
 
@@ -250,7 +250,7 @@
         // const settings = await getSettings();
         if (yakklSettings !== null) {
           yakklSettings.id = yakklProfile.id;
-          yakklSettings.plan.type = PlanType.MEMBER;
+          yakklSettings.plan.type = PlanType.BASIC_MEMBER;
           yakklSettings.lastAccessDate = yakklSettings.updateDate = yakklProfile.createDate;
           yakklSettings.init = true;
           yakklSettings.isLocked = false;

@@ -12,4 +12,9 @@ export function openModal(name: string) {
 export function closeModal() {
   modal.set(false);
   modalName.set(null);
+  // Force a complete reset to ensure no lingering state
+  setTimeout(() => {
+    modal.set(false);
+    modalName.set(null);
+  }, 10);
 }
