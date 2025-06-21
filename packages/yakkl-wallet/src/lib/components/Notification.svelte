@@ -16,6 +16,14 @@
     onClose = () => safeLogout()
   }: Props = $props();
 
+  function handleClose() {
+    show = false; // Ensure modal closes
+    // Force a small delay to ensure proper cleanup before calling onClose
+    setTimeout(() => {
+      onClose(); // Call the provided close handler
+    }, 10);
+  }
+
 </script>
 
 <Modal bind:show title={title}>
@@ -34,7 +42,7 @@
       <button
         type="button"
         class="rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-        onclick={onClose}
+        onclick={handleClose}
       >
         Close
       </button>

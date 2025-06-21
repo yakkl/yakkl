@@ -35,4 +35,26 @@
 </main>
 
 <TrialCountdown />
-<Upgrade show={$modal && $modalName === 'upgrade'} />
+<Upgrade 
+  show={$modal && $modalName === 'upgrade'} 
+  onClose={() => {
+    // Always close modal when upgrade closes
+    modal.set(false);
+    modalName.set(null);
+    // Force state reset with a small delay
+    setTimeout(() => {
+      modal.set(false);
+      modalName.set(null);
+    }, 10);
+  }}
+  onCancel={() => {
+    // Always close modal when upgrade cancels
+    modal.set(false);
+    modalName.set(null);
+    // Force state reset with a small delay
+    setTimeout(() => {
+      modal.set(false);
+      modalName.set(null);
+    }, 10);
+  }}
+/>

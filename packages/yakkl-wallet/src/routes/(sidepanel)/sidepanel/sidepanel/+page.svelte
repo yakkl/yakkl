@@ -232,9 +232,25 @@
   function onComplete() {
     showUpgradeModal = true;
   }
+
+  function handleUpgradeComplete() {
+    showUpgradeModal = false;
+    // Refresh any necessary data
+  }
+  
+  function handleUpgradeClose() {
+    showUpgradeModal = false;
+    // Handle any cleanup
+  }
 </script>
 
-<Upgrade bind:show={showUpgradeModal} onComplete={onComplete} />
+<Upgrade 
+  bind:show={showUpgradeModal} 
+  openWallet={openWallet}
+  onComplete={handleUpgradeComplete}
+  onClose={handleUpgradeClose}
+  onCancel={() => showUpgradeModal = false}
+/>
 
 <div class="flex flex-col h-screen bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-100">
   <header class="px-4 py-3 border-b border-zinc-200 dark:border-zinc-700 flex justify-between items-center">
