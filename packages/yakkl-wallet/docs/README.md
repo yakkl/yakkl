@@ -1,4 +1,4 @@
-# Technical - YAKKL® Smart Wallet 
+# Technical - YAKKL® Smart Wallet
 
 > This is techncal documentation for the YAKKL® Smart Wallet. This is **NOT** User Documentation!
 

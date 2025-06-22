@@ -1,155 +1,166 @@
 <!-- SellTokenPanel.svelte -->
 <script lang="ts">
-  import type { Writable } from 'svelte/store';
-  import TokenDropdown from './TokenDropdown.svelte';
-  import SwapTokenPrice from './SwapTokenPrice.svelte';
-  import type { SwapToken, SwapPriceData } from '$lib/common/interfaces';
-  import { debounce } from 'lodash-es';
-  import { ethers as ethersv6 } from 'ethers-v6';
-  import { convertTokenToUsd, convertUsdToTokenAmount, toBigInt } from '$lib/common';
-  import ToggleSwitch from './ToggleSwitch.svelte';
-  import { isUsdModeStore } from '$lib/common/stores/uiStateStore';
-  import NumericInput from './NumericInput.svelte';
-  import { log } from '$lib/common/logger-wrapper';
+	import type { Writable } from 'svelte/store';
+	import TokenDropdown from './TokenDropdown.svelte';
+	import SwapTokenPrice from './SwapTokenPrice.svelte';
+	import type { SwapToken, SwapPriceData } from '$lib/common/interfaces';
+	import { debounce } from 'lodash-es';
+	import { ethers as ethersv6 } from 'ethers-v6';
+	import { convertTokenToUsd, convertUsdToTokenAmount, toBigInt } from '$lib/common';
+	import ToggleSwitch from './ToggleSwitch.svelte';
+	import { isUsdModeStore } from '$lib/common/stores/uiStateStore';
+	import NumericInput from './NumericInput.svelte';
+	import { log } from '$lib/common/logger-wrapper';
 
-  interface Props {
-    disabled?: boolean;
-    resetValues?: boolean;
-    insufficientBalance?: boolean;
-    balance?: string;
-    swapPriceDataStore: Writable<SwapPriceData>;
-    onTokenSelect: (token: SwapToken) => void;
-    onAmountChange: (amount: string) => void;
-    lastModifiedPanel?: string;
-  }
+	interface Props {
+		disabled?: boolean;
+		resetValues?: boolean;
+		insufficientBalance?: boolean;
+		balance?: string;
+		swapPriceDataStore: Writable<SwapPriceData>;
+		onTokenSelect: (token: SwapToken) => void;
+		onAmountChange: (amount: string) => void;
+		lastModifiedPanel?: string;
+	}
 
-  let {
-    disabled = false,
-    resetValues = $bindable(false),
-    insufficientBalance = false,
-    balance = '0',
-    swapPriceDataStore,
-    onTokenSelect,
-    onAmountChange,
-    lastModifiedPanel = $bindable('sell'),
-  }: Props = $props();
+	let {
+		disabled = false,
+		resetValues = $bindable(false),
+		insufficientBalance = false,
+		balance = '0',
+		swapPriceDataStore,
+		onTokenSelect,
+		onAmountChange,
+		lastModifiedPanel = $bindable('sell')
+	}: Props = $props();
 
-  let tokenValue = $state('');
-  let usdValue = $state('');
-  let displayValue = $state('');
+	let tokenValue = $state('');
+	let usdValue = $state('');
+	let displayValue = $state('');
 
-  // Reset handling
-  $effect(() => {
-    if (resetValues) {
-      tokenValue = '';
-      usdValue = '';
-      displayValue = '';
-      resetValues = false;
-    }
-  });
+	// Reset handling
+	$effect(() => {
+		if (resetValues) {
+			tokenValue = '';
+			usdValue = '';
+			displayValue = '';
+			resetValues = false;
+		}
+	});
 
-  // Update display value based on mode
-  $effect(() => {
-    displayValue = $isUsdModeStore ? usdValue : tokenValue;
-  });
+	// Update display value based on mode
+	$effect(() => {
+		displayValue = $isUsdModeStore ? usdValue : tokenValue;
+	});
 
-  // Update values when quote changes from buy panel
-  $effect(() => {
-    if (lastModifiedPanel === 'buy') {
-      const tokenAmount = ethersv6.formatUnits(toBigInt($swapPriceDataStore.amountIn), $swapPriceDataStore.tokenIn.decimals);
-      if ($isUsdModeStore) {
-        try {
-          const calculatedUsdAmount = convertTokenToUsd(Number(tokenAmount), $swapPriceDataStore.marketPriceIn);
-          usdValue = calculatedUsdAmount.toString();
-          tokenValue = tokenAmount;
-          displayValue = usdValue;
-        } catch (error) {
-          log.error('Token to USD conversion error:', false, error);
-        }
-      } else {
-        tokenValue = tokenAmount;
-        displayValue = tokenValue;
-        if ($swapPriceDataStore.marketPriceIn > 0) {
-          try {
-            const calculatedUsdAmount = convertTokenToUsd(Number(tokenAmount), $swapPriceDataStore.marketPriceIn);
-            usdValue = calculatedUsdAmount.toString();
-          } catch (error) {
-            log.error('Token to USD conversion error:', false, error);
-          }
-        }
-      }
-    }
-  });
+	// Update values when quote changes from buy panel
+	$effect(() => {
+		if (lastModifiedPanel === 'buy') {
+			const tokenAmount = ethersv6.formatUnits(
+				toBigInt($swapPriceDataStore.amountIn),
+				$swapPriceDataStore.tokenIn.decimals
+			);
+			if ($isUsdModeStore) {
+				try {
+					const calculatedUsdAmount = convertTokenToUsd(
+						Number(tokenAmount),
+						$swapPriceDataStore.marketPriceIn
+					);
+					usdValue = calculatedUsdAmount.toString();
+					tokenValue = tokenAmount;
+					displayValue = usdValue;
+				} catch (error) {
+					log.error('Token to USD conversion error:', false, error);
+				}
+			} else {
+				tokenValue = tokenAmount;
+				displayValue = tokenValue;
+				if ($swapPriceDataStore.marketPriceIn > 0) {
+					try {
+						const calculatedUsdAmount = convertTokenToUsd(
+							Number(tokenAmount),
+							$swapPriceDataStore.marketPriceIn
+						);
+						usdValue = calculatedUsdAmount.toString();
+					} catch (error) {
+						log.error('Token to USD conversion error:', false, error);
+					}
+				}
+			}
+		}
+	});
 
-  const debouncedAmountChange = debounce((value: string) => {
-    onAmountChange(value);
-  }, 300);
+	const debouncedAmountChange = debounce((value: string) => {
+		onAmountChange(value);
+	}, 300);
 
-  function handleAmountInput(value: string) {
-    lastModifiedPanel = 'sell';
-    const marketPrice = $swapPriceDataStore.marketPriceIn || 0;
+	function handleAmountInput(value: string) {
+		lastModifiedPanel = 'sell';
+		const marketPrice = $swapPriceDataStore.marketPriceIn || 0;
 
-    if (!value) {
-      tokenValue = '';
-      usdValue = '';
-      displayValue = '';
-      debouncedAmountChange('');
-      return;
-    }
+		if (!value) {
+			tokenValue = '';
+			usdValue = '';
+			displayValue = '';
+			debouncedAmountChange('');
+			return;
+		}
 
-    if ($isUsdModeStore) {
-      // User is entering USD amount
-      usdValue = value;
-      if (marketPrice > 0) {
-        try {
-          const calculatedTokenAmount = convertUsdToTokenAmount(
-            Number(value),
-            marketPrice,
-            $swapPriceDataStore.tokenIn.decimals
-          );
-          tokenValue = calculatedTokenAmount.toString();
-          debouncedAmountChange(tokenValue);
-        } catch (error) {
-          log.error('USD to Token conversion error:', false, error);
-          debouncedAmountChange('');
-        }
-      }
-    } else {
-      // User is entering token amount
-      tokenValue = value;
-      if (marketPrice > 0) {
-        try {
-          const calculatedUsdAmount = convertTokenToUsd(Number(value), marketPrice);
-          usdValue = calculatedUsdAmount.toString();
-        } catch (error) {
-          log.error('Token to USD conversion error:', false, error);
-        }
-      }
-      debouncedAmountChange(value);
-    }
-  }
+		if ($isUsdModeStore) {
+			// User is entering USD amount
+			usdValue = value;
+			if (marketPrice > 0) {
+				try {
+					const calculatedTokenAmount = convertUsdToTokenAmount(
+						Number(value),
+						marketPrice,
+						$swapPriceDataStore.tokenIn.decimals
+					);
+					tokenValue = calculatedTokenAmount.toString();
+					debouncedAmountChange(tokenValue);
+				} catch (error) {
+					log.error('USD to Token conversion error:', false, error);
+					debouncedAmountChange('');
+				}
+			}
+		} else {
+			// User is entering token amount
+			tokenValue = value;
+			if (marketPrice > 0) {
+				try {
+					const calculatedUsdAmount = convertTokenToUsd(Number(value), marketPrice);
+					usdValue = calculatedUsdAmount.toString();
+				} catch (error) {
+					log.error('Token to USD conversion error:', false, error);
+				}
+			}
+			debouncedAmountChange(value);
+		}
+	}
 
-  function handleTokenSelection(token: SwapToken) {
-    tokenValue = '';
-    usdValue = '';
-    displayValue = '';
-    onTokenSelect(token);
-  }
+	function handleTokenSelection(token: SwapToken) {
+		tokenValue = '';
+		usdValue = '';
+		displayValue = '';
+		onTokenSelect(token);
+	}
 
-  function handleBlur(value: string) {
-    // No formatting on blur, maintain exact input values
-  }
+	function handleBlur(value: string) {
+		// No formatting on blur, maintain exact input values
+	}
 </script>
 
-<div class="border border-gray-300 shadow-md p-4 rounded-lg bg-gray-50 dark:bg-gray-800
-  {disabled ? ' opacity-50 pointer-events-none' : ''}">
-  <div class="flex justify-between items-center">
-    <NumericInput
-      value={displayValue}
-      onChange={handleAmountInput}
-      onBlur={handleBlur}
-      disabled={disabled}
-      className="
+<div
+	class="border border-gray-300 shadow-md p-4 rounded-lg bg-gray-50 dark:bg-gray-800
+  {disabled ? ' opacity-50 pointer-events-none' : ''}"
+>
+	<div class="flex justify-between items-center">
+		<NumericInput
+			value={displayValue}
+			onChange={handleAmountInput}
+			onBlur={handleBlur}
+			{disabled}
+			className="
         bg-transparent
         text-3xl
         font-bold
@@ -158,44 +169,37 @@
         focus:outline-none
         focus:border-b-2
         focus:border-blue-500
-        {insufficientBalance
-          ? 'text-red-500 dark:text-red-400 '
-          : 'text-black dark:text-white '}
+        {insufficientBalance ? 'text-red-500 dark:text-red-400 ' : 'text-black dark:text-white '}
         {disabled ? 'cursor-not-allowed' : ''}
       "
-    />
-    <TokenDropdown
-      disabled={disabled}
-      selectedToken={$swapPriceDataStore.tokenIn}
-      onTokenSelect={handleTokenSelection}
-    />
-  </div>
-  <div class="flex justify-between items-center mt-2 text-sm">
-    <div class="flex items-center">
-      <ToggleSwitch
-        value={$isUsdModeStore}
-        labelOn="USD"
-        labelOff="Token"
-        className="bg-purple-300"
-        onChange={(value) => isUsdModeStore.set(value)}
-      />
-    </div>
-    <div class="flex flex-col items-end text-right">
-      <SwapTokenPrice {swapPriceDataStore} type="sell" />
-      <span>Balance: {balance}</span>
-    </div>
-  </div>
-  {#if insufficientBalance}
-    <div class="text-red-500 dark:text-red-400 text-sm mt-1">
-      Insufficient balance for this swap
-    </div>
-  {/if}
+		/>
+		<TokenDropdown
+			{disabled}
+			selectedToken={$swapPriceDataStore.tokenIn}
+			onTokenSelect={handleTokenSelection}
+		/>
+	</div>
+	<div class="flex justify-between items-center mt-2 text-sm">
+		<div class="flex items-center">
+			<ToggleSwitch
+				value={$isUsdModeStore}
+				labelOn="USD"
+				labelOff="Token"
+				className="bg-purple-300"
+				onChange={(value) => isUsdModeStore.set(value)}
+			/>
+		</div>
+		<div class="flex flex-col items-end text-right">
+			<SwapTokenPrice {swapPriceDataStore} type="sell" />
+			<span>Balance: {balance}</span>
+		</div>
+	</div>
+	{#if insufficientBalance}
+		<div class="text-red-500 dark:text-red-400 text-sm mt-1">
+			Insufficient balance for this swap
+		</div>
+	{/if}
 </div>
-
-
-
-
-
 
 <!-- <script lang="ts">
   import type { Writable } from 'svelte/store';

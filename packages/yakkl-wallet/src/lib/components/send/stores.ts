@@ -2,7 +2,7 @@
 import { writable } from 'svelte/store';
 
 export const transaction = writable({
-  toAddress: '',
-  amount: '',
-  gasPrice: 'market',
+	toAddress: '',
+	amount: '',
+	gasPrice: 'market'
 });

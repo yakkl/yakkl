@@ -1,24 +1,23 @@
 <script lang="ts">
-  import { browserSvelte, browser_ext } from "$lib/common/environment";
-  import { goto } from "$app/navigation";
-  import { PATH_LOCK, PATH_LOGIN, PATH_REGISTER } from "$lib/common/constants";
-  import Back from "$lib/components/Back.svelte";
+	import { browserSvelte, browser_ext } from '$lib/common/environment';
+	import { goto } from '$app/navigation';
+	import { PATH_LOCK, PATH_LOGIN, PATH_REGISTER } from '$lib/common/constants';
+	import Back from '$lib/components/Back.svelte';
 	import { getSettings } from '$lib/common/stores';
 
 	// import { routeCheckWithSettings } from '$lib/common/routes';
 
-  let error = $state(false);
-  let errorValue: any;
-  let msgType = 'ERROR! - ';
-  let showComingSoon = false;
-  let yakklSettings;
+	let error = $state(false);
+	let errorValue: any;
+	let msgType = 'ERROR! - ';
+	let showComingSoon = false;
+	let yakklSettings;
 
-  // routeCheckWithSettings();
+	// routeCheckWithSettings();
 
-  function handleComingSoon() {
-    showComingSoon = true;
-  }
-
+	function handleComingSoon() {
+		showComingSoon = true;
+	}
 </script>
 
 <!-- <ComingSoon showMsg={showComingSoon}/> -->
@@ -33,36 +32,36 @@
 </div> -->
 
 <div class="modal" class:modal-open={error}>
-  <div class="modal-box relative">
-    <!-- <label for="my-modal-3" class="btn btn-sm btn-circle absolute right-2 top-2">✕</label> -->
-    <h3 class="text-lg font-bold">ERROR</h3>
-    <p class="py-4">{errorValue}</p>
-    <div class="modal-action">
-      <button class="btn" onclick={() => error = false}>Close</button>
-    </div>
-  </div>
+	<div class="modal-box relative">
+		<!-- <label for="my-modal-3" class="btn btn-sm btn-circle absolute right-2 top-2">✕</label> -->
+		<h3 class="text-lg font-bold">ERROR</h3>
+		<p class="py-4">{errorValue}</p>
+		<div class="modal-action">
+			<button class="btn" onclick={() => (error = false)}>Close</button>
+		</div>
+	</div>
 </div>
 
-<Back defaultClass="left-3 top-[.8rem]" href='' />
+<Back defaultClass="left-3 top-[.8rem]" href="" />
 
 <div class="text-center">
+	<!-- top bar -->
+	<div
+		class="bg-secondary absolute top-[0.1rem] left-[.1rem] rounded-tl-xl rounded-tr-xl w-[99%] h-2"
+	></div>
 
-  <!-- top bar -->
-  <div class="bg-secondary absolute top-[0.1rem] left-[.1rem] rounded-tl-xl rounded-tr-xl w-[99%] h-2"></div>
-
-  <h1 class="text-xl tracking-tight font-extrabold text-base-content">
-    <span class="2xl:inline">Crypto</span>
-    <!-- <br>
+	<h1 class="text-xl tracking-tight font-extrabold text-base-content">
+		<span class="2xl:inline">Crypto</span>
+		<!-- <br>
     <span class=" text-gray-300 lg:inline">Manage your crypto</span> -->
-  </h1>
-  <br>
+	</h1>
+	<br />
 
-  <div class="grid grid-cols-3 gap-2 text-base-content">
-
-    <!-- <div class="rounded-md shadow h-24"> -->
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_interactive_supports_focus -->
-      <!-- <div role="button" on:click={handleComingSoon} class="btn btn-secondary w-full h-full flex flex-col items-center justify-center px-4 py-2 border border-transparent text-base font-medium rounded-md">
+	<div class="grid grid-cols-3 gap-2 text-base-content">
+		<!-- <div class="rounded-md shadow h-24"> -->
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_interactive_supports_focus -->
+		<!-- <div role="button" on:click={handleComingSoon} class="btn btn-secondary w-full h-full flex flex-col items-center justify-center px-4 py-2 border border-transparent text-base font-medium rounded-md">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-10 h-10 mb-2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" />
         </svg>
@@ -70,10 +69,10 @@
       </div>
     </div> -->
 
-    <!-- <div class="rounded-md shadow h-24"> -->
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_interactive_supports_focus -->
-      <!-- <div role="button" on:click={handleComingSoon}
+		<!-- <div class="rounded-md shadow h-24"> -->
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_interactive_supports_focus -->
+		<!-- <div role="button" on:click={handleComingSoon}
         class="btn btn-secondary w-full h-full flex flex-col items-center justify-center px-4 py-2 border border-transparent text-base font-medium rounded-md">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-10 h-10 mb-2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M7.864 4.243A7.5 7.5 0 0119.5 10.5c0 2.92-.556 5.709-1.568 8.268M5.742 6.364A7.465 7.465 0 004.5 10.5a7.464 7.464 0 01-1.15 3.993m1.989 3.559A11.209 11.209 0 008.25 10.5a3.75 3.75 0 117.5 0c0 .527-.021 1.049-.064 1.565M12 10.5a14.94 14.94 0 01-3.6 9.75m6.633-4.596a18.666 18.666 0 01-2.485 5.33" />
@@ -82,7 +81,7 @@
       </div>
     </div> -->
 
-    <!-- <div class="rounded-md shadow h-24">
+		<!-- <div class="rounded-md shadow h-24">
       <div role="button" on:click={handleComingSoon}
         class="btn btn-secondary w-full h-full flex flex-col items-center justify-center px-4 py-2 border border-transparent text-base font-medium rounded-md">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-10 h-10 -mb-2">
@@ -95,7 +94,7 @@
       </div>
     </div> -->
 
-    <!-- <div class="rounded-md shadow h-24">
+		<!-- <div class="rounded-md shadow h-24">
       <div role="button" on:click={handleComingSoon}
         class="btn btn-secondary w-full h-full flex flex-col items-center justify-center px-4 py-2 border border-transparent text-base font-medium rounded-md">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-10 h-10 -mb-2">
@@ -108,10 +107,10 @@
       </div>
     </div> -->
 
-    <!-- <div class="rounded-md shadow h-24"> -->
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_interactive_supports_focus -->
-      <!-- <div role="button" on:click={handleComingSoon}
+		<!-- <div class="rounded-md shadow h-24"> -->
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_interactive_supports_focus -->
+		<!-- <div role="button" on:click={handleComingSoon}
         class="btn btn-secondary w-full h-full flex flex-col items-center justify-center px-4 py-2 border border-transparent text-base font-medium rounded-md">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-10 h-10 mb-2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 00-3.7-3.7 48.678 48.678 0 00-7.324 0 4.006 4.006 0 00-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3l-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 003.7 3.7 48.656 48.656 0 007.324 0 4.006 4.006 0 003.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3l-3 3" />
@@ -119,8 +118,5 @@
         <span class="text-sm mt-2">Crypto Swapping</span>
       </div>
     </div> -->
-
-  </div>
-
+	</div>
 </div>
-

@@ -2,7 +2,7 @@
 	// import { VisLine, VisScatter, VisXYContainer } from "@unovis/svelte";
 	// import { color, scatterPointColors, scatterPointStrokeColors } from "./helpers.js";
 
-	import TokenChartsTradingView from "./TokenChartsTradingView.svelte";
+	import TokenChartsTradingView from './TokenChartsTradingView.svelte';
 
 	// const data = [
 	// 	{ id: 1, revenue: 10400 },

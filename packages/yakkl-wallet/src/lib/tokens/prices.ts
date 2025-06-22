@@ -1,13 +1,13 @@
 // Base coingecko API
 // import { fetchJson } from "@ethersproject/web";
 import { get } from 'svelte/store';
-import { yakklPricingStore, yakklConnectionStore } from "$lib/common/stores";
+import { yakklPricingStore, yakklConnectionStore } from '$lib/common/stores';
 import { PriceManager } from '$lib/managers/PriceManager';
 import { KrakenPriceProvider } from '$lib/managers/providers/price/kraken/KrakenPriceProvider';
 import { CoingeckoPriceProvider } from '$lib/managers/providers/price/coingecko/CoingeckoPriceProvider';
 import { CoinbasePriceProvider } from '$lib/managers/providers/price/coinbase/CoinbasePriceProvider';
-import { log } from "$lib/managers/Logger";
-import { getTimerManager } from "$lib/managers/TimerManager";
+import { log } from '$lib/managers/Logger';
+import { getTimerManager } from '$lib/managers/TimerManager';
 import { TIMER_CHECK_PRICE_INTERVAL_TIME } from '$lib/common';
 
 // Use these globally if needed
@@ -22,66 +22,84 @@ let providerCallback: string; // Note: If we decided to have multiple intervals 
 // Add other providers here
 // NOTE: The original api.pro.coinbase.com is now deprecated.
 const priceManager = new PriceManager([
-  { provider: new CoinbasePriceProvider(), weight: 5 },
-  { provider: new CoingeckoPriceProvider(), weight: 3 },
-  { provider: new KrakenPriceProvider(), weight: 2 },
-  // Add other providers with their weights...
+	{ provider: new CoinbasePriceProvider(), weight: 5 },
+	{ provider: new CoingeckoPriceProvider(), weight: 3 },
+	{ provider: new KrakenPriceProvider(), weight: 2 }
+	// Add other providers with their weights...
 ]);
 
 // The new code is in the plugins folder - priceManager
 export async function checkPricesCallback(symbol: string = 'ETH-USD') {
-  try {
-    if (get(yakklConnectionStore) === true) {
-      const result = await priceManager.getMarketPrice( symbol );
-      if ( result ) {
-        const prevPrice = get(yakklPricingStore)?.price ?? 0;
-        yakklPricingStore.set( {
-          provider: result.provider,
-          id: 'checkPricesCallback',
-          price: result.price,
-          prevPrice: prevPrice,
-        } );
-      }
-    } else {
-      log.error('checkPrices:', false, 'Internet connection may be down.'); // Comment this out later
-    }
-  } catch (e) {
-    log.error(`checkPricesCallback: ${e}`);
-  }
+	try {
+		if (get(yakklConnectionStore) === true) {
+			const result = await priceManager.getMarketPrice(symbol);
+			if (result) {
+				const prevPrice = get(yakklPricingStore)?.price ?? 0;
+				yakklPricingStore.set({
+					provider: result.provider,
+					id: 'checkPricesCallback',
+					price: result.price,
+					prevPrice: prevPrice
+				});
+
+				// Update all cached balances with new price
+				const { balanceCacheManager } = await import('$lib/managers/BalanceCacheManager');
+				if (result.price && result.price > 0) {
+					balanceCacheManager.updatePriceForAllEntries(result.price);
+					log.debug('[checkPricesCallback] Updated all cached entries with new price:', false, {
+						newPrice: result.price
+					});
+				}
+			}
+		} else {
+			log.error('checkPrices:', false, 'Internet connection may be down.'); // Comment this out later
+		}
+	} catch (e) {
+		log.error(`checkPricesCallback: ${e}`);
+	}
 }
 
 function setProviderCallback(provider: string) {
-  providerCallback = provider;
+	providerCallback = provider;
 }
 
 // Use this function instead of -1 in checkPrices
 export function stopCheckPrices() {
-  getTimerManager().stopTimer('prices_checkPrices');
-  setProviderCallback('');
+	getTimerManager().stopTimer('prices_checkPrices');
+	setProviderCallback('');
 }
 
 export async function startPricingChecks(symbol: string = 'ETH-USD') {
-  startCheckPrices(checkPricesProvider, checkPricesInterval, symbol);
+	startCheckPrices(checkPricesProvider, checkPricesInterval, symbol);
 }
 
-export function startCheckPrices(provider = 'coinbase', ms = TIMER_CHECK_PRICE_INTERVAL_TIME, symbol: string = 'ETH-USD'): Promise<void> {
-  stopCheckPrices();
-  if (!providerCallback) setProviderCallback(provider);
+export function startCheckPrices(
+	provider = 'coinbase',
+	ms = TIMER_CHECK_PRICE_INTERVAL_TIME,
+	symbol: string = 'ETH-USD'
+): Promise<void> {
+	stopCheckPrices();
+	if (!providerCallback) setProviderCallback(provider);
 
-  try {
-    if (ms > 0) {
-      if ( getTimerManager().isRunning('prices_checkPrices') ) {
-        return; // Already running
-      }
-      getTimerManager().addTimer('prices_checkPrices', () => {checkPricesCallback(symbol)}, ms);
-      getTimerManager().startTimer('prices_checkPrices');
-    }
-  } catch (e) {
-    log.error(`startCheckPrices: ${e}`);
-    getTimerManager().stopTimer('prices_checkPrices');
-    setProviderCallback('');
-  }
-
+	try {
+		if (ms > 0) {
+			if (getTimerManager().isRunning('prices_checkPrices')) {
+				return; // Already running
+			}
+			getTimerManager().addTimer(
+				'prices_checkPrices',
+				() => {
+					checkPricesCallback(symbol);
+				},
+				ms
+			);
+			getTimerManager().startTimer('prices_checkPrices');
+		}
+	} catch (e) {
+		log.error(`startCheckPrices: ${e}`);
+		getTimerManager().stopTimer('prices_checkPrices');
+		setProviderCallback('');
+	}
 }
 
 // export async function getPrices(pairs: [string]) {
@@ -129,11 +147,9 @@ export function startCheckPrices(provider = 'coinbase', ms = TIMER_CHECK_PRICE_I
 //   }
 // }
 
-
 // TBD - TBD - TBD - Create a promise and take the errors and reject AND/OR make a call to another price provider until retrieved.
 //  The returned structure MUST the same so move from vendor specific to abstract before returning
 //  Need Binance and a few others and then we can pool and randomly pick and if an error randomly pick again but without the one that just failed
-
 
 // export async function getPricesCoinbase(pair: string) {
 //   try {
@@ -188,5 +204,3 @@ export function startCheckPrices(provider = 'coinbase', ms = TIMER_CHECK_PRICE_I
 //     return [];
 //   }
 // }
-
-

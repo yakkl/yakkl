@@ -14,15 +14,15 @@ export const contentListenerManager = new ListenerManager('content');
 globalListenerManager.registerContext('content', contentListenerManager);
 
 function handleMessageFromDapp(message: any, sender: any, sendResponse: any) {
-  log.info('Message from dapp:', message);
+	log.info('Message from dapp:', message);
 }
 
 export function addContentListeners() {
-  // log.info('Adding content listeners...');
-  contentListenerManager.add(browser_ext.runtime.onMessage, handleMessageFromDapp);
+	// log.info('Adding content listeners...');
+	contentListenerManager.add(browser_ext.runtime.onMessage, handleMessageFromDapp);
 }
 
 export function removeContentListeners() {
-  // log.info('Removing content listeners...');
-  contentListenerManager.removeAll();
+	// log.info('Removing content listeners...');
+	contentListenerManager.removeAll();
 }

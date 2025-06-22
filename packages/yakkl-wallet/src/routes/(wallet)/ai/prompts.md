@@ -52,7 +52,6 @@ Sure, here are some prompts for each section:
 9. How do I determine the value of an NFT?
 10. What are some examples of popular NFTs and how much have they sold for?
 
-
 Sure, here are some additional prompts and simplified answers for smart contracts:
 
 **Smart Contracts:**
@@ -80,7 +79,7 @@ Sure, here are some additional prompts and simplified answers for smart contract
 8. To audit a smart contract, you can use specialized tools and techniques to analyze the code and look for vulnerabilities or potential issues.
 9. Smart contracts can be used in DeFi to create decentralized lending platforms, automated market makers, and other financial services that don't rely on centralized intermediaries.
 10. Some real-world examples of smart contracts being used include insurance policies that automatically pay out based on specified conditions, supply chain tracking systems that automatically update when goods are delivered, and voting systems that automatically tally and verify votes.
-Sure, here are simplified answers to the prompts in a way that a 5th grader can understand:
+    Sure, here are simplified answers to the prompts in a way that a 5th grader can understand:
 
 **Crypto:**
 
@@ -133,5 +132,3 @@ Sure, here are simplified answers to the prompts in a way that a 5th grader can 
 8. To store your NFTs securely, you should use a wallet that supports NFTs and keep your private key safe.
 9. To determine the value of an NFT, you can look at its market price on a marketplace or do research to learn more about its creator and history.
 10. Some popular NFTs include CryptoPunks, Bored Ape Yacht Club, and NBA Top Shot, and they have sold for millions of dollars in some cases.
-
-

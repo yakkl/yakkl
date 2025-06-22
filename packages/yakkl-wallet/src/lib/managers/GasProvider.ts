@@ -3,9 +3,8 @@ import type { TransactionRequest } from '$lib/common/interfaces';
 
 // GasProvider.ts
 export interface GasProvider {
-  getName(): string;
-  getGasEstimate( transaction: TransactionRequest ): Promise<GasEstimate>;
-  getHistoricalGasData( duration: number ): Promise<HistoricalGasData[]>;
-  predictFutureFees( duration: number ): Promise<GasPrediction[]>;
+	getName(): string;
+	getGasEstimate(transaction: TransactionRequest): Promise<GasEstimate>;
+	getHistoricalGasData(duration: number): Promise<HistoricalGasData[]>;
+	predictFutureFees(duration: number): Promise<GasPrediction[]>;
 }
-

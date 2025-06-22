@@ -6,13 +6,11 @@ Your AbstractBlockchain and AbstractProvider classes look good. They define the 
 The Blockchain interface and AbstractBlockchain class include methods like getBalance, sendTransaction, and performOperation, which are essential for interacting with a blockchain.
 The Provider interface and AbstractProvider class include methods like connect and request, which are necessary for connecting to a provider and sending requests.
 
-
 Specific Blockchain and Provider Implementations:
 
 You have specific implementations for the Ethereum blockchain (Ethereum class) and the Alchemy provider (Alchemy class), which extend the respective abstract classes.
 The Ethereum class implements the getBalance and sendTransaction methods specific to the Ethereum blockchain.
 The Alchemy class sets the supported blockchains in its constructor and provides placeholders for the connect and request methods.
-
 
 Wallet Class:
 
@@ -21,15 +19,12 @@ It maintains references to the current provider and current blockchain.
 The switchProvider method allows switching to a different provider that supports the current blockchain.
 The getBalance and sendTransaction methods delegate the calls to the current blockchain instance.
 
-
 BlockchainManager:
 
 The BlockchainManager class is a good addition to manage the registration and retrieval of blockchains and providers.
 It maintains maps of registered blockchains and providers, allowing easy access to them by name.
 The registerBlockchain and registerProvider methods allow registering new blockchains and providers.
 The getBlockchain and getProvider methods allow retrieving a specific blockchain or provider by name.
-
-
 
 Now, let's see how you can use this architecture in your crypto wallet code:
 
@@ -48,10 +43,7 @@ blockchainManager.registerProvider(infuraProvider);
 blockchainManager.registerBlockchain(ethereumBlockchain);
 
 // Create an instance of the Wallet
-const wallet = new Wallet(
-  [alchemyProvider, infuraProvider],
-  [ethereumBlockchain]
-);
+const wallet = new Wallet([alchemyProvider, infuraProvider], [ethereumBlockchain]);
 ```
 
 Example 2: Getting the Balance
@@ -66,7 +58,7 @@ Example 3: Sending a Transaction
 
 ```typescript
 const transaction: Transaction = {
-  // ... populate the transaction details
+	// ... populate the transaction details
 };
 const txHash = await wallet.sendTransaction(transaction);
 console.log(`Transaction sent. Hash: ${txHash}`);
@@ -87,7 +79,6 @@ The BlockchainManager can be used to register and retrieve blockchains and provi
 
 The Wallet class provides a simple interface for interacting with the wallet functionality, abstracting away the complexities of dealing with different blockchains and providers.
 Remember to handle errors appropriately and add necessary validation and security measures in your actual implementation.
-
 
 # Mobile Architecture (thoughts)
 

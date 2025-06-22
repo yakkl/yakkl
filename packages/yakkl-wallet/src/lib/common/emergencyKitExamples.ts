@@ -5,7 +5,7 @@
 
 // Browser environment
 // async function handleDownloadInBrowser() {
-  /**
+/**
   const ekAccountData: EmergencyKitAccountData = {
    id: id,
     registered: registered,
@@ -24,16 +24,14 @@
     hash: '', 
   };
   */
- 
-  /** 
+
+/** 
   const passwordOrSaltedKey = "your-secure-password"; // Or your derived SaltedKey object
 
   const emergencyKit = await EmergencyKitManager.createEmergencyKit([ekAccountData], true, passwordOrSaltedKey);
   await EmergencyKitManager.downloadEmergencyKit(emergencyKit);
   */
 // }
-
-
 
 // Node.js or other non-browser environment
 // async function handleDownloadInNode() {
@@ -74,4 +72,3 @@
 //   const emergencyKit = await EmergencyKitManager.importEmergencyKit(s3Source, passwordOrSaltedKey);
 //   console.log(emergencyKit);
 // }
-

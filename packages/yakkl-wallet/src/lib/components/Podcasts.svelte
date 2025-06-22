@@ -15,36 +15,36 @@
 
 	let podcasts = $state([
 		{
-			title: "The Future of DeFi",
-			host: "Crypto Insights",
-			duration: "45 min",
-			date: "2 days ago",
-			imageUrl: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=200",
-			url: "https://example.com/podcast/1"
+			title: 'The Future of DeFi',
+			host: 'Crypto Insights',
+			duration: '45 min',
+			date: '2 days ago',
+			imageUrl: 'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=200',
+			url: 'https://example.com/podcast/1'
 		},
 		{
-			title: "Understanding Layer 2 Solutions",
-			host: "Blockchain Weekly",
-			duration: "38 min",
-			date: "3 days ago",
-			imageUrl: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=200",
-			url: "https://example.com/podcast/2"
+			title: 'Understanding Layer 2 Solutions',
+			host: 'Blockchain Weekly',
+			duration: '38 min',
+			date: '3 days ago',
+			imageUrl: 'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=200',
+			url: 'https://example.com/podcast/2'
 		},
 		{
-			title: "NFT Market Analysis",
-			host: "Digital Assets Today",
-			duration: "52 min",
-			date: "4 days ago",
-			imageUrl: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=200",
-			url: "https://example.com/podcast/3"
+			title: 'NFT Market Analysis',
+			host: 'Digital Assets Today',
+			duration: '52 min',
+			date: '4 days ago',
+			imageUrl: 'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=200',
+			url: 'https://example.com/podcast/3'
 		},
 		{
-			title: "Crypto Security Best Practices",
-			host: "Security First",
-			duration: "41 min",
-			date: "5 days ago",
-			imageUrl: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=200",
-			url: "https://example.com/podcast/4"
+			title: 'Crypto Security Best Practices',
+			host: 'Security First',
+			duration: '41 min',
+			date: '5 days ago',
+			imageUrl: 'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=200',
+			url: 'https://example.com/podcast/4'
 		}
 	]);
 
@@ -95,7 +95,9 @@
 					class="flex items-center justify-between w-full py-2 cursor-pointer"
 					onclick={() => (isRemainingSectionCollapsed = !isRemainingSectionCollapsed)}
 				>
-					<h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">{remainingItems.length} More Episodes</h3>
+					<h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">
+						{remainingItems.length} More Episodes
+					</h3>
 					<div class="text-gray-500 dark:text-gray-400">
 						{#if isRemainingSectionCollapsed}
 							<ChevronDownIcon className="w-4 h-4" />

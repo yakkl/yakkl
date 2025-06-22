@@ -1,9 +1,9 @@
 // src/lib/permissions/handlers.ts
 
-import { type PermissionResponse, SecurityLevel } from "./types";
-import { getPermission, getCurrentSessionId } from "./storage";
-import { getSecurityLevel } from "./security";
-import { log } from "$lib/managers/Logger";
+import { type PermissionResponse, SecurityLevel } from './types';
+import { getPermission, getCurrentSessionId } from './storage';
+import { getSecurityLevel } from './security';
+import { log } from '$lib/managers/Logger';
 
 // NOTE: This is currently not used, but it is a good starting point for the permission handling
 
@@ -13,30 +13,30 @@ import { log } from "$lib/managers/Logger";
  * @returns Whether permission is valid
  */
 export async function isPermissionValid(origin: string): Promise<boolean> {
-  try {
-    const permission = await getPermission(origin);
-    if (!permission) return false;
+	try {
+		const permission = await getPermission(origin);
+		if (!permission) return false;
 
-    const securityLevel = await getSecurityLevel();
+		const securityLevel = await getSecurityLevel();
 
-    switch (securityLevel) {
-      case SecurityLevel.HIGH:
-        // In high security, only allow in same session
-        const currentSessionId = await getCurrentSessionId();
-        return permission.sessionId === currentSessionId;
+		switch (securityLevel) {
+			case SecurityLevel.HIGH:
+				// In high security, only allow in same session
+				const currentSessionId = await getCurrentSessionId();
+				return permission.sessionId === currentSessionId;
 
-      case SecurityLevel.MEDIUM:
-      case SecurityLevel.STANDARD:
-        // Allow if permission exists and is not expired
-        return permission.expiresAt > Date.now();
+			case SecurityLevel.MEDIUM:
+			case SecurityLevel.STANDARD:
+				// Allow if permission exists and is not expired
+				return permission.expiresAt > Date.now();
 
-      default:
-        return false;
-    }
-  } catch (error) {
-    log.error('Error checking permission validity', false, { origin, error });
-    return false;
-  }
+			default:
+				return false;
+		}
+	} catch (error) {
+		log.error('Error checking permission validity', false, { origin, error });
+		return false;
+	}
 }
 
 /**
@@ -161,16 +161,16 @@ export async function isPermissionValid(origin: string): Promise<boolean> {
  * @param response The user's response (approved accounts)
  */
 export function resolvePermissionRequest(requestId: string, response: PermissionResponse): boolean {
-  // Check module-level callbacks first
-  if (permissionCallbacks[requestId]) {
-    permissionCallbacks[requestId].resolve(response);
-    delete permissionCallbacks[requestId];
-    return true;
-  }
+	// Check module-level callbacks first
+	if (permissionCallbacks[requestId]) {
+		permissionCallbacks[requestId].resolve(response);
+		delete permissionCallbacks[requestId];
+		return true;
+	}
 
-  // No callback found
-  log.warn('No permission callback found for request', false, { requestId });
-  return false;
+	// No callback found
+	log.warn('No permission callback found for request', false, { requestId });
+	return false;
 }
 
 /**
@@ -179,46 +179,46 @@ export function resolvePermissionRequest(requestId: string, response: Permission
  * @param error The error reason
  */
 export function rejectPermissionRequest(requestId: string, error: string): boolean {
-  // Check module-level callbacks first
-  if (permissionCallbacks[requestId]) {
-    permissionCallbacks[requestId].reject(new Error(error || 'User rejected the request'));
-    delete permissionCallbacks[requestId];
-    return true;
-  }
+	// Check module-level callbacks first
+	if (permissionCallbacks[requestId]) {
+		permissionCallbacks[requestId].reject(new Error(error || 'User rejected the request'));
+		delete permissionCallbacks[requestId];
+		return true;
+	}
 
-  // No callback found
-  log.warn('No permission callback found for request', false, { requestId });
-  return false;
+	// No callback found
+	log.warn('No permission callback found for request', false, { requestId });
+	return false;
 }
 
 // Create a module-level variable to store callbacks instead of using global
 // This avoids the TypeScript issues with the global object
 const permissionCallbacks: {
-  [requestId: string]: {
-    resolve: (value: PermissionResponse) => void;
-    reject: (reason?: any) => void;
-  }
+	[requestId: string]: {
+		resolve: (value: PermissionResponse) => void;
+		reject: (reason?: any) => void;
+	};
 } = {};
 
 // Add this for the global context case
 declare global {
-  namespace NodeJS {
-    interface Global {
-      permissionCallbacks?: {
-        [requestId: string]: {
-          resolve: (value: PermissionResponse) => void;
-          reject: (reason?: any) => void;
-        }
-      }
-    }
-  }
+	namespace NodeJS {
+		interface Global {
+			permissionCallbacks?: {
+				[requestId: string]: {
+					resolve: (value: PermissionResponse) => void;
+					reject: (reason?: any) => void;
+				};
+			};
+		}
+	}
 
-  interface Window {
-    permissionCallbacks?: {
-      [requestId: string]: {
-        resolve: (value: PermissionResponse) => void;
-        reject: (reason?: any) => void;
-      }
-    }
-  }
+	interface Window {
+		permissionCallbacks?: {
+			[requestId: string]: {
+				resolve: (value: PermissionResponse) => void;
+				reject: (reason?: any) => void;
+			};
+		};
+	}
 }

@@ -3,25 +3,23 @@ import type { BaseTransaction } from '$lib/common/';
 // Interface for Bitcoin transactions
 
 export interface BitcoinTransaction extends BaseTransaction {
-  // Bitcoin-specific properties
-  lockTime?: number;
-  inputs?: Array<BitcoinInput>;
-  outputs?: Array<BitcoinOutput>;
+	// Bitcoin-specific properties
+	lockTime?: number;
+	inputs?: Array<BitcoinInput>;
+	outputs?: Array<BitcoinOutput>;
 }
 
 interface BitcoinInput {
-  txid: string;
-  vout: number;
-  scriptSig: string;
-  sequence?: number;
+	txid: string;
+	vout: number;
+	scriptSig: string;
+	sequence?: number;
 }
 
 interface BitcoinOutput {
-  value: bigint;
-  scriptPubKey: string;
+	value: bigint;
+	scriptPubKey: string;
 }
-
-
 
 // Example:
 
