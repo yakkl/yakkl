@@ -11,53 +11,53 @@ export const preferredTokenSymbols = writable<string[]>(['ETH', 'WETH', 'USDC', 
 
 // Derived store for tokens with preferred tokens listed first
 export const sortedTokens = derived(
-  [tokens, preferredTokenSymbols],
-  ([$tokens, $preferredTokenSymbols]) => {
-    // Filter out the preferred tokens from the main list
-    const preferredTokens = $tokens.filter((token) =>
-      $preferredTokenSymbols.includes(token.symbol)
-    );
+	[tokens, preferredTokenSymbols],
+	([$tokens, $preferredTokenSymbols]) => {
+		// Filter out the preferred tokens from the main list
+		const preferredTokens = $tokens.filter((token) =>
+			$preferredTokenSymbols.includes(token.symbol)
+		);
 
-    const nonPreferredTokens = $tokens.filter(
-      (token) => !$preferredTokenSymbols.includes(token.symbol)  && token.chainId === 1
-    );
+		const nonPreferredTokens = $tokens.filter(
+			(token) => !$preferredTokenSymbols.includes(token.symbol) && token.chainId === 1
+		);
 
-    let eth: SwapToken = {
-      chainId: 1,
-      address: ADDRESSES.WETH,
-      name: 'Ethereum',
-      symbol: 'ETH',
-      decimals: 18,
-      isNative: true,
-      isStablecoin: false,
-      logoURI: '/images/ethereum.svg',
-    };
+		let eth: SwapToken = {
+			chainId: 1,
+			address: ADDRESSES.WETH,
+			name: 'Ethereum',
+			symbol: 'ETH',
+			decimals: 18,
+			isNative: true,
+			isStablecoin: false,
+			logoURI: '/images/ethereum.svg'
+		};
 
-    preferredTokens.unshift(eth);
+		preferredTokens.unshift(eth);
 
-    // Combine preferred tokens at the top, followed by the rest
-    return [...preferredTokens, ...nonPreferredTokens];
-  }
+		// Combine preferred tokens at the top, followed by the rest
+		return [...preferredTokens, ...nonPreferredTokens];
+	}
 );
 
 // Function to load tokens from static JSON file
 export async function loadTokens() {
-  try {
-    const response = await fetch('/data/uniswap.json');
-    const data = await response.json();
+	try {
+		const response = await fetch('/data/uniswap.json');
+		const data = await response.json();
 
-    // CoinGecko has a format similar to data.tokens while Uniswap has a format similar to data (just an array of tokens)
-    // Determine the correct tokens array
-    const tokensData = data.tokens || data?.data?.tokens || data;
+		// CoinGecko has a format similar to data.tokens while Uniswap has a format similar to data (just an array of tokens)
+		// Determine the correct tokens array
+		const tokensData = data.tokens || data?.data?.tokens || data;
 
-    const loadedTokens: SwapToken[] = tokensData.map((token: SwapToken) => ({
-      ...token,
-      isStablecoin: ['USDC', 'USDT', 'DAI', 'BUSD'].includes(token.symbol), // Mark stablecoins
-    }));
+		const loadedTokens: SwapToken[] = tokensData.map((token: SwapToken) => ({
+			...token,
+			isStablecoin: ['USDC', 'USDT', 'DAI', 'BUSD'].includes(token.symbol) // Mark stablecoins
+		}));
 
-    // Update the tokens store
-    tokens.set(loadedTokens);
-  } catch (error) {
-    log.error('Error loading tokens:', false, error);
-  }
+		// Update the tokens store
+		tokens.set(loadedTokens);
+	} catch (error) {
+		log.error('Error loading tokens:', false, error);
+	}
 }

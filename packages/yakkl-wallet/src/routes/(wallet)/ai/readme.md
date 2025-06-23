@@ -16,10 +16,8 @@ Use techniques such as data augmentation or adversarial training to increase the
 Regularly monitor the model's performance and retrain it on new data to keep it up-to-date and accurate.
 Keep in mind that training a GPT model can be a complex and resource-intensive process that requires significant computational power and expertise. Consider working with a team of data scientists or hiring a third-party service provider to assist you in this process.
 
-
-
-
 ---
+
 pip install openai
 
 import openai_secret_manager
@@ -27,8 +25,7 @@ import openai_secret_manager
 assert "openai" in openai_secret_manager.get_services()
 secrets = openai_secret_manager.get_secret("openai")
 
-print(secrets)  # it will print your API key and other secrets
-
+print(secrets) # it will print your API key and other secrets
 
 import openai
 
@@ -38,41 +35,39 @@ model = "text-davinci-002"
 openai.api_key = secrets["api_key"]
 
 response = openai.Completion.create(
-    engine=model,
-    prompt=prompt,
-    max_tokens=1024,
-    n=1,
-    stop=None,
-    temperature=0.5,
+engine=model,
+prompt=prompt,
+max_tokens=1024,
+n=1,
+stop=None,
+temperature=0.5,
 )
 
 print(response.choices[0].text)
 
-
 feedback = "The explanation was not clear. Please provide more details on how to send and receive cryptocurrencies."
 
 response = openai.Completion.create(
-    engine=model,
-    prompt=prompt,
-    max_tokens=1024,
-    n=1,
-    stop=None,
-    temperature=0.5,
-    feedback=feedback,
-    model=model,
+engine=model,
+prompt=prompt,
+max_tokens=1024,
+n=1,
+stop=None,
+temperature=0.5,
+feedback=feedback,
+model=model,
 )
-
 
 model_name = "crypto-wallet-docs"
 language = "en"
 description = "Trained GPT-3 model for crypto wallet documentation"
 
 response = openai.Model.create(
-    api_key=openai.api_key,
-    display_name=model_name,
-    language=language,
-    description=description,
-    model=model,
+api_key=openai.api_key,
+display_name=model_name,
+language=language,
+description=description,
+model=model,
 )
 
 --
@@ -184,7 +179,6 @@ In the above code, I have specified the `model_name` as "crypto-wallet-docs", th
 Conclusion:
 
 In conclusion, I can train GPT-3 using OpenAI APIs to understand my wallet's documentation in Markdown format by preparing the data, creating an OpenAI account, installing the OpenAI Python package, authenticating with the OpenAI API, training the GPT-3 model, refining the model, iterating on the model, and saving the trained model. By following these steps, I can create a powerful and easy-to-use crypto wallet that can help users understand and navigate the complexities of cryptocurrency.
-
 
 ---
 

@@ -9,44 +9,48 @@ import { isServerSide } from '$lib/common/utils';
 import { getBrowserExt } from '$lib/browser-polyfill-wrapper';
 import { getObjectFromLocalStorage } from '$lib/common/storage';
 
-
 export async function load() {
-  if (isServerSide()) {
-    log.info("+layout.ts is running in SSR, skipping browser_ext usage.");
-    return {}; // Prevents execution during SSR
-  }
+	if (isServerSide()) {
+		log.info('+layout.ts is running in SSR, skipping browser_ext usage.');
+		return {}; // Prevents execution during SSR
+	}
 
-  try {
-    log.debug('/+layout.ts - Initializing UI connection...');
+	try {
+		log.debug('/+layout.ts - Initializing UI connection...');
 
-    await initializeUIConnection();
-    const activeTab = get(activeTabUIStore);
-    if (!activeTab) {
-      const ext = getBrowserExt();
-      if (ext) {
-        try {
-          const response = await ext.runtime.sendMessage({ type: 'getActiveTab' }) as GetActiveTabResponse;
-          if (response?.activeTab) {
-            activeTabUIStore.set(response.activeTab);
-          } else {
-            log.debug('No active tab found, getting from local storage:', false, await getObjectFromLocalStorage('activeTabBackground'));
-          }
-          log.debug('Active tab:', false, activeTab, response, activeTabUIStore);
-        } catch (error) {
-          log.error("Failed to initialize UI connection:", false, error);
-        }
-      } else {
-        log.warn("browser_ext is not available.");
-      }
-    }
-  } catch (error) {
-    log.error('Failed to initialize UI connection:', false, error);
-  }
+		await initializeUIConnection();
+		const activeTab = get(activeTabUIStore);
+		if (!activeTab) {
+			const ext = getBrowserExt();
+			if (ext) {
+				try {
+					const response = (await ext.runtime.sendMessage({
+						type: 'getActiveTab'
+					})) as GetActiveTabResponse;
+					if (response?.activeTab) {
+						activeTabUIStore.set(response.activeTab);
+					} else {
+						log.debug(
+							'No active tab found, getting from local storage:',
+							false,
+							await getObjectFromLocalStorage('activeTabBackground')
+						);
+					}
+					log.debug('Active tab:', false, activeTab, response, activeTabUIStore);
+				} catch (error) {
+					log.error('Failed to initialize UI connection:', false, error);
+				}
+			} else {
+				log.warn('browser_ext is not available.');
+			}
+		}
+	} catch (error) {
+		log.error('Failed to initialize UI connection:', false, error);
+	}
 
-  return {
-    destroy() {
-      cleanup();
-    }
-  };
-
+	return {
+		destroy() {
+			cleanup();
+		}
+	};
 }

@@ -1,6 +1,6 @@
 # 🔐 Mocks Directory
 
-This directory contains **safe mock implementations** of private modules used in the YAKKL Smart Wallet (`yakkl-wallet`) project. These are *not* functional components — they are placeholders designed to allow public contributors to build, test, and explore the project **without access to private source code**.
+This directory contains **safe mock implementations** of private modules used in the YAKKL Smart Wallet (`yakkl-wallet`) project. These are _not_ functional components — they are placeholders designed to allow public contributors to build, test, and explore the project **without access to private source code**.
 
 ---
 
@@ -12,7 +12,7 @@ Some parts of the YAKKL system are proprietary or security-sensitive, such as:
 - Internal security logic (`yakkl-security`)
 - Debug tooling only available in Pro builds
 
-To avoid build errors and ensure a smooth developer experience, we provide *mock modules* here that mirror the real module paths but contain non-functional or visibly stubbed content.
+To avoid build errors and ensure a smooth developer experience, we provide _mock modules_ here that mirror the real module paths but contain non-functional or visibly stubbed content.
 
 ---
 
@@ -25,6 +25,7 @@ Each mock file here corresponds to a private component or module and typically:
 - Allows the project to compile and run, even if functionality is missing
 
 Example file structure: (some are only example files and not found anywhere)
+
 ```bash
 
 /src
@@ -67,6 +68,4 @@ Mocks are intentionally incomplete and should **never attempt to replicate secur
 
 ---
 
-🪵 *This readme brought to you by AICryptoGramps™. Stay safe out there, and don’t poke the bears.*
-
-
+🪵 _This readme brought to you by AICryptoGramps™. Stay safe out there, and don’t poke the bears._

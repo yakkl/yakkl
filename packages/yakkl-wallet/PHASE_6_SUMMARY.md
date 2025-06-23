@@ -5,6 +5,7 @@
 ### ✅ Components Created
 
 1. **SessionWarning.svelte** - Session expiration warning modal
+
    - Real-time countdown timer with MM:SS format
    - Visual urgency indicators (colors, animations)
    - Keyboard shortcuts (Enter to extend, Esc to logout)
@@ -19,6 +20,7 @@
 ### ✅ Utilities Created
 
 3. **jwt.ts** - JWT Token Manager
+
    - HS256 signed JWT tokens for Cloudflare Workers
    - Includes user profile, plan level, session ID in payload
    - Daily rotating signing keys based on user settings
@@ -36,6 +38,7 @@
 ### ✅ Enhanced Existing Components
 
 5. **Enhanced auth-store.ts**
+
    - Integrated session management with JWT tokens
    - Reactive session state with derived stores
    - Session warning callbacks and state management
@@ -49,6 +52,7 @@
 ## Key Features
 
 ### JWT Token Authentication
+
 - **Payload**: User ID, username, profile ID, plan level, session ID
 - **Security**: HMAC-SHA256 signatures with daily rotating keys
 - **Validation**: Expiration checking, issuer/audience validation
@@ -56,6 +60,7 @@
 - **API Ready**: Designed for Cloudflare Workers authentication
 
 ### Session Management
+
 - **Activity Tracking**: Mouse, keyboard, scroll, touch events
 - **Configurable Timeouts**: Default 30min with 2min warning
 - **Auto-extension**: Optional activity-based session extension
@@ -66,21 +71,23 @@
 ## Usage Examples
 
 ### Using JWT Tokens in API Calls
+
 ```typescript
 import { authStore } from '$lib/stores/auth-store';
 
 const token = authStore.getCurrentJWTToken();
 if (token) {
-  const response = await fetch('https://api.yakkl.com/endpoint', {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
-  });
+	const response = await fetch('https://api.yakkl.com/endpoint', {
+		headers: {
+			Authorization: `Bearer ${token}`,
+			'Content-Type': 'application/json'
+		}
+	});
 }
 ```
 
 ### Session Extension
+
 ```typescript
 import { authStore } from '$lib/stores/auth-store';
 
@@ -92,12 +99,13 @@ const timeLeft = authStore.getSessionTimeRemaining();
 ```
 
 ### Session State Monitoring
+
 ```typescript
 import { showSessionWarning, sessionTimeRemaining } from '$lib/stores/auth-store';
 
 // Reactive session warning state
 $: if ($showSessionWarning) {
-  console.log(`Session expires in ${$sessionTimeRemaining} seconds`);
+	console.log(`Session expires in ${$sessionTimeRemaining} seconds`);
 }
 ```
 
@@ -121,10 +129,10 @@ $: if ($showSessionWarning) {
 ```typescript
 // Update session configuration
 sessionManager.updateConfig({
-  timeoutMinutes: 45,        // Session timeout
-  warningMinutes: 5,         // Warning threshold
-  autoExtendOnActivity: true, // Auto-extend on activity
-  jwtExpirationMinutes: 90   // JWT token expiration
+	timeoutMinutes: 45, // Session timeout
+	warningMinutes: 5, // Warning threshold
+	autoExtendOnActivity: true, // Auto-extend on activity
+	jwtExpirationMinutes: 90 // JWT token expiration
 });
 ```
 
@@ -142,6 +150,7 @@ The implementation provides enterprise-grade session management with JWT authent
 ## Fixes Applied (December 20, 2025)
 
 ### ✅ **Modal Component Enhancement**
+
 - **Issue**: SessionWarning used `preventClose={true}` but Modal component didn't support it
 - **Fix**: Added `preventClose` prop to Modal.svelte
   - Prevents background click from closing modal
@@ -149,6 +158,7 @@ The implementation provides enterprise-grade session management with JWT authent
   - Essential for security-critical session warnings
 
 ### ✅ **JWT Integration with Login Component**
+
 - **Issue**: JWT tokens only generated in auth store, not in direct Login component usage
 - **Solution**: Enhanced Login component with:
   - `generateJWT?: boolean` prop to enable JWT generation
@@ -161,6 +171,7 @@ The implementation provides enterprise-grade session management with JWT authent
 **JWT tokens are now created in these scenarios:**
 
 1. **Auth Store Login** (`useAuthStore={true}`):
+
    ```typescript
    // Automatic JWT generation via session manager
    const profile = await authStore.login(username, password);
@@ -168,8 +179,9 @@ The implementation provides enterprise-grade session management with JWT authent
    ```
 
 2. **Direct Login with JWT** (`generateJWT={true}`):
+
    ```typescript
-   <Login 
+   <Login
      generateJWT={true}
      onSuccess={(profile, digest, isMinimal, jwtToken) => {
        // JWT token available here
@@ -180,13 +192,14 @@ The implementation provides enterprise-grade session management with JWT authent
 3. **Upgrade Component Integration**:
    ```typescript
    // Uses auth store OR generates JWT based on configuration
-   <Login 
+   <Login
      useAuthStore={useAuthStore}
      generateJWT={!useAuthStore}  // Generate JWT if not using auth store
    />
    ```
 
 ### ✅ **API Client for Cloudflare Workers**
+
 - **New File**: `/lib/utilities/api-client.ts`
 - **Features**:
   - Automatic JWT token inclusion in headers
@@ -196,6 +209,7 @@ The implementation provides enterprise-grade session management with JWT authent
   - RESTful methods (GET, POST, PUT, DELETE)
 
 **Example Usage:**
+
 ```typescript
 import { apiClient, getUserProfile, upgradeUserPlan } from '$lib/utilities/api-client';
 
@@ -207,13 +221,14 @@ const response = await apiClient.post('/custom-endpoint', { data: 'value' });
 
 // Check response
 if (response.success) {
-  console.log('Data:', response.data);
+	console.log('Data:', response.data);
 } else {
-  console.error('Error:', response.error);
+	console.error('Error:', response.error);
 }
 ```
 
 ### ✅ **Build Verification**
+
 - All TypeScript errors resolved
 - Build completes successfully
 - JWT tokens integrate seamlessly with existing auth flow
@@ -222,8 +237,9 @@ if (response.success) {
 ## Next Steps
 
 With Phase 6 complete and all fixes applied, the authentication system now includes:
+
 - ✅ Registration checking and prompts
-- ✅ Enhanced login/upgrade UX flow  
+- ✅ Enhanced login/upgrade UX flow
 - ✅ Sidepanel integration
 - ✅ Unified auth state management
 - ✅ Comprehensive error handling

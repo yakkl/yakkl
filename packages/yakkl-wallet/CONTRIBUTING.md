@@ -1,18 +1,19 @@
 # Contributing to YAKKL Smart Wallet and Smart Contracts
 
->Thank you for your interest in contributing to the YAKKL Smart Wallet and Smart Contracts project. We value your efforts and look forward to your contributions. This document outlines the process for contributing to our project. It's people like you that makes YAKKL Smart Wallet and Smart Contracts such a great product and set of tools.
+> Thank you for your interest in contributing to the YAKKL Smart Wallet and Smart Contracts project. We value your efforts and look forward to your contributions. This document outlines the process for contributing to our project. It's people like you that makes YAKKL Smart Wallet and Smart Contracts such a great product and set of tools.
 
 ## What we need
 
 We welcome contributions in the form of bug reports, feature requests, code changes, documentation updates, and more! Here are some ways you can contribute:
- - **Bug Reports:** If you encounter a bug, please report it on our [GitHub Issues]
- - **Feature Requests:** If you have an idea for a new feature, please submit it on our [GitHub Issues]
- - **Code Changes:** If you want to contribute code changes, please follow the guidelines in this document
- - **Documentation Updates:** If you find an error in the documentation or want to improve it, please submit a pull request
- - **Testing:** Help us test the YAKKL Smart Wallet and Smart Contracts project and report any issues you find
- - **Feedback:** Provide feedback on the project, including what you like, what you don't like, and what you would like to see improved
- - **Spread the Word:** Share the YAKKL Smart Wallet and Smart Contracts project with others and help us grow the community
- - **Other Contributions:** If you have other ideas for how you can contribute, please let us know
+
+- **Bug Reports:** If you encounter a bug, please report it on our [GitHub Issues]
+- **Feature Requests:** If you have an idea for a new feature, please submit it on our [GitHub Issues]
+- **Code Changes:** If you want to contribute code changes, please follow the guidelines in this document
+- **Documentation Updates:** If you find an error in the documentation or want to improve it, please submit a pull request
+- **Testing:** Help us test the YAKKL Smart Wallet and Smart Contracts project and report any issues you find
+- **Feedback:** Provide feedback on the project, including what you like, what you don't like, and what you would like to see improved
+- **Spread the Word:** Share the YAKKL Smart Wallet and Smart Contracts project with others and help us grow the community
+- **Other Contributions:** If you have other ideas for how you can contribute, please let us know
 
 ## Table of Contents
 
@@ -83,6 +84,7 @@ type(scope): subject
 ```
 
 Examples:
+
 - `feat(wallet): add support for new blockchain`
 - `fix(ui): correct alignment on the dashboard`
 
@@ -120,7 +122,7 @@ It's important to stay in sync with the latest changes from the upstream reposit
 
 Here are a couple of friendly tutorials you can include: http://makeapullrequest.com/ and http://www.firsttimersonly.com/
 
-> Working on your first Pull Request? You can learn how from this *free* series, [How to Contribute to an Open Source Project on GitHub](https://egghead.io/series/how-to-contribute-to-an-open-source-project-on-github).
+> Working on your first Pull Request? You can learn how from this _free_ series, [How to Contribute to an Open Source Project on GitHub](https://egghead.io/series/how-to-contribute-to-an-open-source-project-on-github).
 
 ### Make it small
 
@@ -136,4 +138,3 @@ If you have any questions or need support, please contact us at:
 For more information about YAKKL, Inc., please visit [yakkl.com](https://yakkl.com).
 
 Thank you for contributing to YAKKL Smart Wallet and Smart Contracts!
-

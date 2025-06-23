@@ -9,37 +9,37 @@ export const selectedEIP6963Provider = writable<EIP6963ProviderDetail | null>(nu
 
 // Function to request providers
 export function requestEIP6963Providers() {
-  window.dispatchEvent(new Event('eip6963:requestProvider'));
+	window.dispatchEvent(new Event('eip6963:requestProvider'));
 }
 
 // Function to select a provider
 export function selectEIP6963Provider(provider: EIP6963ProviderDetail) {
-  selectedEIP6963Provider.set(provider);
+	selectedEIP6963Provider.set(provider);
 }
 
 // Function to get accounts from the selected provider
 export async function getEIP6963Accounts() {
-  const provider = get(selectedEIP6963Provider);
-  if (!provider) {
-    throw new Error('No provider selected');
-  }
-  return await provider.provider.request({ method: 'eth_accounts' });
+	const provider = get(selectedEIP6963Provider);
+	if (!provider) {
+		throw new Error('No provider selected');
+	}
+	return await provider.provider.request({ method: 'eth_accounts' });
 }
 
 // Function to get chain ID from the selected provider
 export async function getEIP6963ChainId() {
-  const provider = get(selectedEIP6963Provider);
-  if (!provider) {
-    throw new Error('No provider selected');
-  }
-  return await provider.provider.request({ method: 'eth_chainId' });
+	const provider = get(selectedEIP6963Provider);
+	if (!provider) {
+		throw new Error('No provider selected');
+	}
+	return await provider.provider.request({ method: 'eth_chainId' });
 }
 
 // Function to request accounts from the selected provider
 export async function requestEIP6963Accounts() {
-  const provider = get(selectedEIP6963Provider);
-  if (!provider) {
-    throw new Error('No provider selected');
-  }
-  return await provider.provider.request({ method: 'eth_requestAccounts' });
+	const provider = get(selectedEIP6963Provider);
+	if (!provider) {
+		throw new Error('No provider selected');
+	}
+	return await provider.provider.request({ method: 'eth_requestAccounts' });
 }

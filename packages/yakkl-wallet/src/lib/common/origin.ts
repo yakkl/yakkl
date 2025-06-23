@@ -1,62 +1,65 @@
 // import type { RuntimePort } from "$lib/extensions/chrome/background";
-import { log } from "$lib/managers/Logger";
-import { isFrameAccessible } from "./frameInspector";
+import { log } from '$lib/managers/Logger';
+import { isFrameAccessible } from './frameInspector';
 // import browser from "webextension-polyfill";
 
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY = 1000; // 1 second
 
-const pendingMessages = new Map<string, {
-  message: any;
-  timestamp: number;
-  attempts: number;
-}>();
+const pendingMessages = new Map<
+	string,
+	{
+		message: any;
+		timestamp: number;
+		attempts: number;
+	}
+>();
 
 export function getWindowOrigin(): string {
-  try {
-    // Get the current window's origin
-    const origin = window.location.origin;
+	try {
+		// Get the current window's origin
+		const origin = window.location.origin;
 
-    // Handle various null/invalid origin cases
-    if (!origin || origin === 'null' || origin === 'undefined') {
-      return '*'; // Use wildcard for null origins
-    }
+		// Handle various null/invalid origin cases
+		if (!origin || origin === 'null' || origin === 'undefined') {
+			return '*'; // Use wildcard for null origins
+		}
 
-    // Check for special cases that should use wildcard
-    if (
-      window.location.protocol === 'data:' ||
-      window.location.protocol === 'blob:' ||
-      window.location.protocol === 'file:' ||
-      window.location.href.startsWith('moz-extension:') ||
-      window.location.href.startsWith('chrome-extension:')
-    ) {
-      return '*';
-    }
+		// Check for special cases that should use wildcard
+		if (
+			window.location.protocol === 'data:' ||
+			window.location.protocol === 'blob:' ||
+			window.location.protocol === 'file:' ||
+			window.location.href.startsWith('moz-extension:') ||
+			window.location.href.startsWith('chrome-extension:')
+		) {
+			return '*';
+		}
 
-    return origin;
-  } catch (error) {
-    log.debug('[OriginDetection] Error getting window origin:', false, error);
-    return '*'; // Fallback to wildcard
-  }
+		return origin;
+	} catch (error) {
+		log.debug('[OriginDetection] Error getting window origin:', false, error);
+		return '*'; // Fallback to wildcard
+	}
 }
 
 /**
  * Get the current window's origin safely
  */
 export function getCurrentOrigin(): string {
-  try {
-    const origin = window.location.origin;
+	try {
+		const origin = window.location.origin;
 
-    // Handle null or invalid origins
-    if (!origin || origin === 'null' || origin === 'undefined') {
-      return 'null';
-    }
+		// Handle null or invalid origins
+		if (!origin || origin === 'null' || origin === 'undefined') {
+			return 'null';
+		}
 
-    return origin;
-  } catch (error) {
-    log.debug('[Origin] Error getting current origin:', false, error);
-    return 'null';
-  }
+		return origin;
+	} catch (error) {
+		log.debug('[Origin] Error getting current origin:', false, error);
+		return 'null';
+	}
 }
 
 /**
@@ -65,15 +68,15 @@ export function getCurrentOrigin(): string {
  * @returns boolean indicating if the origin is valid
  */
 export function isValidOrigin(origin: string): boolean {
-  try {
-    const windowOrigin = getCurrentOrigin(); // getWindowOrigin();
-    // If we can't determine the window origin, reject the message
-    if (!windowOrigin) return false;
-    return origin === windowOrigin;
-  } catch (error) {
-    log.warn('Error validating origin, defaulting to false', false, error);
-    return false;
-  }
+	try {
+		const windowOrigin = getCurrentOrigin(); // getWindowOrigin();
+		// If we can't determine the window origin, reject the message
+		if (!windowOrigin) return false;
+		return origin === windowOrigin;
+	} catch (error) {
+		log.warn('Error validating origin, defaulting to false', false, error);
+		return false;
+	}
 }
 
 /**
@@ -103,43 +106,42 @@ export function isValidOrigin(origin: string): boolean {
 // }
 
 export function getTargetOrigin(): string {
-  try {
-    const currentOrigin = getCurrentOrigin();
+	try {
+		const currentOrigin = getCurrentOrigin();
 
-    // For null origins, use wildcard
-    if (currentOrigin === 'null') {
-      return '*';
-    }
+		// For null origins, use wildcard
+		if (currentOrigin === 'null') {
+			return '*';
+		}
 
-    // For extension contexts, use wildcard
-    if (
-      window.location.protocol === 'chrome-extension:' ||
-      window.location.protocol === 'moz-extension:' ||
-      window.location.protocol === 'data:' ||
-      window.location.protocol === 'blob:' ||
-      window.location.protocol === 'file:'
-    ) {
-      return '*';
-    }
+		// For extension contexts, use wildcard
+		if (
+			window.location.protocol === 'chrome-extension:' ||
+			window.location.protocol === 'moz-extension:' ||
+			window.location.protocol === 'data:' ||
+			window.location.protocol === 'blob:' ||
+			window.location.protocol === 'file:'
+		) {
+			return '*';
+		}
 
-    // For sandboxed iframes, use wildcard
-    try {
-      if (window.parent !== window && window.parent.location.origin === 'null') {
-        return '*';
-      }
-    } catch (e) {
-      // Cross-origin access denied, likely sandboxed
-      return '*';
-    }
+		// For sandboxed iframes, use wildcard
+		try {
+			if (window.parent !== window && window.parent.location.origin === 'null') {
+				return '*';
+			}
+		} catch (e) {
+			// Cross-origin access denied, likely sandboxed
+			return '*';
+		}
 
-    // Return the current origin for normal web contexts
-    return currentOrigin;
-  } catch (error) {
-    log.debug('[OriginUtils] Error determining target origin:', false, error);
-    return '*';
-  }
+		// Return the current origin for normal web contexts
+		return currentOrigin;
+	} catch (error) {
+		log.debug('[OriginUtils] Error determining target origin:', false, error);
+		return '*';
+	}
 }
-
 
 // NOTE: This is used in the content script and inpage script only.
 // Example: safePostMessage(msg, origin, { targetWindow: iframe.contentWindow });
@@ -258,225 +260,222 @@ export function getTargetOrigin(): string {
 // }
 
 export function safePostMessage(
-  message: any,
-  targetOrigin?: string,
-  options?: {
-    context?: string;
-    allowRetries?: boolean;
-    retryKey?: string;
-    maxRetries?: number;
-  }
+	message: any,
+	targetOrigin?: string,
+	options?: {
+		context?: string;
+		allowRetries?: boolean;
+		retryKey?: string;
+		maxRetries?: number;
+	}
 ): boolean {
-  const {
-    context = 'unknown',
-    allowRetries = true,
-    retryKey,
-    maxRetries = 2
-  } = options || {};
+	const { context = 'unknown', allowRetries = true, retryKey, maxRetries = 2 } = options || {};
 
-  // Determine target origin
-  const finalTargetOrigin = targetOrigin || getTargetOrigin();
+	// Determine target origin
+	const finalTargetOrigin = targetOrigin || getTargetOrigin();
 
-  let attempts = 0;
+	let attempts = 0;
 
-  const attemptPostMessage = (origin: string): boolean => {
-    attempts++;
+	const attemptPostMessage = (origin: string): boolean => {
+		attempts++;
 
-    try {
-      log.debug(`[SafePostMessage] Attempt ${attempts} from ${context}:`, false, {
-        messageType: message.type,
-        messageId: message.id,
-        targetOrigin: origin,
-        currentOrigin: getCurrentOrigin(),
-        protocol: window.location.protocol,
-        isNull: getCurrentOrigin() === 'null'
-      });
+		try {
+			log.debug(`[SafePostMessage] Attempt ${attempts} from ${context}:`, false, {
+				messageType: message.type,
+				messageId: message.id,
+				targetOrigin: origin,
+				currentOrigin: getCurrentOrigin(),
+				protocol: window.location.protocol,
+				isNull: getCurrentOrigin() === 'null'
+			});
 
-      window.postMessage(message, origin);
-      return true;
+			window.postMessage(message, origin);
+			return true;
+		} catch (error) {
+			if (error instanceof Error) {
+				if (error.message.includes("does not match the recipient window's origin")) {
+					log.debug(`[SafePostMessage] Origin mismatch (attempt ${attempts}):`, false, {
+						error: error.message,
+						triedOrigin: origin,
+						currentOrigin: getCurrentOrigin()
+					});
 
-    } catch (error) {
-      if (error instanceof Error) {
-        if (error.message.includes('does not match the recipient window\'s origin')) {
-          log.debug(`[SafePostMessage] Origin mismatch (attempt ${attempts}):`, false, {
-            error: error.message,
-            triedOrigin: origin,
-            currentOrigin: getCurrentOrigin()
-          });
+					// Try with wildcard if we haven't already and retries are allowed
+					if (allowRetries && origin !== '*' && attempts <= maxRetries) {
+						return attemptPostMessage('*');
+					}
+				} else if (error.message.includes('Extension context invalidated')) {
+					log.warn(`[SafePostMessage] Extension context invalidated in ${context}`);
+					return false;
+				}
+			}
 
-          // Try with wildcard if we haven't already and retries are allowed
-          if (allowRetries && origin !== '*' && attempts <= maxRetries) {
-            return attemptPostMessage('*');
-          }
-        } else if (error.message.includes('Extension context invalidated')) {
-          log.warn(`[SafePostMessage] Extension context invalidated in ${context}`);
-          return false;
-        }
-      }
+			log.warn(`[SafePostMessage] Failed attempt ${attempts} from ${context}:`, false, {
+				error: error instanceof Error ? error.message : error,
+				messageType: message.type,
+				messageId: message.id,
+				targetOrigin: origin,
+				currentOrigin: getCurrentOrigin()
+			});
 
-      log.warn(`[SafePostMessage] Failed attempt ${attempts} from ${context}:`, false, {
-        error: error instanceof Error ? error.message : error,
-        messageType: message.type,
-        messageId: message.id,
-        targetOrigin: origin,
-        currentOrigin: getCurrentOrigin()
-      });
+			return false;
+		}
+	};
 
-      return false;
-    }
-  };
-
-  return attemptPostMessage(finalTargetOrigin);
+	return attemptPostMessage(finalTargetOrigin);
 }
 
 /**
  * Enhanced origin detection for different contexts
  */
 export function detectContextType(): 'extension' | 'web' | 'sandboxed' | 'data' | 'unknown' {
-  try {
-    const protocol = window.location.protocol;
-    const origin = getCurrentOrigin();
+	try {
+		const protocol = window.location.protocol;
+		const origin = getCurrentOrigin();
 
-    if (protocol === 'chrome-extension:' || protocol === 'moz-extension:') {
-      return 'extension';
-    }
+		if (protocol === 'chrome-extension:' || protocol === 'moz-extension:') {
+			return 'extension';
+		}
 
-    if (protocol === 'data:' || protocol === 'blob:') {
-      return 'data';
-    }
+		if (protocol === 'data:' || protocol === 'blob:') {
+			return 'data';
+		}
 
-    if (origin === 'null') {
-      return 'sandboxed';
-    }
+		if (origin === 'null') {
+			return 'sandboxed';
+		}
 
-    if (protocol === 'https:' || protocol === 'http:') {
-      return 'web';
-    }
+		if (protocol === 'https:' || protocol === 'http:') {
+			return 'web';
+		}
 
-    return 'unknown';
-  } catch (error) {
-    log.debug('[OriginUtils] Error detecting context type:', false, error);
-    return 'unknown';
-  }
+		return 'unknown';
+	} catch (error) {
+		log.debug('[OriginUtils] Error detecting context type:', false, error);
+		return 'unknown';
+	}
 }
 
 /**
  * Check if current context is sandboxed
  */
 export function isSandboxedContext(): boolean {
-  try {
-    const contextType = detectContextType();
+	try {
+		const contextType = detectContextType();
 
-    if (contextType === 'sandboxed' || contextType === 'data') {
-      return true;
-    }
+		if (contextType === 'sandboxed' || contextType === 'data') {
+			return true;
+		}
 
-    // Additional checks for sandboxed iframes
-    try {
-      // Try to access parent - will throw in sandboxed context
-      if (window.parent !== window) {
-        const parentOrigin = window.parent.location.origin;
-        return false; // If we can access parent origin, not sandboxed
-      }
-    } catch (e) {
-      // Can't access parent, likely sandboxed
-      return true;
-    }
+		// Additional checks for sandboxed iframes
+		try {
+			// Try to access parent - will throw in sandboxed context
+			if (window.parent !== window) {
+				const parentOrigin = window.parent.location.origin;
+				return false; // If we can access parent origin, not sandboxed
+			}
+		} catch (e) {
+			// Can't access parent, likely sandboxed
+			return true;
+		}
 
-    return false;
-  } catch (error) {
-    log.debug('[OriginUtils] Error checking if sandboxed:', false, error);
-    return true; // Assume sandboxed if we can't determine
-  }
+		return false;
+	} catch (error) {
+		log.debug('[OriginUtils] Error checking if sandboxed:', false, error);
+		return true; // Assume sandboxed if we can't determine
+	}
 }
 
 /**
  * Get safe postMessage configuration for current context
  */
 export function getPostMessageConfig(): {
-  targetOrigin: string;
-  contextType: string;
-  isSandboxed: boolean;
-  shouldUseWildcard: boolean;
+	targetOrigin: string;
+	contextType: string;
+	isSandboxed: boolean;
+	shouldUseWildcard: boolean;
 } {
-  const contextType = detectContextType();
-  const isSandboxed = isSandboxedContext();
-  const currentOrigin = getCurrentOrigin();
+	const contextType = detectContextType();
+	const isSandboxed = isSandboxedContext();
+	const currentOrigin = getCurrentOrigin();
 
-  // Use wildcard for sandboxed or extension contexts
-  const shouldUseWildcard =
-    isSandboxed ||
-    contextType === 'extension' ||
-    contextType === 'data' ||
-    currentOrigin === 'null';
+	// Use wildcard for sandboxed or extension contexts
+	const shouldUseWildcard =
+		isSandboxed ||
+		contextType === 'extension' ||
+		contextType === 'data' ||
+		currentOrigin === 'null';
 
-  const targetOrigin = shouldUseWildcard ? '*' : currentOrigin;
+	const targetOrigin = shouldUseWildcard ? '*' : currentOrigin;
 
-  return {
-    targetOrigin,
-    contextType,
-    isSandboxed,
-    shouldUseWildcard
-  };
+	return {
+		targetOrigin,
+		contextType,
+		isSandboxed,
+		shouldUseWildcard
+	};
 }
 
 /**
  * Validate postMessage before sending
  */
-export function validatePostMessage(message: any, targetOrigin: string): {
-  isValid: boolean;
-  reason?: string;
-  suggestedOrigin?: string;
+export function validatePostMessage(
+	message: any,
+	targetOrigin: string
+): {
+	isValid: boolean;
+	reason?: string;
+	suggestedOrigin?: string;
 } {
-  // Check message format
-  if (!message || typeof message !== 'object') {
-    return {
-      isValid: false,
-      reason: 'Invalid message format'
-    };
-  }
+	// Check message format
+	if (!message || typeof message !== 'object') {
+		return {
+			isValid: false,
+			reason: 'Invalid message format'
+		};
+	}
 
-  // Check if we're in a context that supports postMessage
-  if (typeof window === 'undefined' || !window.postMessage) {
-    return {
-      isValid: false,
-      reason: 'postMessage not available'
-    };
-  }
+	// Check if we're in a context that supports postMessage
+	if (typeof window === 'undefined' || !window.postMessage) {
+		return {
+			isValid: false,
+			reason: 'postMessage not available'
+		};
+	}
 
-  const config = getPostMessageConfig();
+	const config = getPostMessageConfig();
 
-  // If we're trying to use a specific origin but we're in a sandboxed context
-  if (targetOrigin !== '*' && config.shouldUseWildcard) {
-    return {
-      isValid: true, // Still valid, but suggest wildcard
-      reason: 'Sandboxed context detected',
-      suggestedOrigin: '*'
-    };
-  }
+	// If we're trying to use a specific origin but we're in a sandboxed context
+	if (targetOrigin !== '*' && config.shouldUseWildcard) {
+		return {
+			isValid: true, // Still valid, but suggest wildcard
+			reason: 'Sandboxed context detected',
+			suggestedOrigin: '*'
+		};
+	}
 
-  return {
-    isValid: true
-  };
+	return {
+		isValid: true
+	};
 }
 
 /**
  * Debug helper for origin issues
  */
 export function debugOriginInfo(): any {
-  const config = getPostMessageConfig();
+	const config = getPostMessageConfig();
 
-  return {
-    currentOrigin: getCurrentOrigin(),
-    protocol: window.location.protocol,
-    href: window.location.href,
-    contextType: config.contextType,
-    isSandboxed: config.isSandboxed,
-    shouldUseWildcard: config.shouldUseWildcard,
-    recommendedTargetOrigin: config.targetOrigin,
-    // validOrigins: VALID_ORIGINS,
-    timestamp: new Date().toISOString()
-  };
+	return {
+		currentOrigin: getCurrentOrigin(),
+		protocol: window.location.protocol,
+		href: window.location.href,
+		contextType: config.contextType,
+		isSandboxed: config.isSandboxed,
+		shouldUseWildcard: config.shouldUseWildcard,
+		recommendedTargetOrigin: config.targetOrigin,
+		// validOrigins: VALID_ORIGINS,
+		timestamp: new Date().toISOString()
+	};
 }
 
 // export async function getOriginFromPort(port: RuntimePort): Promise<string> {

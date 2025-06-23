@@ -1,22 +1,22 @@
 // vite-plugin-mock-browser-polyfill.js
 export default function mockBrowserPolyfill() {
-  return {
-    name: 'mock-browser-polyfill',
-    enforce: 'pre', // Run before other plugins
-    resolveId(id, importer) {
-      // Check if the import is for webextension-polyfill
-      if (id === 'webextension-polyfill' || id.includes('webextension-polyfill')) {
-        console.log(`[mock-browser-polyfill] Intercepting import: ${id} from ${importer}`);
-        // Return a custom id that our plugin will handle
-        return 'virtual:browser-polyfill-mock';
-      }
-      return null;
-    },
-    load(id) {
-      // If this is our special ID, return a mock implementation
-      if (id === 'virtual:browser-polyfill-mock') {
-        console.log('[mock-browser-polyfill] Loading mock implementation');
-        return `
+	return {
+		name: 'mock-browser-polyfill',
+		enforce: 'pre', // Run before other plugins
+		resolveId(id, importer) {
+			// Check if the import is for webextension-polyfill
+			if (id === 'webextension-polyfill' || id.includes('webextension-polyfill')) {
+				console.log(`[mock-browser-polyfill] Intercepting import: ${id} from ${importer}`);
+				// Return a custom id that our plugin will handle
+				return 'virtual:browser-polyfill-mock';
+			}
+			return null;
+		},
+		load(id) {
+			// If this is our special ID, return a mock implementation
+			if (id === 'virtual:browser-polyfill-mock') {
+				console.log('[mock-browser-polyfill] Loading mock implementation');
+				return `
           // Mock browser polyfill for SSR
           const mockBrowser = {
             runtime: {
@@ -67,8 +67,8 @@ export default function mockBrowserPolyfill() {
           export const tabs = mockBrowser.tabs;
           export const windows = mockBrowser.windows;
         `;
-      }
-      return null;
-    }
-  };
+			}
+			return null;
+		}
+	};
 }

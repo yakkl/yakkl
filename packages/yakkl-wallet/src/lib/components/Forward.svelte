@@ -1,12 +1,10 @@
 <script lang="ts">
+	interface Props {
+		// import { Button } from "flowbite-svelte";
+		defaultClass?: string;
+	}
 
-  interface Props {
-    // import { Button } from "flowbite-svelte";
-    defaultClass?: string;
-  }
-
-  let { defaultClass = "right-0 top-0" }: Props = $props();
-
+	let { defaultClass = 'right-0 top-0' }: Props = $props();
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -20,6 +18,23 @@
 </div> -->
 
 <!-- svelte-ignore a11y_consider_explicit_label -->
-<button class="btn btn-sm btn-circle btn-outline absolute z-10 {defaultClass}" onclick={() => {history.forward()}}>
-  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
+<button
+	class="btn btn-sm btn-circle btn-outline absolute z-10 {defaultClass}"
+	onclick={() => {
+		history.forward();
+	}}
+>
+	<svg
+		xmlns="http://www.w3.org/2000/svg"
+		class="h-5 w-5"
+		fill="none"
+		viewBox="0 0 24 24"
+		stroke="currentColor"
+		><path
+			stroke-linecap="round"
+			stroke-linejoin="round"
+			stroke-width="2"
+			d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"
+		/></svg
+	>
 </button>

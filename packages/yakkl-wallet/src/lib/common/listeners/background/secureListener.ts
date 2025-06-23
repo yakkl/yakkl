@@ -283,7 +283,6 @@
 //   }
 // }
 
-
 // // Port listener for the secure token connection
 // browser.runtime.onConnect.addListener((port) => {
 //   port.onMessage.addListener(async (message: any) => {

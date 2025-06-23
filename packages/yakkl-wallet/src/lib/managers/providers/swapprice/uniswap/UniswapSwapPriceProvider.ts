@@ -16,7 +16,6 @@
 // import {  safeConvertBigIntToNumber } from '$lib/utilities/utilities';
 // import JSBI from 'jsbi';
 
-
 // export class UniswapSwapPriceProvider implements SwapPriceProvider {
 //   private providerYakkl: Provider;
 //   private nativePriceProvider: PriceProvider;
@@ -87,311 +86,296 @@
 //     return await this.nativePriceProvider.getMarketPrice( `${ pair }` );
 //   }
 
-  // async getSwapPriceOut(
-  //   tokenIn: SwapToken,
-  //   tokenOut: SwapToken,
-  //   amountIn: BigNumberish,
-  //   fee: number = 3000
-  // ): Promise<SwapPriceData> {
-  //   await this.ensureInitialized();
+// async getSwapPriceOut(
+//   tokenIn: SwapToken,
+//   tokenOut: SwapToken,
+//   amountIn: BigNumberish,
+//   fee: number = 3000
+// ): Promise<SwapPriceData> {
+//   await this.ensureInitialized();
 
-  //   if ( !this.quoter || !this.factory ) throw new Error( 'Quoter or Factory not initialized' );
-  //   if ( !tokenIn || !tokenOut ) throw new Error( 'Invalid tokens' );
-  //   if ( amountIn === null || amountIn === undefined ) throw new Error( 'Amount in is null or undefined' );
+//   if ( !this.quoter || !this.factory ) throw new Error( 'Quoter or Factory not initialized' );
+//   if ( !tokenIn || !tokenOut ) throw new Error( 'Invalid tokens' );
+//   if ( amountIn === null || amountIn === undefined ) throw new Error( 'Amount in is null or undefined' );
 
-  //   try {
-  //     if ( amountIn === 0n ) {
-  //       // If all values are zero then nothing has happened yet
-  //       return {
-  //         provider: this.getName(),
-  //         lastUpdated: new Date(),
-  //         chainId: this.providerYakkl.getChainId(),
-  //         tokenIn,
-  //         tokenOut,
-  //         quoteAmount: 0n,
-  //         feeAmount: 0n,
-  //         amountIn: 0n,
-  //         amountOut: 0n,
-  //         exchangeRate: 0n,
-  //         marketPriceIn: 0,
-  //         marketPriceOut: 0,
-  //         // price: 0,
-  //         priceImpact: 0,
-  //         path: [ tokenIn.address, tokenOut.address ],
-  //         fee,
-  //         feeEstimate: 0n,  // Value and not rate
-  //         gasEstimate: 0n
-  //       };
-  //     }
+//   try {
+//     if ( amountIn === 0n ) {
+//       // If all values are zero then nothing has happened yet
+//       return {
+//         provider: this.getName(),
+//         lastUpdated: new Date(),
+//         chainId: this.providerYakkl.getChainId(),
+//         tokenIn,
+//         tokenOut,
+//         quoteAmount: 0n,
+//         feeAmount: 0n,
+//         amountIn: 0n,
+//         amountOut: 0n,
+//         exchangeRate: 0n,
+//         marketPriceIn: 0,
+//         marketPriceOut: 0,
+//         // price: 0,
+//         priceImpact: 0,
+//         path: [ tokenIn.address, tokenOut.address ],
+//         fee,
+//         feeEstimate: 0n,  // Value and not rate
+//         gasEstimate: 0n
+//       };
+//     }
 
-  //     // const poolAddress = await this.factory.getPool( tokenIn.address, tokenOut.address, fee );
-  //     // if ( poolAddress === ethersv6.ZeroAddress ) {
-  //     //   throw new Error( 'Pool does not exist for tier' );
-  //     // }
+//     // const poolAddress = await this.factory.getPool( tokenIn.address, tokenOut.address, fee );
+//     // if ( poolAddress === ethersv6.ZeroAddress ) {
+//     //   throw new Error( 'Pool does not exist for tier' );
+//     // }
 
-  //     const amountInBigInt = EthereumBigNumber.toBigInt( amountIn );
-  //     if ( !amountInBigInt ) throw new Error( 'Invalid amount' );
+//     const amountInBigInt = EthereumBigNumber.toBigInt( amountIn );
+//     if ( !amountInBigInt ) throw new Error( 'Invalid amount' );
 
-  //     debug_log( 'UniswapPriceProvider - getSwapPriceOut - amountInBigInt:', amountInBigInt );
+//     debug_log( 'UniswapPriceProvider - getSwapPriceOut - amountInBigInt:', amountInBigInt );
 
-  //     let quoteAmount: bigint = 0n;
-  //     let sqrtPriceX96After: bigint = 0n;
-  //     let initializedTicksCrossed: number = 0;
-  //     let gasEstimate: bigint = 0n;
-  //     let amountOut: bigint = 0n;
+//     let quoteAmount: bigint = 0n;
+//     let sqrtPriceX96After: bigint = 0n;
+//     let initializedTicksCrossed: number = 0;
+//     let gasEstimate: bigint = 0n;
+//     let amountOut: bigint = 0n;
 
-  //     // Don't change parameter names
-  //     const params = {
-  //       tokenIn: tokenIn.address,
-  //       tokenOut: tokenOut.address,
-  //       fee,
-  //       amountIn: amountInBigInt,
-  //       sqrtPriceLimitX96: 0n
-  //     };
+//     // Don't change parameter names
+//     const params = {
+//       tokenIn: tokenIn.address,
+//       tokenOut: tokenOut.address,
+//       fee,
+//       amountIn: amountInBigInt,
+//       sqrtPriceLimitX96: 0n
+//     };
 
-  //     [ quoteAmount, sqrtPriceX96After, initializedTicksCrossed, gasEstimate ] = await this.quoter.quoteExactInputSingle.staticCall(params);
+//     [ quoteAmount, sqrtPriceX96After, initializedTicksCrossed, gasEstimate ] = await this.quoter.quoteExactInputSingle.staticCall(params);
 
-  //     amountOut = quoteAmount;
+//     amountOut = quoteAmount;
 
-  //     const updatedPrice = this.calculatePriceFromSqrtPriceX96( sqrtPriceX96After, tokenIn.decimals, tokenOut.decimals );
+//     const updatedPrice = this.calculatePriceFromSqrtPriceX96( sqrtPriceX96After, tokenIn.decimals, tokenOut.decimals );
 
-  //     debug_log( 'UniswapPriceProvider - getSwapPriceOut - quoteAmount:', quoteAmount, 'sqrtPriceX96After:', sqrtPriceX96After, 'updated price after:', updatedPrice, 'initializedTicksCrossed:', initializedTicksCrossed, 'gasEstimate:', gasEstimate );
+//     debug_log( 'UniswapPriceProvider - getSwapPriceOut - quoteAmount:', quoteAmount, 'sqrtPriceX96After:', sqrtPriceX96After, 'updated price after:', updatedPrice, 'initializedTicksCrossed:', initializedTicksCrossed, 'gasEstimate:', gasEstimate );
 
+//     const priceIn = await this.getMarketPrice( `${ tokenIn.symbol }-USD` );
+//     const priceOut = await this.getMarketPrice( `${ tokenOut.symbol }-USD` );
 
+//     debug_log( 'UniswapPriceProvider - getSwapPriceOut (before) - priceIn:', priceIn, 'priceOut:', priceOut );
+//     debug_log( 'UniswapPriceProvider - getSwapPriceOut - fee, this.feeBasisPoints, converted:', fee, this.feeBasisPoints, convertBasisPointsToDecimal( this.feeBasisPoints ) );
 
+//     priceIn.price = priceIn.price * ( 1 - convertBasisPointsToDecimal( this.feeBasisPoints ) );
+//     priceOut.price = priceOut.price * ( 1 - convertBasisPointsToDecimal( this.feeBasisPoints ) ); // This will be changed later
 
-  //     const priceIn = await this.getMarketPrice( `${ tokenIn.symbol }-USD` );
-  //     const priceOut = await this.getMarketPrice( `${ tokenOut.symbol }-USD` );
+//     debug_log( 'UniswapPriceProvider - getSwapPriceOut (end) - priceIn:', priceIn.price, 'priceOut:', priceOut.price );
 
-  //     debug_log( 'UniswapPriceProvider - getSwapPriceOut (before) - priceIn:', priceIn, 'priceOut:', priceOut );
-  //     debug_log( 'UniswapPriceProvider - getSwapPriceOut - fee, this.feeBasisPoints, converted:', fee, this.feeBasisPoints, convertBasisPointsToDecimal( this.feeBasisPoints ) );
+//     if ( amountOut === 0n ) {
+//       return {
+//         provider: this.getName(),
+//         lastUpdated: new Date(),
+//         chainId: this.providerYakkl.getChainId(),
+//         tokenIn,
+//         tokenOut,
+//         quoteAmount: 0n,
+//         feeAmount: 0n,
+//         amountIn: amountInBigInt,
+//         amountOut: 0n,
+//         exchangeRate: 0n,
+//         marketPriceIn: priceIn.price,
+//         marketPriceOut: priceOut.price,
+//         // price: 0,
+//         // priceImpact: 0,
+//         path: [ tokenIn.address, tokenOut.address ],
+//         fee,
+//         feeEstimate: 0n,
+//         gasEstimate: 0n
+//       };
+//     }
 
-  //     priceIn.price = priceIn.price * ( 1 - convertBasisPointsToDecimal( this.feeBasisPoints ) );
-  //     priceOut.price = priceOut.price * ( 1 - convertBasisPointsToDecimal( this.feeBasisPoints ) ); // This will be changed later
+//     priceOut.price = priceIn.price / Number( amountOut ); // Adjust to ratio amount from uniswap to market price of tokenIn
+//     debug_log( 'UniswapPriceProvider - getSwapPriceOut - priceIn:', priceIn.price, 'priceOut:', priceOut.price );
 
-  //     debug_log( 'UniswapPriceProvider - getSwapPriceOut (end) - priceIn:', priceIn.price, 'priceOut:', priceOut.price );
+//     const feeAmount = this.calculateFee( amountOut );
+//     const amountOutWithFee = amountOut - feeAmount;
 
+//     const fAmount = formatEther( feeAmount );
 
+//     const amountOutDecimal = Number( ethersv6.formatUnits( amountOutWithFee, tokenOut.decimals ) );
+//     const amountInDecimal = Number( ethersv6.formatUnits( amountInBigInt!.toString(), tokenIn.decimals ) );
 
+//     debug_log( 'UniswapPriceProvider - getSwapPriceOut - amountInDecimal:', amountInDecimal, 'amountOutDecimal:', amountOutDecimal );
 
-  //     if ( amountOut === 0n ) {
-  //       return {
-  //         provider: this.getName(),
-  //         lastUpdated: new Date(),
-  //         chainId: this.providerYakkl.getChainId(),
-  //         tokenIn,
-  //         tokenOut,
-  //         quoteAmount: 0n,
-  //         feeAmount: 0n,
-  //         amountIn: amountInBigInt,
-  //         amountOut: 0n,
-  //         exchangeRate: 0n,
-  //         marketPriceIn: priceIn.price,
-  //         marketPriceOut: priceOut.price,
-  //         // price: 0,
-  //         // priceImpact: 0,
-  //         path: [ tokenIn.address, tokenOut.address ],
-  //         fee,
-  //         feeEstimate: 0n,
-  //         gasEstimate: 0n
-  //       };
-  //     }
+//     const poolData = this.getPoolInfo( tokenIn, tokenOut, fee );
+//     debug_log( 'UniswapPriceProvider - getSwapPriceOut - poolData:', poolData );
 
-  //     priceOut.price = priceIn.price / Number( amountOut ); // Adjust to ratio amount from uniswap to market price of tokenIn
-  //     debug_log( 'UniswapPriceProvider - getSwapPriceOut - priceIn:', priceIn.price, 'priceOut:', priceOut.price );
+//     const price = 0;
 
-  //     const feeAmount = this.calculateFee( amountOut );
-  //     const amountOutWithFee = amountOut - feeAmount;
+//     debug_log( 'UniswapPriceProvider - getSwapPriceOut - amountOut:', amountOut, 'amountOutWithFee:', amountOutWithFee, 'feeAmount:', feeAmount, 'feeWei:', EthereumBigNumber.toWei( feeAmount ), 'amountIn:', amountInBigInt, 'price:', price );
 
-  //     const fAmount = formatEther( feeAmount );
+//     const priceImpact = ( ( Number( amountOut ) - Number( amountOutWithFee ) ) / Number( amountOut ) ) * 100;
 
-  //     const amountOutDecimal = Number( ethersv6.formatUnits( amountOutWithFee, tokenOut.decimals ) );
-  //     const amountInDecimal = Number( ethersv6.formatUnits( amountInBigInt!.toString(), tokenIn.decimals ) );
+//     debug_log( 'UniswapPriceProvider - getSwapPriceOut - priceImpact:', priceImpact );
 
-  //     debug_log( 'UniswapPriceProvider - getSwapPriceOut - amountInDecimal:', amountInDecimal, 'amountOutDecimal:', amountOutDecimal );
+//     return {
+//       provider: this.getName(),
+//       lastUpdated: new Date(),
+//       chainId: this.providerYakkl.getChainId(),
+//       tokenIn,
+//       tokenOut,
+//       quoteAmount,
+//       feeAmount,
+//       amountIn: amountInBigInt,
+//       amountOut,
+//       exchangeRate: amountOutDecimal / amountInDecimal,
+//       marketPriceIn: priceIn.price,
+//       marketPriceOut: priceOut.price,
+//       // price,
+//       priceImpact,
+//       path: [ tokenIn.address, tokenOut.address ],
+//       fee,
+//       feeEstimate: fAmount,
+//       gasEstimate: gasEstimate
+//     };
+//   } catch ( error ) {
+//     console.log( 'Error in getSwapPriceOut:', false, error );
+//     throw error;
+//   }
+// }
 
+// async getSwapPriceIn(
+//   tokenIn: SwapToken,
+//   tokenOut: SwapToken,
+//   amountOut: BigNumberish,
+//   fee: number = 3000
+// ): Promise<SwapPriceData> {
+//   await this.ensureInitialized();
 
+//   if ( !this.quoter || !this.factory ) throw new Error( 'Quoter or Factory not initialized' );
+//   if ( !tokenIn || !tokenOut ) throw new Error( 'Invalid tokens' );
+//   if ( amountOut === null || amountOut === undefined ) throw new Error( 'Amount out is null or undefined' );
 
+//   try {
+//     const priceIn = await this.getMarketPrice( `${ tokenIn.symbol }-USD` );
+//     const priceOut = await this.getMarketPrice( `${ tokenOut.symbol }-USD` );
 
-  //     const poolData = this.getPoolInfo( tokenIn, tokenOut, fee );
-  //     debug_log( 'UniswapPriceProvider - getSwapPriceOut - poolData:', poolData );
+//     priceIn.price = priceIn.price * ( 1 - convertBasisPointsToDecimal( this.feeBasisPoints ) ); // This will be changed later
+//     priceOut.price = priceOut.price * ( 1 - convertBasisPointsToDecimal( this.feeBasisPoints ) );
 
-  //     const price = 0;
+//     const amountOutBigInt = EthereumBigNumber.toBigInt( amountOut ) ?? 0n; // Adjust if necessary
+//     if ( amountOutBigInt === 0n ) {
+//       return {
+//         provider: this.getName(),
+//         lastUpdated: new Date(),
+//         chainId: this.providerYakkl.getChainId(),
+//         tokenIn,
+//         tokenOut,
+//         quoteAmount: 0n,
+//         feeAmount: 0n,
+//         amountIn: 0n,
+//         amountOut: 0n,
+//         exchangeRate: 0n,
+//         marketPriceIn: priceIn.price,
+//         marketPriceOut: priceOut.price,
+//         // price: 0,
+//         priceImpact: 0,
+//         path: [ tokenIn.address, tokenOut.address ],
+//         fee,
+//         feeEstimate: 0n,
+//         gasEstimate: 0n
+//       };
+//     }
 
-  //     debug_log( 'UniswapPriceProvider - getSwapPriceOut - amountOut:', amountOut, 'amountOutWithFee:', amountOutWithFee, 'feeAmount:', feeAmount, 'feeWei:', EthereumBigNumber.toWei( feeAmount ), 'amountIn:', amountInBigInt, 'price:', price );
+//     // const poolAddress = await this.factory.getPool( tokenIn.address, tokenOut.address, fee );
+//     // if ( poolAddress === ethersv6.ZeroAddress ) {
+//     //   throw new Error( 'Pool does not exist for tier' );
+//     // }
 
-  //     const priceImpact = ( ( Number( amountOut ) - Number( amountOutWithFee ) ) / Number( amountOut ) ) * 100;
+//     const feeAmount = this.calculateFee( amountOutBigInt );
+//     const amountOutWithFee = amountOutBigInt - feeAmount;
 
+//     let quoteAmount: bigint = 0n;
+//     let sqrtPriceX96After: bigint = 0n;
+//     let initializedTicksCrossed: number = 0;
+//     let gasEstimate: bigint = 0n;
+//     let amountIn: bigint = 0n;
 
+//     // Don't change parameter names
+//     const params = {
+//       tokenIn: tokenIn.address,
+//       tokenOut: tokenOut.address,
+//       fee,
+//       amount: amountOutWithFee,
+//       sqrtPriceLimitX96: 0n
+//     };
 
+//     [ quoteAmount, sqrtPriceX96After, initializedTicksCrossed, gasEstimate ] = await this.quoter.quoteExactOutputSingle.staticCall(params);
 
-  //     debug_log( 'UniswapPriceProvider - getSwapPriceOut - priceImpact:', priceImpact );
+//     debug_log( 'UniswapPriceProvider - getSwapPriceIn - quoteAmount:', quoteAmount, 'sqrtPriceX96After:', sqrtPriceX96After, 'initializedTicksCrossed:', initializedTicksCrossed, 'gasEstimate:', gasEstimate );
 
-  //     return {
-  //       provider: this.getName(),
-  //       lastUpdated: new Date(),
-  //       chainId: this.providerYakkl.getChainId(),
-  //       tokenIn,
-  //       tokenOut,
-  //       quoteAmount,
-  //       feeAmount,
-  //       amountIn: amountInBigInt,
-  //       amountOut,
-  //       exchangeRate: amountOutDecimal / amountInDecimal,
-  //       marketPriceIn: priceIn.price,
-  //       marketPriceOut: priceOut.price,
-  //       // price,
-  //       priceImpact,
-  //       path: [ tokenIn.address, tokenOut.address ],
-  //       fee,
-  //       feeEstimate: fAmount,
-  //       gasEstimate: gasEstimate
-  //     };
-  //   } catch ( error ) {
-  //     console.log( 'Error in getSwapPriceOut:', false, error );
-  //     throw error;
-  //   }
-  // }
+//     amountIn = quoteAmount;
+//     if ( amountIn === 0n ) {
+//       return {
+//         provider: this.getName(),
+//         lastUpdated: new Date(),
+//         chainId: this.providerYakkl.getChainId(),
+//         tokenIn,
+//         tokenOut,
+//         quoteAmount,
+//         feeAmount,
+//         amountIn: 0,
+//         amountOut: amountOutBigInt,
+//         exchangeRate: 0,
+//         marketPriceIn: priceIn.price,
+//         marketPriceOut: priceOut.price,
+//         // price: 0,
+//         priceImpact: 0,
+//         path: [ tokenIn.address, tokenOut.address ],
+//         fee,
+//         feeEstimate: 0n,
+//         gasEstimate: gasEstimate
+//       };
+//     }
 
-  // async getSwapPriceIn(
-  //   tokenIn: SwapToken,
-  //   tokenOut: SwapToken,
-  //   amountOut: BigNumberish,
-  //   fee: number = 3000
-  // ): Promise<SwapPriceData> {
-  //   await this.ensureInitialized();
+//     priceIn.price = priceOut.price / Number( amountOut ); // Adjust to ratio amount from uniswap to market price of tokenIn
+//     debug_log( 'UniswapPriceProvider - getSwapPriceIn - priceIn:', priceIn.price, 'priceOut:', priceOut.price );
 
-  //   if ( !this.quoter || !this.factory ) throw new Error( 'Quoter or Factory not initialized' );
-  //   if ( !tokenIn || !tokenOut ) throw new Error( 'Invalid tokens' );
-  //   if ( amountOut === null || amountOut === undefined ) throw new Error( 'Amount out is null or undefined' );
+//     const amountInDecimal = Number( ethersv6.formatUnits( amountIn, tokenIn.decimals ) );
+//     const amountOutDecimal = Number( ethersv6.formatUnits( amountOutBigInt, tokenOut.decimals ) );
+//     // const price = 0;
 
-  //   try {
-  //     const priceIn = await this.getMarketPrice( `${ tokenIn.symbol }-USD` );
-  //     const priceOut = await this.getMarketPrice( `${ tokenOut.symbol }-USD` );
+//     // Calculate price impact (simplified, you might want to implement a more sophisticated calculation)
+//     const priceImpact = ( ( Number( amountOutWithFee ) - Number( amountOutBigInt ) ) / Number( amountOutBigInt ) ) * 100;
 
-  //     priceIn.price = priceIn.price * ( 1 - convertBasisPointsToDecimal( this.feeBasisPoints ) ); // This will be changed later
-  //     priceOut.price = priceOut.price * ( 1 - convertBasisPointsToDecimal( this.feeBasisPoints ) );
+//     return {
+//       provider: this.getName(),
+//       lastUpdated: new Date(),
+//       chainId: this.providerYakkl.getChainId(),
+//       tokenIn,
+//       tokenOut,
+//       quoteAmount,
+//       feeAmount,
+//       amountIn,
+//       amountOut: amountOutBigInt,
+//       exchangeRate: amountOutDecimal / amountInDecimal,
+//       marketPriceIn: 0,
+//       marketPriceOut: 0,
+//       // price,
+//       priceImpact,
+//       path: [ tokenIn.address, tokenOut.address ],
+//       fee,
+//       feeEstimate: formatEther(this.calculateFee( amountOutBigInt )),
+//       gasEstimate: gasEstimate
+//     };
+//   } catch ( error ) {
+//     console.log( 'Error in getSwapPriceIn:', false, error );
+//     throw error;
+//   }
+// }
 
-  //     const amountOutBigInt = EthereumBigNumber.toBigInt( amountOut ) ?? 0n; // Adjust if necessary
-  //     if ( amountOutBigInt === 0n ) {
-  //       return {
-  //         provider: this.getName(),
-  //         lastUpdated: new Date(),
-  //         chainId: this.providerYakkl.getChainId(),
-  //         tokenIn,
-  //         tokenOut,
-  //         quoteAmount: 0n,
-  //         feeAmount: 0n,
-  //         amountIn: 0n,
-  //         amountOut: 0n,
-  //         exchangeRate: 0n,
-  //         marketPriceIn: priceIn.price,
-  //         marketPriceOut: priceOut.price,
-  //         // price: 0,
-  //         priceImpact: 0,
-  //         path: [ tokenIn.address, tokenOut.address ],
-  //         fee,
-  //         feeEstimate: 0n,
-  //         gasEstimate: 0n
-  //       };
-  //     }
-
-  //     // const poolAddress = await this.factory.getPool( tokenIn.address, tokenOut.address, fee );
-  //     // if ( poolAddress === ethersv6.ZeroAddress ) {
-  //     //   throw new Error( 'Pool does not exist for tier' );
-  //     // }
-
-  //     const feeAmount = this.calculateFee( amountOutBigInt );
-  //     const amountOutWithFee = amountOutBigInt - feeAmount;
-
-  //     let quoteAmount: bigint = 0n;
-  //     let sqrtPriceX96After: bigint = 0n;
-  //     let initializedTicksCrossed: number = 0;
-  //     let gasEstimate: bigint = 0n;
-  //     let amountIn: bigint = 0n;
-
-  //     // Don't change parameter names
-  //     const params = {
-  //       tokenIn: tokenIn.address,
-  //       tokenOut: tokenOut.address,
-  //       fee,
-  //       amount: amountOutWithFee,
-  //       sqrtPriceLimitX96: 0n
-  //     };
-
-  //     [ quoteAmount, sqrtPriceX96After, initializedTicksCrossed, gasEstimate ] = await this.quoter.quoteExactOutputSingle.staticCall(params);
-
-  //     debug_log( 'UniswapPriceProvider - getSwapPriceIn - quoteAmount:', quoteAmount, 'sqrtPriceX96After:', sqrtPriceX96After, 'initializedTicksCrossed:', initializedTicksCrossed, 'gasEstimate:', gasEstimate );
-
-  //     amountIn = quoteAmount;
-  //     if ( amountIn === 0n ) {
-  //       return {
-  //         provider: this.getName(),
-  //         lastUpdated: new Date(),
-  //         chainId: this.providerYakkl.getChainId(),
-  //         tokenIn,
-  //         tokenOut,
-  //         quoteAmount,
-  //         feeAmount,
-  //         amountIn: 0,
-  //         amountOut: amountOutBigInt,
-  //         exchangeRate: 0,
-  //         marketPriceIn: priceIn.price,
-  //         marketPriceOut: priceOut.price,
-  //         // price: 0,
-  //         priceImpact: 0,
-  //         path: [ tokenIn.address, tokenOut.address ],
-  //         fee,
-  //         feeEstimate: 0n,
-  //         gasEstimate: gasEstimate
-  //       };
-  //     }
-
-  //     priceIn.price = priceOut.price / Number( amountOut ); // Adjust to ratio amount from uniswap to market price of tokenIn
-  //     debug_log( 'UniswapPriceProvider - getSwapPriceIn - priceIn:', priceIn.price, 'priceOut:', priceOut.price );
-
-  //     const amountInDecimal = Number( ethersv6.formatUnits( amountIn, tokenIn.decimals ) );
-  //     const amountOutDecimal = Number( ethersv6.formatUnits( amountOutBigInt, tokenOut.decimals ) );
-  //     // const price = 0;
-
-  //     // Calculate price impact (simplified, you might want to implement a more sophisticated calculation)
-  //     const priceImpact = ( ( Number( amountOutWithFee ) - Number( amountOutBigInt ) ) / Number( amountOutBigInt ) ) * 100;
-
-  //     return {
-  //       provider: this.getName(),
-  //       lastUpdated: new Date(),
-  //       chainId: this.providerYakkl.getChainId(),
-  //       tokenIn,
-  //       tokenOut,
-  //       quoteAmount,
-  //       feeAmount,
-  //       amountIn,
-  //       amountOut: amountOutBigInt,
-  //       exchangeRate: amountOutDecimal / amountInDecimal,
-  //       marketPriceIn: 0,
-  //       marketPriceOut: 0,
-  //       // price,
-  //       priceImpact,
-  //       path: [ tokenIn.address, tokenOut.address ],
-  //       fee,
-  //       feeEstimate: formatEther(this.calculateFee( amountOutBigInt )),
-  //       gasEstimate: gasEstimate
-  //     };
-  //   } catch ( error ) {
-  //     console.log( 'Error in getSwapPriceIn:', false, error );
-  //     throw error;
-  //   }
-  // }
-
-
-
-  // Old way
+// Old way
 //   sqrtPriceX96ToPrice( sqrtPriceX96: bigint, token0Decimals: number, token1Decimals: number ): number {
 //     const price = Number( sqrtPriceX96 ) / 2 ** 96;
 //     const adjustedPrice = price * price * ( 10 ** ( token0Decimals - token1Decimals ) );
 //     return adjustedPrice;
 //   }
-
 
 //   calculatePriceFromSqrtPriceX96( sqrtPriceX96: bigint, token0Decimals: number, token1Decimals: number ): {
 //     price0: string,  // Price of token0 in terms of token1
@@ -411,7 +395,6 @@
 //       price1: price1.toFixed( token0Decimals )
 //     };
 //   }
-
 
 //   async getPoolInfo( tokenIn: SwapToken, tokenOut: SwapToken, fee: number = 3000 ): Promise<PoolInfoData> {
 //     await this.ensureInitialized();
@@ -540,8 +523,6 @@
 //       debug_log( 'Token0 amount:', token0Amt );
 //       debug_log( 'Token1 amount:', token1Amt );
 
-
-
 //       // Calculate reserves
 //       const token0Reserve = parseFloat(
 //         ethersv6.formatUnits( liquidity.toString(), token0.decimals )
@@ -664,28 +645,27 @@
 //     }
 //   }
 
+// async getReservesInRange( poolContract: Contract, activeTicks: [number], lowerTick: number, upperTick: number ) {
+//   const slot0 = await poolContract.slot0();
+//   const sqrtPriceX96 = slot0.sqrtPriceX96;
 
-  // async getReservesInRange( poolContract: Contract, activeTicks: [number], lowerTick: number, upperTick: number ) {
-  //   const slot0 = await poolContract.slot0();
-  //   const sqrtPriceX96 = slot0.sqrtPriceX96;
+//   let tokenInReserves = 0;
+//   let tokenOutReserves = 0;
 
-  //   let tokenInReserves = 0;
-  //   let tokenOutReserves = 0;
+//   // (Implementation for fetching and iterating through active ticks)
 
-  //   // (Implementation for fetching and iterating through active ticks)
+//   for ( const tick of activeTicks ) {
+//     const tickData = await poolContract.ticks( tick );
+//     const liquidityNet = tickData.liquidityNet;
 
-  //   for ( const tick of activeTicks ) {
-  //     const tickData = await poolContract.ticks( tick );
-  //     const liquidityNet = tickData.liquidityNet;
+//     // (Calculations to determine token amounts at this tick using sqrtPriceX96, liquidityNet, etc.)
 
-  //     // (Calculations to determine token amounts at this tick using sqrtPriceX96, liquidityNet, etc.)
+//     tokenInReserves += calculatedInAmount;
+//     tokenOutReserves += calculatedOutAmount;
+//   }
 
-  //     tokenInReserves += calculatedInAmount;
-  //     tokenOutReserves += calculatedOutAmount;
-  //   }
-
-  //   return { tokenInReserves, tokenOutReserves };
-  // }
+//   return { tokenInReserves, tokenOutReserves };
+// }
 
 //   async getTokenPair( pair: string ): Promise<TokenPair | PriceData> {
 //     if ( !pair ) {
@@ -733,7 +713,3 @@
 //     return BigInt( Math.floor( scaledPrice ) );
 //   }
 // }
-
-
-
-
