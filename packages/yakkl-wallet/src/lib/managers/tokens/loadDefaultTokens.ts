@@ -7,74 +7,75 @@ import defaultTokens from '$managers/tokens/defaultTokens.json';
  * Load default tokens from JSON and populate setYakklTokensStorage.
  */
 export async function loadDefaultTokens(): Promise<void> {
-  try {
-    // Validate and transform each token from JSON
-    console.log('>>>> loadDefaultTokens');
+	try {
+		// Validate and transform each token from JSON
+		console.log('>>>> loadDefaultTokens');
 
-    const tokens: TokenData[] = defaultTokens.map((token: any) => {
-      if (!validateToken(token)) {
-        throw new Error(`Invalid token data: ${JSON.stringify(token)}`);
-      }
-      return {
-        address: token.address,
-        name: token.name,
-        symbol: token.symbol,
-        decimals: token.decimals,
-        chainId: token.chainId,
-        isNative: token.isNative ?? false,
-        isStablecoin: token.isStablecoin ?? false,
-        logoURI: token.logoURI ?? '',
-        description: token.description ?? '',
-        balance: token.balance ?? 0n,
-        quantity: token.quantity ?? 0,
-        price: token.price ?? {
-          price: token.price?.price ?? 0,
-          isNative: token.price?.isNative ?? false,
-          provider: token.price?.provider ?? '',
-          lastUpdated: token.price?.lastUpdated ?? 0,
-          chainId: token.price?.chainId ?? 1,
-          currency: token.price?.currency ?? '',
-          status: token.price?.status ?? '',
-          message: token.price?.message ?? '',
-        } as MarketPriceData,
-        change: token.change ?? [],
-        value: token.value ?? 0,
-        tags: token.tags ?? [],
-        version: token.version ?? '',
-        customDefault: 'default',
-        sidepanel: token.sidepanel ?? true,
-        evmCompatible: token.evmCompatible ?? true,
-        url: token.url ?? '',
-      };
-    });
+		const tokens: TokenData[] = defaultTokens.map((token: any) => {
+			if (!validateToken(token)) {
+				throw new Error(`Invalid token data: ${JSON.stringify(token)}`);
+			}
+			return {
+				address: token.address,
+				name: token.name,
+				symbol: token.symbol,
+				decimals: token.decimals,
+				chainId: token.chainId,
+				isNative: token.isNative ?? false,
+				isStablecoin: token.isStablecoin ?? false,
+				logoURI: token.logoURI ?? '',
+				description: token.description ?? '',
+				balance: token.balance ?? 0n,
+				quantity: token.quantity ?? 0,
+				price:
+					token.price ??
+					({
+						price: token.price?.price ?? 0,
+						isNative: token.price?.isNative ?? false,
+						provider: token.price?.provider ?? '',
+						lastUpdated: token.price?.lastUpdated ?? 0,
+						chainId: token.price?.chainId ?? 1,
+						currency: token.price?.currency ?? '',
+						status: token.price?.status ?? '',
+						message: token.price?.message ?? ''
+					} as MarketPriceData),
+				change: token.change ?? [],
+				value: token.value ?? 0,
+				tags: token.tags ?? [],
+				version: token.version ?? '',
+				customDefault: 'default',
+				sidepanel: token.sidepanel ?? true,
+				evmCompatible: token.evmCompatible ?? true,
+				url: token.url ?? ''
+			};
+		});
 
-    // Update the storage and store
-    await setYakklTokenDataStorage(tokens);
+		// Update the storage and store
+		await setYakklTokenDataStorage(tokens);
 
-    // Log success information
-    log.info(`Successfully loaded ${tokens.length} default tokens`, false, { tokenSymbols: tokens.map(t => t.symbol) });
-    console.log('>>>>>>>>>>>>loadDefaultTokens<<<<<<<<<<<<', tokens);
-
-  } catch (error) {
-    log.warn('Failed to load default tokens:', false, error);
-  }
+		// Log success information
+		log.info(`Successfully loaded ${tokens.length} default tokens`, false, {
+			tokenSymbols: tokens.map((t) => t.symbol)
+		});
+	} catch (error) {
+		log.warn('Failed to load default tokens:', false, error);
+	}
 }
 
 /**
  * Validate token data to ensure it matches the expected structure.
  */
 function validateToken(token: any): boolean {
-  // Partial validation to ensure required fields are present
-  return (
-    typeof token.address === 'string' &&
-    typeof token.name === 'string' &&
-    typeof token.symbol === 'string' &&
-    typeof token.decimals === 'number' &&
-    typeof token.chainId === 'number' &&
-    typeof token.logoURI === 'string'
-  );
+	// Partial validation to ensure required fields are present
+	return (
+		typeof token.address === 'string' &&
+		typeof token.name === 'string' &&
+		typeof token.symbol === 'string' &&
+		typeof token.decimals === 'number' &&
+		typeof token.chainId === 'number' &&
+		typeof token.logoURI === 'string'
+	);
 }
-
 
 // Example default token JSON structure for ChainLink
 // {

@@ -1,18 +1,16 @@
 import type { BaseTransaction } from '$lib/common';
 
 export interface SolanaTransaction extends BaseTransaction {
-  // Solana-specific properties
-  recentBlockhash?: string;
-  instructions?: Array<SolanaInstruction>;
+	// Solana-specific properties
+	recentBlockhash?: string;
+	instructions?: Array<SolanaInstruction>;
 }
 
 interface SolanaInstruction {
-  programId: string;
-  data: string;
-  keys: Array<{ pubkey: string; isSigner: boolean; isWritable: boolean }>;
+	programId: string;
+	data: string;
+	keys: Array<{ pubkey: string; isSigner: boolean; isWritable: boolean }>;
 }
-
-
 
 // Example:
 // const solTransaction: SolanaTransaction = {

@@ -7,34 +7,36 @@ import type { ProfileData } from '$lib/common/interfaces';
 import { isEncryptedData } from '$lib/common/misc';
 import { log } from '$lib/managers/Logger';
 
-
 // Verifies the profile using the provided id and decrypts data if necessary.
 export async function verify(id: string) {
-  try {
-    if (!id) {
-      return undefined;
-    }
-    const profile = await getProfile();
-    const digest = await digestMessage(id);
-    if (!profile || !digest) {
-      yakklMiscStore.set('');
-      return undefined;
-    } else {
-      if (isEncryptedData(profile.data)) {
-        await decryptData(profile.data, digest).then(result => {
-          profile.data = result as ProfileData;
-          yakklMiscStore.set(digest);
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        }, _reason => {
-          throw 'Verification failed!';
-        });
-      }
-      return profile;
-    }
-  } catch (e) {
-    log.error(e);
-    return undefined;
-  }
+	try {
+		if (!id) {
+			return undefined;
+		}
+		const profile = await getProfile();
+		const digest = await digestMessage(id);
+		if (!profile || !digest) {
+			yakklMiscStore.set('');
+			return undefined;
+		} else {
+			if (isEncryptedData(profile.data)) {
+				await decryptData(profile.data, digest).then(
+					(result) => {
+						profile.data = result as ProfileData;
+						yakklMiscStore.set(digest);
+						// eslint-disable-next-line @typescript-eslint/no-unused-vars
+					},
+					(_reason) => {
+						throw 'Verification failed!';
+					}
+				);
+			}
+			return profile;
+		}
+	} catch (e) {
+		log.error(e);
+		return undefined;
+	}
 }
 
 // Type guards and utility functions for various types.
@@ -80,7 +82,6 @@ export async function verify(id: string) {
 //     return accum;
 //   }, <T>{});
 // }
-
 
 // defaults.ts
 

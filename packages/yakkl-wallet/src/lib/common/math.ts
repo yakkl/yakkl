@@ -5,27 +5,28 @@
 
 import { makeError } from '$lib/common/errors';
 import { addHexPrefix, hexlify, isBytesLike, stripHexPrefix } from '$lib/common/misc';
-import type { BytesLike, } from '$lib/common/types';
+import type { BytesLike } from '$lib/common/types';
 import { BigNumber, type BigNumberish, type Numeric } from '$lib/common/bignumber';
 import { log } from '$lib/managers/Logger';
 
 // TODO: Some of the things in this file are not used in the project. Remove them if they are not needed or out of date.
 
-const Nibbles = "0123456789abcdef";
+const Nibbles = '0123456789abcdef';
 const BN_0 = BigInt(0);
 const BN_1 = BigInt(1);
 const maxValue = BigInt(2) ** BigInt(256) - BigInt(1);
 
-export function convertBasisPointsToDecimal( basisPoints: number ): number {
-  try {
-    if ( basisPoints < 1 ) { // All calculations are done in basis points so we need to check if the value is less than 1 (1 - return of this)
-      return basisPoints;
-    }
-    return basisPoints / 10000;
-  } catch ( error ) {
-    log.error(`convertBasisPointsToDecimal: ${error}`);
-    return 0;
-  }
+export function convertBasisPointsToDecimal(basisPoints: number): number {
+	try {
+		if (basisPoints < 1) {
+			// All calculations are done in basis points so we need to check if the value is less than 1 (1 - return of this)
+			return basisPoints;
+		}
+		return basisPoints / 10000;
+	} catch (error) {
+		log.error(`convertBasisPointsToDecimal: ${error}`);
+		return 0;
+	}
 }
 
 /**
@@ -35,7 +36,7 @@ export function convertBasisPointsToDecimal( basisPoints: number ): number {
  * @returns {bigint} A BigInt
  */
 function hexToBigNumberish(inputHex: string): bigint {
-  return BigInt(stripHexPrefix(inputHex));
+	return BigInt(stripHexPrefix(inputHex));
 }
 
 /**
@@ -46,23 +47,27 @@ function hexToBigNumberish(inputHex: string): bigint {
  * @param {BigNumberish} denominator - The denominator of the fraction multiplier
  * @returns {bigint} The product of the multiplication
  */
-function bigNumberishMultiplyByFraction(targetBN: BigNumberish, numerator: BigNumberish, denominator: BigNumberish): bigint {
-  try {
-    const tarBN = getBigInt(targetBN);
-    const numBN = getBigInt(numerator);
-    const denomBN = getBigInt(denominator);
-    return (tarBN * numBN) / denomBN;
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      throw makeError(error.message, "NUMERIC_FAULT", {
-        fault: "overflow",
-        operation: "bigNumberishMultiplyByFraction",
-        value: targetBN,
-      });
-    } else {
-      throw error;
-    }
-  }
+function bigNumberishMultiplyByFraction(
+	targetBN: BigNumberish,
+	numerator: BigNumberish,
+	denominator: BigNumberish
+): bigint {
+	try {
+		const tarBN = getBigInt(targetBN);
+		const numBN = getBigInt(numerator);
+		const denomBN = getBigInt(denominator);
+		return (tarBN * numBN) / denomBN;
+	} catch (error: unknown) {
+		if (error instanceof Error) {
+			throw makeError(error.message, 'NUMERIC_FAULT', {
+				fault: 'overflow',
+				operation: 'bigNumberishMultiplyByFraction',
+				value: targetBN
+			});
+		} else {
+			throw error;
+		}
+	}
 }
 
 /**
@@ -72,10 +77,10 @@ function bigNumberishMultiplyByFraction(targetBN: BigNumberish, numerator: BigNu
  * @returns {string} A '0x' prefixed hex string
  */
 function bigNumberishToHex(inputBn: BigNumberish): string {
-  if (inputBn === null) {
-    throw new Error("value cannot be null");
-  }
-  return addHexPrefix(inputBn.toString(16));
+	if (inputBn === null) {
+		throw new Error('value cannot be null');
+	}
+	return addHexPrefix(inputBn.toString(16));
 }
 
 /**
@@ -87,47 +92,47 @@ function bigNumberishToHex(inputBn: BigNumberish): string {
  * @throws {Error} Throws an error if the value is invalid
  */
 export function getBigInt(value: BigNumberish, name?: string): bigint {
-  try {
-    if (value === null) {
-      throw new Error("value cannot be null");
-    }
+	try {
+		if (value === null) {
+			throw new Error('value cannot be null');
+		}
 
-    switch (typeof value) {
-      case "bigint":
-        return value;
-      case "number":
-        if (!Number.isInteger(value)) {
-          throw new Error("underflow");
-        }
-        if (value < -maxValue || value > maxValue) {
-          throw new Error("overflow");
-        }
-        return BigInt(value);
-      case "string":
-        if (value === "") {
-          throw new Error("empty string");
-        }
-        if (value[0] === "-" && value[1] !== "-") {
-          return -BigInt(value.substring(1));
-        }
-        if (value === "0" || value === "0.0" || value === "0.00") {
-          return 0n;
-        }
-        return BigInt(value);
-      default:
-        throw new Error("invalid BigNumberish value");
-    }
-  } catch (error: unknown) {
-    log.error(`getBigInt: ${error}`);
-    if (error instanceof Error) {
-      throw makeError(error.message, "INVALID_ARGUMENT", {
-        argument: name || "value",
-        value: value,
-      });
-    } else {
-      throw error;
-    }
-  }
+		switch (typeof value) {
+			case 'bigint':
+				return value;
+			case 'number':
+				if (!Number.isInteger(value)) {
+					throw new Error('underflow');
+				}
+				if (value < -maxValue || value > maxValue) {
+					throw new Error('overflow');
+				}
+				return BigInt(value);
+			case 'string':
+				if (value === '') {
+					throw new Error('empty string');
+				}
+				if (value[0] === '-' && value[1] !== '-') {
+					return -BigInt(value.substring(1));
+				}
+				if (value === '0' || value === '0.0' || value === '0.00') {
+					return 0n;
+				}
+				return BigInt(value);
+			default:
+				throw new Error('invalid BigNumberish value');
+		}
+	} catch (error: unknown) {
+		log.error(`getBigInt: ${error}`);
+		if (error instanceof Error) {
+			throw makeError(error.message, 'INVALID_ARGUMENT', {
+				argument: name || 'value',
+				value: value
+			});
+		} else {
+			throw error;
+		}
+	}
 }
 
 /**
@@ -139,24 +144,24 @@ export function getBigInt(value: BigNumberish, name?: string): bigint {
  * @throws {Error} Throws an error if the value is invalid or negative
  */
 export function getUint(value: BigNumberish, name?: string): bigint {
-  try {
-    const result = getBigInt(value, name);
-    if (result < BN_0) {
-      throw new Error("unsigned value cannot be negative");
-    }
-    return result;
-  } catch (error: unknown) {
-    log.error(`getUint: ${error}`);
-    if (error instanceof Error) {
-      throw makeError(error.message, "NUMERIC_FAULT", {
-        fault: "overflow",
-        operation: "getUint",
-        value: value,
-      });
-    } else {
-      throw error;
-    }
-  }
+	try {
+		const result = getBigInt(value, name);
+		if (result < BN_0) {
+			throw new Error('unsigned value cannot be negative');
+		}
+		return result;
+	} catch (error: unknown) {
+		log.error(`getUint: ${error}`);
+		if (error instanceof Error) {
+			throw makeError(error.message, 'NUMERIC_FAULT', {
+				fault: 'overflow',
+				operation: 'getUint',
+				value: value
+			});
+		} else {
+			throw error;
+		}
+	}
 }
 
 /**
@@ -166,81 +171,81 @@ export function getUint(value: BigNumberish, name?: string): bigint {
  * @returns {bigint} The converted BigInt
  */
 export function toBigInt(value: BigNumberish | Uint8Array, decimals?: number): bigint {
-  if (value instanceof Uint8Array) {
-    let result = "0x0";
-    for (const v of value) {
-      result += Nibbles[v >> 4];
-      result += Nibbles[v & 0x0f];
-    }
-    return BigInt(result);
-  }
+	if (value instanceof Uint8Array) {
+		let result = '0x0';
+		for (const v of value) {
+			result += Nibbles[v >> 4];
+			result += Nibbles[v & 0x0f];
+		}
+		return BigInt(result);
+	}
 
-  if (typeof value === 'number') {
-    if (decimals !== undefined) return numberToBigInt(value, decimals);
-    // debug_log("Decimals must be specified for a number input.");
-  }
+	if (typeof value === 'number') {
+		if (decimals !== undefined) return numberToBigInt(value, decimals);
+		// debug_log("Decimals must be specified for a number input.");
+	}
 
-  if (typeof value === 'string') {
-    if (decimals !== undefined) return stringToBigInt(value, decimals);
-    //debug_log("Decimals must be specified for a string input.");
-  }
+	if (typeof value === 'string') {
+		if (decimals !== undefined) return stringToBigInt(value, decimals);
+		//debug_log("Decimals must be specified for a string input.");
+	}
 
-  return getBigInt(value);
+	return getBigInt(value);
 }
 
 export function stringToBigInt(value: string, decimals: number = 18): bigint {
-  if (!value || isNaN(Number(value))) {
-    // log.debug(`Invalid input: "${value}" is not a valid number string.`);
-    return 0n;
-  }
+	if (!value || isNaN(Number(value))) {
+		// log.debug(`Invalid input: "${value}" is not a valid number string.`);
+		return 0n;
+	}
 
-  // Split into integer and fractional parts
-  const [integerPart, fractionalPart = ""] = value.split(".");
+	// Split into integer and fractional parts
+	const [integerPart, fractionalPart = ''] = value.split('.');
 
-  // Ensure fractional part doesn't exceed the specified decimals
-  const paddedFractional = fractionalPart.padEnd(decimals, "0").slice(0, decimals);
+	// Ensure fractional part doesn't exceed the specified decimals
+	const paddedFractional = fractionalPart.padEnd(decimals, '0').slice(0, decimals);
 
-  // Combine integer and fractional parts
-  const combined = integerPart + paddedFractional;
+	// Combine integer and fractional parts
+	const combined = integerPart + paddedFractional;
 
-  return BigInt(combined);
+	return BigInt(combined);
 }
 
 export function numberToBigInt(value: number, decimals: number = 18): bigint {
-  if (isNaN(value) || decimals < 0) {
-    // log.debug('Invalid input: amount must be a number, and decimals must be non-negative');
-    return 0n;
-  }
-  const scale = Math.pow(10, decimals); // Scale factor
-  const scaledValue = Math.round(value * scale); // Scale and round
-  return BigInt(scaledValue);
+	if (isNaN(value) || decimals < 0) {
+		// log.debug('Invalid input: amount must be a number, and decimals must be non-negative');
+		return 0n;
+	}
+	const scale = Math.pow(10, decimals); // Scale factor
+	const scaledValue = Math.round(value * scale); // Scale and round
+	return BigInt(scaledValue);
 }
 
 // Safe conversion to bigint with comprehensive type handling
-export function safeConvertToBigInt( value: BigNumberish | null | undefined ): bigint | undefined {
-  try {
-    // Handle null or undefined
-    if ( value === null || value === undefined ) return undefined;
+export function safeConvertToBigInt(value: BigNumberish | null | undefined): bigint | undefined {
+	try {
+		// Handle null or undefined
+		if (value === null || value === undefined) return undefined;
 
-    // Check if value is already a bigint
-    if ( typeof value === 'bigint' ) return value;
+		// Check if value is already a bigint
+		if (typeof value === 'bigint') return value;
 
-    // Handle BigNumber type
-    if ( value instanceof BigNumber ) {
-      return BigInt( value.toString() );
-    }
+		// Handle BigNumber type
+		if (value instanceof BigNumber) {
+			return BigInt(value.toString());
+		}
 
-    // Handle object with _hex property (ethers BigNumber-like)
-    if ( typeof value === 'object' && value !== null && '_hex' in value ) {
-      return BigInt( ( value as { _hex: string; } )._hex );
-    }
+		// Handle object with _hex property (ethers BigNumber-like)
+		if (typeof value === 'object' && value !== null && '_hex' in value) {
+			return BigInt((value as { _hex: string })._hex);
+		}
 
-    // Try to convert using existing toBigInt
-    return toBigInt( value );
-  } catch (error: unknown ) {
-    log.error(`safeConvertToBigInt: ${error}`);
-    return 0n;
-  }
+		// Try to convert using existing toBigInt
+		return toBigInt(value);
+	} catch (error: unknown) {
+		log.error(`safeConvertToBigInt: ${error}`);
+		return 0n;
+	}
 }
 
 /**
@@ -252,40 +257,40 @@ export function safeConvertToBigInt( value: BigNumberish | null | undefined ): b
  * @throws {Error} Throws an error if the value is invalid
  */
 export function getNumber(value: BigNumberish, name?: string): number {
-  try {
-    switch (typeof value) {
-      case "bigint":
-        if (value < -maxValue || value > maxValue) {
-          throw new Error("overflow");
-        }
-        return Number(value);
-      case "number":
-        if (!Number.isInteger(value)) {
-          throw new Error("underflow");
-        }
-        if (value < -maxValue || value > maxValue) {
-          throw new Error("overflow");
-        }
-        return value;
-      case "string":
-        if (value === "") {
-          throw new Error("empty string");
-        }
-        return getNumber(BigInt(value), name);
-      default:
-        throw new Error("invalid numeric value");
-    }
-  } catch (error: unknown) {
-    log.error(`getNumber: ${error}`);
-    if (error instanceof Error) {
-      throw makeError(error.message, "INVALID_ARGUMENT", {
-        argument: name || "value",
-        value: value,
-      });
-    } else {
-      throw error;
-    }
-  }
+	try {
+		switch (typeof value) {
+			case 'bigint':
+				if (value < -maxValue || value > maxValue) {
+					throw new Error('overflow');
+				}
+				return Number(value);
+			case 'number':
+				if (!Number.isInteger(value)) {
+					throw new Error('underflow');
+				}
+				if (value < -maxValue || value > maxValue) {
+					throw new Error('overflow');
+				}
+				return value;
+			case 'string':
+				if (value === '') {
+					throw new Error('empty string');
+				}
+				return getNumber(BigInt(value), name);
+			default:
+				throw new Error('invalid numeric value');
+		}
+	} catch (error: unknown) {
+		log.error(`getNumber: ${error}`);
+		if (error instanceof Error) {
+			throw makeError(error.message, 'INVALID_ARGUMENT', {
+				argument: name || 'value',
+				value: value
+			});
+		} else {
+			throw error;
+		}
+	}
 }
 
 /**
@@ -295,7 +300,7 @@ export function getNumber(value: BigNumberish, name?: string): number {
  * @returns {number} The converted number
  */
 export function toNumber(value: BigNumberish | Uint8Array): number {
-  return getNumber(toBigInt(value));
+	return getNumber(toBigInt(value));
 }
 
 /**
@@ -307,41 +312,41 @@ export function toNumber(value: BigNumberish | Uint8Array): number {
  * @throws {Error} Throws an error if the value exceeds the specified width
  */
 export function toBeHex(_value: BigNumberish, _width?: Numeric): string {
-  try {
-    const value = getUint(_value, "value");
+	try {
+		const value = getUint(_value, 'value');
 
-    let result = value.toString(16);
+		let result = value.toString(16);
 
-    if (_width == null) {
-      // Ensure the value is of even length
-      if (result.length % 2) {
-        result = "0" + result;
-      }
-    } else {
-      const width = getNumber(_width, "width");
-      if (width * 2 < result.length) {
-        throw new Error(`value exceeds width (${width} bytes)`);
-      }
+		if (_width == null) {
+			// Ensure the value is of even length
+			if (result.length % 2) {
+				result = '0' + result;
+			}
+		} else {
+			const width = getNumber(_width, 'width');
+			if (width * 2 < result.length) {
+				throw new Error(`value exceeds width (${width} bytes)`);
+			}
 
-      // Pad the value to the required width
-      while (result.length < width * 2) {
-        result = "0" + result;
-      }
-    }
+			// Pad the value to the required width
+			while (result.length < width * 2) {
+				result = '0' + result;
+			}
+		}
 
-    return "0x" + result;
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      log.error(`toBeHex: ${error}`);
-      throw makeError(error.message, "NUMERIC_FAULT", {
-        operation: "toBeHex",
-        fault: "overflow",
-        value: _value,
-      });
-    } else {
-      throw error;
-    }
-  }
+		return '0x' + result;
+	} catch (error: unknown) {
+		if (error instanceof Error) {
+			log.error(`toBeHex: ${error}`);
+			throw makeError(error.message, 'NUMERIC_FAULT', {
+				operation: 'toBeHex',
+				fault: 'overflow',
+				value: _value
+			});
+		} else {
+			throw error;
+		}
+	}
 }
 
 /**
@@ -351,20 +356,24 @@ export function toBeHex(_value: BigNumberish, _width?: Numeric): string {
  * @returns {Uint8Array} The converted Uint8Array
  */
 export function toBeArray(_value: BigNumberish): Uint8Array {
-  const value = getUint(_value, "value");
+	const value = getUint(_value, 'value');
 
-  if (value === BN_0) { return new Uint8Array([ ]); }
+	if (value === BN_0) {
+		return new Uint8Array([]);
+	}
 
-  let hex = value.toString(16);
-  if (hex.length % 2) { hex = "0" + hex; }
+	let hex = value.toString(16);
+	if (hex.length % 2) {
+		hex = '0' + hex;
+	}
 
-  const result = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < result.length; i++) {
-    const offset = i * 2;
-    result[i] = parseInt(hex.substring(offset, offset + 2), 16);
-  }
+	const result = new Uint8Array(hex.length / 2);
+	for (let i = 0; i < result.length; i++) {
+		const offset = i * 2;
+		result[i] = parseInt(hex.substring(offset, offset + 2), 16);
+	}
 
-  return result;
+	return result;
 }
 
 /**
@@ -374,35 +383,28 @@ export function toBeArray(_value: BigNumberish): Uint8Array {
  * @returns {string} The converted quantity hex string
  */
 export function toQuantity(value: BytesLike | BigNumberish): string {
-  let result = hexlify(isBytesLike(value) ? value: toBeArray(value)).substring(2);
-  while (result.startsWith("0")) { result = result.substring(1); }
-  if (result === "") { result = "0"; }
-  return "0x" + result;
+	let result = hexlify(isBytesLike(value) ? value : toBeArray(value)).substring(2);
+	while (result.startsWith('0')) {
+		result = result.substring(1);
+	}
+	if (result === '') {
+		result = '0';
+	}
+	return '0x' + result;
 }
-
 
 export function multiplyNumeric(x: Numeric, y: Numeric): bigint {
-  // Ensure both value and price are bigint for multiplication
-  const valueBigInt = typeof x === 'bigint' ? x : BigInt(x);
-  const priceBigInt = typeof y === 'bigint' ? y : BigInt(y);
+	// Ensure both value and price are bigint for multiplication
+	const valueBigInt = typeof x === 'bigint' ? x : BigInt(x);
+	const priceBigInt = typeof y === 'bigint' ? y : BigInt(y);
 
-  // Perform the multiplication
-  const newValue: bigint = valueBigInt * priceBigInt;
+	// Perform the multiplication
+	const newValue: bigint = valueBigInt * priceBigInt;
 
-  return newValue;
+	return newValue;
 }
 
-export {
-  hexToBigNumberish,
-  bigNumberishMultiplyByFraction,
-  addHexPrefix,
-  bigNumberishToHex,
-};
-
-
-
-
-
+export { hexToBigNumberish, bigNumberishMultiplyByFraction, addHexPrefix, bigNumberishToHex };
 
 // NOTE: Use 'number' for price related calculations. Use 'bigint' for value related to large decimals such as eth wei or smart contract values.
 
@@ -486,122 +488,122 @@ export {
 //     return BigNumber.mul(this._value, BigInt("1000000000000000000"));
 //   }
 
-  // Instance method to convert the value to Gwei (for Ethereum)
+// Instance method to convert the value to Gwei (for Ethereum)
 //   toGwei(): BigNumber {
 //     return BigNumber.mul(this._value, BigInt("1000000000"));
 //   }
 
-  // Instance method to convert the value to Ether (from Wei for Ethereum)
+// Instance method to convert the value to Ether (from Wei for Ethereum)
 //   toEther(): BigNumber {
 //     return BigNumber.div(this._value, BigInt("1000000000000000000"));
 //   }
 
-  // Instance method to convert the value to Satoshi (for Bitcoin)
+// Instance method to convert the value to Satoshi (for Bitcoin)
 //   toSatoshi(): BigNumber {
 //     return BigNumber.mul(this._value, BigInt("100000000"));
 //   }
 
-  // Instance method to convert the value to Bitcoin (from Satoshi)
+// Instance method to convert the value to Bitcoin (from Satoshi)
 //   toBitcoin(): BigNumber {
 //     return BigNumber.div(this._value, BigInt("100000000"));
 //   }
 
-   // Instance method to convert the value to Lamport (for Solana)
+// Instance method to convert the value to Lamport (for Solana)
 //    toLamport(): BigNumber {
 //     return BigNumber.mul(this._value, BigInt("1000000000"));
 //   }
 
-  // Instance method to convert the value to SOL (from Lamport for Solana)
+// Instance method to convert the value to SOL (from Lamport for Solana)
 //   toSOL(): BigNumber {
 //     return BigNumber.div(this._value, BigInt("1000000000"));
 //   }
 
-  // Instance method to convert the value to Gwei (for Optimism)
+// Instance method to convert the value to Gwei (for Optimism)
 //   toGweiOptimism(): BigNumber {
 //     return BigNumber.mul(this._value, BigInt("1000000000"));
 //   }
 
-  // Instance method to convert the value to Wei (for Optimism)
+// Instance method to convert the value to Wei (for Optimism)
 //   toWeiOptimism(): BigNumber {
 //     return BigNumber.mul(this._value, BigInt("1000000000000000000"));
 //   }
 
-  // Instance method to convert the value to Gwei (for Polygon)
+// Instance method to convert the value to Gwei (for Polygon)
 //   toGweiPolygon(): BigNumber {
 //     return BigNumber.mul(this._value, BigInt("1000000000"));
 //   }
 
-  // Instance method to convert the value to Wei (for Polygon)
+// Instance method to convert the value to Wei (for Polygon)
 //   toWeiPolygon(): BigNumber {
 //     return BigNumber.mul(this._value, BigInt("1000000000000000000"));
 //   }
 
-  // Instance method to convert the value to Gwei (for Avalanche)
+// Instance method to convert the value to Gwei (for Avalanche)
 //   toGweiAvalanche(): BigNumber {
 //     return BigNumber.mul(this._value, BigInt("1000000000"));
 //   }
 
-  // Instance method to convert the value to Wei (for Avalanche)
+// Instance method to convert the value to Wei (for Avalanche)
 //   toWeiAvalanche(): BigNumber {
 //     return BigNumber.mul(this._value, BigInt("1000000000000000000"));
 //   }
 
-  // Instance method to convert the value to Gwei (for Base)
+// Instance method to convert the value to Gwei (for Base)
 //   toGweiBase(): BigNumber {
 //     return BigNumber.mul(this._value, BigInt("1000000000"));
 //   }
 
-  // Instance method to convert the value to Wei (for Base)
+// Instance method to convert the value to Wei (for Base)
 //   toWeiBase(): BigNumber {
 //     return BigNumber.mul(this._value, BigInt("1000000000000000000"));
 //   }
 
-  // Method to set the value
+// Method to set the value
 //   fromValue(value: BigNumberish): void {
 //     this._value = value;
 //   }
 
-  // Instance method to get the maximum of the current value and another BigNumberish value
+// Instance method to get the maximum of the current value and another BigNumberish value
 //   max(other: BigNumberish): BigNumber {
 //     return BigNumber.max(this._value, other);
 //   }
 
-  // Instance method to get the minimum of the current value and another BigNumberish value
+// Instance method to get the minimum of the current value and another BigNumberish value
 //   min(other: BigNumberish): BigNumber {
 //     return BigNumber.min(this._value, other);
 //   }
 
-  // Instance method to add another BigNumberish value to the current value
+// Instance method to add another BigNumberish value to the current value
 //   add(other: BigNumberish): BigNumber {
 //     return BigNumber.add(this._value, other);
 //   }
 
-  // Instance method to subtract another BigNumberish value from the current value
+// Instance method to subtract another BigNumberish value from the current value
 //   sub(other: BigNumberish): BigNumber {
 //     return BigNumber.sub(this._value, other);
 //   }
 
-  // Instance method to divide the current value by another BigNumberish value
+// Instance method to divide the current value by another BigNumberish value
 //   div(other: BigNumberish): BigNumber {
 //     return BigNumber.div(this._value, other);
 //   }
 
-  // Instance method to multiply the current value by another BigNumberish value
+// Instance method to multiply the current value by another BigNumberish value
 //   mul(other: BigNumberish): BigNumber {
 //     return BigNumber.mul(this._value, other);
 //   }
 
-  // Instance method to calculate the modulus of the current value by another BigNumberish value
+// Instance method to calculate the modulus of the current value by another BigNumberish value
 //   mod(other: BigNumberish): BigNumber {
 //     return BigNumber.mod(this._value, other);
 //   }
 
-  // Static method to create a BigNumber instance
+// Static method to create a BigNumber instance
 //   static from(value: BigNumberish): BigNumber {
 //     return new BigNumber(value);
 //   }
 
-  // Static method to convert a BigNumberish to a number
+// Static method to convert a BigNumberish to a number
 //   static toNumber(value: BigNumberish): number | null {
 //     if (value === null) {
 //       return null;
@@ -618,7 +620,7 @@ export {
 //     return null;
 //   }
 
-  // Static method to convert a BigNumberish to a bigint
+// Static method to convert a BigNumberish to a bigint
 //   static toBigInt(value: BigNumberish): bigint | null {
 //     if (value === null) {
 //       return null;
@@ -639,7 +641,7 @@ export {
 //     return null;
 //   }
 
-  // Static method to get the maximum of two BigNumberish values
+// Static method to get the maximum of two BigNumberish values
 //   static max(value1: BigNumberish, value2: BigNumberish): BigNumber {
 //     const bigint1 = BigNumber.toBigInt(value1);
 //     const bigint2 = BigNumber.toBigInt(value2);
@@ -651,7 +653,7 @@ export {
 //     return new BigNumber(bigint1 > bigint2 ? bigint1 : bigint2);
 //   }
 
-  // Static method to get the minimum of two BigNumberish values
+// Static method to get the minimum of two BigNumberish values
 //   static min(value1: BigNumberish, value2: BigNumberish): BigNumber {
 //     const bigint1 = BigNumber.toBigInt(value1);
 //     const bigint2 = BigNumber.toBigInt(value2);
@@ -663,7 +665,7 @@ export {
 //     return new BigNumber(bigint1 < bigint2 ? bigint1 : bigint2);
 //   }
 
-  // Static method to add two BigNumberish values
+// Static method to add two BigNumberish values
 //   static add(value1: BigNumberish, value2: BigNumberish): BigNumber {
 //     const bigint1 = BigNumber.toBigInt(value1);
 //     const bigint2 = BigNumber.toBigInt(value2);
@@ -675,7 +677,7 @@ export {
 //     return new BigNumber(bigint1 + bigint2);
 //   }
 
-  // Static method to subtract one BigNumberish value from another
+// Static method to subtract one BigNumberish value from another
 //   static sub(value1: BigNumberish, value2: BigNumberish): BigNumber {
 //     const bigint1 = BigNumber.toBigInt(value1);
 //     const bigint2 = BigNumber.toBigInt(value2);
@@ -687,7 +689,7 @@ export {
 //     return new BigNumber(bigint1 - bigint2);
 //   }
 
-  // Static method to divide one BigNumberish value by another
+// Static method to divide one BigNumberish value by another
 //   static div(value1: BigNumberish, value2: BigNumberish): BigNumber {
 //     const bigint1 = BigNumber.toBigInt(value1);
 //     const bigint2 = BigNumber.toBigInt(value2);
@@ -699,7 +701,7 @@ export {
 //     return new BigNumber(bigint1 / bigint2);
 //   }
 
-  // Static method to multiply two BigNumberish values
+// Static method to multiply two BigNumberish values
 //   static mul(value1: BigNumberish, value2: BigNumberish): BigNumber {
 //     const bigint1 = BigNumber.toBigInt(value1);
 //     const bigint2 = BigNumber.toBigInt(value2);
@@ -711,7 +713,7 @@ export {
 //     return new BigNumber(bigint1 * bigint2);
 //   }
 
-  // Static method to calculate the modulus of one BigNumberish value by another
+// Static method to calculate the modulus of one BigNumberish value by another
 //   static mod(value1: BigNumberish, value2: BigNumberish): BigNumber {
 //     const bigint1 = BigNumber.toBigInt(value1);
 //     const bigint2 = BigNumber.toBigInt(value2);
@@ -723,7 +725,7 @@ export {
 //     return new BigNumber(bigint1 % bigint2);
 //   }
 
-  // Static method to convert BigNumberish value to hex string
+// Static method to convert BigNumberish value to hex string
 //   static toHex(value: BigNumberish): string {
 //     const bigintValue = BigNumber.toBigInt(value);
 //     if (bigintValue === null) {
@@ -732,7 +734,7 @@ export {
 //     return "0x" + bigintValue.toString(16);
 //   }
 
-  // Static method to create a BigNumber from a hex string
+// Static method to create a BigNumber from a hex string
 //   static fromHex(hex: string): BigNumber {
 //     if (typeof hex !== "string" || !/^0x[0-9a-fA-F]+$/.test(hex)) {
 //       throw new Error("Invalid hex string");
@@ -740,7 +742,6 @@ export {
 //     return new BigNumber(BigInt(hex));
 //   }
 // }
-
 
 // Example usage
 // let myValue: BigNumber = BigNumber.from(10n);
@@ -810,4 +811,3 @@ export {
 // let baseValue: BigNumber = BigNumber.from("1");
 // console.log('To Gwei Base:', baseValue.toGweiBase().toBigInt()); // Output: 1000000000n
 // console.log('To Wei Base:', baseValue.toWeiBase().toBigInt()); // Output: 1000000000000000000n
-

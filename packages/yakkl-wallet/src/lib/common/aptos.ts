@@ -2,12 +2,11 @@
 import type { BaseTransaction } from '$lib/common';
 
 export interface AptosTransaction extends BaseTransaction {
-  // gasLimit: BigNumberish;
-  // gasPrice: BigNumberish;
-  expirationTimestamp: number;
-  payload: any; // Specific to Aptos
+	// gasLimit: BigNumberish;
+	// gasPrice: BigNumberish;
+	expirationTimestamp: number;
+	payload: any; // Specific to Aptos
 }
-
 
 // Example:
 // const aptosTransaction: AptosTransaction = {

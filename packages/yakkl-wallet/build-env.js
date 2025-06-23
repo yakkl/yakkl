@@ -29,12 +29,12 @@ const version = pkg.version ?? '0.0.0';
 
 // Shared context for mustache
 const context = {
-  version,
-  YAKKL_TYPE: yakklType,
-  DEV_MODE: devMode,
-  isSidepanel: true, //yakklType === 'sidepanel',
-  isPopup: false, //yakklType === 'popup',
-  ...envConfig // override fallback with env-specific settings
+	version,
+	YAKKL_TYPE: yakklType,
+	DEV_MODE: devMode,
+	isSidepanel: true, //yakklType === 'sidepanel',
+	isPopup: false, //yakklType === 'popup',
+	...envConfig // override fallback with env-specific settings
 };
 
 // === Render .env ===
@@ -48,10 +48,10 @@ const manifestTemplatePath = join(__dirname, 'src/lib/extensions/chrome/manifest
 const manifestOutPath = join(__dirname, 'static/manifest.json');
 
 try {
-  const manifestTemplate = readFileSync(manifestTemplatePath, 'utf8');
-  const manifestOutput = Mustache.render(manifestTemplate, context);
-  writeFileSync(manifestOutPath, manifestOutput);
-  console.log(`[build-env] Wrote manifest.json for "${envName}" environment.`);
+	const manifestTemplate = readFileSync(manifestTemplatePath, 'utf8');
+	const manifestOutput = Mustache.render(manifestTemplate, context);
+	writeFileSync(manifestOutPath, manifestOutput);
+	console.log(`[build-env] Wrote manifest.json for "${envName}" environment.`);
 } catch (err) {
-  console.error('[build-env] Failed to render manifest.json:', err.message);
+	console.error('[build-env] Failed to render manifest.json:', err.message);
 }

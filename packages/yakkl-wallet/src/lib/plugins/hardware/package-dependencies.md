@@ -4,14 +4,14 @@ Add these dependencies to your package.json:
 
 ```json
 {
-  "dependencies": {
-    "@ledgerhq/hw-app-eth": "^6.45.4",
-    "@ledgerhq/hw-transport-webhid": "^6.29.0",
-    "@ledgerhq/hw-transport-webusb": "^6.29.0"
-  },
-  "devDependencies": {
-    "@types/ledgerhq__hw-transport": "^4.21.8"
-  }
+	"dependencies": {
+		"@ledgerhq/hw-app-eth": "^6.45.4",
+		"@ledgerhq/hw-transport-webhid": "^6.29.0",
+		"@ledgerhq/hw-transport-webusb": "^6.29.0"
+	},
+	"devDependencies": {
+		"@types/ledgerhq__hw-transport": "^4.21.8"
+	}
 }
 ```
 
@@ -31,13 +31,14 @@ pnpm add -D @types/ledgerhq__hw-transport
 ## Bundle Size Impact
 
 - **@ledgerhq/hw-app-eth**: ~50KB
-- **@ledgerhq/hw-transport-webhid**: ~15KB  
+- **@ledgerhq/hw-transport-webhid**: ~15KB
 - **@ledgerhq/hw-transport-webusb**: ~15KB
 - **Total**: ~80KB (only loaded when needed)
 
 ## Browser Compatibility
 
 These packages require:
+
 - Chrome/Chromium 89+ for WebHID
 - Chrome/Chromium 61+ for WebUSB (fallback)
 - HTTPS context for security APIs

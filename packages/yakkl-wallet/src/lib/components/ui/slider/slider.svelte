@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { Slider as SliderPrimitive, type WithoutChildrenOrChild } from "bits-ui";
-	import { cn } from "$lib/utils.js";
+	import { Slider as SliderPrimitive, type WithoutChildrenOrChild } from 'bits-ui';
+	import { cn } from '$lib/utils.js';
 
 	let {
 		ref = $bindable(null),
@@ -13,7 +13,7 @@
 <SliderPrimitive.Root
 	bind:ref
 	bind:value
-	class={cn("relative flex w-full touch-none select-none items-center", className)}
+	class={cn('relative flex w-full touch-none select-none items-center', className)}
 	{...restProps}
 >
 	{#snippet children({ thumbs })}

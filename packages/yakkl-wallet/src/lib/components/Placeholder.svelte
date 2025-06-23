@@ -1,24 +1,24 @@
 <!-- Placeholder.svelte -->
 <script lang="ts">
-  let {
-    text = '',
-    anchorTop = false,
-    centerHorizontal = true,
-    centerVertical = false,
-    className = '',
-    showBorderTop = true
-  } = $props<{
-    text?: string;
-    anchorTop?: boolean;
-    centerHorizontal?: boolean;
-    centerVertical?: boolean;
-    className?: string;
-    showBorderTop?: boolean;
-  }>();
+	let {
+		text = '',
+		anchorTop = false,
+		centerHorizontal = true,
+		centerVertical = false,
+		className = '',
+		showBorderTop = true
+	} = $props<{
+		text?: string;
+		anchorTop?: boolean;
+		centerHorizontal?: boolean;
+		centerVertical?: boolean;
+		className?: string;
+		showBorderTop?: boolean;
+	}>();
 </script>
 
 <div
-  class="
+	class="
     {anchorTop ? 'sticky top-0' : ''}
     {centerHorizontal ? 'flex justify-center' : ''}
     {centerVertical ? 'flex items-center min-h-full' : ''}
@@ -33,5 +33,5 @@
     {className}
   "
 >
-  <p>{text}</p>
+	<p>{text}</p>
 </div>

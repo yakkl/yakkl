@@ -1,4 +1,4 @@
-import { log } from "$lib/managers/Logger";
+import { log } from '$lib/managers/Logger';
 
 type TimerCallback = () => void;
 type DebouncedFunction<T extends (...args: any[]) => void> = T & { cancel: () => void };
@@ -7,211 +7,208 @@ type DebouncedFunction<T extends (...args: any[]) => void> = T & { cancel: () =>
 type TimerId = ReturnType<typeof setTimeout>;
 
 export interface Timer {
-  id: string;
-  callback: TimerCallback;
-  duration: number;
-  handle: TimerId | null;
-  type: 'interval' | 'timeout';
+	id: string;
+	callback: TimerCallback;
+	duration: number;
+	handle: TimerId | null;
+	type: 'interval' | 'timeout';
 }
 
 // Simple singleton pattern - no events needed for service worker compatibility
 
 export class UnifiedTimerManager {
-  private intervals: Map<string, Timer> = new Map();
-  private timeouts: Map<string, Timer> = new Map();
-  private static instance: UnifiedTimerManager | null = null;
+	private intervals: Map<string, Timer> = new Map();
+	private timeouts: Map<string, Timer> = new Map();
+	private static instance: UnifiedTimerManager | null = null;
 
-  constructor() {
-    if (UnifiedTimerManager.instance) {
-      return UnifiedTimerManager.instance;
-    }
-    UnifiedTimerManager.instance = this;
-  }
+	constructor() {
+		if (UnifiedTimerManager.instance) {
+			return UnifiedTimerManager.instance;
+		}
+		UnifiedTimerManager.instance = this;
+	}
 
-  public static getInstance(): UnifiedTimerManager {
-    return UnifiedTimerManager.instance ?? new UnifiedTimerManager();
-  }
+	public static getInstance(): UnifiedTimerManager {
+		return UnifiedTimerManager.instance ?? new UnifiedTimerManager();
+	}
 
-  public static clearInstance(): void {
-    if (this.instance) {
-      this.instance.clearAll();
-    }
-    this.instance = null;
-  }
+	public static clearInstance(): void {
+		if (this.instance) {
+			this.instance.clearAll();
+		}
+		this.instance = null;
+	}
 
-  public static resetInstance(): UnifiedTimerManager {
-    this.clearInstance();
-    return this.getInstance();
-  }
+	public static resetInstance(): UnifiedTimerManager {
+		this.clearInstance();
+		return this.getInstance();
+	}
 
-  // Interval methods
-  addInterval(id: string, callback: TimerCallback, duration: number): void {
-    if (this.intervals.has(id)) {
-      log.warn(`Interval "${id}" already exists.`);
-      return;
-    }
-    this.intervals.set(id, { id, callback, duration, handle: null, type: 'interval' });
-  }
+	// Interval methods
+	addInterval(id: string, callback: TimerCallback, duration: number): void {
+		if (this.intervals.has(id)) {
+			log.warn(`Interval "${id}" already exists.`);
+			return;
+		}
+		this.intervals.set(id, { id, callback, duration, handle: null, type: 'interval' });
+	}
 
-  startInterval(id: string, immediate = false): void {
-    const timer = this.intervals.get(id);
-    if (!timer) return log.error(`Interval "${id}" not found.`);
-    if (timer.handle) return log.warn(`Interval "${id}" is already running.`);
+	startInterval(id: string, immediate = false): void {
+		const timer = this.intervals.get(id);
+		if (!timer) return log.error(`Interval "${id}" not found.`);
+		if (timer.handle) return log.warn(`Interval "${id}" is already running.`);
 
-    if (immediate) {
-      timer.callback();
-    }
-    timer.handle = setInterval(timer.callback, timer.duration);
-  }
+		if (immediate) {
+			timer.callback();
+		}
+		timer.handle = setInterval(timer.callback, timer.duration);
+	}
 
-  stopInterval(id: string): void {
-    const timer = this.intervals.get(id);
-    if (!timer) return log.warn(`Interval "${id}" not found.`);
-    if (!timer.handle) return log.warn(`Interval "${id}" is not running.`);
+	stopInterval(id: string): void {
+		const timer = this.intervals.get(id);
+		if (!timer) return log.warn(`Interval "${id}" not found.`);
+		if (!timer.handle) return log.warn(`Interval "${id}" is not running.`);
 
-    clearInterval(timer.handle);
-    timer.handle = null;
-  }
+		clearInterval(timer.handle);
+		timer.handle = null;
+	}
 
-  removeInterval(id: string): void {
-    this.stopInterval(id);
-    this.intervals.delete(id);
-  }
+	removeInterval(id: string): void {
+		this.stopInterval(id);
+		this.intervals.delete(id);
+	}
 
-  // Timeout methods
-  addTimeout(id: string, callback: TimerCallback, duration: number): void {
-    if (this.timeouts.has(id)) {
-      log.warn(`Timeout "${id}" already exists.`);
-      return;
-    }
-    this.timeouts.set(id, { id, callback, duration, handle: null, type: 'timeout' });
-  }
+	// Timeout methods
+	addTimeout(id: string, callback: TimerCallback, duration: number): void {
+		if (this.timeouts.has(id)) {
+			log.warn(`Timeout "${id}" already exists.`);
+			return;
+		}
+		this.timeouts.set(id, { id, callback, duration, handle: null, type: 'timeout' });
+	}
 
-  startTimeout(id: string): void {
-    const timer = this.timeouts.get(id);
-    if (!timer) return log.error(`Timeout "${id}" not found.`);
-    if (timer.handle) return log.warn(`Timeout "${id}" is already running.`);
+	startTimeout(id: string): void {
+		const timer = this.timeouts.get(id);
+		if (!timer) return log.error(`Timeout "${id}" not found.`);
+		if (timer.handle) return log.warn(`Timeout "${id}" is already running.`);
 
-    timer.handle = setTimeout(() => {
-      timer.callback();
-      timer.handle = null;
-    }, timer.duration);
-  }
+		timer.handle = setTimeout(() => {
+			timer.callback();
+			timer.handle = null;
+		}, timer.duration);
+	}
 
-  stopTimeout(id: string): void {
-    const timer = this.timeouts.get(id);
-    if (!timer) return log.warn(`Timeout "${id}" not found.`);
-    if (!timer.handle) return log.warn(`Timeout "${id}" is not running.`);
+	stopTimeout(id: string): void {
+		const timer = this.timeouts.get(id);
+		if (!timer) return log.warn(`Timeout "${id}" not found.`);
+		if (!timer.handle) return log.warn(`Timeout "${id}" is not running.`);
 
-    clearTimeout(timer.handle);
-    timer.handle = null;
-  }
+		clearTimeout(timer.handle);
+		timer.handle = null;
+	}
 
-  removeTimeout(id: string): void {
-    this.stopTimeout(id);
-    this.timeouts.delete(id);
-  }
+	removeTimeout(id: string): void {
+		this.stopTimeout(id);
+		this.timeouts.delete(id);
+	}
 
-  // Utility methods
-  clearAll(): void {
-    // Stop all intervals
-    this.intervals.forEach((_, id) => this.stopInterval(id));
-    this.intervals.clear();
-    
-    // Stop all timeouts
-    this.timeouts.forEach((_, id) => this.stopTimeout(id));
-    this.timeouts.clear();
-  }
+	// Utility methods
+	clearAll(): void {
+		// Stop all intervals
+		this.intervals.forEach((_, id) => this.stopInterval(id));
+		this.intervals.clear();
 
-  getRunningTimers(): { intervals: string[], timeouts: string[] } {
-    const intervals = Array.from(this.intervals.entries())
-      .filter(([_, timer]) => timer.handle !== null)
-      .map(([id]) => id);
-    
-    const timeouts = Array.from(this.timeouts.entries())
-      .filter(([_, timer]) => timer.handle !== null)
-      .map(([id]) => id);
-    
-    return { intervals, timeouts };
-  }
+		// Stop all timeouts
+		this.timeouts.forEach((_, id) => this.stopTimeout(id));
+		this.timeouts.clear();
+	}
 
-  isIntervalRunning(id: string): boolean {
-    return !!this.intervals.get(id)?.handle;
-  }
+	getRunningTimers(): { intervals: string[]; timeouts: string[] } {
+		const intervals = Array.from(this.intervals.entries())
+			.filter(([_, timer]) => timer.handle !== null)
+			.map(([id]) => id);
 
-  isTimeoutRunning(id: string): boolean {
-    return !!this.timeouts.get(id)?.handle;
-  }
+		const timeouts = Array.from(this.timeouts.entries())
+			.filter(([_, timer]) => timer.handle !== null)
+			.map(([id]) => id);
 
-  // Backward compatibility methods (delegates to interval methods)
-  addTimer(id: string, callback: TimerCallback, duration: number): void {
-    this.addInterval(id, callback, duration);
-  }
+		return { intervals, timeouts };
+	}
 
-  startTimer(id: string): void {
-    this.startInterval(id);
-  }
+	isIntervalRunning(id: string): boolean {
+		return !!this.intervals.get(id)?.handle;
+	}
 
-  stopTimer(id: string): void {
-    this.stopInterval(id);
-  }
+	isTimeoutRunning(id: string): boolean {
+		return !!this.timeouts.get(id)?.handle;
+	}
 
-  removeTimer(id: string): void {
-    this.removeInterval(id);
-  }
+	// Backward compatibility methods (delegates to interval methods)
+	addTimer(id: string, callback: TimerCallback, duration: number): void {
+		this.addInterval(id, callback, duration);
+	}
 
-  hasTimer(id: string): boolean {
-    return this.intervals.has(id);
-  }
+	startTimer(id: string): void {
+		this.startInterval(id);
+	}
 
-  isRunning(id: string): boolean {
-    return this.isIntervalRunning(id);
-  }
+	stopTimer(id: string): void {
+		this.stopInterval(id);
+	}
 
-  // Debounce utility
-  static createDebounce<T extends (...args: any[]) => void>(
-    func: T,
-    delay: number
-  ): DebouncedFunction<T> {
-    let timeoutId: TimerId | null = null;
+	removeTimer(id: string): void {
+		this.removeInterval(id);
+	}
 
-    const debounced = ((...args: Parameters<T>) => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-      timeoutId = setTimeout(() => {
-        func(...args);
-        timeoutId = null;
-      }, delay);
-    }) as DebouncedFunction<T>;
+	hasTimer(id: string): boolean {
+		return this.intervals.has(id);
+	}
 
-    debounced.cancel = () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-        timeoutId = null;
-      }
-    };
+	isRunning(id: string): boolean {
+		return this.isIntervalRunning(id);
+	}
 
-    return debounced;
-  }
+	// Debounce utility
+	static createDebounce<T extends (...args: any[]) => void>(
+		func: T,
+		delay: number
+	): DebouncedFunction<T> {
+		let timeoutId: TimerId | null = null;
 
-  // Throttle utility
-  static createThrottle<T extends (...args: any[]) => void>(
-    func: T,
-    limit: number
-  ): T {
-    let inThrottle = false;
-    
-    return ((...args: Parameters<T>) => {
-      if (!inThrottle) {
-        func(...args);
-        inThrottle = true;
-        setTimeout(() => {
-          inThrottle = false;
-        }, limit);
-      }
-    }) as T;
-  }
+		const debounced = ((...args: Parameters<T>) => {
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+			}
+			timeoutId = setTimeout(() => {
+				func(...args);
+				timeoutId = null;
+			}, delay);
+		}) as DebouncedFunction<T>;
+
+		debounced.cancel = () => {
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+				timeoutId = null;
+			}
+		};
+
+		return debounced;
+	}
+
+	// Throttle utility
+	static createThrottle<T extends (...args: any[]) => void>(func: T, limit: number): T {
+		let inThrottle = false;
+
+		return ((...args: Parameters<T>) => {
+			if (!inThrottle) {
+				func(...args);
+				inThrottle = true;
+				setTimeout(() => {
+					inThrottle = false;
+				}, limit);
+			}
+		}) as T;
+	}
 }
 
 // Singleton instance

@@ -1,15 +1,15 @@
 // src/types/service-worker.d.ts
 interface ServiceWorkerGlobalScope extends WorkerGlobalScope {
-  // Add any service worker specific properties you need
+	// Add any service worker specific properties you need
 }
 
 interface Window {
-  browser?: any;
+	browser?: any;
 }
 
 interface Chrome {
-  runtime?: any;
-  devtools?: any;
+	runtime?: any;
+	devtools?: any;
 }
 
 declare var chrome: Chrome;

@@ -21,4 +21,3 @@ export * from '$lib/common/wallet';
 // We don't need to export these functions because they are specific to the non-extension code
 // export * from './gets';
 // export * from './defaults';
-

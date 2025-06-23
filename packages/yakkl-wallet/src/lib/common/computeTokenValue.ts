@@ -6,11 +6,11 @@ import type { TokenData } from './interfaces';
  * @returns { balance: number, value: number }
  */
 
-export function computeTokenValue(token: TokenData): { balance: number, value: number } {
-  let balance = token?.balance ? Number(token.balance) : 0; // Direct conversion
+export function computeTokenValue(token: TokenData): { balance: number; value: number } {
+	let balance = token?.balance ? Number(token.balance) : 0; // Direct conversion
 
-  const price = token?.price?.price ?? 0;
-  const value = balance * price;
+	const price = token?.price?.price ?? 0;
+	const value = balance * price;
 
-  return { balance, value };
+	return { balance, value };
 }

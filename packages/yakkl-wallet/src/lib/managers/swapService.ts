@@ -7,20 +7,20 @@ import { SwapAggregator } from './SwapAggregator';
 import type { Ethereum } from './blockchains/evm/ethereum/Ethereum';
 
 async function initializeServices() {
-  const wallet = WalletManager.getInstance( [ 'Alchemy' ], [ 'Ethereum' ], 1 );
-  const blockchain = wallet.getBlockchain() as Ethereum;
-  const provider = wallet.getProvider();
+	const wallet = WalletManager.getInstance(['Alchemy'], ['Ethereum'], 1);
+	const blockchain = wallet.getBlockchain() as Ethereum;
+	const provider = wallet.getProvider();
 
-  if ( !provider ) {
-    throw new Error( 'Provider not initialized' );
-  }
+	if (!provider) {
+		throw new Error('Provider not initialized');
+	}
 
-  const uniswapManager = new UniswapSwapManager( blockchain, provider );
-  const sushiSwapManager = new SushiSwapManager( blockchain, provider, 'SUSHISWAP_ROUTER_ADDRESS' );
+	const uniswapManager = new UniswapSwapManager(blockchain, provider);
+	const sushiSwapManager = new SushiSwapManager(blockchain, provider, 'SUSHISWAP_ROUTER_ADDRESS');
 
-  const swapAggregator = new SwapAggregator( [ uniswapManager, /* sushiSwapManager */ ] );
+	const swapAggregator = new SwapAggregator([uniswapManager /* sushiSwapManager */]);
 
-  return { swapAggregator, uniswapManager, sushiSwapManager };
+	return { swapAggregator, uniswapManager, sushiSwapManager };
 }
 
 export const swapServices = initializeServices();

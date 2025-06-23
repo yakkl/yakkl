@@ -1,12 +1,13 @@
 # Extension specifics
 
 As of version 0.30.5-beta, we support multiple browser.
+
 - Chrome
 - Brave
 - Firefox
 - Edge
-- *Opera
-- *Safari (not fully committed)
+- \*Opera
+- \*Safari (not fully committed)
 
 There is a subdirectory for each browser under this base directory called 'lib/extensions'. Webpack will merge and modify files in each sub-directory for the specific browser and then copy them to this base directory. We should remove any scratch files, but we will do that later.
 

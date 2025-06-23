@@ -1,4 +1,3 @@
-
 import type { TokenData } from '$lib/common';
 
 // Mock market data for tokens
