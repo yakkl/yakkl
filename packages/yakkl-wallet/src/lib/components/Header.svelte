@@ -15,6 +15,7 @@
 	import SimpleTooltip from './SimpleTooltip.svelte';
 	import OffcanvasProfileMenu from './OffcanvasProfileMenu.svelte';
 	import Avatar from './Avatar.svelte';
+	import { goto } from '$app/navigation';
 	import type { Profile, Settings, ProfileData } from '$lib/common/interfaces';
 	import { decryptData } from '$lib/common/encryption';
 	import { isEncryptedData } from '$lib/common/misc';
@@ -177,6 +178,18 @@
 			</SimpleTooltip>
 			<SimpleTooltip content="YAKKL University" position="bottom">
 				<GraduationCapButton />
+			</SimpleTooltip>
+			<!-- New Wallet Demo Button -->
+			<SimpleTooltip content="Preview new wallet design" position="bottom">
+				<button
+					onclick={() => goto('/preview')}
+					class="flex items-center justify-center w-8 h-8 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full shadow-md hover:from-purple-600 hover:to-indigo-700 transition-all"
+					aria-label="Preview new design"
+				>
+					<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+					</svg>
+				</button>
 			</SimpleTooltip>
 		</div>
 
