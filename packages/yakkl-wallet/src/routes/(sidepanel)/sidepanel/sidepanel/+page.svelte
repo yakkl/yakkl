@@ -38,6 +38,7 @@
 	import SponsorIcon from '$lib/components/icons/SponsorIcon.svelte';
 	import ScrollIndicator from '$lib/components/ScrollIndicator.svelte';
 	import SimpleTooltip from '$lib/components/SimpleTooltip.svelte';
+	import { goto } from '$app/navigation';
 
 	let showUpgradeModal = $state(false);
 	let showEthConverter = $state(false);
@@ -265,17 +266,32 @@
 		class="px-4 py-3 border-b border-zinc-200 dark:border-zinc-700 flex justify-between items-center"
 	>
 		<h1 class="text-lg font-bold">YAKKL Insights</h1>
-		<SimpleTooltip content="Click here to unlock your wallet" position="bottom">
-			<button
-				onclick={openWallet}
-				class="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-xl shadow-md hover:from-green-600 hover:to-emerald-700 transition-all {!init
-					? 'animate-pulse'
-					: ''}"
-			>
-				<WalletIcon className="w-5 h-5" />
-				Open Smart Wallet
-			</button>
-		</SimpleTooltip>
+		<!-- Preview2 Integration -->
+    <div class="flex items-center gap-2">
+			<SimpleTooltip content="Try the new wallet experience" position="bottom">
+				<button
+					onclick={() => goto('/preview2')}
+					class="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-3 py-2 rounded-lg shadow-md hover:from-purple-600 hover:to-indigo-700 transition-all text-sm group"
+				>
+					<svg class="w-4 h-4 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+					</svg>
+					Preview 2.0
+				</button>
+			</SimpleTooltip>
+
+			<SimpleTooltip content="Click here to unlock your wallet" position="bottom">
+				<button
+					onclick={openWallet}
+					class="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-xl shadow-md hover:from-green-600 hover:to-emerald-700 transition-all {!init
+						? 'animate-pulse'
+						: ''}"
+				>
+					<WalletIcon className="w-5 h-5" />
+					Open Smart Wallet
+				</button>
+			</SimpleTooltip>
+		</div>
 		{#if !init}
 			<span class="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-500 animate-ping"
 			></span>
