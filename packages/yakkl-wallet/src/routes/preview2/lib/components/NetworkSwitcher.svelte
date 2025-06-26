@@ -26,7 +26,7 @@
 
 <div class={`relative ${className}`}>
   <button
-    class="yakkl-pill flex items-center space-x-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white px-3 py-2 rounded-full text-sm font-semibold shadow border border-zinc-200 dark:border-zinc-700 hover:ring-1 hover:ring-indigo-400 transition"
+    class="yakkl-pill"
     onclick={() => menuOpen = !menuOpen}
     aria-haspopup="listbox"
     aria-expanded={menuOpen}
@@ -44,11 +44,11 @@
     {/if}
   </button>
   {#if menuOpen}
-    <div class="absolute left-0 top-full mt-2 w-56 bg-white dark:bg-zinc-900 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700 z-[100] py-2">
+    <div class="absolute left-0 top-full mt-2 w-56 yakkl-dropdown">
       {#each chains as chain}
         {#if showTestnets || !chain.isTestnet}
           <button
-            class="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            class="yakkl-dropdown-item flex items-center gap-2"
             onclick={() => selectChain(chain)}
             role="option"
             aria-selected={selectedChain.key === chain.key}
