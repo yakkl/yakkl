@@ -28,7 +28,7 @@
 	let userName = '';
 	let avatarUrl = '';
 	let browserAccessor = BrowserAccessor.getInstance();
-	
+
 	let hoverTimeoutMain: number | null = null;
 	let hoverTimeoutProfile: number | null = null;
 
@@ -75,20 +75,20 @@
 	}
 
 	function showOffcanvasMain() {
-		if (typeof window !== 'undefined' && window.bootstrap) {
+		if (typeof window !== 'undefined' && (window as any).bootstrap) {
 			const element = document.getElementById('offcanvasMainMenu');
 			if (element) {
-				const offcanvasInstance = window.bootstrap.Offcanvas.getOrCreateInstance(element);
+				const offcanvasInstance = (window as any).bootstrap.Offcanvas.getOrCreateInstance(element);
 				offcanvasInstance.show();
 			}
 		}
 	}
 
 	function hideOffcanvasMain() {
-		if (typeof window !== 'undefined' && window.bootstrap) {
+		if (typeof window !== 'undefined' && (window as any).bootstrap) {
 			const element = document.getElementById('offcanvasMainMenu');
 			if (element) {
-				const offcanvasInstance = window.bootstrap.Offcanvas.getInstance(element);
+				const offcanvasInstance = (window as any).bootstrap.Offcanvas.getInstance(element);
 				if (offcanvasInstance) {
 					offcanvasInstance.hide();
 				}
@@ -97,20 +97,20 @@
 	}
 
 	function showOffcanvasProfile() {
-		if (typeof window !== 'undefined' && window.bootstrap) {
+		if (typeof window !== 'undefined' && (window as any).bootstrap) {
 			const element = document.getElementById('offcanvasProfileMenu');
 			if (element) {
-				const offcanvasInstance = window.bootstrap.Offcanvas.getOrCreateInstance(element);
+				const offcanvasInstance = (window as any).bootstrap.Offcanvas.getOrCreateInstance(element);
 				offcanvasInstance.show();
 			}
 		}
 	}
 
 	function hideOffcanvasProfile() {
-		if (typeof window !== 'undefined' && window.bootstrap) {
+		if (typeof window !== 'undefined' && (window as any).bootstrap) {
 			const element = document.getElementById('offcanvasProfileMenu');
 			if (element) {
-				const offcanvasInstance = window.bootstrap.Offcanvas.getInstance(element);
+				const offcanvasInstance = (window as any).bootstrap.Offcanvas.getInstance(element);
 				if (offcanvasInstance) {
 					offcanvasInstance.hide();
 				}
@@ -182,7 +182,7 @@
 			<!-- New Wallet Demo Button -->
 			<SimpleTooltip content="Preview new wallet design" position="bottom">
 				<button
-					onclick={() => goto('/preview')}
+					onclick={() => goto('/preview2')}
 					class="flex items-center justify-center w-8 h-8 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full shadow-md hover:from-purple-600 hover:to-indigo-700 transition-all"
 					aria-label="Preview new design"
 				>

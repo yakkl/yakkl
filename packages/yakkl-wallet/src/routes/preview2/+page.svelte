@@ -6,11 +6,13 @@
   import BuyModal from "./lib/components/BuyModal.svelte";
   import TokenPortfolio from "./lib/components/TokenPortfolio.svelte";
   import AIHelpButton from "./lib/components/AIHelpButton.svelte";
+  import AdvancedAnalytics from "./lib/components/pro/AdvancedAnalytics.svelte";
+  import SecureRecovery from "./lib/components/private/SecureRecovery.svelte";
   import MigrationBanner from "./migration-banner.svelte";
   import { currentAccount, accounts } from './lib/stores/account.store';
   import { currentChain } from './lib/stores/chain.store';
   import { tokens, totalPortfolioValue, isLoadingTokens, lastTokenUpdate } from './lib/stores/token.store';
-  import { canUseFeature } from './lib/stores/plan.store';
+  import { canUseFeature } from './lib/utils/features';
   import { Preview2Migration, isMigrationNeeded, enablePreview2 } from './migrate';
   import { uiStore } from './lib/stores/ui.store';
 
@@ -66,6 +68,32 @@
     uiStore.setGlobalLoading(true, 'Initializing Preview 2.0...');
 
     try {
+      // Check if user is authenticated first
+      const { getSettings, yakklUserNameStore } = await import('$lib/common/stores');
+      const settings = await getSettings();
+      
+      console.log('Preview2 auth check:', {
+        settings: !!settings,
+        isLocked: settings?.isLocked,
+        init: settings?.init
+      });
+      
+      // Check if user is authenticated
+      const isAuthenticated = settings && 
+                             settings.isLocked === false && 
+                             settings.init;
+      
+      console.log('isAuthenticated:', isAuthenticated);
+      
+      if (!isAuthenticated) {
+        // User is not authenticated, redirect to preview2 login
+        const { goto } = await import('$app/navigation');
+        console.log('Redirecting to login...');
+        return await goto('/preview2/login');
+      }
+      
+      console.log('User authenticated, continuing with preview2 load...');
+
       // Check if migration is needed
       const migrationNeeded = await isMigrationNeeded();
       showMigrationBanner = migrationNeeded;
@@ -317,6 +345,12 @@
     className="yakkl-card relative z-10"
   />
 
+  <!-- Pro Feature: Advanced Analytics -->
+  <AdvancedAnalytics className="relative z-10" />
+
+  <!-- Private Feature: Secure Recovery -->
+  <SecureRecovery className="relative z-10" />
+
   <!-- Preview 2.0 Badge -->
   <div class="text-center pt-4 pb-2 relative z-10">
     <div class="inline-flex items-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-3 py-1 rounded-full text-xs font-medium shadow-md">
@@ -336,8 +370,8 @@
   <div class="fixed bottom-12 right-4 z-50">
     <button
       onclick={() => uiStore.showInfo('Pro Feature Required', 'Upgrade to Pro to access AI assistance')}
-      class="bg-gray-400 text-white w-14 h-14 rounded-full shadow-lg text-xl flex items-center justify-center opacity-75 hover:opacity-90 transition-opacity"
-      title="AI Assistant (Pro Level Feature)"
+      class="yakkl-circle-button text-xl opacity-60 hover:opacity-80 transition-opacity"
+      title="AI Assistant (Pro Feature - Upgrade Required)"
     >
       🤖
     </button>

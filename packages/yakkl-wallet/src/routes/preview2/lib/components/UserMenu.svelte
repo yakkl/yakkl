@@ -29,11 +29,11 @@
     {/if}
   </button>
   {#if menuOpen}
-    <div class="absolute right-0 top-full mt-2 min-w-[170px] bg-white dark:bg-zinc-900 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700 z-[100] py-2 animate-in fade-in">
-      <button class="block w-full text-left px-4 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800" onclick={() => {menuOpen = false; onManage && onManage();}}>Manage Account</button>
-      <button class="block w-full text-left px-4 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800" onclick={() => {menuOpen = false; onSettings && onSettings();}}>Settings</button>
-      <button class="block w-full text-left px-4 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800" onclick={() => {menuOpen = false; onTheme && onTheme();}}>Theme</button>
-      <button class="block w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-zinc-100 dark:hover:bg-zinc-800" onclick={() => {menuOpen = false; onLogout && onLogout();}}>Logout</button>
+    <div class="absolute right-0 top-full mt-2 min-w-[170px] yakkl-dropdown animate-in fade-in">
+      <button class="yakkl-dropdown-item" onclick={() => {menuOpen = false; onManage && onManage();}}>Manage Account</button>
+      <button class="yakkl-dropdown-item" onclick={() => {menuOpen = false; onSettings && onSettings();}}>Settings</button>
+      <button class="yakkl-dropdown-item" onclick={() => {menuOpen = false; onTheme && onTheme();}}>Theme</button>
+      <button class="yakkl-dropdown-item text-red-500 dark:text-red-400" onclick={() => {menuOpen = false; onLogout && onLogout();}}>Logout</button>
     </div>
     <button class="fixed inset-0 z-40" style="background:transparent" aria-label="Close" onclick={() => menuOpen = false}></button>
   {/if}

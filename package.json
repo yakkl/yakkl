@@ -28,6 +28,7 @@
     "dev:security": "pnpm -F @yakkl/security run build:watch",
     "dev:ui": "pnpm -F @yakkl/ui run dev",
     "dev:wallet": "pnpm run build:router && pnpm -F yakkl-wallet run dev:chrome",
+    "dev2:wallet": "pnpm run build:router && pnpm -F yakkl-wallet run dev2:chrome",
     "dev:yakkl.com": "pnpm -F @yakkl/yakkl.com run dev",
     "firefox_store_zip:wallet": "pnpm -F yakkl-wallet run firefox_store_zip",
     "format:wallet": "pnpm -F yakkl-wallet run format",

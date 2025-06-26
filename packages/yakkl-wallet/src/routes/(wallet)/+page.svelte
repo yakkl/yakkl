@@ -11,6 +11,13 @@
 	onMount(async () => {
 		try {
 			log.debug('+page.svelte (app level) - onMount');
+			
+			// Development: Check if preview2 is enabled
+			if (import.meta.env.VITE_PREVIEW2 === 'true') {
+				log.debug('Preview2 enabled - redirecting to preview2');
+				return await goto('/preview2');
+			}
+			
 			// Redirect based on settings
 			const yakklSettings = await getSettings();
 			if (!yakklSettings.legal.termsAgreed) {
@@ -19,7 +26,7 @@
 				// Could check for accountsStore.length > 0 and address !== zero_address
 				return await goto(PATH_REGISTER);
 			} else {
-				return await goto(PATH_LOGIN);
+				return await goto('/preview2/login');//PATH_LOGIN);
 			}
 		} catch (error) {
 			log.error('+page.svelte (app level) - redirecting to legal:', false, error);
