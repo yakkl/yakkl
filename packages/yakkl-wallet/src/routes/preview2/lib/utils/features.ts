@@ -3,7 +3,8 @@
  * Clean, efficient implementation with minimal dependencies
  */
 
-import { PlanType, PLAN_FEATURES, type FeatureKey } from '../constants/plans';
+import { PlanType } from '../types';
+import { PLAN_FEATURES, type FeatureKey } from '../config/features';
 import { log } from './logger';
 
 class FeatureManager {

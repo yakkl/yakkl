@@ -266,7 +266,7 @@ describe('E2E: Complete User Workflows', () => {
       await planStore.loadPlan();
       
       // Upgrade to Pro
-      await planStore.upgradePlan(PlanType.PRO);
+      await planStore.upgradeTo(PlanType.Pro);
       
       // Now should have access to pro features
       expect(planStore.canUseFeature('swap_tokens')).toBe(true);
@@ -295,7 +295,7 @@ describe('E2E: Complete User Workflows', () => {
   describe('Payment Gateway Workflow', () => {
     it('should handle crypto purchase workflow', async () => {
       await enablePreview2();
-      await planStore.upgradePlan(PlanType.PRO); // Buy requires Pro
+      await planStore.upgradeTo(PlanType.Pro); // Buy requires Pro
       
       const mockBuyService = {
         getBuyQuote: vi.fn().mockResolvedValue({

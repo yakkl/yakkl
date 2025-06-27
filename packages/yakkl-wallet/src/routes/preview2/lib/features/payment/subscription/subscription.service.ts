@@ -351,7 +351,7 @@ export class SubscriptionService extends BaseService {
       {
         id: 'basic',
         name: 'Basic',
-        type: PlanType.BASIC,
+        type: PlanType.Basic,
         price: 0,
         currency: 'USD',
         interval: 'month',
@@ -366,7 +366,7 @@ export class SubscriptionService extends BaseService {
       {
         id: 'pro-monthly',
         name: 'Pro',
-        type: PlanType.PRO,
+        type: PlanType.Pro,
         price: 9.99,
         currency: 'USD',
         interval: 'month',
@@ -385,7 +385,7 @@ export class SubscriptionService extends BaseService {
       {
         id: 'pro-yearly',
         name: 'Pro',
-        type: PlanType.PRO,
+        type: PlanType.Pro,
         price: 99.99,
         currency: 'USD',
         interval: 'year',
@@ -404,7 +404,7 @@ export class SubscriptionService extends BaseService {
       {
         id: 'enterprise',
         name: 'Enterprise',
-        type: PlanType.ENTERPRISE,
+        type: PlanType.Enterprise,
         price: 99.99,
         currency: 'USD',
         interval: 'month',

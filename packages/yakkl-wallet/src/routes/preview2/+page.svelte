@@ -2,12 +2,17 @@
   import { onMount } from 'svelte';
   import RecentActivity from "./lib/components/RecentActivity.svelte";
   import SendModal from "./lib/components/SendModal.svelte";
-  import Receive from "$lib/components/Receive.svelte";
+  import Receive from "./lib/components/Receive.svelte";
   import BuyModal from "./lib/components/BuyModal.svelte";
   import TokenPortfolio from "./lib/components/TokenPortfolio.svelte";
   import AIHelpButton from "./lib/components/AIHelpButton.svelte";
   import AdvancedAnalytics from "./lib/components/pro/AdvancedAnalytics.svelte";
   import SecureRecovery from "./lib/components/private/SecureRecovery.svelte";
+  import ModDashboard from "./lib/components/mods/ModDashboard.svelte";
+  import ModRenderer from "./lib/components/mods/ModRenderer.svelte";
+  import Upgrade from "./lib/components/Upgrade.svelte";
+  import { modalStore, isModalOpen } from "./lib/stores/modal.store";
+  import { initializeCore } from "./lib/core/integration";
   import MigrationBanner from "./migration-banner.svelte";
   import { currentAccount, accounts } from './lib/stores/account.store';
   import { currentChain } from './lib/stores/chain.store';
@@ -21,6 +26,17 @@
   let showReceiveModal = $state(false);
   let showBuyModal = $state(false);
   let showMigrationBanner = $state(false);
+  let showUpgradeModal = $state(false);
+  let modalOpen = $derived($isModalOpen);
+  
+  // Track modal state
+  $effect(() => {
+    if (showUpgradeModal) {
+      modalStore.openModal('upgrade');
+    } else {
+      modalStore.closeModal();
+    }
+  });
 
   // Reactive values from stores
   let account = $derived($currentAccount);
@@ -69,7 +85,7 @@
 
     try {
       // Check if user is authenticated first
-      const { getSettings, yakklUserNameStore } = await import('$lib/common/stores');
+      const { getSettings, syncStorageToStore } = await import('$lib/common/stores');
       const settings = await getSettings();
       
       console.log('Preview2 auth check:', {
@@ -85,14 +101,30 @@
       
       console.log('isAuthenticated:', isAuthenticated);
       
-      if (!isAuthenticated) {
+      // For version 2.0.0, also check if we're already in a preview2 authenticated session
+      const isPreview2Session = sessionStorage.getItem('preview2-authenticated') === 'true';
+      
+      // Special check: if we came from another preview2 page (not login), assume authenticated
+      const referrer = document.referrer;
+      const cameFromPreview2 = referrer && referrer.includes('/preview2/') && !referrer.includes('/preview2/login');
+      
+      if (!isAuthenticated && !isPreview2Session && !cameFromPreview2) {
         // User is not authenticated, redirect to preview2 login
         const { goto } = await import('$app/navigation');
         console.log('Redirecting to login...');
         return await goto('/preview2/login');
       }
       
-      console.log('User authenticated, continuing with preview2 load...');
+      // Mark session as authenticated for preview2
+      if (isAuthenticated || cameFromPreview2) {
+        sessionStorage.setItem('preview2-authenticated', 'true');
+      }
+      
+      console.log('User authenticated, ensuring stores are synchronized...');
+      
+      // Ensure all stores are loaded from persistent storage
+      await syncStorageToStore();
+      console.log('Preview2: Stores synchronized from persistent storage');
 
       // Check if migration is needed
       const migrationNeeded = await isMigrationNeeded();
@@ -102,6 +134,11 @@
       if (!migrationNeeded) {
         await enablePreview2();
       }
+
+      // Initialize YAKKL Core (non-blocking)
+      initializeCore().catch(err => {
+        console.warn('YAKKL Core initialization failed:', err);
+      });
 
       // Load initial data
       await refreshAllData();
@@ -209,6 +246,18 @@
       minute: 'numeric',
       hour12: true
     }).format(date);
+  }
+
+  function showUpgradePrompt(feature: string, requiredPlan: string) {
+    const featureNames = {
+      'swap_tokens': 'Token Swapping',
+      'buy_crypto': 'Buy/Sell Crypto',
+      'ai_assistant': 'AI Assistant',
+      'advanced_analytics': 'Advanced Analytics'
+    };
+    
+    const featureName = featureNames[feature as keyof typeof featureNames] || feature;
+    showUpgradeModal = true;
   }
 </script>
 
@@ -320,18 +369,20 @@
 
     <button
       class="yakkl-btn-primary yakkl-swap text-sm {!canUseFeature('swap_tokens') ? 'opacity-75' : ''}"
-      onclick={handleSwapClick}
+      onclick={canUseFeature('swap_tokens') ? handleSwapClick : () => showUpgradePrompt('swap_tokens', 'Pro')}
       disabled={!account}
+      title={!canUseFeature('swap_tokens') ? 'Upgrade to Pro to unlock token swapping' : 'Swap tokens'}
     >
-      Swap
+      {canUseFeature('swap_tokens') ? 'Swap' : '🔒 Swap'}
     </button>
 
     <button
       class="yakkl-btn-primary yakkl-btn-buy text-sm {!canUseFeature('buy_crypto') ? 'opacity-75' : ''}"
-      onclick={handleBuySell}
+      onclick={canUseFeature('buy_crypto') ? handleBuySell : () => showUpgradePrompt('buy_crypto', 'Pro')}
       disabled={!account}
+      title={!canUseFeature('buy_crypto') ? 'Upgrade to Pro to unlock buy/sell features' : 'Buy and sell crypto'}
     >
-      Buy/Sell
+      {canUseFeature('buy_crypto') ? 'Buy/Sell' : '🔒 Buy/Sell'}
     </button>
   </div>
 
@@ -346,10 +397,50 @@
   />
 
   <!-- Pro Feature: Advanced Analytics -->
-  <AdvancedAnalytics className="relative z-10" />
+  {#if canUseFeature('advanced_analytics')}
+    <AdvancedAnalytics className="relative z-10" />
+  {:else}
+    <div class="yakkl-card relative z-10 p-6 text-center border-2 border-dashed border-gray-300 dark:border-gray-600">
+      <div class="text-gray-400 dark:text-gray-500 mb-3">
+        <svg class="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+        <h3 class="text-lg font-medium mb-2">Advanced Analytics</h3>
+        <p class="text-sm mb-4">Get detailed portfolio insights, performance metrics, and market analysis.</p>
+        <button 
+          onclick={() => showUpgradeModal = true}
+          class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+        >
+          Upgrade to Pro
+        </button>
+      </div>
+    </div>
+  {/if}
 
   <!-- Private Feature: Secure Recovery -->
-  <SecureRecovery className="relative z-10" />
+  {#if canUseFeature('secure_recovery')}
+    <SecureRecovery className="relative z-10" />
+  {:else if canUseFeature('advanced_analytics')}
+    <!-- Show for Pro+ users but locked -->
+    <div class="yakkl-card relative z-10 p-6 text-center border-2 border-dashed border-orange-300 dark:border-orange-600">
+      <div class="text-orange-400 dark:text-orange-500 mb-3">
+        <svg class="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+        <h3 class="text-lg font-medium mb-2">Secure Recovery</h3>
+        <p class="text-sm mb-4">Maximum security features including air-gapped signing and zero-knowledge proofs.</p>
+        <button 
+          onclick={() => showUpgradeModal = true}
+          class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+        >
+          Upgrade to Private
+        </button>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Mod System -->
+  <ModDashboard className="yakkl-card relative z-10" />
 
   <!-- Preview 2.0 Badge -->
   <div class="text-center pt-4 pb-2 relative z-10">
@@ -362,18 +453,31 @@
   </div>
 </div>
 
-<!-- AI Help Button - Floating Action Button -->
-{#if canUseFeature('ai_assistant')}
-  <AIHelpButton className="fixed bottom-12 right-4" />
-{:else}
-  <!-- Show locked AI button for non-Pro users -->
-  <div class="fixed bottom-12 right-4 z-50">
-    <button
-      onclick={() => uiStore.showInfo('Pro Feature Required', 'Upgrade to Pro to access AI assistance')}
-      class="yakkl-circle-button text-xl opacity-60 hover:opacity-80 transition-opacity"
-      title="AI Assistant (Pro Feature - Upgrade Required)"
-    >
-      🤖
-    </button>
-  </div>
+<!-- AI Help Button - Floating Action Button (hidden during modals) -->
+{#if !modalOpen}
+  {#if canUseFeature('ai_assistant')}
+    <AIHelpButton className="fixed bottom-12 right-4" />
+  {:else}
+    <!-- Show locked AI button for non-Pro users -->
+    <div class="fixed bottom-12 right-4 z-50">
+      <button
+        onclick={() => showUpgradeModal = true}
+        class="yakkl-circle-button text-xl opacity-60 hover:opacity-80 transition-opacity"
+        title="AI Assistant (Pro Feature - Upgrade Required)"
+      >
+        🤖
+      </button>
+    </div>
+  {/if}
 {/if}
+
+<!-- Upgrade Modal -->
+<Upgrade 
+  bind:show={showUpgradeModal}
+  onComplete={() => {
+    showUpgradeModal = false;
+    // Refresh all data after upgrade
+    refreshAllData();
+  }}
+  onCancel={() => showUpgradeModal = false}
+/>

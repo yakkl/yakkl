@@ -1,6 +1,6 @@
 {
   "name": "yakkl",
-  "version": "1.5.6",
+  "version": "2.0.0",
   "description": "YAKKL Smart Wallet. This repository contains the smart contracts and the wallet application for the browser extension.",
   "author": "YAKKL",
   "private": true,

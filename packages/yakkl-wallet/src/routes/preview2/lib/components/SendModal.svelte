@@ -149,14 +149,12 @@
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in"
     onclick={closeModal}
     onkeydown={e => e.key === 'Escape' && closeModal()}
-    role="button"
-    tabindex="0">
+    role="dialog"
+    aria-modal="true"
+    aria-label="Send tokens modal">
     <div class="relative bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-6 min-w-[320px] w-full max-w-xs flex flex-col gap-4 animate-in slide-in-from-bottom-10"
       onclick={e => e.stopPropagation()}
-      onkeydown={e => e.stopPropagation()}
-      role="dialog"
-      aria-modal="true"
-      tabindex="0">
+      onkeydown={e => e.stopPropagation()}>
       
       <!-- Header -->
       <div class="flex items-center justify-between mb-2">
@@ -184,8 +182,9 @@
       <!-- Token Selection for Swap -->
       {#if mode === 'swap'}
         <div>
-          <label class="block text-xs mb-1 text-gray-600 dark:text-gray-400">From Token</label>
+          <label for="from-token-select" class="block text-xs mb-1 text-gray-600 dark:text-gray-400">From Token</label>
           <select 
+            id="from-token-select"
             bind:value={selectedToken} 
             class="w-full rounded bg-zinc-100 dark:bg-zinc-800 p-2 mb-1 text-zinc-900 dark:text-white"
           >
@@ -197,8 +196,9 @@
       {:else}
         <!-- Token selection for Send -->
         <div>
-          <label class="block text-xs mb-1 text-gray-600 dark:text-gray-400">Token</label>
+          <label for="send-token-select" class="block text-xs mb-1 text-gray-600 dark:text-gray-400">Token</label>
           <select 
+            id="send-token-select"
             bind:value={selectedToken} 
             class="w-full rounded bg-zinc-100 dark:bg-zinc-800 p-2 mb-1 text-zinc-900 dark:text-white"
           >
@@ -213,28 +213,34 @@
 
       <!-- Recipient Address -->
       <div>
-        <label class="block text-xs mb-1 text-gray-600 dark:text-gray-400">
+        <label for="recipient-input" class="block text-xs mb-1 text-gray-600 dark:text-gray-400">
           {mode === 'send' ? 'Recipient Address' : 'To Token'}
         </label>
         <input 
+          id="recipient-input"
           type="text" 
           bind:value={recipient} 
           placeholder="0x..." 
           class="w-full p-2 bg-zinc-100 dark:bg-zinc-800 rounded text-zinc-900 dark:text-white border {!recipient || validateAddress(recipient) ? 'border-transparent' : 'border-red-400'}"
+          aria-invalid={recipient && !validateAddress(recipient)}
+          aria-describedby={validationError ? "validation-error" : null}
         />
       </div>
 
       <!-- Amount -->
       <div>
-        <label class="block text-xs mb-1 text-gray-600 dark:text-gray-400">Amount</label>
+        <label for="amount-input" class="block text-xs mb-1 text-gray-600 dark:text-gray-400">Amount</label>
         <div class="relative">
           <input 
+            id="amount-input"
             type="number" 
             min="0" 
             step="any" 
             bind:value={amount} 
             placeholder="0.00" 
             class="w-full p-2 bg-zinc-100 dark:bg-zinc-800 rounded text-zinc-900 dark:text-white border {!amount || validateAmount(amount) ? 'border-transparent' : 'border-red-400'}"
+            aria-invalid={amount && !validateAmount(amount)}
+            aria-describedby={validationError ? "validation-error" : null}
           />
           <button 
             class="absolute right-2 top-2 text-xs text-blue-500 hover:text-blue-600"
@@ -258,13 +264,13 @@
 
       <!-- Error Display -->
       {#if validationError}
-        <div class="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 p-2 rounded">
+        <div id="validation-error" class="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 p-2 rounded" role="alert">
           {validationError}
         </div>
       {/if}
 
       {#if error.hasError}
-        <div class="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 p-2 rounded">
+        <div class="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 p-2 rounded" role="alert">
           {error.message}
         </div>
       {/if}

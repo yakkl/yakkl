@@ -24,17 +24,18 @@
 		});
 	});
 
-	// Format plan type for display (remove underscores)
+	// Format plan type for display (remove underscores and capitalize)
 	function formatPlanType(plan: string): string {
 		if (!plan) return '';
-		return plan.replace(/_/g, ' ');
+		return plan
+			.replace(/_/g, ' ')
+			.split(' ')
+			.map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+			.join(' ');
 	}
 
 	// Get the display plan type
-	let displayPlan = $derived(() => {
-		const plan = planType || registered;
-		return formatPlanType(plan);
-	});
+	let displayPlan = $derived(formatPlanType(planType || registered));
 </script>
 
 <div class={`inline-flex items-center gap-2 w-full justify-center text-center ${className}`}>

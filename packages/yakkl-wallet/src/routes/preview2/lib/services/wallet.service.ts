@@ -1,15 +1,13 @@
 import { BaseService } from './base.service';
 import type { Preview2Account, Preview2Chain, ServiceResponse } from '../types';
-// Mock account stores for Preview 2.0
-const yakklAccountStore = {
-  subscribe: () => () => {},
-  get: (): any[] => []
-};
-const yakklCurrentlySelectedStore = {
-  subscribe: () => () => {},
-  get: (): any => null
-};
+import { PlanType } from '../types';
+import type { YakklAccount, YakklCurrentlySelected } from '$lib/common/interfaces';
 import { get } from 'svelte/store';
+import { 
+  yakklAccountsStore, 
+  yakklCurrentlySelectedStore,
+  yakklSettingsStore
+} from '$lib/common/stores';
 
 export class WalletService extends BaseService {
   private static instance: WalletService;
@@ -27,18 +25,20 @@ export class WalletService extends BaseService {
 
   async getAccounts(): Promise<ServiceResponse<Preview2Account[]>> {
     try {
-      // First try to get from store
-      const accounts = yakklAccountStore.get();
+      // Get from actual YAKKL stores
+      const accounts = get(yakklAccountsStore);
+      const settings = get(yakklSettingsStore);
       
-      if (accounts && (accounts as any[]).length > 0) {
-        const preview2Accounts: Preview2Account[] = (accounts as any[]).map((acc: any) => ({
-          address: acc.address,
+      if (accounts && accounts.length > 0) {
+        // Transform to Preview2Account format
+        const preview2Accounts: Preview2Account[] = accounts.map((acc: YakklAccount) => ({
+          address: acc.address || '',
           ens: acc.alias || null,
-          username: acc.name,
+          username: acc.name || '',
           avatar: acc.avatar || null,
           isActive: true,
           balance: acc.quantity?.toString() || '0',
-          plan: 'basic' as any // TODO: Get from user settings
+          plan: (settings?.plan?.type || PlanType.Basic) as PlanType
         }));
         
         return { success: true, data: preview2Accounts };
@@ -52,9 +52,12 @@ export class WalletService extends BaseService {
       if (response.success && response.data) {
         const preview2Accounts: Preview2Account[] = response.data.map(address => ({
           address,
-          ens: null as any,
+          ens: null as string | null,
+          username: '',
+          avatar: null as string | null,
           isActive: false,
-          plan: 'basic' as any
+          balance: '0',
+          plan: (settings?.plan?.type || PlanType.Basic) as PlanType
         }));
         
         return { success: true, data: preview2Accounts };
@@ -71,21 +74,22 @@ export class WalletService extends BaseService {
 
   async getCurrentAccount(): Promise<ServiceResponse<Preview2Account | null>> {
     try {
-      const currentlySelected = yakklCurrentlySelectedStore.get();
+      const currentlySelected = get(yakklCurrentlySelectedStore);
+      const settings = get(yakklSettingsStore);
       
-      if ((currentlySelected as any)?.address) {
-        const accounts = yakklAccountStore.get();
-        const account = (accounts as any[]).find((acc: any) => acc.address === (currentlySelected as any).address);
+      if (currentlySelected?.shortcuts?.address) {
+        const accounts = get(yakklAccountsStore);
+        const account = accounts?.find((acc: YakklAccount) => acc.address === currentlySelected.shortcuts.address);
         
         if (account) {
           const preview2Account: Preview2Account = {
-            address: account.address,
-            ens: (account as any).alias || null,
-            username: account.name,
+            address: account.address || '',
+            ens: account.alias || null,
+            username: account.name || '',
             avatar: account.avatar || null,
             isActive: true,
             balance: account.quantity?.toString() || '0',
-            plan: 'basic' as any // TODO: Get from user settings
+            plan: (settings?.plan?.type || PlanType.Basic) as PlanType
           };
           
           return { success: true, data: preview2Account };
@@ -126,10 +130,17 @@ export class WalletService extends BaseService {
   async switchAccount(address: string): Promise<ServiceResponse<boolean>> {
     try {
       // Update the currently selected store
-      // yakklCurrentlySelectedStore.set({ // Mock store doesn't have set method
-      //   address,
-      //   chainId: (get(yakklCurrentlySelectedStore) as any)?.chainId || 1
-      // });
+      const currentlySelected = get(yakklCurrentlySelectedStore);
+      if (currentlySelected) {
+        // Update the address in shortcuts
+        yakklCurrentlySelectedStore.set({
+          ...currentlySelected,
+          shortcuts: {
+            ...currentlySelected.shortcuts,
+            address
+          }
+        });
+      }
 
       return { success: true, data: true };
     } catch (error) {
@@ -192,10 +203,16 @@ export class WalletService extends BaseService {
 
       if (response.success) {
         // Update the currently selected store
-        // yakklCurrentlySelectedStore.update((current: any) => ({ // Mock store doesn't have update method
-        //   ...current,
-        //   chainId
-        // }));
+        const currentlySelected = get(yakklCurrentlySelectedStore);
+        if (currentlySelected) {
+          yakklCurrentlySelectedStore.set({
+            ...currentlySelected,
+            shortcuts: {
+              ...currentlySelected.shortcuts,
+              chainId
+            }
+          });
+        }
       }
 
       return response;

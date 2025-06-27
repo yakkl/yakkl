@@ -3,7 +3,7 @@
 	import { createForm } from 'svelte-forms-lib';
 	import { verify } from '$lib/common/security';
 	import { getContextTypeStore } from '$lib/common/stores';
-	import { log } from '../utils/logger';
+	import { log } from '$lib/common/logger-wrapper';
 	import { authStore } from '$lib/stores/auth-store';
 	import AuthError from '$lib/components/AuthError.svelte';
 	import AuthLoading from '$lib/components/AuthLoading.svelte';
@@ -234,13 +234,13 @@
 					<input
 						id="userName"
 						type="text"
-						class="input input-bordered w-full join-item bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white border-zinc-300 dark:border-zinc-600 focus:border-indigo-500 dark:focus:border-indigo-400"
+						class="input input-bordered input-primary w-full join-item {inputTextClass} {inputBgClass}"
 						placeholder="Username"
 						autocomplete="off"
 						bind:value={$form.userName}
 						required
 					/>
-					<span class="label-text bg-zinc-100 dark:bg-zinc-800 join-item w-[60px] border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-white">
+					<span class="label-text bg-slate-900 join-item w-[60px]">
 						<div class="mt-[.9rem]">.nfs.id</div>
 					</span>
 				</div>
@@ -248,11 +248,11 @@
 		</div>
 
 		<div class="mt-5 flex flex-row justify-center">
-			<div class="form-control w-[22rem] relative">
+			<div class="form-control w-[22rem]">
 				<input
 					id="password"
 					type="password"
-					class="input input-bordered w-full mt-2 pr-12 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white border-zinc-300 dark:border-zinc-600 focus:border-indigo-500 dark:focus:border-indigo-400"
+					class="input input-bordered input-primary w-full mt-2 {inputTextClass} {inputBgClass}"
 					placeholder="Password"
 					autocomplete="off"
 					bind:value={$form.password}
@@ -268,7 +268,7 @@
 					xmlns="http://www.w3.org/2000/svg"
 					viewBox="0 0 24 24"
 					fill="currentColor"
-					class="w-5 h-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+					class="w-6 h-6 ml-1 fill-gray-200 absolute right-12 z-10 mt-5 cursor-pointer"
 				>
 					<path
 						d="M3.53 2.47a.75.75 0 00-1.06 1.06l18 18a.75.75 0 101.06-1.06l-18-18zM22.676 12.553a11.249 11.249 0 01-2.631 4.31l-3.099-3.099a5.25 5.25 0 00-6.71-6.71L7.759 4.577a11.217 11.217 0 014.242-.827c4.97 0 9.185 3.223 10.675 7.69.12.362.12.752 0 1.113z"
@@ -289,7 +289,7 @@
 					xmlns="http://www.w3.org/2000/svg"
 					viewBox="0 0 24 24"
 					fill="currentColor"
-					class="w-5 h-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+					class="w-6 h-6 ml-1 fill-gray-200 absolute right-12 z-10 mt-5 cursor-pointer"
 				>
 					<path d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
 					<path
@@ -301,16 +301,16 @@
 			</div>
 		</div>
 
-		<div class="flex flex-col items-center gap-3 mt-6">
+		<div class="inline-block text-center">
 			<button
 				type="submit"
-				class="yakkl-btn-primary w-full max-w-xs"
+				class="bg-emerald-400 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-full mt-3 w-64"
 				disabled={isLoggingIn}
 			>
-				<div class="inline-flex items-center justify-center gap-2">
+				<div class="inline-flex items-center align-middle">
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
-						class="h-5 w-5"
+						class="h-6 w-6 mr-2 ml-2"
 						fill="none"
 						viewBox="0 0 24 24"
 						stroke="currentColor"
@@ -329,14 +329,15 @@
 			<button
 				type="button"
 				onclick={props.onCancel}
-				class="yakkl-btn-secondary w-full max-w-xs"
+				class="bg-slate-400 hover:bg-slate-500 w-64 rounded-full py-2 px-4 mt-3 font-bold text-white"
 			>
-				<div class="inline-flex items-center justify-center gap-2">
+				<div class="inline-flex items-center align-middle">
 					<svg
+						aria-hidden="true"
 						xmlns="http://www.w3.org/2000/svg"
 						viewBox="0 0 20 20"
-						fill="currentColor"
-						class="w-5 h-5"
+						stroke="currentColor"
+						class="w-6 h-6 mx-2"
 					>
 						<path
 							fill-rule="evenodd"

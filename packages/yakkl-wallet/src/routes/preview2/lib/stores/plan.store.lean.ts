@@ -4,7 +4,7 @@
  */
 
 import { writable, derived } from 'svelte/store';
-import { PlanType } from '../constants/plans';
+import { PlanType } from '../types';
 import { featureManager, canUseFeature as checkFeature } from '../utils/features';
 import { getSettings } from '$lib/common/stores';
 import { log } from '../utils/logger';

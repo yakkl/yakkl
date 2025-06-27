@@ -18,7 +18,7 @@ export class MigrationUtils {
       avatar: yakklAccount.avatar || null,
       isActive: true,
       balance: yakklAccount.quantity?.toString() || '0',
-      plan: PlanType.BASIC // Default plan for existing users
+      plan: PlanType.Basic // Default plan for existing users
     };
   }
 
@@ -276,12 +276,12 @@ export class MigrationUtils {
    */
   private static determinePlanType(legacySettings: any): PlanType {
     if (legacySettings.isProLevel || legacySettings.plan === 'pro') {
-      return PlanType.PRO;
+      return PlanType.Pro;
     }
     if (legacySettings.plan === 'enterprise') {
-      return PlanType.ENTERPRISE;
+      return PlanType.Enterprise;
     }
-    return PlanType.BASIC;
+    return PlanType.Basic;
   }
 
   /**

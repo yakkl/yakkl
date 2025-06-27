@@ -169,14 +169,12 @@
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in"
     onclick={closeModal}
     onkeydown={e => e.key === 'Escape' && closeModal()}
-    role="button"
-    tabindex="0">
+    role="dialog"
+    aria-modal="true"
+    aria-label="Buy crypto modal">
     <div class="relative bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-6 min-w-[380px] w-full max-w-md flex flex-col gap-4 animate-in slide-in-from-bottom-10 max-h-[90vh] overflow-y-auto"
       onclick={e => e.stopPropagation()}
-      onkeydown={e => e.stopPropagation()}
-      role="dialog"
-      aria-modal="true"
-      tabindex="0">
+      onkeydown={e => e.stopPropagation()}>
       
       <!-- Header -->
       <div class="flex items-center justify-between mb-2">
@@ -216,32 +214,37 @@
           <div class="space-y-4">
             <!-- Amount Input -->
             <div>
-              <label class="block text-sm font-medium mb-2">Amount to Spend</label>
+              <label for="buy-amount-input" class="block text-sm font-medium mb-2">Amount to Spend</label>
               <div class="flex gap-2">
                 <input 
+                  id="buy-amount-input"
                   type="number" 
                   bind:value={amount} 
                   placeholder="100" 
                   class="flex-1 p-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-zinc-900 dark:text-white border {error && !validateAmount() ? 'border-red-400' : 'border-transparent'}"
+                  aria-invalid={error && !validateAmount()}
+                  aria-describedby="amount-limits"
                 />
                 <select 
                   bind:value={currency}
                   class="px-3 py-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-zinc-900 dark:text-white"
+                  aria-label="Select currency"
                 >
                   {#each supportedCurrencies as curr}
                     <option value={curr}>{curr}</option>
                   {/each}
                 </select>
               </div>
-              <div class="text-xs text-gray-500 mt-1">
+              <div id="amount-limits" class="text-xs text-gray-500 mt-1">
                 Limits: {formatCurrency(limits.min)} - {formatCurrency(limits.max)}
               </div>
             </div>
 
             <!-- Crypto Selection -->
             <div>
-              <label class="block text-sm font-medium mb-2">Cryptocurrency</label>
+              <label for="crypto-select" class="block text-sm font-medium mb-2">Cryptocurrency</label>
               <select 
+                id="crypto-select"
                 bind:value={cryptoCurrency}
                 class="w-full p-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-zinc-900 dark:text-white"
               >
@@ -318,6 +321,8 @@
                     <button 
                       class="w-full p-3 border rounded-lg text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors {selectedPaymentMethod?.id === method.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700'}"
                       onclick={() => selectedPaymentMethod = method}
+                      aria-pressed={selectedPaymentMethod?.id === method.id}
+                      aria-label="Select {method.name} payment method"
                     >
                       <div class="flex items-center justify-between">
                         <div>

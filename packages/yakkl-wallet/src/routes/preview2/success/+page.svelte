@@ -122,7 +122,7 @@
 		<!-- Success Icon -->
 		<div class="mb-8 relative">
 			<div class="w-24 h-24 mx-auto bg-green-500 rounded-full flex items-center justify-center shadow-xl animate-bounce">
-				<svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
 				</svg>
 			</div>
@@ -145,25 +145,25 @@
 			<!-- Feature highlights -->
 			<div class="grid grid-cols-2 gap-4 mb-6 text-sm">
 				<div class="flex items-center gap-2 text-green-600 dark:text-green-400">
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
 					</svg>
 					Enhanced UI/UX
 				</div>
 				<div class="flex items-center gap-2 text-green-600 dark:text-green-400">
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
 					</svg>
 					Feature Control
 				</div>
 				<div class="flex items-center gap-2 text-green-600 dark:text-green-400">
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
 					</svg>
 					Payment Gateway
 				</div>
 				<div class="flex items-center gap-2 text-green-600 dark:text-green-400">
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
 					</svg>
 					Data Preserved
@@ -206,12 +206,4 @@
 </div>
 
 <style>
-	@keyframes float {
-		0%, 100% { transform: translateY(0px); }
-		50% { transform: translateY(-10px); }
-	}
-	
-	.animate-float {
-		animation: float 3s ease-in-out infinite;
-	}
 </style>
