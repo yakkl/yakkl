@@ -16,15 +16,15 @@ import {
 	EOA_FALLBACK_GAS
 } from '$lib/common/gas-types';
 import type { PriceProvider, SwapToken, TransactionRequest } from '$lib/common/interfaces';
-import type { Blockchain } from '$lib/managers/Blockchain';
-import type { Wallet } from '$lib/managers/Wallet';
-import { Ethereum } from '$lib/managers/blockchains/evm/ethereum/Ethereum';
+import type { Blockchain } from '../../../Blockchain';
+import type { Wallet } from '../../../Wallet';
+import { Ethereum } from '../../../blockchains/evm/ethereum/Ethereum';
 import { log } from '$lib/common/logger-wrapper';
-import type { UniswapSwapManager } from '$lib/managers/UniswapSwapManager';
-import type { Provider } from '$lib/managers/Provider';
+import type { UniswapSwapManager } from '../../../UniswapSwapManager';
+import type { Provider } from '../../../Provider';
 import { ethers as ethersv6 } from 'ethers-v6';
-import { Web3Provider } from '$lib/managers/AnalyticsBase';
-import { EthereumAnalytics } from '$lib/managers/blockchains/evm/ethereum/EthereumAnalytics';
+import { Web3Provider } from '../../../AnalyticsBase';
+import { EthereumAnalytics } from '../../../blockchains/evm/ethereum/EthereumAnalytics';
 
 const DEFAULT_GAS_ESTIMATES = {
 	ERC20_APPROVE: 46000n,

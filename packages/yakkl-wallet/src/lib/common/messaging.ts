@@ -1,9 +1,11 @@
 // src/lib/common/messaging.ts
-import { browser as isBrowser } from '$app/environment';
 import { log } from '$lib/common/logger-wrapper';
 import type { Browser, Runtime } from 'webextension-polyfill';
 import { protectedContexts } from './globals';
 import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
+
+// Check if we're in browser environment
+const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
 
 // Helper function to check if context needs idle protection
 function contextNeedsIdleProtection(contextType: string): boolean {

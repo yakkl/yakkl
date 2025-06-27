@@ -1,8 +1,8 @@
 // Token.ts
 import type { BigNumberish, SwapToken, TransactionResponse } from '$lib/common';
-import type { AbstractContract } from '$managers/Contract';
-import type { Blockchain } from '$managers/Blockchain';
-import type { Provider } from '$managers/Provider';
+import type { AbstractContract } from './Contract';
+import type { Blockchain } from './Blockchain';
+import type { Provider } from './Provider';
 
 export interface IToken {
 	address: string;

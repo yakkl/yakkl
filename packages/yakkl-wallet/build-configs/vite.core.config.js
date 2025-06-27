@@ -43,8 +43,8 @@ export default defineConfig({
           'yakkl-core': ['@yakkl/core'],
           'yakkl-sdk': ['@yakkl/sdk'],
           'vaultlets': [
-            '/src/routes/preview2/lib/components/vaultlets/VaultletRenderer.svelte',
-            '/src/routes/preview2/lib/components/vaultlets/VaultletDashboard.svelte'
+            '/src/lib/components/vaultlets/VaultletRenderer.svelte',
+            '/src/lib/components/vaultlets/VaultletDashboard.svelte'
           ]
         }
       }

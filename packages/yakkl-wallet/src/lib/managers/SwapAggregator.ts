@@ -1,7 +1,7 @@
 // SwapAggregator.ts
 import type { SwapManager } from './SwapManager';
-import type { Token } from '$managers/Token';
-import type { BigNumberish, SwapPriceData, TransactionResponse, SwapParams } from '$lib/common';
+import type { Token } from './Token';
+import type { BigNumberish, SwapPriceData, TransactionResponse, SwapParams } from './types';
 import { log } from '$lib/common/logger-wrapper';
 
 export class SwapAggregator {
@@ -73,7 +73,7 @@ export class SwapAggregator {
 // // SwapAggregator.ts
 
 // import type { SwapManager } from './SwapManager';
-// import type { Token } from '$managers/Token';
+// import type { Token } from './Token';
 // import type { BigNumberish, SwapPriceData, TransactionResponse } from '$lib/common';
 
 // export class SwapAggregator {

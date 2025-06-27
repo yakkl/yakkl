@@ -6,24 +6,26 @@ import {
 	YAKKL_FEE_BASIS_POINTS,
 	YAKKL_GAS_ESTIMATE_MIN_USD,
 	YAKKL_GAS_ESTIMATE_MULTIHOP_SWAP_DEFAULT,
-	YAKKL_GAS_ESTIMATE_MULTIPLIER_BASIS_POINTS,
-	type BigNumberish,
-	type PoolInfoData,
-	type PriceData,
-	type SwapParams,
-	type SwapPriceData,
-	type SwapToken,
-	type TransactionReceipt,
-	type TransactionRequest,
-	type TransactionResponse
+	YAKKL_GAS_ESTIMATE_MULTIPLIER_BASIS_POINTS
 } from '$lib/common';
+import type {
+	BigNumberish,
+	PoolInfoData,
+	PriceData,
+	SwapParams,
+	SwapPriceData,
+	SwapToken,
+	TransactionReceipt,
+	TransactionRequest,
+	TransactionResponse
+} from './types';
 import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
 import type { ExactInputParams, ExactInputSingleParams } from '$lib/common/ISwapRouter';
 import IUniswapV3FactoryABI from '@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Factory.sol/IUniswapV3Factory.json';
 import { abi as ISwapRouterABI } from '@uniswap/v3-periphery/artifacts/contracts/interfaces/ISwapRouter.sol/ISwapRouter.json';
 import IQuoterV2ABI from '@uniswap/v3-periphery/artifacts/contracts/lens/QuoterV2.sol/QuoterV2.json';
 import { ethers } from 'ethers';
-import { formatFeeToUSD, formatPrice } from '../utilities/utilities';
+import { formatFeeToUSD, formatPrice } from '../utils/v1_utilities';
 import type { Ethereum } from './blockchains/evm/ethereum/Ethereum';
 import { ADDRESSES } from './contracts/evm/constants-evm';
 import type { Provider } from './Provider';

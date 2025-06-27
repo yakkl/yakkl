@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // GasToken.ts
-import { Token, type IToken } from '$managers/Token';
-import type { Blockchain } from '$managers/Blockchain';
-import type { Provider } from '$managers/Provider';
+import { Token, type IToken } from './Token';
+import type { Blockchain } from './Blockchain';
+import type { Provider } from './Provider';
 import { type MarketPriceData } from '$lib/common';
 import { PriceManager } from './PriceManager';
-import { log } from '$lib/managers/Logger';
+import { log } from './Logger';
 
 export interface IGasToken extends IToken {
 	getSponsoredGasEstimate(transaction: any): Promise<bigint>;

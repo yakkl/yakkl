@@ -135,7 +135,7 @@
 						<p class="text-sm text-gray-500 mt-1">ID: {provider.info.uuid}</p>
 					</div>
 					<button
-						on:click={() => handleSelectProvider(provider)}
+						onclick={() => handleSelectProvider(provider)}
 						class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
 					>
 						Select

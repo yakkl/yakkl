@@ -3,7 +3,7 @@ import browser from 'webextension-polyfill';
 import { subtle } from 'crypto';
 import { detectExecutionContext } from '$lib/common/utils';
 import type { Manifest } from 'webextension-polyfill';
-import keyConfig from '../../config/keys.json';
+import keyConfig from '../config/keys.json';
 import { initializeStorageDefaults } from '$lib/common/backgroundUtils';
 import { isBackgroundContext } from '$lib/common/contextCheck';
 

@@ -8,6 +8,7 @@ import { addUIListeners, removeUIListeners } from '$lib/common/listeners/ui/uiLi
 import { globalListenerManager } from '$lib/managers/GlobalListenerManager';
 import { uiListenerManager } from '$lib/common/listeners/ui/uiListeners';
 import { protectedContexts } from '$lib/common/globals';
+import { initializeGlobalErrorHandlers, cleanupGlobalErrorHandlers } from '$lib/common/globalErrorHandler';
 
 // Helper function to check if context needs idle protection
 function contextNeedsIdleProtection(contextType: string): boolean {
@@ -113,6 +114,27 @@ function getBrowserExt(): Browser | null {
 
 const errorHandler = ErrorHandler.getInstance(); // Initialize error handlers
 
+// Global handler for unhandled promise rejections
+if (isClient) {
+	window.addEventListener('unhandledrejection', (event) => {
+		const error = event.reason;
+		
+		// Check if it's a connection error from extension messaging
+		if (error?.message?.includes('Could not establish connection') || 
+			error?.message?.includes('Receiving end does not exist')) {
+			// Prevent the default error handling
+			event.preventDefault();
+			
+			// Log it as a debug message instead of an error
+			log.debug('Extension messaging not ready:', false, error);
+			return;
+		}
+		
+		// Let other errors propagate normally
+		log.error('Unhandled promise rejection:', false, error);
+	});
+}
+
 /**
  * Determine the context type based on the current URL
  */
@@ -163,6 +185,9 @@ export async function init() {
 			console.info(`[${CONTEXT_ID}] Failed to get settings in hooks - passing on:`, error);
 		}
 
+		// Initialize global error handlers early
+		initializeGlobalErrorHandlers();
+		
 		// First get the browser API
 		const browserApi = getBrowserExt();
 
@@ -191,8 +216,39 @@ export async function init() {
 
 export function handleError(error: Error) {
 	console.warn(`[${CONTEXT_ID}] Error:`, error);
+	
+	// Prevent navigation errors from causing reloads
+	if (error?.message?.includes('navigate') || error?.message?.includes('Navigation')) {
+		console.warn('Navigation error detected, preventing reload');
+		return;
+	}
+	
 	errorHandler.handleError(error);
 }
+
+// Export for SvelteKit hooks
+export const handleClientError = ({ error, event }: any) => {
+	console.error('Client error:', {
+		error: error?.message || error,
+		url: event?.url?.href
+	});
+	
+	// Check if this is a navigation error
+	if (error?.message?.includes('navigate') || error?.message?.includes('Navigation')) {
+		console.warn('Navigation error in hooks, preventing reload');
+		// Return a safe error that won't trigger a reload
+		return {
+			message: 'Navigation temporarily unavailable',
+			code: 'NAV_ERROR'
+		};
+	}
+	
+	// Return the error without triggering a reload
+	return {
+		message: error?.message || 'An error occurred',
+		code: error?.code || 'UNKNOWN_ERROR'
+	};
+};
 
 async function setupUIListeners() {
 	if (!isClient) return; // Skip on server
@@ -254,14 +310,38 @@ if (isClient && getBrowserExt()) {
 		const contextType = getContextType();
 		const browserExt = getBrowserExt();
 
-		browserExt?.runtime
-			.sendMessage({
-				type: 'ui_context_initialized',
-				contextId: CONTEXT_ID,
-				contextType: contextType,
-				timestamp: Date.now()
-			})
-			.catch((err) => console.warn(`[${CONTEXT_ID}] Failed to register context:`, err));
+		// Function to send initialization message with retry logic
+		const sendInitMessage = async (retries = 3, delay = 100) => {
+			// Give the background script a moment to initialize
+			await new Promise(resolve => setTimeout(resolve, 50));
+			for (let i = 0; i < retries; i++) {
+				try {
+					await browserExt?.runtime.sendMessage({
+						type: 'ui_context_initialized',
+						contextId: CONTEXT_ID,
+						contextType: contextType,
+						timestamp: Date.now()
+					});
+					console.log(`[${CONTEXT_ID}] Successfully registered context with background script`);
+					return; // Success, exit the retry loop
+				} catch (err: any) {
+					if (i === retries - 1) {
+						// Last attempt failed
+						console.warn(`[${CONTEXT_ID}] Failed to register context after ${retries} attempts:`, err);
+					} else {
+						// Wait before retrying
+						console.log(`[${CONTEXT_ID}] Retrying context registration (attempt ${i + 2}/${retries})...`);
+						await new Promise(resolve => setTimeout(resolve, delay * (i + 1))); // Exponential backoff
+					}
+				}
+			}
+		};
+
+		// Send initialization message with retry logic
+		sendInitMessage().catch(err => {
+			// Silently ignore - we already logged the error in sendInitMessage
+			// This prevents uncaught promise rejection
+		});
 
 		// Only set up idle status listener for protected contexts
 		if (contextNeedsIdleProtection(contextType)) {

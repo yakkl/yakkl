@@ -1,8 +1,8 @@
 // WalletManager.ts
 // GPT Added //
-import { Wallet, walletStore } from '$lib/managers/Wallet';
+import { Wallet, walletStore } from './Wallet';
 import { get } from 'svelte/store';
-import { log } from '$lib/managers/Logger';
+import { log } from './Logger';
 
 class WalletManager {
 	private static instance: Wallet | null = null;

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { BaseFeeManager } from './FeeManager';
-import { EthereumGasProvider } from '$managers/providers/fees/ethereum/EthereumGasProvider';
+import { EthereumGasProvider } from './providers/fees/ethereum/EthereumGasProvider';
 import type {
 	FeeManager,
 	GasEstimate,
@@ -27,8 +27,8 @@ import {
 	type Network,
 	type IMAGEPATH
 } from '$lib/common';
-import type { Signer } from '$managers/Signer';
-import type { Provider } from '$managers/Provider';
+import type { Signer } from './Signer';
+import type { Provider } from './Provider';
 import type { AbstractContract } from './Contract';
 import { CoinbasePriceProvider } from './providers/price/coinbase/CoinbasePriceProvider';
 import type { ethers as ethersv6 } from 'ethers-v6';

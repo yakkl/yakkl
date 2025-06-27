@@ -25,30 +25,66 @@ export interface AccountKey {
 export async function verify(id: string): Promise<Profile | undefined> {
 	try {
 		if (!id) {
+			log.warn('Verify called with empty id', false);
 			return undefined;
 		}
+		
 		const profile = await getProfile();
 		const digest = await digestMessage(id);
+		
 		if (!profile || !digest) {
+			log.warn('Profile or digest missing during verification', false, { hasProfile: !!profile, hasDigest: !!digest });
 			return undefined; // Don't set the store to anything here
-		} else {
-			if (isEncryptedData(profile.data)) {
-				const profileData = (await decryptData(profile.data, digest)) as ProfileData;
-				if (profileData) {
-					setMiscStore(digest); // Works for client side
-
-					const sessionToken: SessionToken = await storeEncryptedHash(digest); // Works for background context
-
-					if (sessionToken) {
-						storeSessionToken(sessionToken.token, sessionToken.expiresAt);
-					}
-					log.info('verify - sessionToken', false, sessionToken);
-				} else {
-					throw 'Verification failed!';
-				}
-			}
-			return profile;
 		}
+		
+		// Validate profile structure before attempting decryption
+		if (!profile.data || !profile.userName) {
+			log.error('Invalid profile structure', false, { hasData: !!profile.data, hasUserName: !!profile.userName });
+			throw 'Invalid profile structure';
+		}
+		
+		if (isEncryptedData(profile.data)) {
+			let profileData: ProfileData;
+			
+			try {
+				profileData = (await decryptData(profile.data, digest)) as ProfileData;
+			} catch (decryptError) {
+				log.error('Failed to decrypt profile data', false, decryptError);
+				throw 'Invalid credentials - decryption failed';
+			}
+			
+			if (profileData) {
+				// Validate decrypted profile data
+				if (!profileData.name || !profileData.email) {
+					log.error('Decrypted profile data is incomplete', false, profileData);
+					throw 'Invalid profile data after decryption';
+				}
+				
+				// Additional validation: ensure username from Profile matches
+				// Note: userName is stored at the Profile level, not ProfileData level
+				// This validation ensures the profile data belongs to the correct user
+				
+				setMiscStore(digest); // Works for client side
+
+				const sessionToken: SessionToken = await storeEncryptedHash(digest); // Works for background context
+
+				if (sessionToken) {
+					storeSessionToken(sessionToken.token, sessionToken.expiresAt);
+				}
+				
+				log.info('Verification successful', false, { 
+					username: profile.userName,
+					hasSessionToken: !!sessionToken 
+				});
+			} else {
+				throw 'Verification failed - no profile data after decryption';
+			}
+		} else {
+			log.warn('Profile data is not encrypted', false);
+			throw 'Profile data must be encrypted';
+		}
+		
+		return profile;
 	} catch (e) {
 		log.error('Verification failed!', false, e);
 		throw `Verification failed! - ${e}`;

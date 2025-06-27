@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { type BigNumberish, type TransactionRequest, type TransactionResponse } from '$lib/common';
-import type { Provider } from '$managers/Provider';
+import type { Provider } from './Provider';
 import { Signer } from './Signer';
 // import type { Signer } from '$plugins/Signer';
 // import { ethers as ethersv6 } from 'ethers-v6';

@@ -8,15 +8,28 @@ YAKKL Smart Wallet is a multi-platform cryptocurrency wallet designed for seamle
 1. **Browser Extension Wallet**: A secure, user-friendly browser extension for managing digital assets.
 2. **Smart Contracts**: A set of smart contracts built using Foundry to enable secure and efficient blockchain interactions.
 
+## Important
+
+Keys - NO keys are ever visible. printable is disabled on anything around security components with the one exception of the Emergency Kit limited print out for safe offline storage.
+
+Pin codes are required to access all security areas and they should be changed after use. The keys will be seen as ***** like values. The user can copy the and is prompted before copying and the copy buffer times out after so many seconds.
+
+Virtual keypad for pins that are randomized each time. We can have an option not to show the virtual pad for situations where it may be impossible to do that.
+
+SECURE 
+Password and Pin are hashed derived keys. We can alternate ...
+Combo LLM code verifier and create audit checker and verifiers of the auditors with a final human review
+
 ## Table of Contents
 
 - [YAKKL Smart Wallet](#yakkl-smart-wallet)
   - [Overview](#overview)
+  - [Important](#important)
   - [Table of Contents](#table-of-contents)
   - [Utilities](#utilities)
   - [Introduction](#introduction)
   - [Features](#features)
-      - [Important](#important)
+      - [Important](#important-1)
     - [Browser Extension Wallet](#browser-extension-wallet)
     - [Smart Contracts](#smart-contracts)
   - [Architecture](#architecture)

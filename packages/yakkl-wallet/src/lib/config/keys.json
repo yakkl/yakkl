@@ -1,0 +1,40 @@
+{
+	"keys": {
+		"ALCHEMY_API_KEY_PROD": {
+			"category": "blockchain",
+			"isRequired": false,
+			"description": "Alchemy API key for production environment",
+			"rotationPeriod": "90d"
+		},
+		"ALCHEMY_API_KEY_DEV": {
+			"category": "blockchain",
+			"isRequired": false,
+			"description": "Alchemy API key for development environment",
+			"rotationPeriod": "90d"
+		},
+		"BLOCKNATIVE_API_KEY": {
+			"category": "blockchain",
+			"isRequired": false,
+			"description": "BlockNative API key for transaction monitoring",
+			"rotationPeriod": "90d"
+		},
+		"INFURA_API_KEY": {
+			"category": "blockchain",
+			"isRequired": false,
+			"description": "Infura API key for blockchain access",
+			"rotationPeriod": "90d"
+		},
+		"OPENAI_API_KEY": {
+			"category": "ai",
+			"isRequired": false,
+			"description": "OpenAI API key for AI features",
+			"rotationPeriod": "30d"
+		},
+		"ANTHROPIC_API_KEY": {
+			"category": "ai",
+			"isRequired": false,
+			"description": "Anthropic API key for AI features",
+			"rotationPeriod": "30d"
+		}
+	}
+}

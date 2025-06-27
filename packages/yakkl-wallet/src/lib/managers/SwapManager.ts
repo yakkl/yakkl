@@ -3,15 +3,17 @@
 import type { Blockchain } from './Blockchain';
 import type { Provider } from './Provider';
 import type { Token } from './Token';
-import { YAKKL_FEE_BASIS_POINTS, type BigNumberish, type TransactionResponse } from '$lib/common';
+import { YAKKL_FEE_BASIS_POINTS } from '$lib/common';
 import type {
+	BigNumberish,
+	TransactionResponse,
 	PoolInfoData,
 	SwapParams,
 	SwapPriceData,
 	SwapToken,
 	TransactionReceipt,
 	TransactionRequest
-} from '$lib/common/interfaces';
+} from './types';
 import { PriceManager } from './PriceManager';
 import { calculateFeeAmount } from '$lib/utilities';
 import { log } from '$lib/common/logger-wrapper';

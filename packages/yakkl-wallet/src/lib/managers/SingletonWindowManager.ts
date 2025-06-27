@@ -1,8 +1,9 @@
 // import { browser_ext } from "$lib/common/environment";
 import { log } from '$lib/common/logger-wrapper';
-import { openWindows } from '$lib/extensions/chrome/ui';
-import { showExtensionPopup } from '$lib/extensions/chrome/ui';
+import { openWindows } from '$contexts/background/extensions/chrome/ui';
+import { showExtensionPopup } from '$contexts/background/extensions/chrome/ui';
 import browser from 'webextension-polyfill';
+import { lockWallet } from '$lib/common/lockWallet';
 
 const browser_ext = browser;
 
@@ -31,10 +32,13 @@ export class SingletonWindowManager {
 
 			// Listen for window removal
 			if (browser_ext?.windows?.onRemoved) {
-				browser_ext.windows.onRemoved.addListener((windowId) => {
+				browser_ext.windows.onRemoved.addListener(async (windowId) => {
 					if (windowId === this.currentWindowId) {
 						this.currentWindowId = null;
 						browser_ext.storage.session.remove('windowId').catch(() => {});
+						
+						// Lock the wallet when window is closed
+						await this.lockWalletOnClose();
 					}
 				});
 			}
@@ -117,5 +121,9 @@ export class SingletonWindowManager {
 		} catch (error) {
 			log.error('SingletonWindowManager - showPopup', false, error);
 		}
+	}
+
+	private async lockWalletOnClose() {
+		await lockWallet('window-close');
 	}
 }

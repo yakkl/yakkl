@@ -1,6 +1,6 @@
 import { log } from '$lib/common/logger-wrapper';
 import { sendNotificationMessage } from '$lib/common/notifications';
-import { showExtensionPopup } from '$lib/extensions/chrome/ui';
+import { showExtensionPopup } from '$contexts/background/extensions/chrome/ui';
 import browser from 'webextension-polyfill';
 
 const browser_ext = browser;

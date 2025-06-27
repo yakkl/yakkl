@@ -5,8 +5,8 @@
 	import { getContextTypeStore } from '$lib/common/stores';
 	import { log } from '$lib/common/logger-wrapper';
 	import { authStore } from '$lib/stores/auth-store';
-	import AuthError from './AuthError.svelte';
-	import AuthLoading from './AuthLoading.svelte';
+	import AuthError from '$lib/components/AuthError.svelte';
+	import AuthLoading from '$lib/components/AuthLoading.svelte';
 	import { sessionManager } from '$lib/managers/SessionManager';
 	import { jwtManager } from '$lib/utilities/jwt';
 

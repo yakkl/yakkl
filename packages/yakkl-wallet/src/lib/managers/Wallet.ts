@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { Provider } from '$managers/Provider';
-import type { Blockchain } from '$managers/Blockchain';
+import type { Provider } from './Provider';
+import type { Blockchain } from './Blockchain';
 import {
 	isYakklPrimaryAccount,
 	type AccountInfo,
@@ -13,14 +13,14 @@ import {
 	type YakklAccount,
 	type YakklPrimaryAccount
 } from '$lib/common';
-import eventManager from '$managers/EventManager';
-import ProviderFactory from '$managers/ProviderFactory';
-import BlockchainFactory from '$managers/BlockchainFactory';
-import { Signer } from '$managers/Signer';
-import { Ethereum, EthereumSigner } from '$managers/blockchains';
+import eventManager from './EventManager';
+import ProviderFactory from './ProviderFactory';
+import BlockchainFactory from './BlockchainFactory';
+import { Signer } from './Signer';
+import { Ethereum, EthereumSigner } from './blockchains';
 import { writable } from 'svelte/store';
 import type { GasEstimate, HistoricalGasData, GasPrediction } from '$lib/common/gas-types';
-import type { Token } from '$managers/Token';
+import type { Token } from './Token';
 import { TokenService } from './blockchains/evm/TokenService';
 import { log } from '$lib/common/logger-wrapper';
 import { browserSvelte, browser_ext } from '$lib/common/environment';

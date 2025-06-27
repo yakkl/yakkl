@@ -1,11 +1,11 @@
 <!-- Receive.svelte -->
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import QR from './QR.svelte';
+	import QR from './v1/QR.svelte';
 	import { YAKKL_ZERO_ADDRESS } from '$lib/common/constants';
 	import { yakklCurrentlySelectedStore } from '$lib/common/stores';
-	import Modal from './Modal.svelte';
-	import Copy from './Copy.svelte';
+	import Modal from './v1/Modal.svelte';
+	import Copy from './v1/Copy.svelte';
 
 	interface Props {
 		show?: boolean;

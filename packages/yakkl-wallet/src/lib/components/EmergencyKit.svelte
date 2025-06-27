@@ -1,390 +1,233 @@
 <script lang="ts">
-	//
-	// NOTE: This for the Bulk Emergency Kit. The single EmergencyKit is only for YakklAccount or yakklPrimaryAccount.
-	//
-
-	import { EmergencyKitManager } from '$lib/managers/EmergencyKitManager';
-	import {
-		getProfile,
-		getPreferences,
-		getSettings,
-		getYakklCurrentlySelected,
-		getYakklContacts,
-		getYakklChats,
-		getYakklAccounts,
-		getYakklPrimaryAccounts,
-		getYakklWatchList,
-		getYakklBlockedList,
-		getYakklConnectedDomains,
-		getMiscStore,
-		setProfileStorage,
-		setPreferencesStorage,
-		setSettingsStorage,
-		setYakklCurrentlySelectedStorage,
-		setYakklContactsStorage,
-		setYakklChatsStorage,
-		setYakklAccountsStorage,
-		setYakklPrimaryAccountsStorage,
-		setYakklWatchListStorage,
-		setYakklBlockedListStorage,
-		setYakklConnectedDomainsStorage,
-		profileStore,
-		yakklPreferencesStore,
-		yakklSettingsStore,
-		yakklCurrentlySelectedStore,
-		yakklContactsStore,
-		yakklChatsStore,
-		yakklAccountsStore,
-		yakklPrimaryAccountsStore,
-		yakklWatchListStore,
-		yakklBlockedListStore,
-		yakklConnectedDomainsStore,
-		getYakklTokenData,
-		getYakklTokenDataCustom,
-		setYakklTokenDataStorage,
-		yakklTokenDataStore,
-		setYakklTokenDataCustomStorage,
-		yakklTokenDataCustomStore,
-		setYakklCombinedTokenStorage,
-		yakklCombinedTokenStore,
-		setYakklWalletProvidersStorage,
-		setYakklWalletBlockchainsStorage,
-		yakklWalletBlockchainsStore,
-		yakklWalletProvidersStore,
-		getYakklCombinedToken,
-		getYakklWalletProviders,
-		getYakklWalletBlockchains
-	} from '$lib/common/stores';
-	import {
-		VERSION,
-		type EmergencyKitMetaData,
-		isEncryptedData,
-		type CurrentlySelectedData
-	} from '$lib/common';
-	import { browserSvelte, browser_ext } from '$lib/common/environment';
-	import { decryptData } from '$lib/common/encryption';
-	import Confirmation from './Confirmation.svelte';
-	import { log } from '$lib/managers/Logger';
-	import { safeLogout } from '$lib/common/safeNavigate';
-
-	interface Props {
-		mode?: 'import' | 'export' | 'restore';
-		onComplete: (success: boolean, message: string) => void;
-		onCancel?: () => void;
-	}
-
-	let { mode = 'export', onComplete, onCancel = () => {} }: Props = $props();
-
-	let file: File | null = $state(null); // File name to export to or import from
-	let metadata: EmergencyKitMetaData | null = $state(null);
-	let loading = $state(false);
-	let error = $state('');
-	let showConfirmation = $state(false);
-
-	async function handleFileSelect(event: Event) {
-		const target = event.target as HTMLInputElement;
-		if (target.files && target.files.length > 0) {
-			file = target.files[0];
-			try {
-				metadata = await EmergencyKitManager.readBulkEmergencyKitMetadata(file);
-			} catch (err) {
-				error = 'Failed to read emergency kit metadata';
-				log.error(err);
-			}
-		}
-	}
-
-	async function handleExport() {
-		loading = true;
-		error = '';
-		try {
-			const preferences = await getPreferences();
-			const settings = await getSettings();
-			const profile = await getProfile();
-			const currentlySelected = await getYakklCurrentlySelected();
-			const contacts = await getYakklContacts();
-			const chats = await getYakklChats();
-			const accounts = await getYakklAccounts();
-			const primaryAccounts = await getYakklPrimaryAccounts();
-			const watchList = await getYakklWatchList();
-			const blockedList = await getYakklBlockedList();
-			const connectedDomains = await getYakklConnectedDomains();
-			const passwordOrSaltedKey = getMiscStore();
-			const tokenData = await getYakklTokenData();
-			const tokenDataCustom = await getYakklTokenDataCustom();
-			const combinedTokenStore = await getYakklCombinedToken();
-			const walletProviders = await getYakklWalletProviders();
-			const walletBlockchains = await getYakklWalletBlockchains();
-
-			if (!preferences || !settings || !profile || !currentlySelected || !passwordOrSaltedKey) {
-				throw new Error('Missing required data for export');
-			}
-
-			const bulkEmergencyKit = await EmergencyKitManager.createBulkEmergencyKit(
-				preferences,
-				settings,
-				profile,
-				currentlySelected,
-				contacts ?? [],
-				chats ?? [],
-				accounts ?? [],
-				primaryAccounts ?? [],
-				watchList ?? [],
-				blockedList ?? [],
-				connectedDomains ?? [],
-				passwordOrSaltedKey,
-				tokenData ?? [],
-				tokenDataCustom ?? [],
-				combinedTokenStore ?? [],
-				walletProviders ?? [],
-				walletBlockchains ?? []
-			);
-
-			const fileName = await EmergencyKitManager.downloadBulkEmergencyKit(bulkEmergencyKit);
-			onComplete(true, 'Emergency kit exported successfully as ' + fileName);
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to export emergency kit';
-			log.error(err);
-			onComplete(false, error);
-		} finally {
-			loading = false;
-		}
-	}
-
-	async function handleImport() {
-		if (!file) {
-			error = 'Please select a file to import';
-			return;
-		}
-		showConfirmation = true;
-	}
-
-	async function confirmImport() {
-		showConfirmation = false;
-		loading = true;
-		error = '';
-		try {
-			const passwordOrSaltedKey = getMiscStore();
-			const { newData, existingData } = await EmergencyKitManager.importBulkEmergencyKit(
-				file!,
-				passwordOrSaltedKey
-			);
-
-			// Update local storage and Svelte stores
-			await updateStorageAndStores(newData, existingData);
-
-			// After successful import, send YAKKL_ACCOUNT message with the currently selected account
-			// Come back to this later - this is more cosmetic and not needed for now.
-			// if (browserSvelte) {
-			//   const currentlySelected = await getYakklCurrentlySelected();
-			//   if (currentlySelected && currentlySelected.data) {
-			//     let accountData = currentlySelected.data;
-			//     if (isEncryptedData(accountData)) {
-			//       accountData = await decryptData(accountData, passwordOrSaltedKey) as CurrentlySelectedData;
-			//     }
-			//     const account = (accountData as CurrentlySelectedData).account;
-
-			//     browser_ext.runtime.sendMessage({
-			//       type: 'YAKKL_ACCOUNT',
-			//       data: account
-			//     }).catch((error: Error) => {
-			//       log.error('Error sending account message', true, error);
-			//     });
-			//   }
-			// }
-
-			onComplete(true, `Emergency kit imported successfully for: ${file!.name}`);
-			safeLogout();
-		} catch (err) {
-			error = `Failed to import emergency kit for: ${file!.name}`;
-			log.error(err);
-			onComplete(false, `Failed to import emergency kit for: ${file!.name}`);
-		} finally {
-			loading = false;
-		}
-	}
-
-	async function updateStorageAndStores(newData: any, existingData: any) {
-		// Update this when new data stores are added to the wallet UNLESS it's not important to restore the given data store.
-		// Compare with EmergencyKitManager.ts for the list of data stores that are updated.
-		const updateFunctions = [
-			{
-				key: 'yakklPreferencesStore',
-				setStorage: setPreferencesStorage,
-				store: yakklPreferencesStore
-			},
-			{ key: 'yakklSettingsStore', setStorage: setSettingsStorage, store: yakklSettingsStore },
-			{ key: 'profileStore', setStorage: setProfileStorage, store: profileStore },
-			{
-				key: 'yakklCurrentlySelectedStore',
-				setStorage: setYakklCurrentlySelectedStorage,
-				store: yakklCurrentlySelectedStore
-			},
-			{ key: 'yakklContactsStore', setStorage: setYakklContactsStorage, store: yakklContactsStore },
-			{ key: 'yakklChatsStore', setStorage: setYakklChatsStorage, store: yakklChatsStore },
-			{ key: 'yakklAccountsStore', setStorage: setYakklAccountsStorage, store: yakklAccountsStore },
-			{
-				key: 'yakklPrimaryAccountsStore',
-				setStorage: setYakklPrimaryAccountsStorage,
-				store: yakklPrimaryAccountsStore
-			},
-			{
-				key: 'yakklWatchListStore',
-				setStorage: setYakklWatchListStorage,
-				store: yakklWatchListStore
-			},
-			{
-				key: 'yakklBlockedListStore',
-				setStorage: setYakklBlockedListStorage,
-				store: yakklBlockedListStore
-			},
-			{
-				key: 'yakklConnectedDomainsStore',
-				setStorage: setYakklConnectedDomainsStorage,
-				store: yakklConnectedDomainsStore
-			},
-			{
-				key: 'yakklTokenDataStore',
-				setStorage: setYakklTokenDataStorage,
-				store: yakklTokenDataStore
-			},
-			{
-				key: 'yakklTokenDataCustomStore',
-				setStorage: setYakklTokenDataCustomStorage,
-				store: yakklTokenDataCustomStore
-			},
-			{
-				key: 'yakklCombinedTokenStore',
-				setStorage: setYakklCombinedTokenStorage,
-				store: yakklCombinedTokenStore
-			},
-			{
-				key: 'yakklWalletProvidersStore',
-				setStorage: setYakklWalletProvidersStorage,
-				store: yakklWalletProvidersStore
-			},
-			{
-				key: 'yakklWalletBlockchainsStore',
-				setStorage: setYakklWalletBlockchainsStorage,
-				store: yakklWalletBlockchainsStore
-			}
-		];
-
-		// Validate VERSION once before the loop
-		if (typeof VERSION === 'undefined' || typeof VERSION !== 'string' || VERSION.trim() === '') {
-			log.error('VERSION is not properly defined.');
-			return;
-		}
-
-		// This version now updates the version of all of the data stores that have a version property.
-		for (const { key, setStorage, store } of updateFunctions) {
-			const data = newData[key] || existingData[key]; // Currently a placeholder for future use and existingData is not used! This is for future use if using something like a backend database.
-			if (data) {
-				// Check if data is a valid object and has a version property
-				if (data && typeof data === 'object' && !Array.isArray(data)) {
-					// Update version if it exists (either as 'version' or 'VERSION')
-					if ('version' in data || 'VERSION' in data) {
-						data['version'] = VERSION;
-						log.info(`Updated version for ${key} to ${VERSION}`);
-					}
-				} else if (data && typeof data === 'object' && Array.isArray(data)) {
-					log.warn(`${key} contains array data - version not updated`);
-				} else {
-					log.error(`Invalid data object for ${key}. Cannot assign version.`);
-					continue; // Skip this iteration
-				}
-
-				try {
-					await setStorage(data);
-					store.set(data);
-				} catch (error: any) {
-					log.error(`Failed to update ${key}:`, false, error);
-				}
-			}
-		}
-
-		// Previous version of the code that only updated the version of preferences
-		// for (const { key, setStorage, store } of updateFunctions) {
-		//   const data = newData[key] || existingData[key];
-		//   if (data) {
-		//     if ( key === 'yakklPreferencesStore') {
-		//       if (data && typeof data === 'object' && !Array.isArray(data)) {
-		//         // Keep the metadata version of the latest version
-		//         if (typeof VERSION !== 'undefined' && typeof VERSION === 'string' && VERSION.trim() !== '') {
-		//           data['version'] = VERSION;
-		//         } else {
-		//           log.error("VERSION is not properly defined.");
-		//         }
-		//       } else {
-		//         log.error("Invalid 'data' object. Cannot assign 'version'.");
-		//       }
-		//     }
-
-		//     await setStorage(data);
-		//     store.set(data);
-		//   }
-		// }
-	}
+  import { currentAccount, accounts } from '$lib/stores/account.store';
+  import { currentChain } from '$lib/stores/chain.store';
+  
+  let { onClose } = $props();
+  
+  let account = $derived($currentAccount);
+  let chain = $derived($currentChain);
+  let allAccounts = $derived($accounts);
+  
+  let showPrivateKey = $state(false);
+  let showSeedPhrase = $state(false);
+  let copied = $state(false);
+  
+  function handlePrint() {
+    window.print();
+  }
+  
+  function handleDownload() {
+    const data = {
+      walletName: 'YAKKL Smart Wallet',
+      generatedAt: new Date().toISOString(),
+      account: {
+        address: account?.address,
+        name: account?.name || account?.username,
+        network: chain?.name
+      },
+      backupInstructions: 'Store this document securely. Never share your private key or seed phrase.',
+      warning: 'Anyone with access to this information can control your wallet.'
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `yakkl-emergency-kit-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  
+  async function copyToClipboard(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      copied = true;
+      setTimeout(() => copied = false, 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  }
 </script>
 
-<div class="p-4">
-	<h2 class="text-2xl font-bold mb-4">{mode === 'export' ? 'Export' : 'Import'} Emergency Kit</h2>
-
-	{#if mode === 'export'}
-		<button
-			onclick={handleExport}
-			class="bg-blue-500 text-white px-4 py-2 rounded"
-			disabled={loading}
-		>
-			{loading ? 'Exporting...' : 'Export Emergency Kit'}
-		</button>
-	{:else}
-		<div class="mb-4">
-			<label for="importFile" class="block mb-2">Select File to Import:</label>
-			<input
-				type="file"
-				id="importFile"
-				onchange={handleFileSelect}
-				accept=".json"
-				class="w-full p-2 border rounded"
-			/>
-		</div>
-		{#if metadata}
-			<div class="mb-4">
-				<h3 class="text-lg font-semibold">Emergency Kit Metadata:</h3>
-				<p>ID: {metadata.id}</p>
-				<p>Created: {new Date(metadata.createDate).toLocaleString()}</p>
-				<p>Version: {metadata.version}</p>
-				<p>Type: {metadata.type}</p>
-				<p>Files: {metadata.files}</p>
-			</div>
-			<div class="mb-4">
-				<h4 class="text-lg font-bold">
-					YAKKL will <span class="text-red-500 underline">auto logout</span> once the import is complete!
-					Simply login again to continue.
-				</h4>
-			</div>
-		{/if}
-		<button
-			onclick={handleImport}
-			class="bg-green-500 text-white px-4 py-2 rounded"
-			disabled={loading || !file}
-		>
-			{loading ? 'Importing...' : 'Import'}
-		</button>
-		<button onclick={onCancel} class="bg-red-400 text-white px-4 py-2 rounded"> Cancel </button>
-	{/if}
-
-	{#if error}
-		<p class="text-red-500 mt-4">{error}</p>
-	{/if}
+<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white dark:bg-zinc-800 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <!-- Header -->
+    <div class="p-6 border-b border-zinc-200 dark:border-zinc-700">
+      <div class="flex items-center justify-between">
+        <h2 class="text-2xl font-bold text-zinc-900 dark:text-white">Emergency Recovery Kit</h2>
+        <button
+          onclick={onClose}
+          class="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-lg transition-colors"
+          aria-label="Close"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+    
+    <!-- Warning Banner -->
+    <div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 m-6">
+      <div class="flex items-start gap-3">
+        <svg class="w-6 h-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.664-.833-2.464 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z" />
+        </svg>
+        <div>
+          <h3 class="font-semibold text-red-800 dark:text-red-200">Critical Security Information</h3>
+          <p class="text-sm text-red-700 dark:text-red-300 mt-1">
+            This kit contains sensitive information that provides complete access to your wallet. 
+            Store it securely and never share it with anyone.
+          </p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Content -->
+    <div class="p-6 space-y-6">
+      <!-- Account Information -->
+      <div class="space-y-4">
+        <h3 class="text-lg font-semibold text-zinc-900 dark:text-white">Account Information</h3>
+        <div class="bg-zinc-50 dark:bg-zinc-900/50 rounded-lg p-4 space-y-3">
+          <div>
+            <span class="text-sm text-zinc-600 dark:text-zinc-400">Wallet Address:</span>
+            <div class="font-mono text-sm mt-1 break-all">{account?.address || 'No account selected'}</div>
+          </div>
+          <div>
+            <span class="text-sm text-zinc-600 dark:text-zinc-400">Account Name:</span>
+            <div class="font-medium mt-1">{account?.name || account?.username || 'Default Account'}</div>
+          </div>
+          <div>
+            <span class="text-sm text-zinc-600 dark:text-zinc-400">Current Network:</span>
+            <div class="font-medium mt-1">{chain?.name || 'Unknown'}</div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Private Key Section -->
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-semibold text-zinc-900 dark:text-white">Private Key</h3>
+          <button
+            onclick={() => showPrivateKey = !showPrivateKey}
+            class="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
+          >
+            {showPrivateKey ? 'Hide' : 'Reveal'} Private Key
+          </button>
+        </div>
+        {#if showPrivateKey}
+          <div class="bg-zinc-50 dark:bg-zinc-900/50 rounded-lg p-4">
+            <div class="font-mono text-xs break-all select-all">
+              ••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+            </div>
+            <p class="text-xs text-zinc-500 mt-2">Private key hidden for security. Use Export Account feature to reveal.</p>
+          </div>
+        {/if}
+      </div>
+      
+      <!-- Recovery Phrase Section -->
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-semibold text-zinc-900 dark:text-white">Recovery Phrase</h3>
+          <button
+            onclick={() => showSeedPhrase = !showSeedPhrase}
+            class="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
+          >
+            {showSeedPhrase ? 'Hide' : 'Reveal'} Recovery Phrase
+          </button>
+        </div>
+        {#if showSeedPhrase}
+          <div class="bg-zinc-50 dark:bg-zinc-900/50 rounded-lg p-4">
+            <div class="grid grid-cols-3 gap-3">
+              {#each Array(12) as _, i}
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-zinc-500">{i + 1}.</span>
+                  <span class="font-mono text-sm">••••••••</span>
+                </div>
+              {/each}
+            </div>
+            <p class="text-xs text-zinc-500 mt-3">Recovery phrase hidden for security. Use Export Account feature to reveal.</p>
+          </div>
+        {/if}
+      </div>
+      
+      <!-- Instructions -->
+      <div class="space-y-4">
+        <h3 class="text-lg font-semibold text-zinc-900 dark:text-white">Storage Instructions</h3>
+        <ul class="space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
+          <li class="flex items-start gap-2">
+            <svg class="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            Store in a secure physical location (safe, safety deposit box)
+          </li>
+          <li class="flex items-start gap-2">
+            <svg class="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            Consider splitting information across multiple secure locations
+          </li>
+          <li class="flex items-start gap-2">
+            <svg class="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            Never store digitally on internet-connected devices
+          </li>
+          <li class="flex items-start gap-2">
+            <svg class="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Never share this information with anyone
+          </li>
+        </ul>
+      </div>
+    </div>
+    
+    <!-- Actions -->
+    <div class="p-6 border-t border-zinc-200 dark:border-zinc-700 flex flex-wrap gap-3">
+      <button
+        onclick={handlePrint}
+        class="yakkl-btn-secondary flex items-center gap-2"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+        </svg>
+        Print Kit
+      </button>
+      
+      <button
+        onclick={handleDownload}
+        class="yakkl-btn-secondary flex items-center gap-2"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
+        Download Info
+      </button>
+      
+      <button
+        onclick={onClose}
+        class="yakkl-btn-primary ml-auto"
+      >
+        Done
+      </button>
+    </div>
+  </div>
 </div>
 
-<Confirmation
-	bind:show={showConfirmation}
-	title="Confirm Import"
-	message="Are you sure you want to continue? Doing so will override your current Smart Wallet data!"
-	confirmText="Yes, Import"
-	rejectText="Cancel"
-	onConfirm={confirmImport}
-/>
+<style>
+  @media print {
+    .fixed {
+      position: static;
+      background: white;
+    }
+    
+    button {
+      display: none;
+    }
+    
+    .max-h-\[90vh\] {
+      max-height: none;
+    }
+  }
+</style>

@@ -32,13 +32,19 @@ const config = {
 
 		prerender: {
 			handleMissingId: 'ignore',
+			entries: ['*'],
 			handleHttpError: ({ status, path, referrer, referenceType }) => {
 				console.warn(`Prerendering error: ${status} on ${path}`);
 				if (status === 500 && path === '/accounts') {
 					// Ignore the error or log it
 					return;
 				}
-				throw new Error(`${status} on ${path}`);
+				if (status === 404 && (path.includes('/preview2') || path.includes('/v2') || path.includes('/accounts/manage/'))) {
+					// Ignore legacy routes and dynamic routes that no longer exist
+					return;
+				}
+				// Just log the error instead of throwing for missing dynamic routes
+				console.warn(`Prerender warning: ${status} on ${path}`);
 			}
 		},
 

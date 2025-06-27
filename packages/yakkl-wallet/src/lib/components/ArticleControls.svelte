@@ -580,7 +580,7 @@
 		title="Delete Article"
 		message="Are you sure you want to delete this article?"
 		onConfirm={handleDelete}
-		onReject={() => {
+		onCancel={() => {
 			showDeleteConfirmation = false;
 		}}
 	/>

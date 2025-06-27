@@ -56,11 +56,12 @@
 		timerManager.startInterval(timerId);
 
 		// Listen for updates from background script
-		const messageListener = (message: any, sender: any, sendResponse: any) => {
+		const messageListener = (message: any, sender: any, sendResponse: any): true | void => {
 			if (message.type === 'RSS_FEED_UPDATE') {
 				loadFeeds();
+				return true; // Indicate we're handling this message
 			}
-			return Promise.resolve(true);
+			// Return nothing for messages we don't handle
 		};
 
 		browser_ext.runtime.onMessage.addListener(messageListener);

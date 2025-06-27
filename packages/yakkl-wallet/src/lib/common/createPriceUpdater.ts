@@ -49,17 +49,27 @@ export function createPriceUpdater(priceManager: PriceManager) {
 			const marketPrice = await priceManager.getMarketPrice(pair);
 			const price = marketPrice?.price ?? 0;
 
-			// Fix for handling decimals in calculations
-			const adjustedBalance = token.balance ? Number(token.balance) / 10 ** token.decimals : 0;
-			const value = adjustedBalance * price;
+			// Balance is already in human-readable format (e.g., "1.5" ETH)
+			// Don't divide by decimals again
+			const balance = Number(token.balance || 0);
+			const value = balance * price;
 
+			// Keep existing change data from token
+			const change = token.change || [];
+			
 			return {
 				...token,
 				price: {
 					price: price,
 					provider: marketPrice?.provider ?? '',
-					lastUpdated: new Date() // Ensure lastUpdated is present
+					lastUpdated: new Date(),
+					isNative: token.isNative || false,
+					chainId: token.chainId,
+					currency: 'USD',
+					status: 200,
+					message: ''
 				},
+				change,
 				value,
 				formattedValue: new Intl.NumberFormat('en-US', {
 					style: 'currency',
@@ -70,7 +80,16 @@ export function createPriceUpdater(priceManager: PriceManager) {
 			log.error(`fetchTokenData - Failed to fetch price for ${token.symbol}`, false, error);
 			return {
 				...token,
-				price: { price: 0, provider: '', lastUpdated: new Date() }, // Ensures lastUpdated is present, status removed
+				price: { 
+					price: 0, 
+					provider: '', 
+					lastUpdated: new Date(),
+					isNative: token.isNative || false,
+					chainId: token.chainId,
+					currency: 'USD',
+					status: 0,
+					message: error instanceof Error ? error.message : 'Failed to fetch price'
+				},
 				value: 0
 			};
 		}

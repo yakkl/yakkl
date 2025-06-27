@@ -1,703 +1,385 @@
-<!-- Upgrade.svelte -->
 <script lang="ts">
-	import { createForm } from 'svelte-forms-lib';
-	import * as yup from 'yup';
-	import Modal from './Modal.svelte';
-	import Login from './Login.svelte';
-	import RegistrationPrompt from './RegistrationPrompt.svelte';
-	import { getProfile, getSettings, yakklMiscStore } from '$lib/common/stores';
-	import { log } from '$lib/managers/Logger';
-	import { dateString } from '$lib/common/datetime';
-	import ErrorNoAction from './ErrorNoAction.svelte';
-	import Confirmation from './Confirmation.svelte';
-	import { safeLogout } from '$lib/common/safeNavigate';
-	import Notification from './Notification.svelte';
-	import { UpgradeManager, type UpgradeResponseMessage } from '$lib/managers/UpgradeManager';
-	import { canUpgrade } from '$lib/common/utils';
-	import type { ProfileData } from '$lib/common/interfaces';
-	import { decryptData } from '$lib/common/encryption';
-	import { isEncryptedData } from '$lib/common';
-	import { getAvailableMemberUpgradePlanLevel } from '$lib/common/member_pricing';
-	import {
-		checkRegistrationStatus,
-		isUserLoggedIn,
-		type RegistrationStatus
-	} from '$lib/common/auth-utils';
-	import { authStore, isAuthenticated, isRegistered } from '$lib/stores/auth-store';
-	import AuthError from './AuthError.svelte';
-	import AuthLoading from './AuthLoading.svelte';
-	import { closeModal } from '$lib/common/stores/modal';
-	import { getContextTypeStore } from '$lib/common/stores';
+  import { onMount } from 'svelte';
+  import { planStore, currentPlan, isOnTrial } from '../stores/plan.store';
+  import { canUseFeature } from '../utils/features';
+  import { PlanType } from '../types';
 
-	interface Props {
-		show?: boolean;
-		onComplete?: () => void;
-		onClose?: () => void;
-		onCancel?: () => void;
-		openWallet?: () => void;
-		useAuthStore?: boolean; // Optional flag to use auth store for state management
-	}
+  let {
+    show = $bindable(false),
+    onComplete = () => {},
+    onClose = () => { show = false; },
+    onCancel = () => { show = false; },
+    className = ''
+  } = $props();
 
-	let {
-		show = $bindable(false),
-		onComplete = $bindable(() => {}),
-		onClose = $bindable(() => {
-			safeLogout();
-		}),
-		onCancel = $bindable(() => {
-			(show = false), (showConfirmation = false), (showNotification = false), (showError = false);
-		}),
-		openWallet,
-		useAuthStore = false
-	}: Props = $props();
+  // Reactive state
+  let plan = $derived($currentPlan);
+  let trial = $derived($isOnTrial);
+  let upgradeStep = $state('overview'); // 'overview', 'selecting', 'processing', 'success'
+  let isProcessing = $state(false);
+  let progress = $state(0);
+  let selectedPlan = $state(PlanType.Pro);
+  let statusMessage = $state('');
 
-	// Detect if we're in sidepanel context
-	const contextType = $state(getContextTypeStore());
-	const isSidepanel = $derived(
-		contextType === 'sidepanel' || (contextType?.includes?.('sidepanel') ?? false)
-	);
+  // Plan features configuration
+  const planFeatures = {
+    [PlanType.Basic]: [
+      'Basic wallet functionality',
+      'Up to 3 accounts',
+      'Standard networks',
+      'Community support'
+    ],
+    [PlanType.Pro]: [
+      'Unlimited accounts',
+      'Advanced analytics',
+      'Custom networks',
+      'Pro extensions',
+      'Priority support',
+      'Early access features',
+      'Enhanced security',
+      'DeFi integrations',
+      'Portfolio tracking',
+      'Advanced trading tools'
+    ],
+    [PlanType.Enterprise]: [
+      'Everything in Pro',
+      'Multi-signature support',
+      'White label solutions',
+      'Custom integrations',
+      'Dedicated support',
+      'SLA guarantees',
+      'Advanced compliance',
+      'Audit trails',
+      'Team management',
+      'Enterprise SSO'
+    ],
+  };
 
-	// Local state
-	let showError = $state(false);
-	let errorMessage = $state('');
-	let isUpgrading = $state(false);
-	let isProUser = $state(false);
-	let showConfirmation = $state(false);
-	let showNotification = $state(false);
-	let showRegistrationPrompt = $state(false);
-	let showLoginModal = $state(false);
-	let progress = $state(0);
-	let statusMessage = $state('');
-	let isInitializing = $state(false);
-	let retryCount = $state(0);
-	const maxRetries = 3;
-	let formValues = {
-		userName: '',
-		password: '',
-		email: ''
-	};
-	let isLoggedIn = $state(false);
-	let registrationStatus = $state<RegistrationStatus | null>(null);
-	let planLevelAvailable = $state(
-		getAvailableMemberUpgradePlanLevel()?.toString()?.toUpperCase()?.replace('_', ' ') ??
-			'YAKKL PRO'
-	);
+  const planPricing = {
+    [PlanType.Basic]: { monthly: 0, yearly: 0 },
+    [PlanType.Pro]: { monthly: 9.99, yearly: 99.99 },
+    [PlanType.Enterprise]: { monthly: 49.99, yearly: 499.99 },
+  };
 
-	const upgradeManager = UpgradeManager.getInstance();
-	let unregisterHandler: (() => void) | null = null;
+  const planColors = {
+    [PlanType.Basic]: 'from-gray-500 to-gray-600',
+    [PlanType.Pro]: 'from-indigo-500 to-purple-600',
+    [PlanType.Enterprise]: 'from-yellow-500 to-orange-600',
+  };
 
-	// Initialize upgrade flow when modal is shown
-	$effect(() => {
-		if (show) {
-			isInitializing = true;
-			if (useAuthStore) {
-				// Ensure auth store is initialized
-				authStore
-					.initialize()
-					.then(() => {
-						initializeUpgradeFlow();
-					})
-					.catch((error) => {
-						log.error('Failed to initialize auth store:', false, error);
-						initializeUpgradeFlow(); // Continue with fallback
-					})
-					.finally(() => {
-						isInitializing = false;
-					});
-			} else {
-				initializeUpgradeFlow().finally(() => {
-					isInitializing = false;
-				});
-			}
-		}
-	});
+  function getAvailableUpgrades() {
+    const plans = [PlanType.Basic, PlanType.Pro, PlanType.Enterprise];
+    const currentIndex = plans.indexOf(plan);
+    return plans.slice(currentIndex + 1);
+  }
 
-	// Sync internal show state with global modal state
-	$effect(() => {
-		if (!show && isSidepanel) {
-			// If internal show becomes false and we're in sidepanel, ensure global modal state is closed
-			closeModal();
-		}
-	});
+  function formatPlanName(planType: PlanType): string {
+    return planType.replace(/_/g, ' ').split(' ').map(word =>
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+  }
 
-	// Register message handler when component mounts
-	$effect(() => {
-		unregisterHandler = upgradeManager.registerMessageHandler(handleUpgradeMessage);
-		return () => {
-			if (unregisterHandler) {
-				unregisterHandler();
-			}
-		};
-	});
+  function getPlanIcon(planType: PlanType): string {
+    switch (planType) {
+      case PlanType.Basic: return '🌟';
+      case PlanType.Pro: return '💎';
+      case PlanType.Enterprise: return '🏢';
+      default: return '📦';
+    }
+  }
 
-	function handleUpgradeMessage(message: UpgradeResponseMessage) {
-		switch (message.type) {
-			case 'UPGRADE_STARTED':
-				isUpgrading = true;
-				progress = 0;
-				statusMessage = 'Starting upgrade process...';
-				break;
-			case 'UPGRADE_PROGRESS':
-				progress = message.progress;
-				statusMessage = message.status;
-				break;
-			case 'UPGRADE_COMPLETED':
-				isUpgrading = false;
-				show = false;
-				showNotification = true;
-				break;
-			case 'UPGRADE_ERROR':
-				isUpgrading = false;
-				errorMessage = message.error;
-				showError = true;
-				break;
-		}
-	}
+  async function processUpgrade() {
+    upgradeStep = 'processing';
+    isProcessing = true;
+    progress = 0;
+    statusMessage = 'Initiating upgrade...';
 
-	// Enhanced close handler for sidepanel context
-	function handleSidepanelClose() {
-		show = false; // Ensure internal show state is false
-		closeModal(); // Close the modal
-		if (!isSidepanel) {
-			onClose();
-		}
-		// Don't logout in sidepanel - just close the modal
-	}
+    try {
+      // Simulate upgrade process with progress updates
+      const steps = [
+        { message: 'Validating plan selection...', duration: 1000 },
+        { message: 'Processing payment...', duration: 2000 },
+        { message: 'Updating account permissions...', duration: 1500 },
+        { message: 'Enabling new features...', duration: 1000 },
+        { message: 'Finalizing upgrade...', duration: 500 }
+      ];
 
-	// Enhanced cancel handler for sidepanel context
-	function handleSidepanelCancel() {
-		show = false; // Ensure internal show state is false
-		closeModal(); // Close the modal
-		showConfirmation = false;
-		showNotification = false;
-		showError = false;
+      let totalDuration = steps.reduce((sum, step) => sum + step.duration, 0);
+      let elapsed = 0;
 
-		if (!isSidepanel) {
-			onCancel();
-		}
-		// Don't logout in sidepanel - just close the modal
-	}
+      for (const step of steps) {
+        statusMessage = step.message;
 
-	// Enhanced notification close for sidepanel context
-	function handleNotificationClose() {
-		showNotification = false;
-		closeModal(); // Close the modal
+        // Animate progress during this step
+        const startProgress = (elapsed / totalDuration) * 100;
+        const endProgress = ((elapsed + step.duration) / totalDuration) * 100;
 
-		// Add delay to ensure proper cleanup
-		setTimeout(() => {
-			if (!isSidepanel) {
-				onClose();
-			}
-			// Don't logout in sidepanel - just close the modal
-		}, 50);
-	}
+        const progressInterval = setInterval(() => {
+          progress = Math.min(progress + 2, endProgress);
+        }, 50);
 
-	async function initializeUpgradeFlow() {
-		try {
-			retryCount = 0; // Reset retry count on new initialization
+        await new Promise(resolve => setTimeout(resolve, step.duration));
+        clearInterval(progressInterval);
 
-			// First check registration status
-			registrationStatus = await checkRegistrationStatus();
+        elapsed += step.duration;
+        progress = endProgress;
+      }
 
-			if (!registrationStatus.isRegistered) {
-				showRegistrationPrompt = true;
-				return;
-			}
+      // Update plan store
+      await planStore.upgradeTo(selectedPlan);
 
-			// Check login status
-			isLoggedIn = useAuthStore ? $isAuthenticated : isUserLoggedIn($yakklMiscStore);
+      upgradeStep = 'success';
+      progress = 100;
+      statusMessage = 'Upgrade completed successfully!';
 
-			if (!isLoggedIn) {
-				showLoginModal = true;
-				return;
-			}
+      // Delay before calling completion callback
+      setTimeout(() => {
+        onComplete();
+        show = false;
+      }, 2000);
 
-			// Continue with pro status check if already logged in
-			await checkProLevelStatus();
-		} catch (error) {
-			retryCount++;
-			log.error('Error initializing upgrade flow:', false, error);
+    } catch (error) {
+      console.error('Upgrade failed:', error);
+      statusMessage = 'Upgrade failed. Please try again.';
+      isProcessing = false;
+      upgradeStep = 'overview';
+    }
+  }
 
-			// More specific error messages
-			if (error instanceof Error) {
-				errorMessage = `Initialization failed: ${error.message}`;
-			} else {
-				errorMessage = 'Failed to initialize upgrade process';
-			}
+  function handleSelectPlan(planType: PlanType) {
+    selectedPlan = planType;
+    upgradeStep = 'selecting';
+  }
 
-			if (retryCount < maxRetries) {
-				errorMessage += ` (Attempt ${retryCount}/${maxRetries})`;
-			}
+  function confirmUpgrade() {
+    processUpgrade();
+  }
 
-			showError = true;
-		}
-	}
-
-	// Retry initialization
-	async function handleInitRetry() {
-		if (retryCount < maxRetries) {
-			showError = false;
-			errorMessage = '';
-			isInitializing = true;
-			try {
-				await initializeUpgradeFlow();
-			} finally {
-				isInitializing = false;
-			}
-		}
-	}
-
-	// Dismiss initialization error
-	function handleInitDismiss() {
-		showError = false;
-		errorMessage = '';
-		retryCount = 0;
-
-		if (isSidepanel) {
-			closeModal();
-			// Don't logout in sidepanel - just close the modal
-		}
-	}
-
-	async function checkProLevelStatus() {
-		try {
-			const upgradeAllowed = await canUpgrade();
-			isProUser = !upgradeAllowed;
-			if (!upgradeAllowed) {
-				showError = true;
-			}
-		} catch (error) {
-			log.error('Error checking upgrade eligibility:', false, error);
-		}
-	}
-
-	const { form, handleSubmit } = createForm({
-		initialValues: formValues,
-		validationSchema: yup.object().shape({
-			userName: yup.string().required('Member username is required'),
-			password: yup.string().required('Password is required'),
-			email: yup.string().email('Must be a valid email.').required('Email is required.')
-		}),
-		onSubmit: async (values) => {
-			formValues = values;
-			showConfirmation = true;
-		}
-	});
-
-	function handleLoginSuccess(
-		profile: any,
-		digest: string,
-		_isMinimal: boolean,
-		jwtToken?: string
-	) {
-		isLoggedIn = true;
-		showLoginModal = false;
-
-		// Log JWT token availability
-		if (jwtToken) {
-			log.debug('JWT token received in upgrade flow', false, {
-				hasToken: true,
-				username: profile.userName
-			});
-		}
-
-		// Pre-populate form with profile data
-		if (profile) {
-			formValues.userName = profile.userName;
-			if (profile.data?.email) {
-				// Handle encrypted or unencrypted profile data
-				if (isEncryptedData(profile.data)) {
-					// The digest is already set by the Login component's verify function
-					decryptData(profile.data, digest)
-						.then((profileData) => {
-							const data = profileData as ProfileData;
-							formValues.email = data.email;
-						})
-						.catch((error) => {
-							log.warn('Error decrypting profile data:', false, error);
-							formValues.email = '';
-						});
-				} else {
-					formValues.email = profile.data.email;
-				}
-			}
-		}
-
-		// Continue with upgrade flow
-		checkProLevelStatus();
-	}
-
-	function handleLoginError(error: any) {
-		errorMessage = typeof error === 'string' ? error : 'Authentication failed';
-		showError = true;
-
-		if (isSidepanel) {
-			// In sidepanel, just close modal on login error after delay
-			setTimeout(() => {
-				closeModal();
-				// Don't logout - user can try again
-			}, 2000); // Give user time to see error
-		}
-	}
-
-	async function onProcessUpgrade() {
-		try {
-			const profile = await getProfile();
-			if (!profile) {
-				// This should never happen
-				log.warn('Profile not found', false, 'Upgrade');
-				errorMessage = 'Profile not found';
-				showError = true;
-				return;
-			}
-
-			formValues = {
-				userName: '',
-				password: '',
-				email: ''
-			};
-
-			if (isEncryptedData(profile.data)) {
-				const profileData = (await decryptData(profile.data, $yakklMiscStore)) as ProfileData;
-				formValues.userName = profile.userName;
-				formValues.email = profileData.email;
-			} else {
-				formValues.userName = profile.userName;
-				formValues.email = (profile.data as ProfileData).email;
-			}
-
-			showConfirmation = true;
-		} catch (error) {
-			log.warn('Error in onProcessUpgrade:', false, error);
-			errorMessage = error instanceof Error ? error.message : 'An error occurred during upgrade';
-			showError = true;
-		}
-	}
-
-	async function processUpgrade() {
-		try {
-			const analyticsData = {
-				utm_source: 'wallet',
-				utm_campaign: 'yakkl_pro_upgrade',
-				user_location: navigator.language,
-				upgrade_date: dateString(),
-				current_version: (await getSettings())?.version ?? 'unknown',
-				platform: (navigator as any)?.userAgentData?.platform ?? navigator?.platform ?? 'unknown',
-				user_agent: navigator?.userAgent ?? 'unknown'
-			};
-
-			const planLevel = planLevelAvailable?.replace(' ', '_ ')?.toLowerCase() ?? 'yakkl_pro';
-			analyticsData.utm_campaign = planLevel.includes('_upgrade')
-				? planLevel
-				: planLevel + '_upgrade';
-
-			await upgradeManager.processUpgrade({
-				userName: formValues.userName,
-				email: formValues.email,
-				analytics: analyticsData,
-				profileId: (await getSettings())?.id ?? '',
-				encryptionKey: $yakklMiscStore
-			});
-		} catch (error) {
-			log.error('Error in upgrade process:', false, error);
-			errorMessage = error instanceof Error ? error.message : 'An error occurred during upgrade';
-			showError = true;
-		}
-	}
-
-	function onConfirm() {
-		processUpgrade();
-	}
-
-	// Determine current context for registration prompt
-	function getCurrentContext() {
-		if (typeof window !== 'undefined') {
-			const pathIncludes = window.location.pathname.includes('sidepanel');
-			return pathIncludes ? 'sidepanel' : 'wallet';
-		}
-		return 'wallet';
-	}
-
-	// Update login status when miscStore changes or auth store changes
-	$effect(() => {
-		if (useAuthStore) {
-			isLoggedIn = $isAuthenticated;
-		} else {
-			isLoggedIn = isUserLoggedIn($yakklMiscStore);
-		}
-	});
+  function goBack() {
+    upgradeStep = 'overview';
+  }
 </script>
 
-<!-- Registration Prompt -->
-<RegistrationPrompt
-	bind:show={showRegistrationPrompt}
-	context={getCurrentContext()}
-	{openWallet}
-	onCancel={() => {
-		showRegistrationPrompt = false;
-		show = false;
-		if (isSidepanel) {
-			closeModal();
-			// Don't logout in sidepanel - just close the modal
-		}
-	}}
-/>
+{#if show}
+  <div class="fixed inset-0 z-50 overflow-y-auto">
+    <div class="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+      <!-- Background overlay -->
+      <button class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick={() => show = false} aria-label="Close modal"></button>
 
-<!-- Login Modal -->
-{#if showLoginModal}
-	<Modal bind:show={showLoginModal} title="Login Required" className="z-[701] text-base-content">
-		<div class="p-6">
-			<p class="text-center mb-4 text-gray-600">Please login to upgrade your account</p>
-			<Login
-				onSuccess={handleLoginSuccess}
-				onError={handleLoginError}
-				onCancel={() => {
-					showLoginModal = false;
-					show = false;
-					if (isSidepanel) {
-						closeModal();
-						// Don't logout in sidepanel - just close the modal
-					}
-				}}
-				loginButtonText="Login to Upgrade"
-				cancelButtonText="Cancel"
-				{useAuthStore}
-				generateJWT={!useAuthStore}
-				inputTextClass="text-base-content"
-				inputBgClass="bg-base-100"
-			/>
-		</div>
-	</Modal>
+      <!-- Modal content -->
+      <div class="relative inline-block align-bottom bg-white dark:bg-zinc-900 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full sm:p-6">
+
+        {#if upgradeStep === 'overview'}
+          <!-- Plan Overview -->
+          <div class="text-center mb-6">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-gradient-to-br {planColors[selectedPlan]} mb-4">
+              <span class="text-2xl">{getPlanIcon(selectedPlan)}</span>
+            </div>
+            <h3 class="text-lg font-medium text-zinc-900 dark:text-white">
+              Upgrade Your YAKKL Wallet
+            </h3>
+            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+              {trial ? 'Your trial is ending soon. ' : ''}Choose a plan that fits your needs
+            </p>
+          </div>
+
+          <!-- Current Plan Status -->
+          <div class="bg-zinc-50 dark:bg-zinc-800 rounded-lg p-4 mb-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="text-sm font-medium text-zinc-900 dark:text-white">Current Plan:</span>
+                <span class="ml-2 px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded-full">
+                  {formatPlanName(plan)}
+                </span>
+              </div>
+              {#if trial}
+                <div class="text-right">
+                  <span class="text-xs text-orange-600 dark:text-orange-400">Trial</span>
+                  <div class="text-xs text-zinc-500">
+                    {$planStore.plan.trialEndsAt ? new Date($planStore.plan.trialEndsAt).toLocaleDateString() : 'Soon'}
+                  </div>
+                </div>
+              {/if}
+            </div>
+          </div>
+
+          <!-- Available Upgrades -->
+          <div class="space-y-4 mb-6">
+            {#each getAvailableUpgrades() as planType}
+              {@const pricing = planPricing[planType]}
+              <button
+                class="w-full text-left border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 hover:border-indigo-300 dark:hover:border-indigo-600 cursor-pointer transition-colors"
+                onclick={() => handleSelectPlan(planType)}
+                onkeydown={(e) => e.key === 'Enter' && handleSelectPlan(planType)}
+                aria-label={`Select ${formatPlanName(planType)} plan`}
+              >
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center">
+                    <span class="text-2xl mr-3">{getPlanIcon(planType)}</span>
+                    <div>
+                      <h4 class="font-medium text-zinc-900 dark:text-white">
+                        {formatPlanName(planType)}
+                      </h4>
+                      <p class="text-sm text-zinc-600 dark:text-zinc-400">
+                        Perfect for {planType === PlanType.Pro ? 'advanced users' :
+                                    planType === PlanType.Enterprise ? 'businesses' :
+                                    'getting started'}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-lg font-bold text-zinc-900 dark:text-white">
+                      {pricing.monthly > 0 ? `$${pricing.monthly}` : 'Free'}
+                    </div>
+                    {#if pricing.monthly > 0}
+                      <div class="text-xs text-zinc-500">/month</div>
+                    {/if}
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                  {#each planFeatures[planType].slice(0, 4) as feature}
+                    <div class="flex items-center text-sm text-zinc-600 dark:text-zinc-400">
+                      <svg class="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                      {feature}
+                    </div>
+                  {/each}
+                </div>
+              </button>
+            {/each}
+          </div>
+
+        {:else if upgradeStep === 'selecting'}
+          <!-- Plan Selection Details -->
+          <div class="text-center mb-6">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-gradient-to-br {planColors[selectedPlan]} mb-4">
+              <span class="text-2xl">{getPlanIcon(selectedPlan)}</span>
+            </div>
+            <h3 class="text-lg font-medium text-zinc-900 dark:text-white">
+              {formatPlanName(selectedPlan)} Plan
+            </h3>
+            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+              Review your plan selection
+            </p>
+          </div>
+
+          <!-- Plan Details -->
+          <div class="bg-gradient-to-br {planColors[selectedPlan]} rounded-lg p-6 text-white mb-6">
+            <div class="text-center">
+              <div class="text-3xl font-bold mb-2">
+                ${planPricing[selectedPlan].monthly}/month
+              </div>
+              <div class="text-sm opacity-80">
+                or ${planPricing[selectedPlan].yearly}/year (save 17%)
+              </div>
+            </div>
+          </div>
+
+          <!-- Features List -->
+          <div class="space-y-3 mb-6">
+            <h4 class="font-medium text-zinc-900 dark:text-white">Included Features:</h4>
+            {#each planFeatures[selectedPlan] as feature}
+              <div class="flex items-center text-sm text-zinc-600 dark:text-zinc-400">
+                <svg class="w-4 h-4 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                {feature}
+              </div>
+            {/each}
+          </div>
+
+        {:else if upgradeStep === 'processing'}
+          <!-- Processing -->
+          <div class="text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 dark:bg-indigo-900 mb-4">
+              <svg class="w-6 h-6 text-indigo-600 dark:text-indigo-400 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </div>
+            <h3 class="text-lg font-medium text-zinc-900 dark:text-white mb-4">
+              Processing Upgrade
+            </h3>
+
+            <!-- Progress Bar -->
+            <div class="w-full max-w-md mx-auto mb-4">
+              <div class="flex mb-2 items-center justify-between">
+                <span class="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                  {statusMessage}
+                </span>
+                <span class="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                  {Math.round(progress)}%
+                </span>
+              </div>
+              <div class="overflow-hidden h-2 text-xs flex rounded bg-indigo-200 dark:bg-indigo-800">
+                <div
+                  style="width: {progress}%"
+                  class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-indigo-500 transition-all duration-300"
+                ></div>
+              </div>
+            </div>
+          </div>
+
+        {:else if upgradeStep === 'success'}
+          <!-- Success -->
+          <div class="text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 dark:bg-green-900 mb-4">
+              <svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 class="text-lg font-medium text-zinc-900 dark:text-white mb-2">
+              Upgrade Successful!
+            </h3>
+            <p class="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+              Welcome to {formatPlanName(selectedPlan)}! Your new features are now available.
+            </p>
+            <div class="text-xs text-zinc-500">
+              Redirecting to your wallet...
+            </div>
+          </div>
+        {/if}
+
+        <!-- Actions -->
+        {#if upgradeStep === 'overview'}
+          <div class="flex justify-end space-x-3">
+            <button
+              onclick={() => onCancel()}
+              class="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-700"
+            >
+              Cancel
+            </button>
+          </div>
+        {:else if upgradeStep === 'selecting'}
+          <div class="flex justify-between">
+            <button
+              onclick={goBack}
+              class="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-700"
+            >
+              Back
+            </button>
+            <div class="space-x-3">
+              <button
+                onclick={() => onCancel()}
+                class="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-700"
+              >
+                Cancel
+              </button>
+              <button
+                onclick={confirmUpgrade}
+                class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700"
+              >
+                Upgrade Now
+              </button>
+            </div>
+          </div>
+        {:else if upgradeStep === 'processing'}
+          <!-- No actions during processing -->
+        {:else if upgradeStep === 'success'}
+          <!-- Auto-closes -->
+        {/if}
+      </div>
+    </div>
+  </div>
 {/if}
-
-<ErrorNoAction
-	bind:show={showError}
-	value="You are already using a {planLevelAvailable.toUpperCase()} level plan"
-	title="Congratulations!"
-	onClose={isSidepanel ? handleSidepanelCancel : onCancel}
-/>
-<Confirmation
-	bind:show={showConfirmation}
-	title="Upgrading to {planLevelAvailable.toUpperCase()}!"
-	message="Are you sure you want to upgrade to {planLevelAvailable.toUpperCase()}?"
-	{onConfirm}
-	onCancel={isSidepanel ? handleSidepanelCancel : onCancel}
-/>
-<Notification
-	bind:show={showNotification}
-	title="Upgraded to {planLevelAvailable.toUpperCase()}!"
-	message="You are now using the {planLevelAvailable.toUpperCase()} plan. You can now access all the features of the {planLevelAvailable.toUpperCase()} plan."
-	onClose={isSidepanel ? handleNotificationClose : onClose}
-/>
-
-<Modal
-	bind:show
-	title="Upgrade to {planLevelAvailable.toUpperCase()}"
-	onClose={isSidepanel ? handleSidepanelClose : onClose}
->
-	<div class="space-y-6 p-6">
-		<div class="text-center">
-			<h3 class="text-lg font-medium text-gray-900">
-				YAKKL Smart Wallet - {planLevelAvailable.toUpperCase()}
-			</h3>
-			<p class="mt-2 text-sm text-gray-500">
-				Unlock advanced features and enhanced security for your crypto assets.
-			</p>
-		</div>
-
-		{#if isInitializing}
-			<AuthLoading
-				message="Initializing upgrade process..."
-				variant="spinner"
-				size="md"
-				className="py-8"
-			/>
-		{:else if isUpgrading}
-			<div class="flex flex-col items-center justify-center space-y-4">
-				<div class="w-full max-w-md">
-					<div class="relative pt-1">
-						<div class="flex mb-2 items-center justify-between">
-							<div>
-								<span
-									class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-indigo-600 bg-indigo-200"
-								>
-									{statusMessage}
-								</span>
-							</div>
-							<div class="text-right">
-								<span class="text-xs font-semibold inline-block text-indigo-600">
-									{progress}%
-								</span>
-							</div>
-						</div>
-						<div class="overflow-hidden h-2 mb-4 text-xs flex rounded bg-indigo-200">
-							<div
-								style="width: {progress}%"
-								class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-indigo-500 transition-all duration-500"
-							></div>
-						</div>
-					</div>
-				</div>
-			</div>
-		{:else}
-			<div class="bg-gray-50 p-4 rounded-lg">
-				<h4 class="font-medium text-gray-900">Pro Features</h4>
-				<ul class="mt-2 space-y-2 text-sm text-gray-600">
-					<li class="flex items-center">
-						<svg
-							class="h-5 w-5 text-green-500 mr-2"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M5 13l4 4L19 7"
-							/>
-						</svg>
-						Automatic price updates with full analytics
-					</li>
-					<li class="flex items-center">
-						<svg
-							class="h-5 w-5 text-green-500 mr-2"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M5 13l4 4L19 7"
-							/>
-						</svg>
-						Participate in early access to new features and products
-					</li>
-					<li class="flex items-center">
-						<svg
-							class="h-5 w-5 text-green-500 mr-2"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M5 13l4 4L19 7"
-							/>
-						</svg>
-						Reduced swap fees for DeFi platforms
-					</li>
-					<li class="flex items-center">
-						<svg
-							class="h-5 w-5 text-green-500 mr-2"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M5 13l4 4L19 7"
-							/>
-						</svg>
-						Advanced market analytics and charting
-					</li>
-					<li class="flex items-center">
-						<svg
-							class="h-5 w-5 text-green-500 mr-2"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M5 13l4 4L19 7"
-							/>
-						</svg>
-						Full Emergency Kit for wallet recovery
-					</li>
-					<li class="flex items-center">
-						<svg
-							class="h-5 w-5 text-green-500 mr-2"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M5 13l4 4L19 7"
-							/>
-						</svg>
-						Unlimited accounts
-					</li>
-					<li class="flex items-center">
-						<svg
-							class="h-5 w-5 text-green-500 mr-2"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M5 13l4 4L19 7"
-							/>
-						</svg>
-						Advanced security features and more...
-					</li>
-				</ul>
-			</div>
-
-			{#if !isLoggedIn && !showLoginModal && !showRegistrationPrompt}
-				<div class="text-center py-8">
-					<p class="text-gray-600 mb-4">Please login to upgrade your account</p>
-					<button
-						onclick={() => (showLoginModal = true)}
-						class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-					>
-						Login to Continue
-					</button>
-				</div>
-			{:else if isLoggedIn}
-				<div class="pt-5">
-					<div class="flex justify-end space-x-4">
-						<button
-							type="button"
-							class="rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-							onclick={isSidepanel ? handleSidepanelCancel : onCancel}
-						>
-							Cancel
-						</button>
-						<button
-							type="button"
-							class="rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-							disabled={isUpgrading}
-							onclick={onProcessUpgrade}
-						>
-							{isUpgrading ? 'Upgrading...' : 'Upgrade to Pro Level'}
-						</button>
-					</div>
-				</div>
-			{/if}
-		{/if}
-
-		<!-- Enhanced error handling -->
-		<AuthError
-			error={showError ? errorMessage : null}
-			onRetry={retryCount < maxRetries && !isUpgrading && !isInitializing
-				? handleInitRetry
-				: undefined}
-			onDismiss={!isUpgrading && !isInitializing ? handleInitDismiss : undefined}
-		/>
-	</div>
-</Modal>

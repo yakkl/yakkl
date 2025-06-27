@@ -2,12 +2,13 @@
 <script lang="ts">
 	import { createForm } from 'svelte-forms-lib';
 	import * as yup from 'yup';
-	import Modal from './Modal.svelte';
+	import Modal from './v1/Modal.svelte';
 	import { getSettings, setSettings, getProfile, setProfileStorage } from '$lib/common/stores';
 	import { log } from '$lib/managers/Logger';
 	import { onMount } from 'svelte';
 	import type { Settings, Profile } from '$lib/common/interfaces';
 	import { SystemTheme, PlanType } from '$lib/common/types';
+	import SoundSettings from './SoundSettings.svelte';
 
 	interface Props {
 		show?: boolean;
@@ -297,10 +298,14 @@
 		switch (planType) {
 			case PlanType.BASIC_MEMBER:
 				return 'Basic Member';
+			case PlanType.FOUNDING_MEMBER:
+				return 'Founding Member';
+			case PlanType.EARLY_ADOPTER:
+				return 'Early Adopter';
 			case PlanType.YAKKL_PRO:
 				return 'YAKKL Pro';
-			case PlanType.YAKKL_PREMIUM:
-				return 'YAKKL Premium';
+			case PlanType.ENTERPRISE:
+				return 'Enterprise';
 			default:
 				return 'Unknown';
 		}
@@ -488,6 +493,12 @@
 							</div>
 						{/if}
 					</div>
+				</div>
+
+				<!-- Notification Settings -->
+				<div>
+					<h3 class="text-lg font-medium text-gray-900 mb-4">Notifications</h3>
+					<SoundSettings className="mt-4" />
 				</div>
 
 				<!-- Trial Settings (if applicable) -->

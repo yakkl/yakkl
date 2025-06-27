@@ -1,0 +1,57 @@
+{
+  "id": "basic-portfolio",
+  "name": "Basic Portfolio",
+  "version": "1.0.0",
+  "description": "Essential portfolio management features for all YAKKL users",
+  "author": "YAKKL Team",
+  "license": "MIT",
+  "tier": "community",
+  "category": "portfolio",
+  "tags": ["portfolio", "balance", "tokens", "core"],
+  "capabilities": {
+    "ui": {
+      "components": [
+        {
+          "id": "dashboard-widget",
+          "name": "Portfolio Widget",
+          "type": "widget",
+          "mountPoint": "dashboard"
+        },
+        {
+          "id": "full-portfolio",
+          "name": "Full Portfolio View",
+          "type": "page",
+          "mountPoint": "portfolio"
+        }
+      ],
+      "widgets": [
+        {
+          "id": "balance-widget",
+          "name": "Balance Overview",
+          "component": "BalanceWidget",
+          "size": "medium",
+          "position": "top",
+          "refreshInterval": 30000
+        }
+      ]
+    }
+  },
+  "permissions": [
+    "accounts:read",
+    "transactions:read",
+    "networks:read",
+    "storage:read"
+  ],
+  "minimumWalletVersion": "2.0.0",
+  "supportedPlatforms": ["extension", "embedded", "web"],
+  "discoverable": true,
+  "enhances": [],
+  "conflicts": [],
+  "iconUrl": "/mods/basic-portfolio/icon.png",
+  "screenshotUrls": [
+    "/mods/basic-portfolio/screenshot1.png"
+  ],
+  "website": "https://yakkl.com/mods/basic-portfolio",
+  "repository": "https://github.com/yakkl/yakkl",
+  "documentation": "https://docs.yakkl.com/mods/basic-portfolio"
+}

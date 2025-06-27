@@ -1,10 +1,10 @@
 // EVMToken.ts
-import { Token } from '$managers/Token';
-import type { Blockchain } from '$managers/Blockchain';
+import { Token } from '../../Token';
+import type { Blockchain } from '../../Blockchain';
 import type { BigNumberish, TransactionResponse } from '$lib/common';
-import { ABIs } from '$lib/managers/contracts/evm/constants-evm';
-import type { AbstractContract } from '$managers/Contract';
-import type { Provider } from '$lib/managers/Provider';
+import { ABIs } from '../../contracts/evm/constants-evm';
+import type { AbstractContract } from '../../Contract';
+import type { Provider } from '../../Provider';
 
 export class EVMToken extends Token {
 	private _contract: AbstractContract | null = null;

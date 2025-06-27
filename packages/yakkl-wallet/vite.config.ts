@@ -60,6 +60,7 @@ export default defineConfig(({ mode }) => {
 				$routes: path.resolve('./src/routes'),
 				$managers: path.resolve('./src/lib/managers'),
 				$plugins: path.resolve('./src/lib/plugins'),
+				$contexts: path.resolve('./src/contexts'),
 				// ...(process.env.YAKKL_PRO === 'true' && { $pro: path.resolve('./src/pro') }),
 				// ...(process.env.YAKKL_PRIVATE === 'true' && { $private: path.resolve('./src/private') }),
 				//// 'webextension-polyfill': path.resolve( __dirname, 'node_modules/webextension-polyfill/dist/browser-polyfill.js' ),
@@ -168,6 +169,14 @@ export default defineConfig(({ mode }) => {
 			drop: isProd ? ['debugger'] : [],
 			// Mark certain functions as pure for tree-shaking
 			pure: isProd ? ['log.debug', 'log.info', 'log.debugStack', 'log.infoStack'] : []
+		},
+		server: {
+			// Disable HMR for browser extensions
+			hmr: false,
+			watch: {
+				// Don't trigger full page reloads
+				usePolling: false
+			}
 		}
 	};
 });

@@ -2,15 +2,16 @@
 
 import { log } from '$lib/managers/Logger';
 import { getYakklCurrentlySelected } from '$lib/common/stores';
-import { sendErrorResponse } from '$lib/extensions/chrome/errorResponseHandler';
+import { sendErrorResponse } from '$contexts/background/extensions/chrome/errorResponseHandler';
 import { extractSecureDomain } from '$lib/common/security';
 import {
 	verifyDomainConnected,
 	getAddressesForDomain
-} from '$lib/extensions/chrome/verifyDomainConnected';
+} from '$contexts/background/extensions/chrome/verifyDomainConnected';
 import type { Runtime } from 'webextension-polyfill';
 import type { YakklResponse } from '$lib/common/interfaces';
 import { VERSION } from '$lib/common/constants';
+import { BlockchainExplorer } from '$lib/managers/providers/explorer/BlockchainExplorer';
 
 /**
  * Handles read-only RPC methods that don't require user approval
@@ -47,6 +48,15 @@ export async function handleReadOnlyRequest(request: any, port: Runtime.Port): P
 
 			case 'web3_clientVersion':
 				result = 'YAKKL/' + VERSION;
+				break;
+
+			case 'yakkl_getTransactionHistory':
+				result = await handleGetTransactionHistory(params, chainId);
+				break;
+
+			case 'yakkl_trackActivity':
+				// Just acknowledge tracking - actual storage handled elsewhere
+				result = true;
 				break;
 
 			default:
@@ -141,5 +151,39 @@ async function callRPCProvider(method: string, params: any[], chainId: number): 
 	} catch (error) {
 		log.error('RPC provider error:', false, { method, error });
 		throw error;
+	}
+}
+
+/**
+ * Handles yakkl_getTransactionHistory method to fetch transaction history from blockchain explorers
+ */
+async function handleGetTransactionHistory(params: any[], chainId: number): Promise<any[]> {
+	try {
+		// Extract address and limit from parameters
+		const [address, limit = 10] = params;
+
+		if (!address || typeof address !== 'string') {
+			log.warn('Invalid address provided for transaction history:', false, { address });
+			return [];
+		}
+
+		log.debug('Fetching transaction history:', false, {
+			address,
+			chainId,
+			limit
+		});
+
+		const explorer = BlockchainExplorer.getInstance();
+		const transactions = await explorer.getTransactionHistory(address, chainId, limit);
+
+		log.debug('Transaction history fetched:', false, {
+			address,
+			count: transactions.length
+		});
+
+		return transactions;
+	} catch (error) {
+		log.error('Error fetching transaction history:', false, { error, params, chainId });
+		return [];
 	}
 }

@@ -5,9 +5,9 @@
 // import { decryptData } from '$lib/common/encryption';
 // import { isEncryptedData } from '$lib/common/misc';
 // import { getSafeUUID } from '$lib/common/uuid';
-// // import type { BackgroundPendingRequest } from '$lib/extensions/chrome/background';
-// import { requestManager } from '$lib/extensions/chrome/requestManager';
-// import { signingManager } from '$lib/extensions/chrome/signingManager';
+// // import type { BackgroundPendingRequest } from '$contexts/background/extensions/chrome/background';
+// import { requestManager } from '$contexts/background/extensions/chrome/requestManager';
+// import { signingManager } from '$contexts/background/extensions/chrome/signingManager';
 // // import { initializeStorageDefaults } from '$lib/common/backgroundUtils';
 
 // let sessionToken: SessionToken | null = null;

@@ -47,7 +47,7 @@ export async function storeSessionToken(
 	}
 }
 
-export async function storeEncryptedHash(encryptedHash: string): Promise<SessionToken | null> {
+export async function storeEncryptedHash(encryptedHash: string, profileData?: { userId?: string; username?: string; profileId?: string }): Promise<SessionToken | null> {
 	try {
 		if (browserSvelte) {
 			if (!encryptedHash) {
@@ -56,7 +56,8 @@ export async function storeEncryptedHash(encryptedHash: string): Promise<Session
 			}
 			const res: StoreHashResponse = await browser_ext.runtime.sendMessage({
 				type: 'STORE_SESSION_HASH',
-				payload: encryptedHash
+				payload: encryptedHash,
+				profileData: profileData
 			});
 			if (res && res.token && res.expiresAt) {
 				storeSessionToken(res.token, res.expiresAt);

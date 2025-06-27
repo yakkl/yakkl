@@ -105,11 +105,16 @@ export async function updateTokenDataBalances(
 			tokens.map(async (token) => {
 				try {
 					const balance = await getTokenBalance(token, userAddress, provider);
-					return {
+					const updatedToken = {
 						...token,
 						sidepanel: token.sidepanel ?? true,
-						balance: balance !== undefined ? balance : token.balance,
-						value: 0 // Reset value after updating balance
+						balance: balance !== undefined ? balance : token.balance
+					};
+					// Compute the value based on balance and price
+					const { value } = computeTokenValue(updatedToken);
+					return {
+						...updatedToken,
+						value
 					};
 				} catch (balanceError) {
 					log.error(`Error fetching balance for token ${token.symbol}:`, false, balanceError);
@@ -148,11 +153,16 @@ export async function updateTokenDataCustomBalances(
 			customTokens.map(async (token) => {
 				try {
 					const balance = await getTokenBalance(token, userAddress, provider);
-					return {
+					const updatedToken = {
 						...token,
 						sidepanel: token.sidepanel ?? true,
-						balance: balance !== undefined ? balance : token.balance,
-						value: 0 // Reset value after updating balance
+						balance: balance !== undefined ? balance : token.balance
+					};
+					// Compute the value based on balance and price
+					const { value } = computeTokenValue(updatedToken);
+					return {
+						...updatedToken,
+						value
 					};
 				} catch (balanceError) {
 					log.error(

@@ -1,14 +1,14 @@
-import type { AbstractBlockchain } from '$managers/Blockchain';
+import type { AbstractBlockchain } from '../../Blockchain';
 import {
 	type BaseTransaction,
 	type BigNumberish,
 	type TokenData,
 	type TransactionResponse
 } from '$lib/common';
-import { AbstractContract } from '$managers/Contract';
-import { ABIs } from '$lib/managers/contracts/evm/constants-evm'; // Only ERC20 ABI is used
+import { AbstractContract } from '../../Contract';
+import { ABIs } from '../../contracts/evm/constants-evm'; // Only ERC20 ABI is used
 import { updateTokenBalances } from '$lib/common/tokens';
-import { log } from '$lib/managers/Logger';
+import { log } from '../../Logger';
 
 export class TokenService<T extends BaseTransaction> {
 	private blockchain: AbstractBlockchain<T> | null = null;
