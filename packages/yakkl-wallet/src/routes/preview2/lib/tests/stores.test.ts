@@ -153,7 +153,7 @@ describe('Plan Store', () => {
     await planStore.loadPlan();
     
     const plan = get(planStore);
-    expect(plan.plan.type).toBe(PlanType.BASIC);
+    expect(plan.plan.type).toBe(PlanType.Basic);
     expect(plan.plan.features).toContain('view_balance');
     expect(plan.loading).toBe(false);
   });
@@ -172,10 +172,10 @@ describe('Plan Store', () => {
 
   it('should upgrade plan correctly', async () => {
     await planStore.loadPlan();
-    await planStore.upgradePlan(PlanType.PRO);
+    await planStore.upgradeTo(PlanType.Pro);
     
     const plan = get(planStore);
-    expect(plan.plan.type).toBe(PlanType.PRO);
+    expect(plan.plan.type).toBe(PlanType.Pro);
     
     // Pro features should now be available
     expect(canUseFeature('swap_tokens')).toBe(true);

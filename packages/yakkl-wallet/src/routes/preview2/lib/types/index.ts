@@ -58,9 +58,10 @@ export interface Preview2Transaction {
 }
 
 export enum PlanType {
-  BASIC = 'basic',
-  PRO = 'pro',
-  ENTERPRISE = 'enterprise'
+  Basic = 'basic_member',
+  Pro = 'yakkl_pro',
+  Enterprise = 'enterprise',
+  Private = 'yakkl_private'
 }
 
 export interface UserPlan {

@@ -7,8 +7,8 @@
   import { log } from '$lib/common/logger-wrapper';
   import type { Profile, Settings } from '$lib/common/interfaces';
   import { getNormalizedSettings, PATH_WELCOME, PlanType } from '$lib/common';
+  import { setLocks } from '$lib/common/locks';
   import Welcome from '$lib/components/Welcome.svelte';
-  import Copyright from '../lib/components/Copyright.svelte';
   import ErrorNoAction from '$lib/components/ErrorNoAction.svelte';
   import { onMount } from 'svelte';
   import { protectedContexts } from '$lib/common/globals';
@@ -18,6 +18,16 @@
   let errorValue = $state('');
   let planType = $state(PlanType.BASIC_MEMBER);
   let yakklSettings: Settings | null = $state(null);
+
+  // Format plan type for display (remove underscores and capitalize)
+  function formatPlanType(plan: string): string {
+    if (!plan) return '';
+    return plan
+      .replace(/_/g, ' ')
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  }
 
   onMount(async () => {
     yakklSettings = await getNormalizedSettings();
@@ -33,13 +43,12 @@
 
       // Full wallet initialization
       setIconUnlock();
-      syncStorageToStore();
+      
+      // KEY: Sync all storage to stores - this loads all persistent data
+      await syncStorageToStore();
 
-      // Explicitly unlock the wallet in settings
-      if (yakklSettings) {
-        yakklSettings.isLocked = false;
-        await setSettingsStorage(yakklSettings);
-      }
+      // Unlock the wallet using setLocks function - this updates both storage and stores
+      await setLocks(false, yakklSettings?.plan.type || PlanType.BASIC_MEMBER);
 
       // Start activity tracking
       const contextType = 'popup-wallet';
@@ -48,8 +57,13 @@
         startActivityTracking(contextType);
       }
 
-      // Small delay to ensure settings are saved before redirect
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Small delay to ensure all stores are synchronized before redirect
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      log.info('Preview2: All stores synchronized after login');
+      
+      // Mark session as authenticated for preview2
+      sessionStorage.setItem('preview2-authenticated', 'true');
       
       // Navigate to preview2 dashboard
       safeNavigate('/preview2', 0, { replaceState: true, invalidateAll: true });
@@ -80,8 +94,9 @@
 
 <ErrorNoAction bind:show={showError} title="ERROR!" value={errorValue} {onClose} />
 
-<div class="max-w-md w-full mx-4">
-    <div class="yakkl-card text-center p-8">
+<div class="min-h-screen flex items-center justify-center px-4">
+  <div class="max-w-sm w-full">
+    <div class="yakkl-card text-center p-6">
       <!-- Logo -->
       <div class="mb-6">
         <img src="/images/logoBullFav128x128.png" alt="YAKKL" class="w-20 h-20 mx-auto" />
@@ -103,31 +118,28 @@
       <!-- Plan Info -->
       <div class="mt-8 p-4 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900 dark:to-purple-900 rounded-xl">
         {#if planType.toLowerCase() === PlanType.YAKKL_PRO.toLowerCase()}
-          <h3 class="font-semibold text-indigo-900 dark:text-indigo-100">PRO Member</h3>
+          <h3 class="font-semibold text-indigo-900 dark:text-indigo-100">{formatPlanType(PlanType.YAKKL_PRO)}</h3>
           <p class="text-sm text-indigo-700 dark:text-indigo-200 mt-1">
             Access to all premium features and advanced tools
           </p>
         {:else if planType.toLowerCase() === PlanType.FOUNDING_MEMBER.toLowerCase()}
-          <h3 class="font-semibold text-purple-900 dark:text-purple-100">Founding Member</h3>
+          <h3 class="font-semibold text-purple-900 dark:text-purple-100">{formatPlanType(PlanType.FOUNDING_MEMBER)}</h3>
           <p class="text-sm text-purple-700 dark:text-purple-200 mt-1">
             Exclusive access to all features and early releases
           </p>
         {:else if planType.toLowerCase() === PlanType.EARLY_ADOPTER.toLowerCase()}
-          <h3 class="font-semibold text-blue-900 dark:text-blue-100">Early Adopter</h3>
+          <h3 class="font-semibold text-blue-900 dark:text-blue-100">{formatPlanType(PlanType.EARLY_ADOPTER)}</h3>
           <p class="text-sm text-blue-700 dark:text-blue-200 mt-1">
             Enhanced features and priority support
           </p>
         {:else}
-          <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">Basic Member</h3>
+          <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">{formatPlanType(planType)}</h3>
           <p class="text-sm text-zinc-700 dark:text-zinc-300 mt-1">
             Core wallet features with option to upgrade
           </p>
         {/if}
       </div>
 
-      <!-- Footer -->
-      <div class="mt-6">
-        <Copyright {planType} />
-      </div>
     </div>
+  </div>
 </div>

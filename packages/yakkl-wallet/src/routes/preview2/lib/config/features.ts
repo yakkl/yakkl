@@ -1,9 +1,6 @@
 // Feature flags for Basic vs Pro tier separation
-export enum PlanType {
-  BASIC = 'basic',
-  PRO = 'pro',
-  ENTERPRISE = 'enterprise'
-}
+import { PlanType } from '../types';
+export { PlanType };
 
 // Define feature arrays first to avoid circular reference
 const BASIC_FEATURES = [
@@ -49,6 +46,15 @@ const ENTERPRISE_FEATURES = [
   'custom_features'
 ] as const;
 
+const PRIVATE_FEATURES = [
+  ...ENTERPRISE_FEATURES,
+  'private_key_backup',
+  'secure_recovery',
+  'air_gapped_signing',
+  'hardware_integration',
+  'zero_knowledge_proofs'
+] as const;
+
 const PAYMENT_FEATURES = [
   'buy_crypto_card',
   'buy_crypto_bank',
@@ -57,21 +63,37 @@ const PAYMENT_FEATURES = [
 ] as const;
 
 export const FEATURES = {
-  BASIC: BASIC_FEATURES,
-  PRO: PRO_FEATURES,
-  ENTERPRISE: ENTERPRISE_FEATURES,
+  [PlanType.Basic]: BASIC_FEATURES,
+  [PlanType.Pro]: PRO_FEATURES,
+  [PlanType.Enterprise]: ENTERPRISE_FEATURES,
+  [PlanType.Private]: PRIVATE_FEATURES,
   PAYMENT: PAYMENT_FEATURES
 } as const;
 
+// Export plan features for compatibility
+export const PLAN_FEATURES = {
+  BASIC: BASIC_FEATURES,
+  PRO: PRO_FEATURES,
+  ENTERPRISE: ENTERPRISE_FEATURES,
+  PRIVATE: PRIVATE_FEATURES
+} as const;
+
+// Type for feature keys
+export type FeatureKey = 
+  | typeof BASIC_FEATURES[number]
+  | typeof PRO_FEATURES[number] 
+  | typeof ENTERPRISE_FEATURES[number]
+  | typeof PRIVATE_FEATURES[number];
+
 // Helper function to check if a feature is available
 export function hasFeature(userPlan: PlanType, feature: string): boolean {
-  const planFeatures = FEATURES[userPlan.toUpperCase() as keyof typeof FEATURES];
+  const planFeatures = FEATURES[userPlan as keyof typeof FEATURES];
   return (planFeatures as any)?.includes(feature) ?? false;
 }
 
 // Get all features for a plan
 export function getFeaturesForPlan(plan: PlanType): readonly string[] {
-  return FEATURES[plan.toUpperCase() as keyof typeof FEATURES] ?? FEATURES.BASIC;
+  return FEATURES[plan as keyof typeof FEATURES] ?? FEATURES[PlanType.Basic];
 }
 
 // Check if user is on trial

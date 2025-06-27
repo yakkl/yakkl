@@ -1,7 +1,7 @@
 // IMPORTANT NOTE: Edit 'constants.mustache' since it is the template for 'constants.ts'
 
 // Global shared constants. Network specifics are in the network/<whatever>/contants.js file
-export const VERSION = "1.5.6";
+export const VERSION = "2.0.0";
 
 export const YEAR = "2025"; // Instead of computing year since user can change date on system - use a constant
 

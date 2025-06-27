@@ -264,8 +264,8 @@ export class Preview2Migration {
 
       // Set up plan
       await planStore.loadPlan();
-      if (convertedData.settings.plan.type !== PlanType.BASIC) {
-        await planStore.upgradePlan(convertedData.settings.plan.type);
+      if (convertedData.settings.plan.type !== PlanType.Basic) {
+        await planStore.upgradeTo(convertedData.settings.plan.type);
       }
 
       // Set up UI preferences
