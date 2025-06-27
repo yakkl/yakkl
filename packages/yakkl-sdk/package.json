@@ -1,0 +1,67 @@
+{
+  "name": "@yakkl/sdk",
+  "version": "0.1.0",
+  "description": "YAKKL SDK - Integration tools for developers",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build && tsc --emitDeclarationOnly",
+    "test": "vitest",
+    "lint": "eslint src",
+    "format": "prettier --write src"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    },
+    "./embedded": {
+      "import": "./dist/embedded/index.js",
+      "types": "./dist/embedded/index.d.ts"
+    },
+    "./mod": {
+      "import": "./dist/mod/index.js",
+      "types": "./dist/mod/index.d.ts"
+    },
+    "./white-label": {
+      "import": "./dist/white-label/index.js",
+      "types": "./dist/white-label/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@yakkl/core": "workspace:*",
+    "ethers": "^6.8.0",
+    "eventemitter3": "^5.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "vite": "^5.0.0",
+    "vitest": "^1.0.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "templates"
+  ],
+  "keywords": [
+    "wallet",
+    "crypto",
+    "blockchain",
+    "sdk",
+    "embedded",
+    "mod",
+    "white-label",
+    "integration"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yakkl/yakkl.git",
+    "directory": "packages/yakkl-sdk"
+  }
+}
