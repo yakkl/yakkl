@@ -1,32 +1,61 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { getSettings, setSettings } from '$lib/common/stores';
-	import { AccessSourceType } from '$lib/common/types';
+	import { planStore, isOnTrial } from '$lib/stores/plan.store';
+	import { get } from 'svelte/store';
 	import { openModal } from '$lib/common/stores/modal';
 	import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 	import { CountdownTimer } from '$lib/managers/CountdownTimer';
 
-	let remaining = '';
-	let visible = true;
-	let pinned = false;
+	let remaining = $state('');
+	let visible = $state(false);
+	let pinned = $state(false);
 	let countdownTimer: CountdownTimer | null = null;
 	let hideTimeoutId = 'trial-hide-timeout';
 	const timerManager = UnifiedTimerManager.getInstance();
+	
+	// Reactive trial status
+	let onTrial = $derived($isOnTrial);
+	let trialEndsAt = $derived($planStore.plan.trialEndsAt);
+
+	onMount(async () => {
+		// Ensure plan store is loaded
+		await planStore.loadPlan();
+		console.log('[TrialCountdown] Plan loaded:', {
+			planType: get(planStore).plan.type,
+			trialEndsAt: get(planStore).plan.trialEndsAt,
+			isOnTrial: get(isOnTrial)
+		});
+	});
+
+	$effect(() => {
+		// Update visibility when trial status changes
+		console.log('[TrialCountdown] Effect triggered:', {
+			onTrial,
+			trialEndsAt,
+			visible
+		});
+		if (onTrial && trialEndsAt) {
+			updateCountdown();
+		} else {
+			visible = false;
+			if (countdownTimer) {
+				countdownTimer.destroy();
+				countdownTimer = null;
+			}
+		}
+	});
 
 	async function updateCountdown() {
-		const settings = await getSettings();
-		if (
-			!settings ||
-			settings.plan.source !== AccessSourceType.TRIAL ||
-			!settings.plan.trialEndDate
-		) {
+		// Double-check trial status
+		if (!onTrial || !trialEndsAt) {
 			visible = false;
 			return;
 		}
 
-		pinned = settings.trialCountdownPinned ?? false;
+		// Get pinned state from localStorage for now
+		pinned = localStorage.getItem('yakkl:trial-countdown-pinned') === 'true';
 
-		const end = new Date(settings.plan.trialEndDate).getTime();
+		const end = new Date(trialEndsAt).getTime();
 		const now = Date.now();
 		const durationMs = end - now;
 
@@ -34,6 +63,9 @@
 			visible = false;
 			return;
 		}
+
+		// Set visible to true when we have a valid trial
+		visible = true;
 
 		// Create countdown timer
 		countdownTimer = new CountdownTimer(
@@ -71,10 +103,8 @@
 
 	async function togglePin() {
 		pinned = !pinned;
-		const store = await getSettings();
-		const updated = { ...store, trialCountdownPinned: pinned };
-		// Persist back
-		setSettings(updated);
+		// Save pinned state to localStorage
+		localStorage.setItem('yakkl:trial-countdown-pinned', pinned.toString());
 
 		if (!pinned) {
 			timerManager.addTimeout(
@@ -92,10 +122,6 @@
 			timerManager.removeTimeout(hideTimeoutId);
 		}
 	}
-
-	onMount(async () => {
-		await updateCountdown();
-	});
 
 	onDestroy(() => {
 		if (countdownTimer) {
@@ -117,13 +143,13 @@
 		</div>
 		<div class="flex items-center space-x-3">
 			<button
-				on:click={handleUpgrade}
+				onclick={handleUpgrade}
 				class="text-xs font-semibold underline hover:text-yellow-700 dark:hover:text-yellow-300"
 			>
 				Upgrade
 			</button>
 			<button
-				on:click={togglePin}
+				onclick={togglePin}
 				title="Pin or unpin this banner"
 				class="text-xs opacity-60 hover:opacity-100"
 			>

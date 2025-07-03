@@ -2,9 +2,9 @@
 <script lang="ts">
 	import { createForm } from 'svelte-forms-lib';
 	import * as yup from 'yup';
-	import Modal from './Modal.svelte';
-	import Avatar from './Avatar.svelte';
-	import ErrorNoAction from './ErrorNoAction.svelte';
+	import Modal from './v1/Modal.svelte';
+	import Avatar from './v1/Avatar.svelte';
+	import ErrorNoAction from './v1/ErrorNoAction.svelte';
 	import { getProfile, setProfileStorage, yakklMiscStore } from '$lib/common/stores';
 	import { log } from '$lib/common/logger-wrapper';
 	import type { Profile, ProfileData } from '$lib/common/interfaces';
@@ -72,6 +72,18 @@
 			.url('Must be a valid URL')
 			.optional()
 			.nullable()
+			.transform((value) => (value === '' ? null : value)),
+		phone: yup
+			.string()
+			.matches(/^[\d\s\-\(\)\+]+$/, 'Invalid phone number format')
+			.optional()
+			.nullable()
+			.transform((value) => (value === '' ? null : value)),
+		twitter: yup
+			.string()
+			.matches(/^@?[a-zA-Z0-9_]+$/, 'Invalid Twitter handle')
+			.optional()
+			.nullable()
 			.transform((value) => (value === '' ? null : value))
 	});
 
@@ -84,7 +96,9 @@
 			email: '',
 			bio: '',
 			website: '',
-			avatarUrl: ''
+			avatarUrl: '',
+			phone: '',
+			twitter: ''
 		},
 		validationSchema,
 		onSubmit: async (values) => {

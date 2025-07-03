@@ -1,5 +1,6 @@
-import { browser_ext } from '$lib/common/environment';
-import { log } from '$lib/managers/Logger';
+import { getBrowserExt } from '$lib/common/environment';
+import { log } from '$lib/common/logger-wrapper';
+import { checkExtensionConnection, ConnectionState } from '$lib/common/extensionConnection';
 
 // Example:
 // const res = await safeClientSendMessage<StoreHashResponse>({
@@ -7,41 +8,104 @@ import { log } from '$lib/managers/Logger';
 //   payload: encryptedHash
 // });
 
-export async function safeClientSendMessage<T = any>(message: any, timeoutMs = 3000): Promise<T> {
-	return new Promise<T>((resolve, reject) => {
-		let isSettled = false;
+export async function safeClientSendMessage<T = any>(
+	message: any, 
+	timeoutMs = 3000, 
+	retries = 3,
+	retryDelay = 100
+): Promise<T> {
+	let lastError: any;
 
-		log.info('safeClientSendMessage', false, { message });
+	// Check connection state before attempting to send
+	const connectionState = await checkExtensionConnection();
+	
+	if (connectionState === ConnectionState.INVALID_CONTEXT) {
+		log.debug('Extension context is invalid, skipping message send', false, { message });
+		return null as any;
+	}
+	
+	if (connectionState === ConnectionState.DISCONNECTED) {
+		log.debug('Extension is disconnected, will attempt with retries', false, { message });
+	}
 
-		const timeout = setTimeout(() => {
-			if (!isSettled) {
-				isSettled = true;
-				reject(new Error(`safeClientSendMessage timed out after ${timeoutMs} ms`));
-			}
-		}, timeoutMs);
-
+	for (let attempt = 0; attempt < retries; attempt++) {
 		try {
-			browser_ext.runtime
-				.sendMessage(message)
-				.then((response) => {
+			return await new Promise<T>((resolve, reject) => {
+				let isSettled = false;
+
+				if (attempt === 0) {
+					log.info('safeClientSendMessage', false, { message });
+				} else {
+					log.info(`safeClientSendMessage retry ${attempt + 1}/${retries}`, false, { message });
+				}
+
+				const timeout = setTimeout(() => {
 					if (!isSettled) {
-						clearTimeout(timeout);
 						isSettled = true;
-						resolve(response as T);
+						reject(new Error(`safeClientSendMessage timed out after ${timeoutMs} ms`));
 					}
-				})
-				.catch((err) => {
+				}, timeoutMs);
+
+				try {
+					const browserExt = getBrowserExt();
+					if (!browserExt) {
+						throw new Error('Browser extension API not available');
+					}
+					
+					browserExt.runtime
+						.sendMessage(message)
+						.then((response) => {
+							if (!isSettled) {
+								clearTimeout(timeout);
+								isSettled = true;
+								resolve(response as T);
+							}
+						})
+						.catch((err) => {
+							if (!isSettled) {
+								clearTimeout(timeout);
+								isSettled = true;
+								reject(err);
+							}
+						});
+				} catch (err) {
 					if (!isSettled) {
 						clearTimeout(timeout);
-						isSettled = true;
 						reject(err);
 					}
-				});
-		} catch (err) {
-			if (!isSettled) {
-				clearTimeout(timeout);
-				reject(err);
+				}
+			});
+		} catch (err: any) {
+			lastError = err;
+			
+			// Check if it's a connection error
+			if (err?.message?.includes('Could not establish connection') || 
+				err?.message?.includes('Receiving end does not exist') ||
+				err?.message?.includes('Extension context invalidated')) {
+				// Log as debug instead of error for expected connection issues
+				log.debug('Connection error encountered', false, { error: err?.message, attempt: attempt + 1 });
+				
+				// If this isn't the last attempt, wait before retrying
+				if (attempt < retries - 1) {
+					await new Promise(resolve => 
+						setTimeout(resolve, retryDelay * Math.pow(2, attempt)) // Exponential backoff
+					);
+					continue;
+				}
 			}
+			
+			// For other errors, don't retry
+			throw err;
 		}
-	});
+	}
+
+	// If we've exhausted all retries, log and return null for connection errors
+	if (lastError?.message?.includes('Could not establish connection') || 
+		lastError?.message?.includes('Receiving end does not exist')) {
+		log.debug('Message send failed after all retries due to connection error', false, { message, error: lastError?.message });
+		return null as any;
+	}
+	
+	// For other errors, throw the last error
+	throw lastError;
 }

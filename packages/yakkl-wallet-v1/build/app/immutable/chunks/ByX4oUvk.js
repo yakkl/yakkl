@@ -1,0 +1,2 @@
+import{w as writable}from"./B2gA1VsD.js";let warningTimeSecondsExt=30;const securityWarningStore=writable({show:false,warningTime:warningTimeSecondsExt,onComplete:void 0});function showSecurityWarning(warningTimeSeconds,onComplete){securityWarningStore.set({show:true,warningTime:warningTimeSecondsExt=warningTimeSeconds,onComplete:onComplete})}function hideSecurityWarning(){securityWarningStore.set({show:false,warningTime:warningTimeSecondsExt,onComplete:void 0})}export{hideSecurityWarning,securityWarningStore,showSecurityWarning};
+//# sourceMappingURL=ByX4oUvk.js.map

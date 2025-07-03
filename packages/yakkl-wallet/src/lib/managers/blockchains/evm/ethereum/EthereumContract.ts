@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { AbstractContract } from '$managers/Contract';
+import { AbstractContract } from '../../../Contract';
 import { type BigNumberish, type TransactionRequest, type TransactionResponse } from '$lib/common';
-import type { Provider } from '$managers/Provider';
+import type { Provider } from '../../../Provider';
 // import type { Signer } from '$plugins/Signer';
 import { ethers as ethersv6 } from 'ethers-v6';
-import { EthersConverter } from '$managers/utilities/EthersConverter';
+import { EthersConverter } from '../../../utilities/EthersConverter';
 import type { FunctionFragment, EventFragment } from 'ethers-v6';
-import { log } from '$lib/managers/Logger';
+import { log } from '../../../Logger';
 
 export class EthereumContract extends AbstractContract {
 	private contract: ethersv6.Contract;

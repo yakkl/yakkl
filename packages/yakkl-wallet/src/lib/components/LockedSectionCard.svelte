@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { fade, scale } from 'svelte/transition';
 	import SectionCard from './SectionCard.svelte';
 	import LockIcon from './icons/LockIcon.svelte';
 	import Tooltip from './Tooltip.svelte';
@@ -62,45 +63,48 @@
 		{lockedFooterProps}
 		{locked}
 	>
-		<div class="relative">
-			<!-- The actual content -->
-			<div
-				class={cn(
-					'transition-all duration-300',
-					locked && 'blur-sm select-none pointer-events-none'
-				)}
-			>
-				{@render children()}
-			</div>
-
-			{#if locked}
-				<!-- Overlay with lock icon, message, and optional button -->
+		{#if locked}
+			<!-- Show lock overlay instead of content when locked -->
+			<div class="flex items-center justify-center py-8">
 				<div
-					class="absolute inset-0 flex flex-col items-center bg-white/80 dark:bg-zinc-900/70 text-center py-4 rounded-xl z-10"
+					class="bg-gradient-to-br from-white/95 to-zinc-50/95 dark:from-zinc-900/95 dark:to-zinc-800/95 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-zinc-200 dark:border-zinc-700 max-w-sm transform transition-all duration-300 hover:scale-105"
+					transition:scale={{ duration: 300, start: 0.9 }}
 				>
-					<div
-						class="sticky top-0 w-full flex flex-col items-center bg-white/80 dark:bg-zinc-900/70 backdrop-blur-sm py-1"
-					>
-						<LockIcon className="w-6 h-6 text-zinc-500 mb-2" />
-						<div class="text-zinc-800 dark:text-zinc-200 text-sm mb-2">
+					<div class="flex flex-col items-center text-center">
+						<div class="p-3 rounded-full bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900 dark:to-orange-900 mb-4">
+							<LockIcon className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+						</div>
+						<h3 class="text-lg font-bold text-zinc-900 dark:text-white mb-2">Pro Feature</h3>
+						<div class="text-zinc-600 dark:text-zinc-400 text-sm mb-4">
 							{typeof lockMessage === 'function' ? lockMessage() : lockMessage}
 						</div>
 						{#if showButton}
 							<button
-								class="mt-1 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 transition"
+								class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-sm font-semibold shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
 								onclick={() => onComplete()}
 							>
-								Upgrade Now
+								<span class="flex items-center gap-2">
+									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+									</svg>
+									Upgrade to Pro
+								</span>
 							</button>
 						{/if}
-						<Tooltip content="Available with YAKKL Pro">
-							<span class="text-xs text-zinc-500 mt-2 cursor-help underline"
-								>Why is this locked?</span
-							>
+						<Tooltip content="Unlock advanced features with YAKKL Pro">
+							<button class="text-xs text-indigo-600 dark:text-indigo-400 mt-3 hover:underline flex items-center gap-1">
+								<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+								</svg>
+								Learn more about Pro features
+							</button>
 						</Tooltip>
 					</div>
 				</div>
-			{/if}
-		</div>
+			</div>
+		{:else}
+			<!-- Show actual content when unlocked -->
+			{@render children()}
+		{/if}
 	</SectionCard>
 {/if}

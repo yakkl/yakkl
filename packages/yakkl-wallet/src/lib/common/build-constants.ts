@@ -7,4 +7,4 @@ export const BUILD_CONFIG = {
   buildTime: new Date().toISOString()
 };
 
-export const INITIAL_ROUTE = '/preview2';
+export const INITIAL_ROUTE = '/';

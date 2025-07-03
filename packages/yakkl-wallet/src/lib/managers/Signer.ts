@@ -6,7 +6,7 @@ import type {
 	TypedDataDomain,
 	TypedDataField
 } from '$lib/common';
-import type { Provider } from '$managers/Provider';
+import type { Provider } from './Provider';
 
 export interface SignerInterface {
 	provider: Provider | null;

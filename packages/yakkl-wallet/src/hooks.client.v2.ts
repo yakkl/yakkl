@@ -49,7 +49,7 @@ if (isClient && BUILD_CONFIG.isDevelopment) {
 		'ERROR_TRACE',
 		'TRACE'
 	]);
-	console.log(`[Preview2][${CONTEXT_ID}] Logger set to DEBUG mode`);
+	console.log(`[V2][${CONTEXT_ID}] Logger set to DEBUG mode`);
 } else {
 	log.setLevel('ERROR', 'CONTAINS', ['ERROR', 'ERROR_TRACE']);
 }
@@ -120,16 +120,6 @@ export function getContextType(): string {
 	const pathname = window.location.pathname;
 	const href = window.location.href;
 
-	// Preview 2.0 specific context detection
-	if (pathname.includes('preview2')) {
-		if (pathname.includes('sidepanel')) {
-			setContextTypeStore('preview2-sidepanel');
-			return 'preview2-sidepanel';
-		} else {
-			setContextTypeStore('preview2-popup');
-			return 'preview2-popup';
-		}
-	}
 
 	if (pathname.includes('sidepanel') || href.includes('sidepanel')) {
 		setContextTypeStore('sidepanel');
@@ -166,12 +156,12 @@ export async function init() {
 			return;
 		}
 
-		console.log(`[Preview2][${CONTEXT_ID}] Initializing v${BUILD_CONFIG.version}...`);
+		console.log(`[V2][${CONTEXT_ID}] Initializing v${BUILD_CONFIG.version}...`);
 
 		try {
 			await getSettings();
 		} catch (error) {
-			console.info(`[Preview2][${CONTEXT_ID}] Failed to get settings in hooks - passing on:`, error);
+			console.info(`[V2][${CONTEXT_ID}] Failed to get settings in hooks - passing on:`, error);
 		}
 
 		// First get the browser API
@@ -195,15 +185,15 @@ export async function init() {
 		// Mark as initialized
 		window.EXTENSION_INIT_STATE.initialized = true;
 		
-		console.log(`[Preview2][${CONTEXT_ID}] Initialization complete`);
+		console.log(`[V2][${CONTEXT_ID}] Initialization complete`);
 	} catch (error: any) {
-		console.warn(`[Preview2][${CONTEXT_ID}] Initialization error:`, error);
+		console.warn(`[V2][${CONTEXT_ID}] Initialization error:`, error);
 		handleError(error);
 	}
 }
 
 export function handleError(error: Error) {
-	console.warn(`[Preview2][${CONTEXT_ID}] Error:`, error);
+	console.warn(`[V2][${CONTEXT_ID}] Error:`, error);
 	errorHandler.handleError(error);
 }
 
@@ -220,7 +210,7 @@ async function setupUIListeners() {
 			try {
 				removeUIListeners();
 			} catch (error) {
-				console.warn(`[Preview2][${CONTEXT_ID}] Cleanup error:`, error);
+				console.warn(`[V2][${CONTEXT_ID}] Cleanup error:`, error);
 			}
 		};
 
@@ -236,13 +226,13 @@ async function setupUIListeners() {
 				console.warn('Skipping unload in fenced frame context');
 				return;
 			} else {
-				console.warn(`[Preview2][${CONTEXT_ID}] Failed to add unload handler:`, e);
+				console.warn(`[V2][${CONTEXT_ID}] Failed to add unload handler:`, e);
 			}
 		}
 
 		return cleanup;
 	} catch (error) {
-		console.warn(`[Preview2][${CONTEXT_ID}] Setup UI listeners error:`, error);
+		console.warn(`[V2][${CONTEXT_ID}] Setup UI listeners error:`, error);
 	}
 }
 
@@ -251,7 +241,7 @@ if (isClient) {
 	// Give a slight delay to ensure all globals are available
 	setTimeout(() => {
 		init().catch((err) => {
-			console.warn(`[Preview2][${CONTEXT_ID}] Failed to initialize:`, err);
+			console.warn(`[V2][${CONTEXT_ID}] Failed to initialize:`, err);
 		});
 	}, 50);
 }
@@ -269,9 +259,9 @@ if (isClient && getBrowserExt()) {
 				contextType: contextType,
 				timestamp: Date.now(),
 				version: BUILD_CONFIG.version,
-				isPreview: true
+				isV2: true
 			})
-			.catch((err) => console.warn(`[Preview2][${CONTEXT_ID}] Failed to register context:`, err));
+			.catch((err) => console.warn(`[V2][${CONTEXT_ID}] Failed to register context:`, err));
 
 		// Only set up idle status listener for protected contexts
 		if (contextNeedsIdleProtection(contextType)) {
@@ -314,7 +304,7 @@ if (isClient && getBrowserExt()) {
 				.catch((err) => console.warn('Failed to send context closing message', err));
 		});
 	} catch (err) {
-		console.warn(`[Preview2][${CONTEXT_ID}] Error registering context:`, err);
+		console.warn(`[V2][${CONTEXT_ID}] Error registering context:`, err);
 	}
 }
 

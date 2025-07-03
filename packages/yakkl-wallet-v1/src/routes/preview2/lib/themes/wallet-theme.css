@@ -1,0 +1,159 @@
+/* YAKKL New Wallet Theme System */
+
+/* CSS Variables for Theme Support */
+:root {
+  /* Light Mode Colors */
+  --color-primary: 139 92 246; /* purple-500 */
+  --color-primary-dark: 124 58 237; /* purple-600 */
+  --color-primary-light: 196 181 253; /* purple-300 */
+  --color-primary-gradient-from: 139 92 246; /* purple-500 */
+  --color-primary-gradient-to: 168 85 247; /* fuchsia-500 */
+  
+  --color-success: 34 197 94; /* green-500 */
+  --color-success-dark: 22 163 74; /* green-600 */
+  --color-success-light: 134 239 172; /* green-300 */
+  
+  --color-warning: 245 158 11; /* amber-500 */
+  --color-warning-dark: 217 119 6; /* amber-600 */
+  --color-warning-light: 252 211 77; /* amber-300 */
+  
+  --color-danger: 239 68 68; /* red-500 */
+  --color-danger-dark: 220 38 38; /* red-600 */
+  --color-danger-light: 252 165 165; /* red-300 */
+  
+  /* Neutral Colors - Light Mode */
+  --color-background: 255 255 255; /* white */
+  --color-surface: 249 250 251; /* gray-50 */
+  --color-surface-elevated: 255 255 255; /* white */
+  --color-border: 229 231 235; /* gray-200 */
+  --color-border-light: 243 244 246; /* gray-100 */
+  
+  --color-text-primary: 17 24 39; /* gray-900 */
+  --color-text-secondary: 75 85 99; /* gray-600 */
+  --color-text-muted: 156 163 175; /* gray-400 */
+  --color-text-inverse: 255 255 255; /* white */
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+/* Dark Mode Colors */
+[data-theme="dark"] {
+  --color-background: 17 24 39; /* gray-900 */
+  --color-surface: 31 41 55; /* gray-800 */
+  --color-surface-elevated: 55 65 81; /* gray-700 */
+  --color-border: 75 85 99; /* gray-600 */
+  --color-border-light: 55 65 81; /* gray-700 */
+  
+  --color-text-primary: 249 250 251; /* gray-50 */
+  --color-text-secondary: 209 213 219; /* gray-300 */
+  --color-text-muted: 156 163 175; /* gray-400 */
+  --color-text-inverse: 17 24 39; /* gray-900 */
+  
+  /* Adjust shadows for dark mode */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.3), 0 8px 10px -6px rgb(0 0 0 / 0.3);
+}
+
+/* System Theme Detection */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --color-background: 17 24 39;
+    --color-surface: 31 41 55;
+    --color-surface-elevated: 55 65 81;
+    --color-border: 75 85 99;
+    --color-border-light: 55 65 81;
+    
+    --color-text-primary: 249 250 251;
+    --color-text-secondary: 209 213 219;
+    --color-text-muted: 156 163 175;
+    --color-text-inverse: 17 24 39;
+    
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.3), 0 8px 10px -6px rgb(0 0 0 / 0.3);
+  }
+}
+
+/* Base styles for new wallet */
+.new-wallet {
+  background-color: rgb(var(--color-background));
+  color: rgb(var(--color-text-primary));
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Custom Tailwind Utilities */
+.gradient-primary {
+  background: linear-gradient(135deg, rgb(var(--color-primary-gradient-from)), rgb(var(--color-primary-gradient-to)));
+}
+
+.text-gradient-primary {
+  background: linear-gradient(135deg, rgb(var(--color-primary-gradient-from)), rgb(var(--color-primary-gradient-to)));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Animation utilities */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from { 
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to { 
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Custom scrollbar for dark mode */
+.new-wallet ::-webkit-scrollbar {
+  width: 6px;
+}
+
+.new-wallet ::-webkit-scrollbar-track {
+  background: rgb(var(--color-surface));
+}
+
+.new-wallet ::-webkit-scrollbar-thumb {
+  background: rgb(var(--color-border));
+  border-radius: 3px;
+}
+
+.new-wallet ::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--color-text-muted));
+}

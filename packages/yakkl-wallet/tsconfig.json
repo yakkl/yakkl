@@ -11,7 +11,10 @@
 			"$plugins/*": ["src/lib/plugins/*"],
 			"$components": ["src/lib/components"],
 			"$components/*": ["src/lib/components/*"],
-			"@yakkl/*": ["./packages/*/src"]
+			"$contexts": ["src/contexts"],
+			"$contexts/*": ["src/contexts/*"],
+			"@yakkl/*": ["./packages/*/src"],
+			"lucide-svelte/icons/*": ["node_modules/lucide-svelte/dist/icons/*"]
 		},
 		"verbatimModuleSyntax": true,
 		"allowSyntheticDefaultImports": true,
@@ -42,5 +45,5 @@
 		"src/lib/browser-polyfill.d.ts",
 		"src/**/*.svelte"
 	],
-	"exclude": ["**/node_modules/**", "dist", "src/lib/polyfill-mock.js"]
+	"exclude": ["**/node_modules/**", "dist", "src/lib/polyfill-mock.js", "src/routes/lib.tmp/**", "**/*.tmp"]
 }

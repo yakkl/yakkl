@@ -16,8 +16,8 @@ import {
 	type FeeData,
 	error_log
 } from '$lib/common';
-import eventManager from '$managers/EventManager';
-import { AbstractProvider } from '$managers/Provider';
+import eventManager from '../../../EventManager';
+import { AbstractProvider } from '../../../Provider';
 import {
 	Alchemy as AlchemyAPI,
 	Network as AlchemyNetwork,

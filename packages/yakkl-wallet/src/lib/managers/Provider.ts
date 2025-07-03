@@ -18,7 +18,7 @@ import {
 	type TypedDataDomain,
 	type TypedDataField
 } from '$lib/common';
-import { Signer } from '$managers/Signer';
+import { Signer } from './Signer';
 import eventManager from './EventManager';
 import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
 

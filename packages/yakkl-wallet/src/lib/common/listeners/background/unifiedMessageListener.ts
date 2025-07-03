@@ -8,15 +8,15 @@ import type { Runtime } from 'webextension-polyfill';
 import type { SessionToken } from '$lib/common/interfaces';
 import type { YakklResponse } from '$lib/common/interfaces';
 import { getSafeUUID } from '$lib/common/uuid';
-import { requestManager } from '$lib/extensions/chrome/requestManager';
-import { getSigningManager } from '$lib/extensions/chrome/signingManager';
+import { requestManager } from '$contexts/background/extensions/chrome/requestManager';
+import { getSigningManager } from '$contexts/background/extensions/chrome/signingManager';
 import { getYakklCurrentlySelected } from '$lib/common/stores';
-import { showEIP6963Popup } from '$lib/extensions/chrome/eip-6963';
-import type { BackgroundPendingRequest } from '$lib/extensions/chrome/background';
+import { showEIP6963Popup } from '$contexts/background/extensions/chrome/eip-6963';
+import type { BackgroundPendingRequest } from '$contexts/background/extensions/chrome/background';
 import { decryptData } from '$lib/common/encryption';
 import { isEncryptedData } from '$lib/common/misc';
-import { showPopup } from '$lib/extensions/chrome/ui';
-import { startLockIconTimer, stopLockIconTimer } from '$lib/extensions/chrome/iconTimer';
+import { showPopup } from '$contexts/background/extensions/chrome/ui';
+import { startLockIconTimer, stopLockIconTimer } from '$contexts/background/extensions/chrome/iconTimer';
 import { setIconLock, setIconUnlock } from '$lib/utilities';
 import { isBackgroundContext } from '$lib/common/backgroundSecurity';
 import { sessionPortManager } from '$lib/managers/SessionPortManager';
@@ -24,6 +24,7 @@ import {
 	requestManager as newRequestManager,
 	type ExtendedBackgroundPendingRequest
 } from '$lib/managers/RequestManager';
+import { backgroundJWTManager } from '$lib/utilities/jwt-background';
 
 // Interface for tracking active tabs
 interface ActiveTab {
@@ -45,14 +46,36 @@ export const RUNTIME_MESSAGE = 'RUNTIME_MESSAGE';
 
 // Session management configuration and state
 const SESSION_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
+const JWT_EXPIRATION_MINUTES = 60; // 60 minutes for JWT tokens
 let isClientReady = false; // Flag to check if the client is ready before sending messages
 let sessionToken: SessionToken | null = null;
 let memoryHash: string | null = null;
 const sessionPorts = new Map<string, Runtime.Port>(); // Original session port storage
 const memoryHashes = new Map<string, string>();
+let currentProfileData: { userId?: string; username?: string; profileId?: string } = {};
 
-// Generates a new session token with expiration
-function generateSessionToken(): SessionToken {
+// Generates a new session token with JWT
+async function generateSessionToken(): Promise<SessionToken> {
+	try {
+		// Generate JWT token if we have profile data
+		if (currentProfileData.userId && currentProfileData.username && currentProfileData.profileId) {
+			const jwtToken = await backgroundJWTManager.generateToken(
+				currentProfileData.userId,
+				currentProfileData.username,
+				currentProfileData.profileId,
+				'basic', // Default plan level
+				undefined, // Let it generate session ID
+				JWT_EXPIRATION_MINUTES
+			);
+			
+			const expiresAt = Date.now() + JWT_EXPIRATION_MINUTES * 60 * 1000;
+			return { token: jwtToken, expiresAt };
+		}
+	} catch (error) {
+		log.warn('Failed to generate JWT token, falling back to simple token', false, error);
+	}
+	
+	// Fallback to simple token
 	const token = getSafeUUID();
 	const expiresAt = Date.now() + SESSION_TIMEOUT_MS;
 	return { token, expiresAt };
@@ -119,7 +142,7 @@ function registerSessionPort(port: Runtime.Port, requestId: string) {
 }
 
 // Validates the current session token
-function validateSession(token: string, scope: string): void {
+async function validateSession(token: string, scope: string): Promise<void> {
 	try {
 		if (!sessionToken || Date.now() > sessionToken.expiresAt) {
 			log.warn('Session validation failed', false, {
@@ -130,13 +153,23 @@ function validateSession(token: string, scope: string): void {
 			clearSession('Token expired or missing');
 			throw new Error('Session expired');
 		}
-		if (sessionToken.token !== token) {
+		
+		// Try JWT validation first
+		const isJWT = token.includes('.');
+		if (isJWT) {
+			const isValid = await backgroundJWTManager.validateToken(token);
+			if (!isValid) {
+				log.warn(`JWT validation failed for ${scope}`, false);
+				throw new Error('Invalid JWT token');
+			}
+		} else if (sessionToken.token !== token) {
 			log.warn(`Unauthorized access to ${scope}`, false, {
 				providedToken: token,
 				expectedToken: sessionToken.token
 			});
 			throw new Error('Unauthorized');
 		}
+		
 		if (!memoryHash) {
 			log.warn('Memory hash missing during session validation', false);
 			throw new Error('Memory hash missing');
@@ -158,7 +191,7 @@ export async function decryptDataBackground(payload: any, token: string): Promis
 		throw new Error('Unauthorized context');
 	}
 
-	validateSession(token, 'decryption');
+	await validateSession(token, 'decryption');
 	if (!isEncryptedData(payload)) {
 		log.warn('Invalid encrypted data structure');
 		throw new Error('Decryption failed');
@@ -487,7 +520,13 @@ async function handleSecurityMessage(
 			}
 
 			memoryHash = message.payload;
-			sessionToken = generateSessionToken();
+			
+			// Store profile data if provided with the hash
+			if (message.profileData) {
+				currentProfileData = message.profileData;
+			}
+			
+			sessionToken = await generateSessionToken();
 
 			// Send broadcast after returning response
 			setTimeout(async () => {
@@ -619,7 +658,7 @@ async function handleSigningMessage(
 
 		// Validate session token
 		try {
-			validateSession(token, 'signing');
+			await validateSession(token, 'signing');
 		} catch (error) {
 			log.error('Session validation failed', false, { error });
 			return {
@@ -810,7 +849,7 @@ async function handleStoreSessionHash(payload: any) {
 		}
 
 		memoryHash = payload;
-		sessionToken = generateSessionToken();
+		sessionToken = await generateSessionToken();
 
 		// Broadcast the new session token
 		try {

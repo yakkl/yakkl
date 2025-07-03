@@ -9,10 +9,10 @@ import {
 	type TransactionReceipt,
 	type Log
 } from '$lib/common';
-import { Signer } from '$managers/Signer';
+import { Signer } from '../../../Signer';
 import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
-import type { Provider } from '$lib/managers/Provider';
-import { log } from '$lib/managers/Logger';
+import type { Provider } from '../../../Provider';
+import { log } from '../../../Logger';
 
 /**
  * EthereumSigner class extending the Signer class to provide specific implementations for Ethereum.

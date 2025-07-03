@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // ProviderFactory.ts
-import type { Provider } from '$managers/Provider';
-import { Alchemy } from '$managers/providers/network/alchemy/Alchemy';
+import type { Provider } from './Provider';
+import { Alchemy } from './providers/network/alchemy/Alchemy';
 // Import other providers here
 
 interface ProviderOptions {

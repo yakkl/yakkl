@@ -6,7 +6,7 @@ import type {
 	NotificationOptions,
 	ProgressNotificationOptions
 } from './types';
-import { startLockIconTimer, stopLockIconTimer } from '$lib/extensions/chrome/iconTimer';
+import { startLockIconTimer, stopLockIconTimer } from '$contexts/background/extensions/chrome/iconTimer';
 import { browser_ext } from './environment';
 import { log } from '$lib/common/logger-wrapper';
 import type { Notifications } from 'webextension-polyfill';

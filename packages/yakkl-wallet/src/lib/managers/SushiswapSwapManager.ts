@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 // SushiSwapManager.ts
-import type { AbstractBlockchain } from '$managers/Blockchain';
-import type { Provider } from '$managers/Provider';
+import type { AbstractBlockchain } from './Blockchain';
+import type { Provider } from './Provider';
 import { SwapManager } from './SwapManager';
+import type { BaseTransaction } from '$lib/common/interfaces';
 import type {
-	BaseTransaction,
 	SwapPriceData,
 	TransactionResponse,
 	SwapParams,
@@ -12,11 +12,11 @@ import type {
 	TransactionRequest,
 	SwapToken,
 	TransactionReceipt
-} from '$lib/common/interfaces';
+} from './types';
 import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
 import { YAKKL_FEE_BASIS_POINTS, type BigNumberish } from '$lib/common';
-import type { AbstractContract } from '$managers/Contract';
-import type { Token } from '$managers/Token';
+import type { AbstractContract } from './Contract';
+import type { Token } from './Token';
 import { EVMToken } from './tokens/evm/EVMToken';
 import { ADDRESSES } from './contracts/evm/constants-evm';
 import { ethers as ethersv6 } from 'ethers-v6';

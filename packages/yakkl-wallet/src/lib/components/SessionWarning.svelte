@@ -1,210 +1,246 @@
-<!-- SessionWarning.svelte -->
 <script lang="ts">
-	import Modal from './Modal.svelte';
-	import { log } from '$lib/common/logger-wrapper';
+  import { onMount, onDestroy } from 'svelte';
+  import { sessionManager } from '$lib/managers/SessionManager';
+  import { browser_ext } from '$lib/common/environment';
+  import { log } from '$lib/common/logger-wrapper';
+  import { Button } from '$lib/components/ui/button';
+  import { Clock } from 'lucide-svelte';
+  import { getSettings } from '$lib/common/stores';
+  import type { Settings } from '$lib/common/interfaces';
 
-	interface Props {
-		show: boolean;
-		timeRemaining: number; // in seconds
-		onExtendSession: () => void;
-		onLogoutNow: () => void;
-		autoLogoutEnabled?: boolean;
-	}
+  let showWarning = false;
+  let timeRemaining = 0;
+  let countdown: ReturnType<typeof setInterval> | null = null;
+  let settings: Settings | null = null;
+  let audioContext: AudioContext | null = null;
 
-	let {
-		show = $bindable(false),
-		timeRemaining,
-		onExtendSession,
-		onLogoutNow,
-		autoLogoutEnabled = true
-	}: Props = $props();
+  // Default notification sounds
+  const DEFAULT_SOUNDS = {
+    warning: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmFgU7k9n1unEiBC13yO/eizEIHWq+8+OWT',
+    final: 'data:audio/wav;base64,UklGRl4EAABXQVZFZm10IBAAAAABAAEAiBUAAIgVAAABAAgAZGF0YToEAADJyszKx8C2rJePgnJjVUhDPjo8PkJIT1dfaXN+i5SgrKu5vsXJy8rKysfDvrWupZuTiYF3b2ddVk5HQTw5OTs/RElPV19neXuDlJeprLe8w8fJzMnKyMa8uLKon5'
+  };
 
-	let countdownInterval: ReturnType<typeof setInterval> | null = null;
-	let localTimeRemaining = $state(timeRemaining);
+  function formatTime(seconds: number): string {
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+  }
 
-	// Format time as MM:SS with input validation
-	const formattedTime = $derived(() => {
-		try {
-			// Validate and sanitize input
-			const timeValue = localTimeRemaining || 0;
-			const validTimeRemaining = Math.max(0, Math.floor(timeValue));
-			const minutes = Math.floor(validTimeRemaining / 60);
-			const seconds = validTimeRemaining % 60;
-			return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-		} catch (error) {
-			log.error('Error formatting time:', false, error);
-			return '0:00';
-		}
-	});
+  // Play notification sound
+  async function playSound(type: 'warning' | 'final') {
+    if (!settings?.soundEnabled) return;
 
-	const isUrgent = $derived(localTimeRemaining <= 30); // Last 30 seconds
-	const isCritical = $derived(localTimeRemaining <= 10); // Last 10 seconds
+    try {
+      if (!audioContext) {
+        audioContext = new AudioContext();
+      }
 
-	// Update local countdown
-	$effect(() => {
-		localTimeRemaining = timeRemaining;
-	});
+      const soundData = settings?.sound || DEFAULT_SOUNDS[type];
+      
+      if (soundData.startsWith('beep:')) {
+        // Built-in beep sounds
+        const [, freq, duration] = soundData.split(':');
+        const frequency = parseInt(freq) || 800;
+        const durationSec = parseFloat(duration) || 0.2;
+        
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = frequency;
+        gainNode.gain.value = 0.3;
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + durationSec);
+        
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + durationSec);
+      } else if (soundData.startsWith('data:')) {
+        // Data URI - decode and play
+        const response = await fetch(soundData);
+        const arrayBuffer = await response.arrayBuffer();
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        
+        const source = audioContext.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioContext.destination);
+        source.start();
+      } else if (soundData.startsWith('http') || soundData.startsWith('/')) {
+        // URL or file path - create audio element
+        const audio = new Audio(soundData);
+        audio.volume = 0.5;
+        await audio.play();
+      } else {
+        // Use default sound if format is unknown
+        const defaultData = DEFAULT_SOUNDS[type];
+        const response = await fetch(defaultData);
+        const arrayBuffer = await response.arrayBuffer();
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        
+        const source = audioContext.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioContext.destination);
+        source.start();
+      }
+    } catch (error) {
+      log.error('Failed to play notification sound', false, error);
+    }
+  }
 
-	// Handle countdown and auto-logout
-	$effect(() => {
-		if (show && autoLogoutEnabled) {
-			countdownInterval = setInterval(() => {
-				localTimeRemaining--;
+  // Load settings
+  async function loadSettings() {
+    try {
+      settings = await getSettings();
+    } catch (error) {
+      log.error('Failed to load settings', false, error);
+    }
+  }
 
-				if (localTimeRemaining <= 0) {
-					log.warn('Session expired - auto logout', false);
-					handleLogoutNow();
-				}
-			}, 1000);
+  async function extendSession() {
+    try {
+      await sessionManager.extendSession(30); // Extend by 30 minutes
+      showWarning = false;
+      clearCountdown();
+      log.info('Session extended by user');
 
-			return () => {
-				if (countdownInterval) {
-					clearInterval(countdownInterval);
-					countdownInterval = null;
-				}
-			};
-		}
-	});
+      // Clear any browser notification if shown
+      if (browser_ext?.notifications) {
+        try {
+          await browser_ext.notifications.clear('session-warning');
+        } catch (error) {
+          log.debug('Could not clear notification', false, error);
+        }
+      }
+    } catch (error) {
+      log.error('Failed to extend session', false, error);
+    }
+  }
 
-	// Cleanup on component destruction
-	$effect(() => {
-		return () => {
-			if (countdownInterval) {
-				clearInterval(countdownInterval);
-			}
-		};
-	});
+  function clearCountdown() {
+    if (countdown) {
+      clearInterval(countdown);
+      countdown = null;
+    }
+  }
 
-	function handleExtendSession() {
-		try {
-			onExtendSession();
-			show = false;
-			log.debug('Session extended by user', false);
-		} catch (error) {
-			log.error('Failed to extend session:', false, error);
-		}
-	}
+  async function showBrowserNotification(secondsRemaining: number) {
+    if (!browser_ext?.notifications) return;
 
-	function handleLogoutNow() {
-		try {
-			if (countdownInterval) {
-				clearInterval(countdownInterval);
-				countdownInterval = null;
-			}
-			onLogoutNow();
-			show = false;
-			log.debug('User logged out via session warning', false);
-		} catch (error) {
-			log.error('Failed to logout:', false, error);
-		}
-	}
+    try {
+      await browser_ext.notifications.create('session-warning', {
+        type: 'basic',
+        iconUrl: browser_ext.runtime.getURL('/images/logoBullLock48x48.png'),
+        title: 'YAKKL Session Expiring',
+        message: `Your session will expire in ${formatTime(secondsRemaining)}. Click to extend.`,
+        priority: 2,
+        requireInteraction: true
+      });
 
-	// Keyboard shortcuts
-	function handleKeydown(event: KeyboardEvent) {
-		if (!show) return;
+      // Handle notification click
+      const handleNotificationClick = (notificationId: string) => {
+        if (notificationId === 'session-warning') {
+          extendSession();
+        }
+      };
 
-		if (event.key === 'Enter') {
-			event.preventDefault();
-			event.stopPropagation();
-			handleExtendSession();
-		} else if (event.key === 'Escape') {
-			event.preventDefault();
-			event.stopPropagation();
-			handleLogoutNow();
-		}
-	}
+      // Add listener if not already added
+      if (!browser_ext.notifications.onClicked.hasListener(handleNotificationClick)) {
+        browser_ext.notifications.onClicked.addListener(handleNotificationClick);
+      }
+    } catch (error) {
+      log.error('Failed to show browser notification', false, error);
+    }
+  }
+
+  onMount(() => {
+    // Load settings on mount
+    loadSettings();
+
+    // Set up session warning callback
+    sessionManager.setCallbacks({
+      onWarning: async (seconds) => {
+        timeRemaining = seconds;
+        showWarning = true;
+
+        // Play warning sound
+        await playSound('warning');
+
+        // Show browser notification
+        await showBrowserNotification(seconds);
+
+        // Start countdown
+        clearCountdown();
+        countdown = setInterval(() => {
+          timeRemaining--;
+          
+          // Play final warning sound at 5 seconds
+          if (timeRemaining === 5) {
+            playSound('final');
+          }
+          
+          if (timeRemaining <= 0) {
+            clearCountdown();
+            showWarning = false;
+          }
+        }, 1000);
+      },
+      onExpired: () => {
+        showWarning = false;
+        clearCountdown();
+        // Session expired - user will be redirected to login
+      },
+      onExtended: () => {
+        showWarning = false;
+        clearCountdown();
+      }
+    });
+  });
+
+  onDestroy(() => {
+    clearCountdown();
+    if (audioContext) {
+      audioContext.close();
+    }
+  });
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
-
-<Modal bind:show title="Session Expiring" className="z-[800]" preventClose={false} onClose={handleLogoutNow}>
-	<div class="p-6 text-center space-y-6">
-		<!-- Warning icon and countdown -->
-		<div class="flex flex-col items-center space-y-4">
-			<div class="relative">
-				<svg
-					class="w-16 h-16 {isCritical
-						? 'text-red-500 animate-pulse'
-						: isUrgent
-							? 'text-orange-500 animate-bounce'
-							: 'text-yellow-500'}"
-					fill="none"
-					stroke="currentColor"
-					viewBox="0 0 24 24"
-					aria-hidden="true"
-				>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
-					/>
-				</svg>
-				{#if isCritical}
-					<div class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full animate-ping"></div>
-				{/if}
-			</div>
-
-			<div class="text-center">
-				<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-					Your session is about to expire
-				</h3>
-				<div
-					class="text-3xl font-mono font-bold {isCritical
-						? 'text-red-500'
-						: isUrgent
-							? 'text-orange-500'
-							: 'text-yellow-600'}"
-				>
-					{formattedTime}
-				</div>
-				<p class="text-sm text-gray-600 dark:text-gray-400 mt-2">
-					{isCritical
-						? 'Logging out in seconds!'
-						: isUrgent
-							? 'Time is running out!'
-							: 'You will be automatically logged out for security.'}
-				</p>
-			</div>
-		</div>
-
-		<!-- Session info -->
-		<div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-			<p class="text-sm text-blue-800 dark:text-blue-200">
-				For your security, we automatically log you out after periods of inactivity. You can extend
-				your session to continue working.
-			</p>
-		</div>
-
-		<!-- Action buttons -->
-		<div class="flex gap-4 justify-center">
-			<button
-				onclick={handleLogoutNow}
-				class="px-6 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-				title="Logout Now (Esc)"
-			>
-				Logout Now
-			</button>
-			<button
-				onclick={handleExtendSession}
-				class="px-6 py-3 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-md {isCritical
-					? 'animate-pulse'
-					: ''}"
-				title="Extend Session (Enter)"
-			>
-				Extend Session (+30 min)
-			</button>
-		</div>
-
-		<!-- Keyboard shortcuts hint -->
-		<div class="text-xs text-gray-500 dark:text-gray-400 border-t pt-4">
-			<p>
-				Keyboard shortcuts: <kbd class="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs"
-					>Enter</kbd
-				>
-				to extend, <kbd class="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs">Esc</kbd> to
-				logout
-			</p>
-		</div>
-	</div>
-</Modal>
+{#if showWarning}
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div class="w-full max-w-md p-4">
+      <div class="bg-white dark:bg-zinc-800 rounded-lg shadow-xl p-6 border border-orange-500">
+        <div class="flex items-start gap-3">
+          <Clock class="h-5 w-5 text-orange-600 mt-0.5" />
+          <div class="flex-1">
+            <h3 class="text-lg font-semibold text-orange-800 dark:text-orange-200 mb-2">
+              Session Expiring Soon
+            </h3>
+            <div class="space-y-4">
+              <p class="text-orange-700 dark:text-orange-300">
+                Your session will expire in <strong>{formatTime(timeRemaining)}</strong>.
+              </p>
+              <p class="text-sm text-orange-600 dark:text-orange-400">
+                Click "Extend Session" to continue working, or your session will automatically end for security.
+              </p>
+              <div class="flex gap-3 mt-4">
+                <Button
+                  onclick={extendSession}
+                  variant="default"
+                  class="flex-1 bg-primary hover:bg-primary/90"
+                >
+                  Extend Session
+                </Button>
+                <Button
+                  onclick={() => { showWarning = false; clearCountdown(); }}
+                  variant="outline"
+                  class="flex-1"
+                >
+                  Log Out Now
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}

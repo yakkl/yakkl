@@ -12,6 +12,8 @@ export async function setLocks(locked: boolean = true, planType: PlanType = Plan
 	try {
 		let dirty = false;
 
+		log.info('setLocks', false, { locked, planType });
+
 		const yakklSettings = (await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS)) as Settings;
 		if (yakklSettings) {
 			dirty = false;
@@ -54,6 +56,9 @@ export async function setLocks(locked: boolean = true, planType: PlanType = Plan
 				}
 			}
 			if (dirty) yakklCurrentlySelectedStore.set(yakklCurrentlySelected);
+
+			log.info('setLocks', false, { yakklCurrentlySelected });
+			log.info('setLocks', false, { yakklSettings });
 		}
 	} catch (error) {
 		log.error('Error setting locks:', false, error);

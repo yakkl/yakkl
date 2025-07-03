@@ -886,6 +886,9 @@ export interface Settings {
 	version: string; // Uses semversion format but puts 'default' as a placeholder
 	createDate: string;
 	updateDate: string;
+	// Sound settings for notifications
+	soundEnabled?: boolean; // Default true
+	sound?: string; // Sound file name or data URI
 }
 
 export interface YakklChat {

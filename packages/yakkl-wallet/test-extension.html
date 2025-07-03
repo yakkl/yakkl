@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Extension Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 600px;
+      margin: auto;
+    }
+    .status {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+    }
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .info {
+      background: #d1ecf1;
+      color: #0c5460;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>YAKKL Extension Test</h1>
+  
+  <div id="status"></div>
+  
+  <h2>Test Actions:</h2>
+  <button onclick="checkExtension()">Check Extension Status</button>
+  <button onclick="openWallet()">Open Smart Wallet</button>
+  <button onclick="checkServiceWorker()">Check Service Worker</button>
+  
+  <h2>Instructions:</h2>
+  <ol>
+    <li>Make sure the extension is installed and enabled in Chrome</li>
+    <li>Reload the extension in chrome://extensions/ if you just built it</li>
+    <li>Click "Check Extension Status" to verify it's working</li>
+    <li>Click "Open Smart Wallet" to test the popup/sidepanel</li>
+  </ol>
+  
+  <script>
+    function addStatus(message, type = 'info') {
+      const statusDiv = document.getElementById('status');
+      const div = document.createElement('div');
+      div.className = `status ${type}`;
+      div.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+      statusDiv.appendChild(div);
+    }
+    
+    function checkExtension() {
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
+        addStatus('Extension is installed and accessible', 'success');
+        addStatus(`Extension ID: ${chrome.runtime.id}`, 'info');
+      } else {
+        addStatus('Extension not detected', 'error');
+      }
+    }
+    
+    function openWallet() {
+      try {
+        if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+          // Send message to extension to open wallet
+          chrome.runtime.sendMessage(chrome.runtime.id, { 
+            type: 'OPEN_WALLET' 
+          }, (response) => {
+            if (chrome.runtime.lastError) {
+              addStatus(`Error: ${chrome.runtime.lastError.message}`, 'error');
+            } else {
+              addStatus('Message sent to extension', 'success');
+            }
+          });
+        } else {
+          addStatus('Cannot communicate with extension', 'error');
+        }
+      } catch (error) {
+        addStatus(`Error: ${error.message}`, 'error');
+      }
+    }
+    
+    function checkServiceWorker() {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          if (registrations.length > 0) {
+            addStatus(`Found ${registrations.length} service worker(s)`, 'success');
+            registrations.forEach((reg, i) => {
+              addStatus(`SW ${i+1}: ${reg.scope} - ${reg.active ? 'Active' : 'Not Active'}`, 'info');
+            });
+          } else {
+            addStatus('No service workers found', 'info');
+          }
+        });
+      } else {
+        addStatus('Service workers not supported', 'error');
+      }
+    }
+    
+    // Check on load
+    window.onload = () => {
+      checkExtension();
+    };
+  </script>
+</body>
+</html>

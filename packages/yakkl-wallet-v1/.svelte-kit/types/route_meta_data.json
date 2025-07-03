@@ -1,0 +1,249 @@
+{
+	"/(wallet)": [
+		"src/routes/(wallet)/+layout.ts",
+		"src/routes/+layout.ts",
+		"src/routes/(wallet)/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/(sidepanel)": [
+		"src/routes/+layout.ts"
+	],
+	"/": [
+		"src/routes/+layout.ts"
+	],
+	"/(wallet)/accounts": [
+		"src/routes/(wallet)/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/(wallet)/accounts/ethereum": [
+		"src/routes/(wallet)/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/(wallet)/accounts/ethereum/create": [
+		"src/routes/+layout.ts"
+	],
+	"/(wallet)/accounts/ethereum/create/derived": [
+		"src/routes/+layout.ts"
+	],
+	"/(wallet)/accounts/ethereum/create/primary": [
+		"src/routes/+layout.ts"
+	],
+	"/(wallet)/accounts/ethereum/transactions/buy": [
+		"src/routes/(wallet)/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/(wallet)/accounts/ethereum/transactions/send": [
+		"src/routes/(wallet)/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/(wallet)/accounts/ethereum/transactions/stake": [
+		"src/routes/(wallet)/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/(wallet)/contacts": [
+		"src/routes/(wallet)/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/(wallet)/crypto": [
+		"src/routes/(wallet)/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/(wallet)/cta": [
+		"src/routes/(wallet)/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/(dapp)/dapp": [
+		"src/routes/+layout.ts"
+	],
+	"/(dapp)/dapp/EIP6963": [
+		"src/routes/+layout.ts"
+	],
+	"/(dapp)/dapp/login": [
+		"src/routes/+layout.ts"
+	],
+	"/(dapp)/dapp/popups/accounts": [
+		"src/routes/+layout.ts"
+	],
+	"/(dapp)/dapp/popups/approve": [
+		"src/routes/+layout.ts"
+	],
+	"/(dapp)/dapp/popups/permissions": [
+		"src/routes/+layout.ts"
+	],
+	"/(dapp)/dapp/popups/sign": [
+		"src/routes/+layout.ts"
+	],
+	"/(dapp)/dapp/popups/transactions": [
+		"src/routes/+layout.ts"
+	],
+	"/(dapp)/dapp/popups/wallet": [
+		"src/routes/+layout.ts"
+	],
+	"/(dapp)/dapp/walletConnect": [
+		"src/routes/+layout.ts"
+	],
+	"/(wallet)/import/import-phrase": [
+		"src/routes/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/(wallet)/legal": [
+		"src/routes/+layout.ts"
+	],
+	"/(wallet)/legal/Legal": [
+		"src/routes/+layout.ts"
+	],
+	"/(wallet)/lock": [
+		"src/routes/(wallet)/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/(wallet)/login": [
+		"src/routes/+layout.ts"
+	],
+	"/(wallet)/login/Login": [
+		"src/routes/+layout.ts"
+	],
+	"/(wallet)/logout": [
+		"src/routes/(wallet)/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/phishing": [
+		"src/routes/+layout.ts"
+	],
+	"/(splash)/popup": [
+		"src/routes/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/(splash)/popup/popup": [
+		"src/routes/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/preview1": [
+		"src/routes/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/preview1/emergency-kit": [
+		"src/routes/+layout.ts"
+	],
+	"/preview1/history": [
+		"src/routes/+layout.ts"
+	],
+	"/preview1/receive": [
+		"src/routes/+layout.ts"
+	],
+	"/preview1/send": [
+		"src/routes/+layout.ts"
+	],
+	"/preview1/settings": [
+		"src/routes/+layout.ts"
+	],
+	"/preview1/swap": [
+		"src/routes/+layout.ts"
+	],
+	"/preview1/watch-accounts": [
+		"src/routes/+layout.ts"
+	],
+	"/preview2": [
+		"src/routes/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/preview2/accounts": [
+		"src/routes/+layout.ts"
+	],
+	"/preview2/ai-help": [
+		"src/routes/+layout.ts"
+	],
+	"/preview2/contacts": [
+		"src/routes/+layout.ts"
+	],
+	"/preview2/legal": [
+		"src/routes/+layout.ts"
+	],
+	"/preview2/login": [
+		"src/routes/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/preview2/mods": [
+		"src/routes/+layout.ts"
+	],
+	"/preview2/preferences": [
+		"src/routes/+layout.ts"
+	],
+	"/preview2/register": [
+		"src/routes/+layout.ts"
+	],
+	"/preview2/send": [
+		"src/routes/preview2/send/+page.ts",
+		"src/routes/+layout.ts"
+	],
+	"/preview2/settings": [
+		"src/routes/+layout.ts"
+	],
+	"/preview2/success": [
+		"src/routes/+layout.ts"
+	],
+	"/preview2/swap": [
+		"src/routes/preview2/swap/+page.ts",
+		"src/routes/+layout.ts"
+	],
+	"/preview2/tokens": [
+		"src/routes/+layout.ts"
+	],
+	"/preview2/upgrade": [
+		"src/routes/+layout.ts"
+	],
+	"/preview": [
+		"src/routes/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/preview/accounts": [
+		"src/routes/+layout.ts"
+	],
+	"/preview/ai-help": [
+		"src/routes/+layout.ts"
+	],
+	"/preview/contacts": [
+		"src/routes/+layout.ts"
+	],
+	"/preview/preferences": [
+		"src/routes/+layout.ts"
+	],
+	"/preview/send": [
+		"src/routes/+layout.ts"
+	],
+	"/preview/settings": [
+		"src/routes/+layout.ts"
+	],
+	"/preview/swap": [
+		"src/routes/+layout.ts"
+	],
+	"/preview/tokens": [
+		"src/routes/+layout.ts"
+	],
+	"/(wallet)/register": [
+		"src/routes/+layout.ts"
+	],
+	"/(wallet)/register/Register": [
+		"src/routes/+layout.ts"
+	],
+	"/(wallet)/security": [
+		"src/routes/(wallet)/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/(sidepanel)/sidepanel/sidepanel": [
+		"src/routes/+layout.ts"
+	],
+	"/(test)/test-registration-prompt": [
+		"src/routes/+layout.ts"
+	],
+	"/(wallet)/tokens": [
+		"src/routes/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/(upgrade)/upgrade": [
+		"src/routes/+layout.ts"
+	],
+	"/(wallet)/welcome/welcome": [
+		"src/routes/(wallet)/+layout.ts",
+		"src/routes/+layout.ts"
+	]
+}

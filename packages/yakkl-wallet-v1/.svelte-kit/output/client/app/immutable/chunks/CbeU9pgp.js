@@ -1,0 +1,2 @@
+import{s as sanitize_location}from"./BgcCkDX2.js";import{a7 as untrack,a_ as assignment_value_stale}from"./BaS8d5lg.js";function compare(a,b,property,location){if(a!==b){assignment_value_stale(property,sanitize_location(location))}return a}function assign(object,property,value,location){return compare(object[property]=value,untrack(()=>object[property]),property,location)}export{assign as a};
+//# sourceMappingURL=CbeU9pgp.js.map

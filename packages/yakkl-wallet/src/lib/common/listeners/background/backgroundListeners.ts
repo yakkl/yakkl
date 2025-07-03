@@ -2,10 +2,10 @@
 import { ListenerManager } from '$lib/managers/ListenerManager';
 import browser from 'webextension-polyfill';
 import type { Runtime } from 'webextension-polyfill';
-import { initializeBlacklistDatabase } from '$lib/extensions/chrome/database';
+import { initializeBlacklistDatabase } from '$contexts/background/extensions/chrome/database';
 import { yakklStoredObjects } from '$lib/models/dataModels';
 import { setObjectInLocalStorage } from '$lib/common/storage';
-import { setLocalObjectStorage } from '$lib/extensions/chrome/storage';
+import { setLocalObjectStorage } from '$contexts/background/extensions/chrome/storage';
 import { loadDefaultTokens } from '$lib/managers/tokens/loadDefaultTokens';
 import { VERSION } from '$lib/common/constants';
 import { onPortConnectListener, onPortDisconnectListener } from './portListeners';
@@ -17,7 +17,7 @@ import {
 } from './tabListeners';
 import { globalListenerManager } from '$lib/managers/GlobalListenerManager';
 import { log } from '$lib/managers/Logger';
-import { openWindows } from '$lib/extensions/chrome/ui';
+import { openWindows } from '$contexts/background/extensions/chrome/ui';
 import { onUnifiedMessageListener } from './unifiedMessageListener';
 import { isYakklPage } from '$lib/common/isYakklPage';
 import { browser_ext } from '$lib/common/environment';

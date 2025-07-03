@@ -1,7 +1,7 @@
 # YAKKL Wallet v2 Configuration
 version: "2.0.0"
-product_name: "YAKKL Wallet Preview"
-product_short: "YAKKL Preview"
+product_name: "YAKKL Wallet V2"
+product_short: "YAKKL V2"
 
 # Build configuration
 build:
@@ -10,12 +10,12 @@ build:
   
 # Extension paths
 paths:
-  extension_root: "./src/routes/preview2/lib/ext/chrome"
-  background_script: "./src/routes/preview2/lib/ext/chrome/background/index.ts"
-  content_script: "./src/routes/preview2/lib/ext/chrome/content.ts"
-  inpage_script: "./src/routes/preview2/lib/ext/chrome/inpage.ts"
-  manifest_template: "./src/routes/preview2/lib/ext/chrome/manifest.json.mustache"
-  initial_route: "/preview2"
+  extension_root: "./src/lib/ext/chrome"
+  background_script: "./src/lib/ext/chrome/background/index.ts"
+  content_script: "./src/lib/ext/chrome/content.ts"
+  inpage_script: "./src/lib/ext/chrome/inpage.ts"
+  manifest_template: "./src/lib/ext/chrome/manifest.json.mustache"
+  initial_route: "/"
   
 # UI configuration
 ui:

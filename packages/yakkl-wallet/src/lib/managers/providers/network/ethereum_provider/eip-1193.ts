@@ -4,7 +4,7 @@ import type { Duplex } from 'readable-stream';
 import { getWindowOrigin, safePostMessage, getTargetOrigin } from '$lib/common/origin';
 import { log } from '$lib/managers/Logger';
 import { EIP1193_ERRORS } from './eip-types';
-import { getCurrentlySelectedAccounts } from '../../../../extensions/chrome/eip-6963';
+import { getCurrentlySelectedAccounts } from '$lib/extensions/chrome/eip-6963';
 
 export class EIP1193Provider extends EventEmitter {
 	private _isConnected: boolean = false;
@@ -107,7 +107,7 @@ export class EIP1193Provider extends EventEmitter {
 					try {
 						// Import the handleRequestAccounts function from eip-6963.ts
 						const { handleRequestAccounts } = await import(
-							'../../../../extensions/chrome/eip-6963'
+							'../../../../ext/v1/chrome/eip-6963'
 						);
 
 						// Use the EIP-6963 implementation to handle the request

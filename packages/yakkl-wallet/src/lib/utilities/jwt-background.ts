@@ -4,7 +4,7 @@
  * Does NOT use Svelte stores - uses browser storage APIs directly
  */
 
-import { browser } from '$app/environment';
+// No imports needed - this is for background context only
 
 interface JWTPayload {
 	sub: string; // Subject (user ID)
@@ -168,7 +168,7 @@ class BackgroundJWTManager {
 						resolve();
 					});
 				});
-			} else if (browser && typeof localStorage !== 'undefined') {
+			} else if (typeof localStorage !== 'undefined') {
 				localStorage.removeItem(this.STORAGE_KEY);
 			}
 		} catch (error) {
@@ -255,7 +255,7 @@ class BackgroundJWTManager {
 						resolve();
 					});
 				});
-			} else if (browser && typeof localStorage !== 'undefined') {
+			} else if (typeof localStorage !== 'undefined') {
 				localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
 			}
 		} catch (error) {
@@ -271,7 +271,7 @@ class BackgroundJWTManager {
 						resolve(result[this.STORAGE_KEY] || null);
 					});
 				});
-			} else if (browser && typeof localStorage !== 'undefined') {
+			} else if (typeof localStorage !== 'undefined') {
 				const stored = localStorage.getItem(this.STORAGE_KEY);
 				return stored ? JSON.parse(stored) : null;
 			}

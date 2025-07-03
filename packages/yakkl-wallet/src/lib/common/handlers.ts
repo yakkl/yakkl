@@ -3,7 +3,7 @@ import { dateString } from './datetime';
 import type { Settings } from './interfaces';
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from './storage';
 import { isBrowserEnv } from './environment';
-import { stopLockIconTimer } from '$lib/extensions/chrome/iconTimer';
+import { stopLockIconTimer } from '$contexts/background/extensions/chrome/iconTimer';
 import { yakklCurrentlySelectedStore } from './stores';
 import { get } from 'svelte/store';
 import { log } from '$lib/managers/Logger';

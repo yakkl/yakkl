@@ -10,7 +10,7 @@ packages/yakkl-security/
 packages/yakkl-backend/
 packages/yakkl-wallet-private/
 packages/yakkl-wallet-pro/
-packages/yakkl-sdk/
+# packages/yakkl-sdk/
 
 # This is temporary
 packages/yakkl-contracts/ 

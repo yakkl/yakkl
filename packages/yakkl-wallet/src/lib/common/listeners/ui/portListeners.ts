@@ -1,4 +1,4 @@
-import { openWindows, updateScreenPreferences } from '$lib/extensions/chrome/ui';
+import { openWindows, updateScreenPreferences } from '$contexts/background/extensions/chrome/ui';
 import { setIconLock } from '$lib/utilities/utilities';
 import type { Runtime } from 'webextension-polyfill';
 
