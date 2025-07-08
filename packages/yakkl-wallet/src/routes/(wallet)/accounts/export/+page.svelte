@@ -58,7 +58,7 @@
     {#if account}
       <div class="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
         <div class="text-sm text-gray-600 dark:text-gray-400">Current Account</div>
-        <div class="font-semibold text-gray-900 dark:text-gray-100">{account.name || 'Account'}</div>
+        <div class="font-semibold text-gray-900 dark:text-gray-100">{account.ens || account.username || 'Account'}</div>
         <div class="text-xs text-gray-500 dark:text-gray-400 font-mono">
           {account.address.slice(0, 6)}...{account.address.slice(-4)}
         </div>

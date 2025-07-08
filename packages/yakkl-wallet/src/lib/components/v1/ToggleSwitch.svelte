@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Switch from './ui/switch/switch.svelte';
+	import Switch from './ui.tmp/switch/switch.svelte';
 
 	interface Props {
 		value: boolean;

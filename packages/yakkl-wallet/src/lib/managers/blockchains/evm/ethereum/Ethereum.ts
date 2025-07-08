@@ -71,7 +71,7 @@ export class Ethereum extends AbstractBlockchain<EthereumTransaction> {
 		options: { [key: string]: MetaData } = {},
 		overrideAll: boolean = false
 	) {
-		super('Ethereum', chainId, providers, networks, 'ETH', '/images/ethereum_icon_purple.svg');
+		super('Ethereum', chainId, providers, networks, 'ETH', '/images/eth.svg');
 		this.chainId = chainId;
 		this.options = options;
 		this._updateOptions(options, overrideAll);

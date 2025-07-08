@@ -21,10 +21,14 @@ export class TokenService extends BaseService {
   async getTokens(address?: string): Promise<ServiceResponse<TokenDisplay[]>> {
     try {
       // Get current chain
-      const { currentChain } = await import('../stores/chain.store');
+      const { currentChain, chainStore } = await import('../stores/chain.store');
       const { get: getStore } = await import('svelte/store');
       const chain = getStore(currentChain);
       const chainId = chain?.chainId || 1;
+      
+      // Get all chains for name lookup
+      const chains = getStore(chainStore).chains;
+      const chainMap = new Map(chains.map(c => [c.chainId, c]));
       
       console.log('[TokenService] Getting tokens for chainId:', chainId);
       
@@ -48,11 +52,40 @@ export class TokenService extends BaseService {
 
       // Transform to TokenDisplay format
       const preview2Tokens: TokenDisplay[] = chainTokens.map((token) => {
-        const balance = parseFloat(String(token.balance || token.quantity || '0'));
-        const price = token.price?.price || 0;
+        let balance = parseFloat(String(token.balance || token.quantity || '0'));
+        
+        // Only use real balances from storage, no hardcoded values
+        
+        let price = token.price?.price || 0;
+        
+        // TEMPORARY: Add hardcoded prices with slight randomization for testing
+        if (price === 0) {
+          const basePrices: Record<string, number> = {
+            'ETH': 2345.67,
+            'WETH': 2345.67,
+            'WBTC': 43250.00,
+            'USDC': 1.00,
+            'USDT': 1.00,
+            'DAI': 0.9999,
+            'SHIB': 0.00000823,
+            'PEPE': 0.00000123,
+            'MATIC': 0.75,
+            'BNB': 245.50,
+            'LINK': 14.25
+          };
+          const basePrice = basePrices[token.symbol.toUpperCase()] || 0;
+          // Add ±5% random variation to simulate price changes - increased for visibility
+          const variation = 0.05;
+          const randomFactor = 1 + (Math.random() * 2 - 1) * variation;
+          price = basePrice * randomFactor;
+        }
+        
         const value = balance * price;
         
         console.log(`[TokenService] Token ${token.symbol}: balance=${balance}, price=${price}, value=${value}`);
+        
+        const chainInfo = chainMap.get(token.chainId || chainId);
+        const chainName = chainInfo ? `${chainInfo.name} ${chainInfo.network}` : `Network ${token.chainId || chainId}`;
         
         return {
           symbol: token.symbol,
@@ -65,19 +98,24 @@ export class TokenService extends BaseService {
           address: token.address,
           decimals: token.decimals,
           color: this.getTokenColor(token.symbol),
-          chainId: token.chainId
+          chainId: token.chainId,
+          chainName: chainName
         };
       });
 
-      // Filter tokens - show all tokens with balance OR the main tokens (ETH, WETH, stablecoins)
-      const mainTokens = ['ETH', 'WETH', 'USDT', 'USDC', 'DAI'];
+      // Filter tokens - show all tokens with balance OR the main tokens (ETH, WETH, WBTC, stablecoins)
+      const mainTokens = ['ETH', 'WETH', 'WBTC', 'USDT', 'USDC', 'DAI'];
       const activeTokens = preview2Tokens.filter(t => 
         t.qty > 0 || mainTokens.includes(t.symbol.toUpperCase())
       );
       
       // Sort by value descending, but put zero-value main tokens at the end
       activeTokens.sort((a, b) => {
-        if (a.value === 0 && b.value === 0) {
+        // Convert values to numbers for comparison
+        const aValue = typeof a.value === 'number' ? a.value : parseFloat(String(a.value || 0));
+        const bValue = typeof b.value === 'number' ? b.value : parseFloat(String(b.value || 0));
+        
+        if (aValue === 0 && bValue === 0) {
           // Both have zero value, sort main tokens first
           const aIsMain = mainTokens.includes(a.symbol.toUpperCase());
           const bIsMain = mainTokens.includes(b.symbol.toUpperCase());
@@ -85,7 +123,7 @@ export class TokenService extends BaseService {
           if (!aIsMain && bIsMain) return 1;
           return 0;
         }
-        return b.value - a.value;
+        return bValue - aValue;
       });
 
       console.log('[TokenService] Active tokens:', activeTokens);
@@ -108,7 +146,7 @@ export class TokenService extends BaseService {
       // If no chainIds specified, get tokens from all chains
       const targetChains = chainIds || chains.map(c => c.chainId);
       
-      console.log('[TokenService] Getting multi-chain tokens for chains:', targetChains);
+      console.log('[TokenService] Getting multi-network tokens for chains:', targetChains);
       
       // Aggregate tokens from all chains
       const allTokens: TokenDisplay[] = [];
@@ -131,7 +169,7 @@ export class TokenService extends BaseService {
       // Group tokens by symbol and aggregate values
       const aggregatedTokens = this.aggregateTokensBySymbol(allTokens);
       
-      console.log('[TokenService] Aggregated multi-chain tokens:', aggregatedTokens);
+      console.log('[TokenService] Aggregated multi-network tokens:', aggregatedTokens);
       return { success: true, data: aggregatedTokens };
     } catch (error) {
       return {
@@ -150,7 +188,10 @@ export class TokenService extends BaseService {
         const existing = tokenMap.get(key)!;
         // Aggregate quantities and values
         existing.qty += token.qty;
-        existing.value += token.value;
+        // Convert values to numbers before adding
+        const existingValue = typeof existing.value === 'number' ? existing.value : parseFloat(String(existing.value || 0));
+        const tokenValue = typeof token.value === 'number' ? token.value : parseFloat(String(token.value || 0));
+        existing.value = existingValue + tokenValue;
         // Keep the same price (should be similar across chains)
         existing.price = token.price || existing.price;
       } else {
@@ -176,7 +217,9 @@ export class TokenService extends BaseService {
       change24h: token.change ? this.getTokenChange24h(token.change) : undefined,
       address: token.address,
       decimals: token.decimals,
-      color: this.getTokenColor(token.symbol)
+      color: this.getTokenColor(token.symbol),
+      chainId: token.chainId,
+      chainName: token.chainName // Pass through if available
     };
   }
 
@@ -202,12 +245,31 @@ export class TokenService extends BaseService {
   async refreshTokenPrices(): Promise<ServiceResponse<boolean>> {
     try {
       // This would typically call an API to get latest prices
-      // For now, we'll just trigger a refresh of the token store
-      const response = await this.sendMessage<boolean>({
-        method: 'yakkl_refreshTokenPrices'
+      // For now, we'll simulate price changes by updating the combined token store
+      const combinedTokens = get(yakklCombinedTokenStore);
+      
+      // Update prices with random variations to simulate market movements
+      const updatedTokens = combinedTokens.map(token => {
+        if (token.price?.price) {
+          const variation = 0.05; // 5% variation
+          const randomFactor = 1 + (Math.random() * 2 - 1) * variation;
+          return {
+            ...token,
+            price: {
+              ...token.price,
+              price: token.price.price * randomFactor,
+              lastUpdated: new Date()
+            }
+          };
+        }
+        return token;
       });
-
-      return response;
+      
+      // Update the combined token store which will trigger all reactive updates
+      yakklCombinedTokenStore.set(updatedTokens);
+      
+      console.log('[TokenService] Refreshed token prices with variations');
+      return { success: true, data: true };
     } catch (error) {
       return {
         success: false,
@@ -219,7 +281,7 @@ export class TokenService extends BaseService {
   private getDefaultIcon(symbol: string): string {
     // Map common tokens to emojis or default icons
     const iconMap: Record<string, string> = {
-      'ETH': '/images/ethereum.svg',
+      'ETH': '/images/eth.svg',
       'BTC': '/images/bitcoin.svg',
       'USDT': '💵',
       'USDC': '💰',

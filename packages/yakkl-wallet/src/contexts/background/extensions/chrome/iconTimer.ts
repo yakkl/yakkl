@@ -38,9 +38,7 @@ export function startLockIconTimer() {
 					}
 					if (yakklSettings.isLocked) {
 						await setIconLock();
-						if (browser_ext) {
-							await browser_ext.runtime.sendMessage({ type: 'lockdown' });
-						}
+						// Don't send message from background to itself
 					} else {
 						await setIconUnlock();
 					}
@@ -62,9 +60,7 @@ export async function stopLockIconTimer() {
 		const yakklSettings = (await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS)) as Settings;
 		if (yakklSettings) {
 			getTimerManager().removeTimer('iconTimer_lockIcon'); // Stops and clears the timer
-			if (browser_ext) {
-				await browser_ext.runtime.sendMessage({ type: 'lockdown' });
-			}
+			// Don't send message from background to itself
 		}
 	} catch (error: any) {
 		log.error('Error stopping lock icon timer:', false, error, error?.stack);

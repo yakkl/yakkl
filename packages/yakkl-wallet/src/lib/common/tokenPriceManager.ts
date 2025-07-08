@@ -36,6 +36,36 @@ export async function updateTokenPrices() {
 
 		// Persist to localStorage
 		await setYakklCombinedTokenStorage(updatedTokens);
+		
+		// Update token cache with new prices
+		try {
+			const { getYakklTokenCache, setYakklTokenCacheStorage } = await import('$lib/common/stores');
+			const cache = await getYakklTokenCache();
+			
+			// Update prices in cache
+			const updatedCache = cache.map(entry => {
+				const updatedToken = updatedTokens.find(t => 
+					t.address === entry.tokenAddress && 
+					t.chainId === entry.chainId
+				);
+				
+				if (updatedToken && updatedToken.price?.price) {
+					return {
+						...entry,
+						price: updatedToken.price.price,
+						value: entry.quantity * updatedToken.price.price,
+						lastPriceUpdate: new Date(),
+						priceProvider: updatedToken.price.provider || 'unknown'
+					};
+				}
+				return entry;
+			});
+			
+			await setYakklTokenCacheStorage(updatedCache);
+			log.debug('[tokenPriceManager] Updated token cache with new prices');
+		} catch (error) {
+			log.error('[tokenPriceManager] Failed to update token cache:', false, error);
+		}
 
 		// Update cached balances with new token prices
 		const { balanceCacheManager } = await import('$lib/managers/BalanceCacheManager');
@@ -80,3 +110,10 @@ if (!timerManager.isRunning('tokenPriceUpdater')) {
 	log.info('Starting token price updater timer');
 	timerManager.startTimer('tokenPriceUpdater');
 }
+
+// Run initial update immediately to populate prices
+updateTokenPrices().then(() => {
+	log.info('Initial token price update completed');
+}).catch(error => {
+	log.error('Initial token price update failed:', false, error);
+});

@@ -314,7 +314,7 @@
 
 {#if show}
 	<div
-		class="fixed inset-0 z-50 flex items-start justify-center pt-4"
+		class="fixed inset-0 z-[100] flex items-start justify-center pt-4"
 		transition:fade={{ duration: 300 }}
 	>
 		<!-- Backdrop with enhanced pulsing effect -->

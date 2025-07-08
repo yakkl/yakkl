@@ -30,11 +30,11 @@
 
   // Reactive values
   let account = $derived($currentAccount);
-  let canBuy = $derived(canUseFeature('buy_crypto_card'));
+  let canBuy = $derived(canUseFeature('buy_crypto'));
 
   // Load initial data
   $effect(() => {
-    if (show && canBuy) {
+    if (show) {
       loadInitialData();
     }
   });
@@ -166,7 +166,7 @@
 </script>
 
 {#if show}
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in"
+  <div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in"
     onclick={closeModal}
     onkeydown={e => e.key === 'Escape' && closeModal()}
     role="dialog"
@@ -193,12 +193,10 @@
         </button>
       </div>
 
-      {#if !canBuy}
-        <!-- Upgrade Required -->
-        <div class="text-center py-8">
-          <div class="text-4xl mb-4">🔒</div>
-          <h3 class="text-lg font-semibold mb-2">Pro Feature</h3>
-          <p class="text-gray-600 dark:text-gray-400 mb-4">
+      {#if false}
+        <!-- Buy crypto is available to all users -->
+        <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+          <p>
             Buying crypto with fiat requires a Pro subscription
           </p>
           <button class="yakkl-btn-primary">

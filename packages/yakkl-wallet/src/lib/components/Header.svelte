@@ -2,6 +2,7 @@
   import Brand from './Brand.svelte';
   import NetworkSwitcher from './NetworkSwitcher.svelte';
   import UserMenu from './UserMenu.svelte';
+  import ProtectedViewToggle from './ProtectedViewToggle.svelte';
 
   let {
     logo = '/images/logoBullFav32x32.png',
@@ -21,10 +22,13 @@
   } = $props();
 </script>
 
-<header class="relative w-full mx-auto flex items-center h-14 bg-white/90 dark:bg-zinc-900/80 border-b border-zinc-100 dark:border-zinc-800 z-50">
+<header class="relative w-full mx-auto flex items-center h-14 bg-white/90 dark:bg-zinc-900/80 border-b border-zinc-100 dark:border-zinc-800 z-30">
   <!-- Brand Left -->
-  <div class="absolute left-4 top-1/2 -translate-y-1/2">
+  <div class="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
     <a href={link}><Brand logo={logo} /></a>
+    
+    <!-- Protected View Toggle with PIN verification -->
+    <ProtectedViewToggle />
   </div>
 
   <!-- Center: Network Switcher (true center!) -->

@@ -9,7 +9,7 @@
 		"evmCompatible": true,
 		"isNative": true,
 		"isStablecoin": false,
-		"logoURI": "../../../images/ethereum.svg",
+		"logoURI": "/images/eth.svg",
 		"url": "https://www.tradingview.com/symbols/ETHUSD/"
 	},
 	{

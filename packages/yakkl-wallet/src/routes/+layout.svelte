@@ -16,7 +16,9 @@
   let { children }: Props = $props();
 
   // State
-  let loading = $state(true);
+  // Changed: Don't block UI with loading - let pages handle their own state
+  let loading = $state(false);
+  let initializing = $state(true);
   let showTestnets = $state(false);
   let showSettings = $state(false);
   let showProfile = $state(false);
@@ -32,13 +34,15 @@
 
   // Initialize stores on mount
   onMount(async () => {
-    loading = true;
+    // Don't block UI - run initialization in background
+    initializing = true;
 
-    // Add a small delay to ensure background script is ready
-    // This helps prevent "Receiving end does not exist" errors during extension reload
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    try {
+    // Run async initialization without blocking
+    (async () => {
+      try {
+        // Add a small delay to ensure background script is ready
+        // This helps prevent "Receiving end does not exist" errors during extension reload
+        await new Promise(resolve => setTimeout(resolve, 100));
       // First check if user is authenticated
       const { getSettings, syncStorageToStore } = await import('$lib/common/stores');
       const settings = await getSettings();
@@ -51,16 +55,23 @@
       }
 
       // Load wallet data in parallel
-      await Promise.all([
-        accountStore.loadAccounts(),
-        chainStore.loadChains(),
-        planStore.loadPlan()
-      ]);
-    } catch (error) {
-      console.error('Layout: Error initializing stores:', error);
-    }
-
-    loading = false;
+        // Load with timeout to prevent hanging
+        await Promise.race([
+          Promise.all([
+            accountStore.loadAccounts(),
+            chainStore.loadChains(),
+            planStore.loadPlan()
+          ]),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Store loading timeout')), 3000)
+          )
+        ]);
+      } catch (error) {
+        console.error('Layout: Error initializing stores:', error);
+      } finally {
+        initializing = false;
+      }
+    })();
   });
 
   function handleSwitchChain(chain: any) {
@@ -175,18 +186,10 @@
 
   <!-- Scrollable Content Area -->
   <main class="flex-1 overflow-y-auto overflow-x-hidden">
-    {#if loading}
-      <div class="min-h-full flex items-center justify-center">
-        <div class="text-center">
-          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-          <p class="mt-4 text-gray-600 dark:text-gray-400">Loading wallet...</p>
-        </div>
-      </div>
-    {:else}
-      <div class="min-h-full pb-16">
-        {@render children?.()}
-      </div>
-    {/if}
+    <!-- Changed: Always render content - don't block with loading -->
+    <div class="min-h-full pb-16">
+      {@render children?.()}
+    </div>
   </main>
 
   <!-- Settings Modal -->

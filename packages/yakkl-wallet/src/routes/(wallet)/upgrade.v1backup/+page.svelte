@@ -62,20 +62,20 @@
       planType: PlanType.Enterprise
     },
     {
-      name: 'Private',
-      price: '$199.99/month',
-      description: 'Maximum privacy and security',
+      name: 'Founding Member',
+      price: 'Lifetime',
+      description: 'Exclusive benefits for early supporters',
       features: [
-        'Everything in Enterprise',
-        'Air-gapped signing',
-        'Zero-knowledge proofs',
-        'Private node access',
-        'Anonymous transactions',
-        'Military-grade encryption',
-        'Private cloud deployment'
+        'Everything in Pro',
+        'Lifetime access',
+        'Founding member benefits',
+        'Direct founder access',
+        'Special recognition',
+        'All future features',
+        'Priority everything'
       ],
       highlight: false,
-      planType: PlanType.Private
+      planType: PlanType.FoundingMember
     }
   ];
 

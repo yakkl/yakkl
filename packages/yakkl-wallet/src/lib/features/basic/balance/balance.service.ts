@@ -65,7 +65,10 @@ export class BalanceService {
       
       // Calculate total USD value
       const ethValueUSD = this.calculateETHValueUSD(ethBalance);
-      const tokensValueUSD = tokens.reduce((sum, token) => sum + token.value, 0);
+      const tokensValueUSD = tokens.reduce((sum, token) => {
+        const tokenValue = typeof token.value === 'number' ? token.value : parseFloat(String(token.value || 0));
+        return sum + tokenValue;
+      }, 0);
       const totalValueUSD = ethValueUSD + tokensValueUSD;
 
       return {

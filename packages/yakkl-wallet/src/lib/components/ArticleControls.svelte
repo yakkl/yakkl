@@ -1,15 +1,11 @@
 <!-- ArticleControls.svelte -->
 <script lang="ts">
-	import BookmarkIcon from './icons/BookmarkIcon.svelte';
 	import PrinterIcon from './icons/PrinterIcon.svelte';
 	import TrashIcon from './icons/TrashIcon.svelte';
 	import Confirmation from './Confirmation.svelte';
-	import { fade } from 'svelte/transition';
 	import type { RSSItem } from '$lib/managers/ExtensionRSSFeedService';
-	import Tooltip from './Tooltip.svelte';
 	import { yakklBookmarkedArticlesStore, setYakklBookmarkedArticles } from '$lib/common/stores';
 	import { derived } from 'svelte/store';
-	import { log } from '$lib/managers/Logger';
 
 	let {
 		article,
@@ -24,8 +20,6 @@
 		deleteEnabled?: boolean;
 		onDelete?: (article: RSSItem) => Promise<void>;
 	}>();
-
-	$inspect(article).with(console.log);
 
 	let showDeleteConfirmation = $state(false);
 
@@ -532,46 +526,51 @@
 </script>
 
 <div
-	class="absolute top-1 right-1 flex items-center space-x-2 bg-white/90 dark:bg-zinc-800/90 backdrop-blur-sm rounded-full p-1 shadow-lg z-10 transition-all duration-200 opacity-0 group-hover:opacity-100"
+	class="absolute top-1 right-1 flex items-center gap-1 bg-white/90 dark:bg-zinc-800/90 backdrop-blur-sm rounded-full p-1.5 shadow-lg z-10 transition-all duration-200 opacity-0 group-hover:opacity-100"
 >
-	<Tooltip content={$isBookmarked ? 'Unbookmark article' : 'Bookmark article'}>
+	{#if bookmarkEnabled}
 		<button
-			class="text-gray-400 hover:text-gray-500 focus:outline-none relative {bookmarkEnabled
-				? ''
-				: 'opacity-50 cursor-not-allowed'}"
-			disabled={!bookmarkEnabled}
+			class="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
+			title={$isBookmarked ? 'Unbookmark article' : 'Bookmark article'}
+			aria-label={$isBookmarked ? 'Unbookmark article' : 'Bookmark article'}
 			onclick={handleBookmark}
 		>
-			<BookmarkIcon
-				className="w-5 h-5 {$isBookmarked
-					? 'fill-yellow-400'
-					: 'fill-none'} stroke-current text-gray-400"
-			/>
+			<svg 
+				xmlns="http://www.w3.org/2000/svg" 
+				viewBox="0 0 24 24" 
+				stroke-width="1.5" 
+				class="w-5 h-5 {$isBookmarked ? 'fill-yellow-400 stroke-yellow-400' : 'fill-none stroke-gray-600 dark:stroke-gray-400'}"
+			>
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z"
+				/>
+			</svg>
 		</button>
-	</Tooltip>
-	<Tooltip content="Print article">
+	{/if}
+	
+	{#if printEnabled}
 		<button
-			class="text-gray-400 hover:text-gray-500 focus:outline-none relative {printEnabled
-				? ''
-				: 'opacity-50 cursor-not-allowed'}"
-			disabled={!printEnabled}
+			class="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
+			title="Print article"
+			aria-label="Print article"
 			onclick={() => handlePrint(article.url)}
 		>
-			<PrinterIcon className="w-5 h-5 text-gray-400" />
+			<PrinterIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
 		</button>
-	</Tooltip>
+	{/if}
 
-	<Tooltip content="Delete">
+	{#if deleteEnabled}
 		<button
-			class="text-gray-400 hover:text-gray-500 focus:outline-none relative {deleteEnabled
-				? ''
-				: 'opacity-50 cursor-not-allowed'}"
-			disabled={!deleteEnabled}
+			class="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
+			title="Delete article"
+			aria-label="Delete article"
 			onclick={() => (showDeleteConfirmation = true)}
 		>
-			<TrashIcon className="w-5 h-5 text-gray-400" />
+			<TrashIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
 		</button>
-	</Tooltip>
+	{/if}
 </div>
 
 {#if showDeleteConfirmation}

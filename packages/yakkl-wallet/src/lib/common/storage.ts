@@ -2,11 +2,30 @@
 import { log } from '$lib/managers/Logger';
 import { browser_ext } from './environment';
 
+// Try to get browser API directly for service worker context
+let browserApi: any = browser_ext;
+
+// Check if we're in a service worker or extension context
+declare const browser: any;
+declare const chrome: any;
+
+try {
+	if (typeof browser !== 'undefined' && browser?.storage) {
+		// In service worker or extension context, browser is available globally
+		browserApi = browser;
+	} else if (typeof chrome !== 'undefined' && chrome?.storage) {
+		// Fallback to chrome API if available
+		browserApi = chrome;
+	}
+} catch (e) {
+	// Keep using browser_ext
+}
+
 export const clearObjectsFromLocalStorage = async (): Promise<void> => {
-	if (!browser_ext) return;
+	if (!browserApi) return;
 
 	try {
-		await browser_ext.storage.local.clear();
+		await browserApi.storage.local.clear();
 	} catch (error) {
 		log.error('Error clearing local storage', false, error);
 		throw error;
@@ -33,11 +52,11 @@ export const getObjectFromLocalStorage = async <T>(
 	timeoutMs = 1000
 ): Promise<T | null> => {
 	try {
-		if (!browser_ext) {
+		if (!browserApi) {
 			return null;
 		}
 
-		const storagePromise = browser_ext.storage.local.get(key);
+		const storagePromise = browserApi.storage.local.get(key);
 
 		// Set a timeout to prevent infinite hangs
 		const timeoutPromise = new Promise<null>((resolve) =>
@@ -63,10 +82,10 @@ export const setObjectInLocalStorage = async <T extends Record<string, any>>(
 	key: string,
 	obj: T | string
 ): Promise<void> => {
-	if (!browser_ext) return;
+	if (!browserApi) return;
 
 	try {
-		await browser_ext.storage.local.set({ [key]: obj });
+		await browserApi.storage.local.set({ [key]: obj });
 	} catch (error) {
 		log.error('Error setting object in local storage', false, error);
 		throw error;
@@ -74,10 +93,10 @@ export const setObjectInLocalStorage = async <T extends Record<string, any>>(
 };
 
 export const removeObjectFromLocalStorage = async (keys: string): Promise<void> => {
-	if (!browser_ext) return;
+	if (!browserApi) return;
 
 	try {
-		await browser_ext.storage.local.remove(keys);
+		await browserApi.storage.local.remove(keys);
 	} catch (error) {
 		log.error('Error removing object from local storage', false, error);
 		throw error;

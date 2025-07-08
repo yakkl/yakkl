@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
+	import * as DropdownMenu from '$lib/components/v1/ui.tmp/dropdown-menu/index.js';
 	import { DotsThreeCircle } from 'phosphor-svelte';
 
 	export interface Props {

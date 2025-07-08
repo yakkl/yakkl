@@ -2,6 +2,7 @@
   import { canUseFeature } from '$lib/stores/plan.store';
   import { currentPlan, isOnTrial } from '$lib/stores/plan.store';
   import Upgrade from '$lib/components/Upgrade.svelte';
+  import { goto } from '$app/navigation';
 
   let showUpgradeModal = $state(false);
   let plan = $derived($currentPlan);
@@ -61,6 +62,52 @@
         <button id="export-keys-btn" class="yakkl-btn-secondary text-sm" aria-label="Export private keys">Export</button>
       </div>
     </div>
+  </div>
+
+  <!-- API Key Management -->
+  <div class="yakkl-card p-4 {canUseFeature('api_key_management') ? '' : 'border-2 border-dashed border-gray-300 dark:border-gray-600'}">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-lg font-semibold flex items-center gap-2">
+        API Key Management
+        {#if !canUseFeature('api_key_management')}
+          <span class="text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 px-2 py-1 rounded-full">Pro</span>
+        {/if}
+      </h2>
+      {#if !canUseFeature('api_key_management')}
+        <button
+          onclick={() => showUpgradeModal = true}
+          class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
+        >
+          Upgrade
+        </button>
+      {/if}
+    </div>
+
+    {#if canUseFeature('api_key_management')}
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <label for="api-keys-btn" class="text-sm font-medium">Manage API Keys</label>
+            <p class="text-xs text-gray-500">Securely store API keys for various services</p>
+          </div>
+          <button 
+            id="api-keys-btn" 
+            class="yakkl-btn-secondary text-sm" 
+            aria-label="Manage API keys"
+            onclick={() => goto('/settings/keys')}
+          >
+            Manage
+          </button>
+        </div>
+      </div>
+    {:else}
+      <div class="text-center py-6 text-gray-500 dark:text-gray-400">
+        <svg class="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+        </svg>
+        <p class="text-sm">Securely manage API keys for AI services, blockchain providers, exchanges, and more.</p>
+      </div>
+    {/if}
   </div>
 
   <!-- Pro Features -->

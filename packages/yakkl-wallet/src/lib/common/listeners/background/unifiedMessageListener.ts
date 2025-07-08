@@ -16,6 +16,7 @@ import type { BackgroundPendingRequest } from '$contexts/background/extensions/c
 import { decryptData } from '$lib/common/encryption';
 import { isEncryptedData } from '$lib/common/misc';
 import { showPopup } from '$contexts/background/extensions/chrome/ui';
+import { SingletonWindowManager } from '$lib/managers/SingletonWindowManager';
 import { startLockIconTimer, stopLockIconTimer } from '$contexts/background/extensions/chrome/iconTimer';
 import { setIconLock, setIconUnlock } from '$lib/utilities';
 import { isBackgroundContext } from '$lib/common/backgroundSecurity';
@@ -25,6 +26,7 @@ import {
 	type ExtendedBackgroundPendingRequest
 } from '$lib/managers/RequestManager';
 import { backgroundJWTManager } from '$lib/utilities/jwt-background';
+import { handleMessage } from '$contexts/background/handlers/MessageHandler';
 
 // Interface for tracking active tabs
 interface ActiveTab {
@@ -347,6 +349,18 @@ export async function onUnifiedMessageListener(
 		}
 
 		// EIP-6963 messages (all variations)
+		// Check if this is an external dApp request (not from the extension itself)
+		const isExternalRequest = !sender?.url?.startsWith('chrome-extension://') && !sender?.url?.startsWith('extension://');
+		
+		// Log internal eth_ calls that would have been incorrectly routed
+		if (!isExternalRequest && message.method?.startsWith('eth_')) {
+			log.debug('Skipping internal eth_ call from extension:', false, {
+				method: message.method,
+				senderUrl: sender?.url,
+				messageType: message.type
+			});
+		}
+		
 		if (
 			message.type === EIP6963_REQUEST ||
 			message.type === EIP6963_RESPONSE ||
@@ -357,7 +371,7 @@ export async function onUnifiedMessageListener(
 			message.type === 'YAKKL_REQUEST:EIP1193' ||
 			message.type === 'YAKKL_RESPONSE:EIP1193' ||
 			message.type === 'YAKKL_EVENT:EIP1193' ||
-			message.method?.startsWith('eth_')
+			(isExternalRequest && message.method?.startsWith('eth_'))
 		) {
 			// Use the new request manager when we have proper connection tracking
 			if (message.id && sender.port) {
@@ -417,6 +431,12 @@ export async function onUnifiedMessageListener(
 			message.type === 'SECURITY_CONFIG_UPDATE'
 		) {
 			return await handleSecurityMessage(message, sender);
+		}
+
+		// Handle messages with 'yakkl_' prefix using the MessageHandler
+		if (message.type && message.type.startsWith('yakkl_')) {
+			log.debug('Routing yakkl_ message to MessageHandler', false, { type: message.type });
+			return await handleMessage(message, sender);
 		}
 
 		// log.warn('Unknown message type', false, { message });
@@ -740,8 +760,13 @@ async function handleRuntimeMessage(message: any, sender: Runtime.MessageSender)
 			}
 
 			case 'popout': {
-				showPopup('');
-				return { success: true };
+				try {
+					await showPopup('', '0');
+					return { success: true };
+				} catch (error) {
+					log.error('Failed to open popup window:', false, error);
+					return { success: false, error: (error as Error).message };
+				}
 			}
 
 			case 'ping': {

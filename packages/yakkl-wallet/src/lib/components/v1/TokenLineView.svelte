@@ -24,19 +24,12 @@
 				? 'text-green-500'
 				: 'text-red-500';
 
-	let balance = $state(token?.balance);
-	let price = $state(0);
-	let priceFormatted = $state('');
-	let value = $state(0);
-	let valueFormatted = $state('');
-
-	$effect(() => {
-		balance = token?.balance;
-		price = token?.price?.price ?? 0;
-		priceFormatted = formatPrice(price);
-		value = balance ? Number(balance) * price : 0;
-		valueFormatted = formatPrice(value);
-	});
+	// Use derived for computed values to avoid reactivity loops
+	let balance = $derived(token?.balance);
+	let price = $derived(token?.price?.price ?? 0);
+	let priceFormatted = $derived(formatPrice(price));
+	let value = $derived(balance ? Number(balance) * price : 0);
+	let valueFormatted = $derived(formatPrice(value));
 
 	log.info('TokenLineView', false, {
 		token,
@@ -65,8 +58,26 @@
 		class="flex justify-between items-center py-1.5 px-2 border-b border-gray-200 border-solid hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer {className}"
 	>
 		<div class="flex items-center gap-2 item">
-			{#if token.logoURI}
-				<img src={token.logoURI} alt={token.symbol} class="w-6 h-6 rounded-full" />
+			{#if token.icon || token.logoURI}
+				{@const iconUrl = token.icon || token.logoURI}
+				{#if iconUrl?.startsWith('/images/')}
+					<!-- Local image files should use img tag -->
+					<img src={iconUrl} alt={token.symbol} class="w-6 h-6 rounded-full" onerror={(e) => { const target = e.currentTarget as HTMLImageElement; target.style.display='none'; const nextElement = target.nextElementSibling as HTMLElement; if (nextElement) nextElement.style.display='flex'; }} />
+					<div class="w-6 h-6 rounded-full items-center justify-center bg-gray-400 text-white font-bold text-xs" style="display:none;">
+						{token.symbol?.[0] || '?'}
+					</div>
+				{:else if iconUrl?.startsWith('http')}
+					<!-- External URLs -->
+					<img src={iconUrl} alt={token.symbol} class="w-6 h-6 rounded-full" onerror={(e) => { const target = e.currentTarget as HTMLImageElement; target.style.display='none'; const nextElement = target.nextElementSibling as HTMLElement; if (nextElement) nextElement.style.display='flex'; }} />
+					<div class="w-6 h-6 rounded-full items-center justify-center bg-gray-400 text-white font-bold text-xs" style="display:none;">
+						{token.symbol?.[0] || '?'}
+					</div>
+				{:else}
+					<!-- Text/emoji icons or missing icons -->
+					<div class="w-6 h-6 rounded-full flex items-center justify-center bg-gray-400 text-white font-bold text-xs">
+						{iconUrl || token.symbol?.[0] || '?'}
+					</div>
+				{/if}
 			{/if}
 			<div>
 				<p class="text-sm font-medium">{token.name} ({token.symbol})</p>
@@ -89,8 +100,26 @@
 		class="flex justify-between items-center py-1.5 px-2 border-b border-gray-200 border-solid hover:bg-gray-50 dark:hover:bg-zinc-800 item {className}"
 	>
 		<div class="flex items-center gap-2">
-			{#if token.logoURI}
-				<img src={token.logoURI} alt={token.symbol} class="w-6 h-6 rounded-full" />
+			{#if token.icon || token.logoURI}
+				{@const iconUrl = token.icon || token.logoURI}
+				{#if iconUrl?.startsWith('/images/')}
+					<!-- Local image files should use img tag -->
+					<img src={iconUrl} alt={token.symbol} class="w-6 h-6 rounded-full" onerror={(e) => { const target = e.currentTarget as HTMLImageElement; target.style.display='none'; const nextElement = target.nextElementSibling as HTMLElement; if (nextElement) nextElement.style.display='flex'; }} />
+					<div class="w-6 h-6 rounded-full items-center justify-center bg-gray-400 text-white font-bold text-xs" style="display:none;">
+						{token.symbol?.[0] || '?'}
+					</div>
+				{:else if iconUrl?.startsWith('http')}
+					<!-- External URLs -->
+					<img src={iconUrl} alt={token.symbol} class="w-6 h-6 rounded-full" onerror={(e) => { const target = e.currentTarget as HTMLImageElement; target.style.display='none'; const nextElement = target.nextElementSibling as HTMLElement; if (nextElement) nextElement.style.display='flex'; }} />
+					<div class="w-6 h-6 rounded-full items-center justify-center bg-gray-400 text-white font-bold text-xs" style="display:none;">
+						{token.symbol?.[0] || '?'}
+					</div>
+				{:else}
+					<!-- Text/emoji icons or missing icons -->
+					<div class="w-6 h-6 rounded-full flex items-center justify-center bg-gray-400 text-white font-bold text-xs">
+						{iconUrl || token.symbol?.[0] || '?'}
+					</div>
+				{/if}
 			{/if}
 			<div>
 				<p class="text-sm font-medium">{token.name} ({token.symbol})</p>

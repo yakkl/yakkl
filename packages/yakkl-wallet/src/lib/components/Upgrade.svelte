@@ -29,6 +29,20 @@
       'Standard networks',
       'Community support'
     ],
+    [PlanType.FoundingMember]: [
+      'Everything in Pro',
+      'Founding member benefits',
+      'Lifetime features',
+      'Special recognition',
+      'Direct founder access'
+    ],
+    [PlanType.EarlyAdopter]: [
+      'Everything in Pro',
+      'Early adopter benefits',
+      'Special pricing',
+      'Beta access',
+      'Priority feedback'
+    ],
     [PlanType.Pro]: [
       'Unlimited accounts',
       'Advanced analytics',
@@ -57,12 +71,16 @@
 
   const planPricing = {
     [PlanType.Basic]: { monthly: 0, yearly: 0 },
+    [PlanType.FoundingMember]: { monthly: 0, yearly: 0 }, // Special pricing
+    [PlanType.EarlyAdopter]: { monthly: 7.99, yearly: 79.99 }, // Discounted
     [PlanType.Pro]: { monthly: 9.99, yearly: 99.99 },
     [PlanType.Enterprise]: { monthly: 49.99, yearly: 499.99 },
   };
 
   const planColors = {
     [PlanType.Basic]: 'from-gray-500 to-gray-600',
+    [PlanType.FoundingMember]: 'from-purple-600 to-pink-600',
+    [PlanType.EarlyAdopter]: 'from-blue-600 to-cyan-600',
     [PlanType.Pro]: 'from-indigo-500 to-purple-600',
     [PlanType.Enterprise]: 'from-yellow-500 to-orange-600',
   };
@@ -82,6 +100,8 @@
   function getPlanIcon(planType: PlanType): string {
     switch (planType) {
       case PlanType.Basic: return '🌟';
+      case PlanType.FoundingMember: return '👑';
+      case PlanType.EarlyAdopter: return '🚀';
       case PlanType.Pro: return '💎';
       case PlanType.Enterprise: return '🏢';
       default: return '📦';
@@ -161,7 +181,7 @@
 </script>
 
 {#if show}
-  <div class="fixed inset-0 z-50 overflow-y-auto">
+  <div class="fixed inset-0 z-[100] overflow-y-auto">
     <div class="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
       <!-- Background overlay -->
       <button class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick={() => show = false} aria-label="Close modal"></button>

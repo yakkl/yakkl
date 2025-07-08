@@ -8,6 +8,7 @@ import { getObjectFromLocalStorage } from '$lib/common/backgroundSecuredStorage'
 import { STORAGE_YAKKL_SETTINGS, STORAGE_YAKKL_PROFILE } from '$lib/common/constants';
 import type { Settings, Profile } from '$lib/common/interfaces';
 import { getPermission } from '$lib/permissions';
+import browser from 'webextension-polyfill';
 
 export interface RequestValidationResult {
   isValid: boolean;
@@ -47,6 +48,12 @@ const PUBLIC_METHODS = new Set([
   'eth_getLogs'
 ]);
 
+// Methods that require approval popup but can be called when wallet is locked
+const POPUP_METHODS = new Set([
+  'eth_requestAccounts',
+  'wallet_requestPermissions'
+]);
+
 /**
  * Validates background script requests
  */
@@ -58,9 +65,33 @@ export async function validateBackgroundRequest(
   try {
     // Check if method requires authentication
     const requiresAuth = PROTECTED_METHODS.has(method);
+    const isPopupMethod = POPUP_METHODS.has(method);
     
     if (!requiresAuth && PUBLIC_METHODS.has(method)) {
       // Public methods don't require authentication
+      return {
+        isValid: true,
+        isAuthenticated: false,
+        hasRequiredPermissions: true
+      };
+    }
+    
+    // For popup methods, allow them to proceed even if wallet is locked
+    // The popup will handle authentication
+    if (isPopupMethod) {
+      // Check if wallet is at least initialized
+      const settings = await getObjectFromLocalStorage<Settings>(STORAGE_YAKKL_SETTINGS);
+      
+      if (!settings || !settings.legal?.termsAgreed) {
+        return {
+          isValid: false,
+          reason: 'Wallet not initialized',
+          isAuthenticated: false,
+          hasRequiredPermissions: false
+        };
+      }
+      
+      // Allow popup methods to proceed even if locked
       return {
         isValid: true,
         isAuthenticated: false,
@@ -251,8 +282,9 @@ export async function logSecurityEvent(
       details
     };
     
-    // Store security log
-    const securityLog = JSON.parse(localStorage.getItem('securityLog') || '[]');
+    // Store security log using browser storage (service workers don't have localStorage)
+    const result = await browser.storage.local.get('securityLog');
+    const securityLog: any[] = Array.isArray(result.securityLog) ? result.securityLog : [];
     securityLog.push(logEntry);
     
     // Keep only last 500 entries
@@ -260,7 +292,7 @@ export async function logSecurityEvent(
       securityLog.splice(0, securityLog.length - 500);
     }
     
-    localStorage.setItem('securityLog', JSON.stringify(securityLog));
+    await browser.storage.local.set({ securityLog });
     
     log.warn('Security event', false, logEntry);
   } catch (error) {

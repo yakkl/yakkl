@@ -3,15 +3,16 @@
   import { goto } from '$app/navigation';
   import { accounts as accountsStore, currentAccount, accountStore } from '$lib/stores/account.store';
   import { Copy, Plus, Download, Upload, MoreVertical } from 'lucide-svelte';
-  
+  import { get } from 'svelte/store';
+
   let accountsList = $derived($accountsStore);
   let selectedAccount = $derived($currentAccount);
   let showMenu = $state<string | null>(null);
-  
+
   onMount(() => {
     // Load accounts on mount
     accountStore.loadAccounts();
-    
+
     // Click outside handler to close menu
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as HTMLElement;
@@ -19,9 +20,9 @@
         showMenu = null;
       }
     }
-    
+
     document.addEventListener('click', handleClickOutside);
-    
+
     return () => {
       document.removeEventListener('click', handleClickOutside);
     };
@@ -35,61 +36,99 @@
     if (!addr) return '';
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   }
-  
+
   function copyAddress(address: string) {
     navigator.clipboard.writeText(address);
     // TODO: Show toast notification
   }
-  
+
   function toggleMenu(address: string) {
     showMenu = showMenu === address ? null : address;
   }
-  
+
   function handleExport(account: any) {
     showMenu = null;
     // Store the account to export in a temporary location
     sessionStorage.setItem('export-account', account.address);
     goto('/accounts/export');
   }
-  
+
   function getAccountColor(account: any): string {
+    // Ensure tags is an array before using includes
+    const tags = Array.isArray(account.tags) ? account.tags : [];
+    
     // Color coding based on account type
-    if (account.accountType === 'imported' || account.tags?.includes('imported')) {
+    if (account.accountType === 'imported' || tags.includes('imported')) {
       return 'from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200 dark:border-green-800';
-    } else if (account.accountType === 'primary' || account.tags?.includes('primary') || account.isPrimary) {
+    } else if (account.accountType === 'primary' || tags.includes('primary') || account.isPrimary) {
       return 'from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border-purple-200 dark:border-purple-800';
-    } else if (account.accountType === 'sub' || account.tags?.includes('sub')) {
+    } else if (account.accountType === 'sub' || tags.includes('sub')) {
       return 'from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border-blue-200 dark:border-blue-800';
     }
     // Default color
     return 'from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 border-gray-200 dark:border-gray-700';
   }
-  
+
   function getAccountTypeLabel(account: any): string {
-    if (account.accountType === 'imported' || account.tags?.includes('imported')) {
+    // Ensure tags is an array before using includes
+    const tags = Array.isArray(account.tags) ? account.tags : [];
+    
+    if (account.accountType === 'imported' || tags.includes('imported')) {
       return 'Imported';
-    } else if (account.accountType === 'primary' || account.tags?.includes('primary') || account.isPrimary) {
+    } else if (account.accountType === 'primary' || tags.includes('primary') || account.isPrimary) {
       return 'Primary';
-    } else if (account.accountType === 'sub' || account.tags?.includes('sub')) {
+    } else if (account.accountType === 'sub' || tags.includes('sub')) {
       return 'Sub-Account';
     }
     return 'Account';
   }
-  
+
   function getAccountIcon(account: any): string {
-    if (account.accountType === 'imported' || account.tags?.includes('imported')) {
+    // Ensure tags is an array before using includes
+    const tags = Array.isArray(account.tags) ? account.tags : [];
+    
+    if (account.accountType === 'imported' || tags.includes('imported')) {
       return '📥';
-    } else if (account.accountType === 'primary' || account.tags?.includes('primary') || account.isPrimary) {
+    } else if (account.accountType === 'primary' || tags.includes('primary') || account.isPrimary) {
       return '👑';
-    } else if (account.accountType === 'sub' || account.tags?.includes('sub')) {
+    } else if (account.accountType === 'sub' || tags.includes('sub')) {
       return '🔗';
     }
     return '👤';
   }
-  
-  function handleAccountClick(account: any) {
-    // Navigate to account maintenance page
-    goto(`/accounts/manage/${account.address}`);
+
+  async function handleAccountClick(account: any) {
+    // If clicking the currently selected account, navigate to manage page
+    if (account.address === selectedAccount?.address) {
+      goto(`/accounts/manage/${account.address}`);
+    } else {
+      // Otherwise, switch to this account
+      await switchAccount(account);
+    }
+  }
+
+  async function handleRemove(account: any) {
+    showMenu = null;
+    
+    // Don't allow removing the current account
+    if (account.address === selectedAccount?.address) {
+      alert('Cannot remove the current account. Please switch to another account first.');
+      return;
+    }
+
+    // Don't allow removing the last account
+    if (accountsList.length <= 1) {
+      alert('Cannot remove the last account.');
+      return;
+    }
+
+    if (confirm(`Are you sure you want to remove "${account.ens || account.username || 'this account'}"? This action cannot be undone.`)) {
+      const success = await accountStore.removeAccount(account.address);
+      if (!success) {
+        const state = get(accountStore);
+        alert(state.error?.message || 'Failed to remove account');
+      }
+    }
   }
 </script>
 
@@ -114,7 +153,7 @@
         </button>
       </div>
     </div>
-    
+
     <div class="space-y-3">
       {#if accountsList.length === 0}
         <div class="text-center py-12">
@@ -148,7 +187,7 @@
                     <div class="flex-1">
                       <div class="flex items-center gap-2">
                         <div class="font-semibold text-gray-900 dark:text-gray-100">
-                          {account.ens || account.name || 'Account'}
+                          {account.ens || account.username || 'Account'}
                         </div>
                         <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-white/50 dark:bg-black/20">
                           {getAccountTypeLabel(account)}
@@ -165,14 +204,14 @@
                     </div>
                   </div>
                 </button>
-              
+
               <div class="flex items-center gap-2">
                 {#if account.address === selectedAccount?.address}
                   <span class="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-xs rounded-full font-medium">
                     Active
                   </span>
                 {/if}
-                
+
                 <button
                   onclick={() => copyAddress(account.address)}
                   class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
@@ -180,7 +219,7 @@
                 >
                   <Copy class="w-4 h-4 text-gray-600 dark:text-gray-400" />
                 </button>
-                
+
                 <div class="relative">
                   <button
                     onclick={() => toggleMenu(account.address)}
@@ -188,7 +227,7 @@
                   >
                     <MoreVertical class="w-4 h-4 text-gray-600 dark:text-gray-400" />
                   </button>
-                  
+
                   {#if showMenu === account.address}
                     <div class="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10">
                       <button
@@ -201,11 +240,7 @@
                         </div>
                       </button>
                       <button
-                        onclick={() => {
-                          showMenu = null;
-                          // TODO: Implement remove account
-                          alert('Remove account coming soon');
-                        }}
+                        onclick={() => handleRemove(account)}
                         class="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors rounded-b-lg"
                       >
                         Remove Account
@@ -215,7 +250,7 @@
                 </div>
               </div>
             </div>
-            
+
             <!-- Hover Tooltip with Details -->
             <div class="absolute left-0 right-0 top-full mt-2 z-20 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-200">
               <div class="bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 p-4">
@@ -246,7 +281,7 @@
                       onclick={() => handleAccountClick(account)}
                       class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 text-xs"
                     >
-                      Click to manage account →
+                      {account.address === selectedAccount?.address ? 'Click to manage account →' : 'Click to switch to this account →'}
                     </button>
                   </div>
                 </div>

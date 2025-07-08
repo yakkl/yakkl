@@ -61,7 +61,7 @@
 
 			onVerify(); // Call the onVerify callback - currently does not do anything except set the modal to false
 		} catch (e) {
-			log.error('Error verifying pincode:', e);
+			log.error('Error verifying pincode:', false, e);
 		}
 	}
 
@@ -84,16 +84,18 @@
 					<strong>⚠️ Security Warning:</strong> Your PRIVATE KEY should remain PRIVATE. Anyone with access to this key can steal all your funds. Only export if absolutely necessary and store it securely offline.
 				</p>
 			</div>
-			
+
 			<div class="space-y-4">
 				<div>
+					<!-- svelte-ignore a11y_label_has_associated_control -->
 					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Account Address</label>
 					<div class="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg font-mono text-sm text-gray-700 dark:text-gray-300">
 						{address}
 					</div>
 				</div>
-				
+
 				<div>
+					<!-- svelte-ignore a11y_label_has_associated_control -->
 					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Private Key</label>
 					<div class="relative">
 						<input
@@ -140,7 +142,7 @@
 					</svg>
 				</div>
 			</div>
-			
+
 			<div class="text-center mb-6">
 				<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
 					Verification Required
@@ -149,13 +151,13 @@
 					To export your private key, please verify your identity with your PIN code.
 				</p>
 			</div>
-			
+
 			<div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-6">
 				<p class="text-sm text-amber-800 dark:text-amber-200">
 					<strong>Note:</strong> Your private key provides full access to your account. Only export it if you need to import this account into another wallet.
 				</p>
 			</div>
-			
+
 			<div class="flex justify-end gap-3">
 				<button
 					type="button"

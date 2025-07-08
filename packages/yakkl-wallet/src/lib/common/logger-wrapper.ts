@@ -17,7 +17,20 @@ export const log = {
 
 	// These remain in production
 	// warn: LoggerInstance.warn.bind(LoggerInstance),
-	error: LoggerInstance.error.bind(LoggerInstance),
+	error: (message: string, persist?: boolean, ...args: any[]) => {
+		// Suppress specific connection errors
+		const errorString = [message, ...args.map(arg => String(arg))].join(' ');
+		if (errorString.includes('Could not establish connection') ||
+		    errorString.includes('Receiving end does not exist')) {
+			// Convert to debug log instead
+			if (__DEV__) {
+				LoggerInstance.debug(`[Suppressed Error] ${message}`, persist, ...args);
+			}
+			return;
+		}
+		// Log other errors normally
+		LoggerInstance.error(message, persist, ...args);
+	},
 	// errorStack: LoggerInstance.errorStack.bind(LoggerInstance),
 	// trace: LoggerInstance.trace.bind(LoggerInstance),
 

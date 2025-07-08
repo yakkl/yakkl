@@ -769,7 +769,7 @@ export function handleOnMessageForPricing(
 	message: any,
 	sender: Runtime.MessageSender,
 	sendResponse: (response?: any) => void
-): boolean {
+): boolean | any {
 	if (!browser_ext) return false;
 
 	try {

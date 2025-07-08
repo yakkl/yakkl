@@ -96,6 +96,7 @@ module.exports = {
 		alias: {
 			'process/browser': require.resolve('process/browser'),
 			'webextension-polyfill': require.resolve('webextension-polyfill'),
+			'dexie': require.resolve('dexie'), // Force resolution to a single dexie instance
 			$lib: path.resolve(__dirname, 'src/lib'),
 			'$lib/common': path.resolve(__dirname, 'src/lib/common'),
 			'$lib/utilities': path.resolve(__dirname, 'src/lib/utilities'),

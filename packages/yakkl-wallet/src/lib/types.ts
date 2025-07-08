@@ -20,6 +20,15 @@ export interface AccountDisplay {
   isActive: boolean;
   balance?: string;
   plan?: PlanType;
+  // Additional properties for account management
+  connectedDomains?: string[];
+  value?: number;
+  createdAt?: string;
+  createDate?: string;
+  chainIds?: number[];
+  accountType?: string;
+  tags?: string[];
+  isPrimary?: boolean;
 }
 
 export interface ChainDisplay {
@@ -33,21 +42,40 @@ export interface ChainDisplay {
   explorerUrl?: string;
   explorerApiUrl?: string;
   explorerApiKey?: string;
+  nativeCurrency?: {
+    name: string;
+    symbol: string;
+    decimals: number;
+    price?: number;
+  };
 }
 
 export interface TokenDisplay {
+  chainId?: number;
+  address?: string;
   symbol: string;
-  name?: string;
-  icon?: string;
-  value: number;
-  qty: number;
+  name: string;
+  decimals: number;
+  logo?: string;
+  quantity?: string;
+  balance?: string | number;
+  value?: string | number;
   price?: number;
+  chainName?: string;
+  icon?: string;
+  qty?: number;
   change24h?: number;
   color?: string;
-  address?: string;
-  decimals?: number;
-  chainId?: number;
 }
+
+// export interface TokenData {
+//   address: string;
+//   symbol: string;
+//   name: string;
+//   decimals: number;
+//   chainId: number;
+//   logo?: string;
+// }
 
 export interface TransactionDisplay {
   hash: string;
@@ -59,6 +87,13 @@ export interface TransactionDisplay {
   type: 'send' | 'receive' | 'swap' | 'contract';
   gas?: string;
   gasPrice?: string;
+  gasUsed?: string;
+  blockNumber?: string;
+  nonce?: string;
+  confirmations?: string;
+  functionName?: string;
+  methodId?: string;
+  txreceipt_status?: string;
 }
 
 export enum PlanType {
@@ -80,6 +115,7 @@ export interface UserPlan {
 export interface LoadingState {
   isLoading: boolean;
   message?: string;
+  isBackgroundUpdate?: boolean;
 }
 
 export interface ErrorState {

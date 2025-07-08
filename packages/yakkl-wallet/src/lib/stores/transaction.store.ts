@@ -1,9 +1,15 @@
 import { writable, derived } from 'svelte/store';
 import type { TransactionDisplay, LoadingState, ErrorState } from '../types';
 import { TransactionService } from '../services/transaction.service';
+import { TransactionMonitorService } from '../services/transactionMonitor.service';
+import { TransactionCacheManager } from '../managers/TransactionCacheManager';
 import { currentAccount } from './account.store';
 import { currentChain } from './chain.store';
 import { get } from 'svelte/store';
+import { browser } from '$app/environment';
+// Removed: import browserApi from 'webextension-polyfill';
+// Added: Use helper to avoid module resolution error
+import { addTransactionUpdateListener, isExtensionContext, getSessionStorage } from './transaction-store-helper';
 
 interface TransactionState {
   transactions: TransactionDisplay[];
@@ -11,33 +17,113 @@ interface TransactionState {
   loading: LoadingState;
   error: ErrorState;
   gasPrice: string | null;
+  sortOrder: 'newest' | 'oldest';
+  isMonitoring: boolean;
 }
 
 function createTransactionStore() {
   const txService = TransactionService.getInstance();
+  const txMonitor = TransactionMonitorService.getInstance();
+  const cacheManager = TransactionCacheManager.getInstance();
   
   const { subscribe, set, update } = writable<TransactionState>({
     transactions: [],
     pendingTx: null,
     loading: { isLoading: false },
     error: { hasError: false },
-    gasPrice: null
+    gasPrice: null,
+    sortOrder: 'newest',
+    isMonitoring: false
   });
+
+  let currentAccountAddress: string | null = null;
+  let currentChainId: number | null = null;
+
+  // Listen for transaction updates broadcasted from background
+  // Added: Use helper function to avoid direct browserApi import
+  if (browser && typeof window !== 'undefined') {
+    const cleanup = addTransactionUpdateListener((message: any, sender: any) => {
+      if (message.type === 'yakkl_transactionUpdate') {
+        const { address, chainId, transactions } = message.payload || {};
+        
+        // Only update if it's for the current account and chain
+        const account = get(currentAccount);
+        const chain = get(currentChain);
+        
+        if (account?.address === address && chain?.chainId === chainId) {
+          console.log('TransactionStore: Received broadcast update with', transactions.length, 'transactions');
+          
+          update(state => ({
+            ...state,
+            transactions: transactions,
+            loading: { isLoading: false },
+            error: { hasError: false }
+          }));
+        }
+      }
+    });
+    // Note: cleanup function is available if needed for listener removal
+  }
 
   // Auto-refresh when account changes
   currentAccount.subscribe(async (account) => {
-    if (account && account.address) {
-      console.log('TransactionStore: Loading transactions for account:', account.address);
+    if (account && account.address && account.address !== currentAccountAddress) {
+      currentAccountAddress = account.address;
+      console.log('TransactionStore: Account changed, loading transactions for:', account.address);
+      
+      // First try to load from cache for immediate display
+      const chain = get(currentChain);
+      if (chain?.chainId) {
+        const currentState = get({ subscribe });
+        const cachedTransactions = await cacheManager.getCachedTransactions(
+          account.address,
+          chain.chainId,
+          currentState.sortOrder
+        );
+        
+        if (cachedTransactions) {
+          console.log('TransactionStore: Using cached transactions:', cachedTransactions.length);
+          update(state => ({
+            ...state,
+            transactions: cachedTransactions,
+            loading: { isLoading: false },
+            error: { hasError: false }
+          }));
+        }
+      }
+      
+      // Then fetch fresh data
       await loadTransactions(account.address);
     }
   });
 
   // Auto-refresh when chain changes
   currentChain.subscribe(async (chain) => {
-    if (chain) {
+    if (chain && chain.chainId !== currentChainId) {
+      currentChainId = chain.chainId;
       const account = get(currentAccount);
       if (account && account.address) {
         console.log('TransactionStore: Chain changed to', chain.name, 'chainId:', chain.chainId, ', reloading transactions');
+        
+        // First try to load from cache for immediate display
+        const currentState = get({ subscribe });
+        const cachedTransactions = await cacheManager.getCachedTransactions(
+          account.address,
+          chain.chainId,
+          currentState.sortOrder
+        );
+        
+        if (cachedTransactions) {
+          console.log('TransactionStore: Using cached transactions:', cachedTransactions.length);
+          update(state => ({
+            ...state,
+            transactions: cachedTransactions,
+            loading: { isLoading: false },
+            error: { hasError: false }
+          }));
+        }
+        
+        // Then fetch fresh data
         await loadTransactions(account.address);
       } else {
         console.log('TransactionStore: Chain changed but no account selected');
@@ -60,20 +146,44 @@ function createTransactionStore() {
     }));
 
     try {
+      const chain = get(currentChain);
+      if (!chain?.chainId) {
+        throw new Error('No chain selected');
+      }
+
       const response = await txService.getTransactionHistory(address);
       console.log('TransactionStore: Got response:', response);
       
       if (response.success && response.data) {
-        // Use the data even if empty - don't show mock data
-        update(state => ({
-          ...state,
-          transactions: response.data!,
-          loading: { isLoading: false },
-          error: { hasError: false }
-        }));
+        console.log('TransactionStore: Received transactions:', response.data.length, 'items');
+        
+        // Update cache with new transactions
+        await cacheManager.updateCache(address, chain.chainId, response.data);
+        
+        // Sort according to current sort order
+        const sortedTransactions = [...response.data];
+        const currentState = get({ subscribe });
+        const sortOrder = currentState.sortOrder;
+        if (sortOrder === 'oldest') {
+          sortedTransactions.sort((a, b) => a.timestamp - b.timestamp);
+        } else {
+          sortedTransactions.sort((a, b) => b.timestamp - a.timestamp);
+        }
+        
+        update(state => {
+          console.log('TransactionStore: Updating state with transactions');
+          const newState = {
+            ...state,
+            transactions: sortedTransactions,
+            loading: { isLoading: false },
+            error: { hasError: false }
+          };
+          console.log('TransactionStore: New state transactions:', newState.transactions.length);
+          return newState;
+        });
       } else {
         // Show empty state if no data
-        console.log('TransactionStore: No transaction data available');
+        console.log('TransactionStore: No transaction data available or failed');
         update(state => ({
           ...state,
           transactions: [],
@@ -212,14 +322,104 @@ function createTransactionStore() {
       }));
     },
 
+    // Method to manually refresh transactions from session storage
+    async refreshFromStorage() {
+      const account = get(currentAccount);
+      const chain = get(currentChain);
+      
+      if (account?.address && chain?.chainId) {
+        try {
+          const storageKey = `transactions_${account.address}_${chain.chainId}`;
+          // Added: Use helper to get session storage
+          const cachedData = await getSessionStorage(storageKey) as { transactions: TransactionDisplay[], timestamp: number } | undefined;
+          if (cachedData && cachedData.transactions) {
+            console.log('TransactionStore: Loaded from session storage:', cachedData.transactions.length, 'transactions');
+            
+            update(state => ({
+              ...state,
+              transactions: cachedData.transactions,
+              loading: { isLoading: false },
+              error: { hasError: false }
+            }));
+          }
+        } catch (error) {
+          console.error('TransactionStore: Failed to load from session storage:', error);
+        }
+      }
+    },
+    
+    // Method to refresh transactions from the blockchain
+    async refresh(force = false) {
+      const account = get(currentAccount);
+      if (account?.address) {
+        console.log('TransactionStore: Refreshing transactions', { force });
+        await loadTransactions(account.address);
+      }
+    },
+
     reset() {
       set({
         transactions: [],
         pendingTx: null,
         loading: { isLoading: false },
         error: { hasError: false },
-        gasPrice: null
+        gasPrice: null,
+        sortOrder: 'newest',
+        isMonitoring: false
       });
+    },
+
+    // Toggle sort order between newest and oldest
+    toggleSortOrder() {
+      update(state => {
+        const newSortOrder = state.sortOrder === 'newest' ? 'oldest' : 'newest';
+        const sortedTransactions = [...state.transactions];
+        
+        if (newSortOrder === 'oldest') {
+          sortedTransactions.sort((a, b) => a.timestamp - b.timestamp);
+        } else {
+          sortedTransactions.sort((a, b) => b.timestamp - a.timestamp);
+        }
+        
+        return {
+          ...state,
+          sortOrder: newSortOrder,
+          transactions: sortedTransactions
+        };
+      });
+    },
+
+    // Start transaction monitoring
+    async startMonitoring(pollingInterval?: number) {
+      await txMonitor.start(pollingInterval);
+      update(state => ({ ...state, isMonitoring: true }));
+    },
+
+    // Stop transaction monitoring
+    stopMonitoring() {
+      txMonitor.stop();
+      update(state => ({ ...state, isMonitoring: false }));
+    },
+
+    // Configure monitoring settings
+    configureMonitoring(config: { pollingInterval?: number; notificationEnabled?: boolean }) {
+      txMonitor.configure(config);
+    },
+
+    // Get monitoring status
+    getMonitoringStatus() {
+      return txMonitor.getStatus();
+    },
+
+    // Clear cache for current account and chain
+    async clearCache() {
+      const account = get(currentAccount);
+      const chain = get(currentChain);
+      
+      if (account?.address && chain?.chainId) {
+        await cacheManager.clearCache(account.address, chain.chainId);
+        await loadTransactions(account.address);
+      }
     }
   };
 }
@@ -245,4 +445,14 @@ export const isLoadingTx = derived(
 export const txError = derived(
   transactionStore,
   $store => $store.error
+);
+
+export const txSortOrder = derived(
+  transactionStore,
+  $store => $store.sortOrder
+);
+
+export const isMonitoringTx = derived(
+  transactionStore,
+  $store => $store.isMonitoring
 );

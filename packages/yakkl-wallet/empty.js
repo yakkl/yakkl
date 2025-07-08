@@ -1,2 +1,2 @@
-// Empty module for browser polyfills
-module.exports = {};
+// Empty module for SSR compatibility
+export default {};

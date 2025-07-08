@@ -105,5 +105,60 @@ export const hasAccessToPlan = (plan: PlanType): boolean =>
 export const setUserPlan = (plan: PlanType): void => 
   featureManager.setPlan(plan);
 
+export const getCurrentPlan = (): PlanType => 
+  featureManager.getCurrentPlan();
+
+// Plan display helpers
+export const getPlanBadgeText = (plan?: PlanType): string => {
+  const currentPlan = plan || featureManager.getCurrentPlan();
+  switch (currentPlan) {
+    case PlanType.FoundingMember:
+      return 'FOUNDING / PRO';
+    case PlanType.EarlyAdopter:
+      return 'EARLY / PRO';
+    case PlanType.Pro:
+      return 'PRO';
+    case PlanType.Enterprise:
+      return 'ENTERPRISE';
+    case PlanType.Basic:
+    default:
+      return 'BASIC';
+  }
+};
+
+export const getPlanBadgeColor = (plan?: PlanType): string => {
+  const currentPlan = plan || featureManager.getCurrentPlan();
+  switch (currentPlan) {
+    case PlanType.FoundingMember:
+      return 'oklch(71.97% 0.149 81.37 / 1)'; // Gold/yellow as specified
+    case PlanType.EarlyAdopter:
+      return 'oklch(71.97% 0.149 142.5 / 1)'; // Green with similar characteristics
+    case PlanType.Pro:
+      return 'oklch(71.97% 0.149 192.5 / 1)'; // Teal with similar characteristics
+    case PlanType.Enterprise:
+      return 'oklch(71.97% 0.149 266.5 / 1)'; // Purple with similar characteristics
+    case PlanType.Basic:
+    default:
+      return 'oklch(71.97% 0.149 27.5 / 1)'; // Brown with similar characteristics
+  }
+};
+
+export const getPlanGradientClass = (plan?: PlanType): string => {
+  const currentPlan = plan || featureManager.getCurrentPlan();
+  switch (currentPlan) {
+    case PlanType.FoundingMember:
+      return 'from-yellow-500 to-amber-600';
+    case PlanType.EarlyAdopter:
+      return 'from-green-500 to-emerald-600';
+    case PlanType.Pro:
+      return 'from-teal-500 to-cyan-600';
+    case PlanType.Enterprise:
+      return 'from-purple-500 to-indigo-600';
+    case PlanType.Basic:
+    default:
+      return 'from-stone-500 to-amber-700';
+  }
+};
+
 // Export class for testing
 export { FeatureManager };

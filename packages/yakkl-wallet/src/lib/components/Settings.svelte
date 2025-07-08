@@ -5,10 +5,10 @@
 	import Modal from './v1/Modal.svelte';
 	import { getSettings, setSettings, getProfile, setProfileStorage } from '$lib/common/stores';
 	import { log } from '$lib/managers/Logger';
-	import { onMount } from 'svelte';
 	import type { Settings, Profile } from '$lib/common/interfaces';
 	import { SystemTheme, PlanType } from '$lib/common/types';
 	import SoundSettings from './SoundSettings.svelte';
+	import { chainStore } from '$lib/stores/chain.store';
 
 	interface Props {
 		show?: boolean;
@@ -107,12 +107,12 @@
 	// Custom submit handler for Svelte 5
 	async function handleFormSubmit(event: Event) {
 		event.preventDefault();
-		
+
 		// Validate the form
 		if (!$isValid) {
 			return;
 		}
-		
+
 		// Call saveSettings directly with form values
 		await saveSettings($form);
 	}
@@ -141,7 +141,7 @@
 				trialCountdownPinned: settings.trialCountdownPinned ?? false
 			};
 
-			hasChanges = 
+			hasChanges =
 				currentValues.showTestNetworks !== originalValues.showTestNetworks ||
 				currentValues.theme !== originalValues.theme ||
 				currentValues.locale !== originalValues.locale ||
@@ -159,7 +159,7 @@
 	async function loadSettingsData() {
 		isLoading = true;
 		error = '';
-		
+
 		try {
 			// Load both settings and profile (for preferences)
 			[settings, profile] = await Promise.all([
@@ -245,9 +245,12 @@
 			settings = updatedSettings;
 			profile = updatedProfile;
 
+			// Update chain store to reflect test network preference
+			chainStore.setShowTestnets(values.showTestNetworks);
+
 			success = 'Settings updated successfully!';
 			hasChanges = false;
-			
+
 			// Call completion callback
 			onComplete();
 
@@ -542,7 +545,7 @@
 					>
 						Reset
 					</button>
-					
+
 					<div class="flex space-x-3">
 						<button
 							type="button"
@@ -552,7 +555,7 @@
 						>
 							Cancel
 						</button>
-						
+
 						<button
 							type="submit"
 							class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"

@@ -397,7 +397,7 @@
         <!-- Left: Icon and message -->
         <div class="flex items-center gap-3">
           <div class="relative">
-            <Clock class="h-6 w-6 text-yellow-300" class:animate-spin={isUrgent} />
+            <Clock class="h-6 w-6 text-yellow-300 {isUrgent ? 'animate-spin' : ''}" />
             {#if isUrgent}
               <div class="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full animate-ping"></div>
             {/if}

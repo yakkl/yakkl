@@ -1,6 +1,6 @@
 import { BaseService } from './base.service';
 import type { TransactionDisplay, ServiceResponse } from '../types';
-import { ethers } from 'ethers';
+import { ethers } from 'ethers-v6';
 import { get } from 'svelte/store';
 import { currentAccount } from '../stores/account.store';
 import { currentChain } from '../stores/chain.store';
@@ -77,27 +77,39 @@ export class TransactionService extends BaseService {
     }
   }
 
-  async getTransactionHistory(address: string, limit: number = 10): Promise<ServiceResponse<TransactionDisplay[]>> {
+  async getTransactionHistory(address: string, limit: number = 100): Promise<ServiceResponse<TransactionDisplay[]>> {
     try {
+      console.log('TransactionService: Requesting transaction history for:', address, 'limit:', limit);
+      
       // Request transaction history from background - use the type field for MessageHandler
       const response = await this.sendMessage<TransactionDisplay[]>({
         type: 'yakkl_getTransactionHistory',
         payload: { address, limit }
       });
 
+      console.log('TransactionService: Received response:', {
+        success: response.success,
+        hasData: !!response.data,
+        dataLength: response.data?.length,
+        firstItem: response.data?.[0]
+      });
+
       if (response.success && response.data) {
         // Data is already in the correct format from the handler
+        console.log('TransactionService: Returning', response.data.length, 'transactions');
+        console.log('TransactionService: First transaction:', response.data[0]);
         return { success: true, data: response.data };
       }
 
       // If no data, return empty array instead of failing
       if (!response.data) {
+        console.log('TransactionService: No data in response, returning empty array');
         return { success: true, data: [] };
       }
 
       return response as ServiceResponse<TransactionDisplay[]>;
     } catch (error) {
-      console.warn('Failed to load transaction history:', error);
+      console.warn('TransactionService: Failed to load transaction history:', error);
       // Return empty array on error to avoid breaking UI
       return { 
         success: true, 

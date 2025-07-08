@@ -1,6 +1,11 @@
 <script lang="ts">
+  import { EmergencyKitManager } from '$lib/managers/EmergencyKitManager';
   import { currentAccount, accounts } from '$lib/stores/account.store';
   import { currentChain } from '$lib/stores/chain.store';
+  import { notificationService } from '$lib/services/notification.service';
+  import { log } from '$lib/common/logger-wrapper';
+  import { getMiscStore } from '$lib/common/stores';
+  import EmergencyKitShamir from './EmergencyKitShamir.svelte';
   
   let { onClose } = $props();
   
@@ -11,45 +16,148 @@
   let showPrivateKey = $state(false);
   let showSeedPhrase = $state(false);
   let copied = $state(false);
+  let loading = $state(false);
+  let mode = $state<'export' | 'import'>('export');
+  let file = $state<File | null>(null);
+  let metadata = $state<any>(null);
+  let showShamirModal = $state(false);
+  let emergencyKitData = $state<any>(null);
   
   function handlePrint() {
-    window.print();
+    // Navigate to the dedicated print page
+    window.open('/accounts/print-emergency-kit', '_blank');
   }
   
-  function handleDownload() {
-    const data = {
-      walletName: 'YAKKL Smart Wallet',
-      generatedAt: new Date().toISOString(),
-      account: {
-        address: account?.address,
-        name: account?.name || account?.username,
-        network: chain?.name
-      },
-      backupInstructions: 'Store this document securely. Never share your private key or seed phrase.',
-      warning: 'Anyone with access to this information can control your wallet.'
-    };
-    
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `yakkl-emergency-kit-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-  
-  async function copyToClipboard(text: string) {
+  async function handleExport() {
+    loading = true;
     try {
-      await navigator.clipboard.writeText(text);
-      copied = true;
-      setTimeout(() => copied = false, 2000);
+      // Get all the necessary data
+      const { 
+        getPreferences, getSettings, getProfile, getYakklCurrentlySelected,
+        getYakklContacts, getYakklChats, getYakklAccounts, getYakklPrimaryAccounts,
+        getYakklWatchList, getYakklBlockedList, getYakklConnectedDomains,
+        getYakklTokenData, getYakklTokenDataCustom, getYakklCombinedToken,
+        getYakklWalletProviders, getYakklWalletBlockchains
+      } = await import('$lib/common/stores');
+      
+      const preferences = await getPreferences();
+      const settings = await getSettings();
+      const profile = await getProfile();
+      const currentlySelected = await getYakklCurrentlySelected();
+      const contacts = await getYakklContacts();
+      const chats = await getYakklChats();
+      const accounts = await getYakklAccounts();
+      const primaryAccounts = await getYakklPrimaryAccounts();
+      const watchList = await getYakklWatchList();
+      const blockedList = await getYakklBlockedList();
+      const connectedDomains = await getYakklConnectedDomains();
+      const passwordOrSaltedKey = getMiscStore();
+      const tokenData = await getYakklTokenData();
+      const tokenDataCustom = await getYakklTokenDataCustom();
+      const combinedTokenStore = await getYakklCombinedToken();
+      const walletProviders = await getYakklWalletProviders();
+      const walletBlockchains = await getYakklWalletBlockchains();
+
+      if (!preferences || !settings || !profile || !currentlySelected || !passwordOrSaltedKey) {
+        throw new Error('Missing required data for export');
+      }
+
+      const bulkEmergencyKit = await EmergencyKitManager.createBulkEmergencyKit(
+        preferences,
+        settings,
+        profile,
+        currentlySelected,
+        contacts ?? [],
+        chats ?? [],
+        accounts ?? [],
+        primaryAccounts ?? [],
+        watchList ?? [],
+        blockedList ?? [],
+        connectedDomains ?? [],
+        passwordOrSaltedKey,
+        tokenData ?? [],
+        tokenDataCustom ?? [],
+        combinedTokenStore ?? [],
+        walletProviders ?? [],
+        walletBlockchains ?? []
+      );
+
+      // Store for Shamir option
+      emergencyKitData = bulkEmergencyKit;
+
+      const fileName = await EmergencyKitManager.downloadBulkEmergencyKit(bulkEmergencyKit);
+      
+      await notificationService.show({
+        message: `Emergency kit exported successfully as ${fileName}`,
+        type: 'success'
+      });
+      
+      // Don't close yet - user might want to create Shamir shards
     } catch (err) {
-      console.error('Failed to copy:', err);
+      log.error('Failed to export emergency kit', false, err);
+      await notificationService.show({
+        message: 'Failed to export emergency kit',
+        type: 'error'
+      });
+    } finally {
+      loading = false;
+    }
+  }
+  
+  async function handleFileSelect(event: Event) {
+    const target = event.target as HTMLInputElement;
+    if (target.files && target.files.length > 0) {
+      file = target.files[0];
+      try {
+        metadata = await EmergencyKitManager.readBulkEmergencyKitMetadata(file);
+      } catch (err) {
+        log.error('Failed to read emergency kit metadata', false, err);
+      }
+    }
+  }
+  
+  async function handleImport() {
+    if (!file) {
+      await notificationService.show({
+        message: 'Please select a file to import',
+        type: 'error'
+      });
+      return;
+    }
+    
+    loading = true;
+    try {
+      const passwordOrSaltedKey = getMiscStore();
+      const { newData, existingData } = await EmergencyKitManager.importBulkEmergencyKit(
+        file,
+        passwordOrSaltedKey
+      );
+
+      // Update stores will be handled in v1 logic
+      await notificationService.show({
+        message: 'Emergency kit imported successfully. Logging out...',
+        type: 'success'
+      });
+      
+      // Logout after import
+      const { safeLogout } = await import('$lib/common/safeNavigate');
+      setTimeout(() => {
+        safeLogout();
+      }, 2000);
+      
+    } catch (err) {
+      log.error('Failed to import emergency kit', false, err);
+      await notificationService.show({
+        message: 'Failed to import emergency kit',
+        type: 'error'
+      });
+    } finally {
+      loading = false;
     }
   }
 </script>
 
-<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
   <div class="bg-white dark:bg-zinc-800 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
     <!-- Header -->
     <div class="p-6 border-b border-zinc-200 dark:border-zinc-700">
@@ -63,6 +171,22 @@
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
+        </button>
+      </div>
+      
+      <!-- Mode Tabs -->
+      <div class="flex gap-1 mt-4 bg-zinc-100 dark:bg-zinc-900 rounded-lg p-1">
+        <button
+          onclick={() => mode = 'export'}
+          class="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors {mode === 'export' ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'}"
+        >
+          Export Kit
+        </button>
+        <button
+          onclick={() => mode = 'import'}
+          class="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors {mode === 'import' ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'}"
+        >
+          Import Kit
         </button>
       </div>
     </div>
@@ -85,135 +209,154 @@
     
     <!-- Content -->
     <div class="p-6 space-y-6">
-      <!-- Account Information -->
-      <div class="space-y-4">
-        <h3 class="text-lg font-semibold text-zinc-900 dark:text-white">Account Information</h3>
-        <div class="bg-zinc-50 dark:bg-zinc-900/50 rounded-lg p-4 space-y-3">
-          <div>
-            <span class="text-sm text-zinc-600 dark:text-zinc-400">Wallet Address:</span>
-            <div class="font-mono text-sm mt-1 break-all">{account?.address || 'No account selected'}</div>
-          </div>
-          <div>
-            <span class="text-sm text-zinc-600 dark:text-zinc-400">Account Name:</span>
-            <div class="font-medium mt-1">{account?.name || account?.username || 'Default Account'}</div>
-          </div>
-          <div>
-            <span class="text-sm text-zinc-600 dark:text-zinc-400">Current Network:</span>
-            <div class="font-medium mt-1">{chain?.name || 'Unknown'}</div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Private Key Section -->
-      <div class="space-y-4">
-        <div class="flex items-center justify-between">
-          <h3 class="text-lg font-semibold text-zinc-900 dark:text-white">Private Key</h3>
-          <button
-            onclick={() => showPrivateKey = !showPrivateKey}
-            class="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
-          >
-            {showPrivateKey ? 'Hide' : 'Reveal'} Private Key
-          </button>
-        </div>
-        {#if showPrivateKey}
-          <div class="bg-zinc-50 dark:bg-zinc-900/50 rounded-lg p-4">
-            <div class="font-mono text-xs break-all select-all">
-              ••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+      {#if mode === 'export'}
+        <!-- Export Mode Content -->
+        <div class="space-y-6">
+          <div class="text-center space-y-4">
+            <div class="mx-auto w-16 h-16 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center">
+              <svg class="w-8 h-8 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
             </div>
-            <p class="text-xs text-zinc-500 mt-2">Private key hidden for security. Use Export Account feature to reveal.</p>
+            <div>
+              <h3 class="text-lg font-semibold text-zinc-900 dark:text-white">Export Your Emergency Kit</h3>
+              <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">
+                Create a complete backup of your wallet including all accounts, settings, and preferences.
+              </p>
+            </div>
           </div>
-        {/if}
-      </div>
-      
-      <!-- Recovery Phrase Section -->
-      <div class="space-y-4">
-        <div class="flex items-center justify-between">
-          <h3 class="text-lg font-semibold text-zinc-900 dark:text-white">Recovery Phrase</h3>
-          <button
-            onclick={() => showSeedPhrase = !showSeedPhrase}
-            class="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
-          >
-            {showSeedPhrase ? 'Hide' : 'Reveal'} Recovery Phrase
-          </button>
+          
+          <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+            <h4 class="font-medium text-amber-800 dark:text-amber-200 mb-2">What's Included:</h4>
+            <ul class="space-y-1 text-sm text-amber-700 dark:text-amber-300">
+              <li>• All wallet accounts and keys (encrypted)</li>
+              <li>• Your preferences and settings</li>
+              <li>• Contact list and connected domains</li>
+              <li>• Token data and custom tokens</li>
+            </ul>
+          </div>
         </div>
-        {#if showSeedPhrase}
-          <div class="bg-zinc-50 dark:bg-zinc-900/50 rounded-lg p-4">
-            <div class="grid grid-cols-3 gap-3">
-              {#each Array(12) as _, i}
-                <div class="flex items-center gap-2">
-                  <span class="text-xs text-zinc-500">{i + 1}.</span>
-                  <span class="font-mono text-sm">••••••••</span>
+      {:else}
+        <!-- Import Mode Content -->
+        <div class="space-y-6">
+          <div class="text-center space-y-4">
+            <div class="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+              <svg class="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+            </div>
+            <div>
+              <h3 class="text-lg font-semibold text-zinc-900 dark:text-white">Import Emergency Kit</h3>
+              <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">
+                Restore your wallet from a previously exported emergency kit file.
+              </p>
+            </div>
+          </div>
+          
+          <div class="space-y-4">
+            <div>
+              <label for="importFile" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                Select Emergency Kit File
+              </label>
+              <input
+                type="file"
+                id="importFile"
+                accept=".json"
+                onchange={handleFileSelect}
+                class="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-indigo-900/30 dark:file:text-indigo-400"
+              />
+            </div>
+            
+            {#if metadata}
+              <div class="bg-zinc-50 dark:bg-zinc-900/50 rounded-lg p-4 space-y-2">
+                <h4 class="font-medium text-zinc-900 dark:text-white">Kit Details:</h4>
+                <div class="text-sm space-y-1 text-zinc-600 dark:text-zinc-400">
+                  <p>ID: {metadata.id}</p>
+                  <p>Created: {new Date(metadata.createDate).toLocaleString()}</p>
+                  <p>Version: {metadata.version}</p>
+                  <p>Type: {metadata.type}</p>
                 </div>
-              {/each}
-            </div>
-            <p class="text-xs text-zinc-500 mt-3">Recovery phrase hidden for security. Use Export Account feature to reveal.</p>
+              </div>
+              
+              <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                <p class="text-sm text-red-700 dark:text-red-300">
+                  <strong>Important:</strong> YAKKL will automatically log out after import. You'll need to log in again with your password.
+                </p>
+              </div>
+            {/if}
           </div>
-        {/if}
-      </div>
-      
-      <!-- Instructions -->
-      <div class="space-y-4">
-        <h3 class="text-lg font-semibold text-zinc-900 dark:text-white">Storage Instructions</h3>
-        <ul class="space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
-          <li class="flex items-start gap-2">
-            <svg class="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-            Store in a secure physical location (safe, safety deposit box)
-          </li>
-          <li class="flex items-start gap-2">
-            <svg class="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-            Consider splitting information across multiple secure locations
-          </li>
-          <li class="flex items-start gap-2">
-            <svg class="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-            Never store digitally on internet-connected devices
-          </li>
-          <li class="flex items-start gap-2">
-            <svg class="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-            Never share this information with anyone
-          </li>
-        </ul>
-      </div>
+        </div>
+      {/if}
     </div>
     
     <!-- Actions -->
     <div class="p-6 border-t border-zinc-200 dark:border-zinc-700 flex flex-wrap gap-3">
-      <button
-        onclick={handlePrint}
-        class="yakkl-btn-secondary flex items-center gap-2"
-      >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-        </svg>
-        Print Kit
-      </button>
-      
-      <button
-        onclick={handleDownload}
-        class="yakkl-btn-secondary flex items-center gap-2"
-      >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-        </svg>
-        Download Info
-      </button>
+      {#if mode === 'export'}
+        <button
+          onclick={handleExport}
+          class="yakkl-btn-primary flex items-center gap-2"
+          disabled={loading}
+        >
+          {#if loading}
+            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            Exporting...
+          {:else}
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Export Emergency Kit
+          {/if}
+        </button>
+        
+        {#if emergencyKitData}
+          <button
+            onclick={() => showShamirModal = true}
+            class="yakkl-btn-secondary flex items-center gap-2"
+            title="Split your emergency kit into multiple secure shards"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            Create Shamir Shards
+          </button>
+        {/if}
+      {:else}
+        <button
+          onclick={handleImport}
+          class="yakkl-btn-primary flex items-center gap-2"
+          disabled={loading || !file}
+        >
+          {#if loading}
+            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            Importing...
+          {:else}
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            Import Emergency Kit
+          {/if}
+        </button>
+      {/if}
       
       <button
         onclick={onClose}
-        class="yakkl-btn-primary ml-auto"
+        class="yakkl-btn-secondary ml-auto"
       >
-        Done
+        Cancel
       </button>
     </div>
   </div>
 </div>
+
+<!-- Shamir's Secret Sharing Modal -->
+<EmergencyKitShamir 
+  bind:show={showShamirModal}
+  {emergencyKitData}
+  onComplete={() => {
+    showShamirModal = false;
+    onClose();
+  }}
+/>
 
 <style>
   @media print {

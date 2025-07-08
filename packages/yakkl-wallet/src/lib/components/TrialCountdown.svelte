@@ -135,7 +135,7 @@
 
 {#if visible}
 	<div
-		class="fixed bottom-0 left-0 right-0 z-50 bg-yellow-300 dark:bg-yellow-800 text-yellow-900 dark:text-yellow-100 px-4 py-2 text-center text-sm font-medium flex items-center justify-between shadow-lg"
+		class="fixed bottom-0 left-0 right-0 z-40 bg-yellow-300 dark:bg-yellow-800 text-yellow-900 dark:text-yellow-100 px-4 py-2 text-center text-sm font-medium flex items-center justify-between shadow-lg"
 	>
 		<div class="flex items-center space-x-2">
 			<span class="font-bold">⏳ Trial ends in:</span>

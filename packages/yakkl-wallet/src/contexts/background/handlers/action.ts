@@ -1,5 +1,6 @@
 import type { MessageHandlerFunc, MessageResponse } from './MessageHandler';
 import browser from 'webextension-polyfill';
+import { sendToExtensionUI } from '$lib/common/safeMessaging';
 
 export const actionHandlers = new Map<string, MessageHandlerFunc>([
   ['action.setBadgeText', async (payload): Promise<MessageResponse> => {
@@ -87,7 +88,7 @@ export const actionHandlers = new Map<string, MessageHandlerFunc>([
 ]);
 
 browser.action.onClicked.addListener((tab) => {
-  browser.runtime.sendMessage({
+  sendToExtensionUI({
     type: 'action.clicked',
     response: { success: true, data: { tab } }
   });

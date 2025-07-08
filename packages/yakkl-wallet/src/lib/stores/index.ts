@@ -31,7 +31,13 @@ export {
   totalPortfolioValue, 
   isLoadingTokens, 
   tokensByValue, 
-  lastTokenUpdate 
+  lastTokenUpdate,
+  isMultiChainView,
+  multiChainTokens,
+  displayTokens,
+  multiChainPortfolioValue,
+  networkTotalValue,
+  grandTotalPortfolioValue
 } from './token.store';
 
 // Transaction stores

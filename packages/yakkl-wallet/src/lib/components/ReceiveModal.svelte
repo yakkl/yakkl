@@ -94,7 +94,7 @@
 </script>
 
 {#if show}
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in"
+  <div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in"
     onclick={closeModal}
     onkeydown={e => e.key === 'Escape' && closeModal()}
     role="button"

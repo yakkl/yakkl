@@ -1,7 +1,9 @@
 <script lang="ts">
-  import SimpleTooltip from "$lib/components/SimpleTooltip.svelte";
   import { currentAccount } from '../stores/account.store';
   import { currentPlan } from '../stores/plan.store';
+  import { getProfile } from '$lib/common/stores';
+  import { getGravatarUrl } from '$lib/utils/gravatar';
+  import { onMount } from 'svelte';
 
   let {
     account = { username: '', address: '', ens: null, avatar: null },
@@ -17,6 +19,37 @@
 
   let menuOpen = $state(false);
   let closeTimeout: number | null = null;
+  
+  // Profile and avatar state
+  let userEmail = $state<string | null>(null);
+  let userName = $state<string | null>(null);
+  let avatarUrl = $state<string | null>(null);
+
+  // Load user profile data
+  onMount(async () => {
+    try {
+      const profile = await getProfile();
+      if (profile?.data) {
+        const profileData = profile.data as any;
+        userEmail = profileData.userEmail || null;
+        userName = profileData.userName || null;
+        
+        // Generate Gravatar URL if email exists
+        if (userEmail) {
+          avatarUrl = getGravatarUrl(userEmail, 80);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load user profile:', error);
+    }
+  });
+
+  // Add keyboard listener for Escape key
+  function handleKeyDown(e: KeyboardEvent) {
+    if (e.key === 'Escape' && menuOpen) {
+      menuOpen = false;
+    }
+  }
 
   function shortAddr(addr: string | undefined) {
     if (!addr) return '';
@@ -38,11 +71,43 @@
   });
 
   let avatarInitial = $derived.by(() => {
+    // Use username first letter if available
+    if (userName) return userName[0].toUpperCase();
     const acc = effectiveAccount;
     if (!acc) return 'W';
-    if (acc.ens) return acc.ens[0].toUpperCase();
     if (acc.username) return acc.username[0].toUpperCase();
-    return acc.address?.[2]?.toUpperCase() || 'W';
+    if (acc.ens) return acc.ens[0].toUpperCase();
+    return 'W'; // Default to W if no username or ENS
+  });
+  
+  // Membership plan colors for rings
+  let ringColor = $derived.by(() => {
+    const planLower = plan?.toLowerCase() || 'basic';
+    
+    if (planLower.includes('founding')) {
+      return 'oklch(71.97% 0.149 81.37 / 1)'; // Founding member color
+    } else if (planLower.includes('early')) {
+      return '#10b981'; // Green for early adopter
+    } else if (planLower === 'yakkl_pro' || planLower === 'pro') {
+      return '#14b8a6'; // Teal for pro
+    } else {
+      return '#a16207'; // Brown for basic
+    }
+  });
+  
+  // Plan tag for avatar
+  let planTag = $derived.by(() => {
+    const planLower = plan?.toLowerCase() || 'basic';
+    
+    if (planLower.includes('founding')) {
+      return 'fpro';
+    } else if (planLower.includes('early')) {
+      return 'epro';
+    } else if (planLower === 'yakkl_pro' || planLower === 'pro') {
+      return 'pro';
+    } else {
+      return 'basic';
+    }
   });
 
   function handleMouseEnter() {
@@ -50,6 +115,7 @@
       clearTimeout(closeTimeout);
       closeTimeout = null;
     }
+    menuOpen = true; // Open menu on hover
   }
 
   function handleMouseLeave() {
@@ -60,39 +126,47 @@
   }
 </script>
 
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
   class={`relative flex items-center justify-center ${className}`}
   role="navigation"
   aria-label="User menu"
   onmouseenter={handleMouseEnter}
   onmouseleave={handleMouseLeave}
+  onkeydown={handleKeyDown}
 >
-  <button
-    class="h-7 w-7 rounded-full bg-indigo-600 hover:ring-2 hover:ring-indigo-400 border border-indigo-200 dark:border-indigo-600 flex items-center justify-center"
-    aria-label={`Manage account for ${username}`}
-    title={`${displayName} (${plan || 'Basic'})`}
-    onclick={() => menuOpen = !menuOpen}
-    tabindex="0"
-  >
-    {#if effectiveAccount?.avatar}
-      <img src={effectiveAccount.avatar} alt="avatar" class="h-8 w-8 rounded-full object-cover" />
-    {:else}
-      <span class="text-white text-lg font-bold select-none">
-        {avatarInitial}
+  <div class="relative">
+    <button
+      class="h-10 w-10 rounded-full flex items-center justify-center relative"
+      aria-label={`Manage account for ${username}`}
+      title={`${displayName} (${plan || 'Basic'})`}
+      onclick={() => menuOpen = !menuOpen}
+      onmouseenter={() => menuOpen = true}
+      tabindex="0"
+      style={`box-shadow: 0 0 0 3px transparent, 0 0 0 5px ${ringColor}, 0 0 0 7px rgba(255,255,255,0.2)`}
+    >
+      {#if avatarUrl || effectiveAccount?.avatar}
+        <img 
+          src={avatarUrl || effectiveAccount.avatar} 
+          alt="avatar" 
+          class="h-full w-full rounded-full object-cover" 
+        />
+      {:else}
+        <div class="h-full w-full rounded-full bg-indigo-600 flex items-center justify-center">
+          <span class="text-white text-base font-bold select-none">
+            {avatarInitial}
+          </span>
+        </div>
+      {/if}
+    </button>
+    {#if planTag !== 'basic'}
+      <span class="absolute -bottom-1 -right-1 text-[8px] font-semibold px-1 rounded text-white" 
+            style={`background-color: ${ringColor}`}>
+        {planTag.toUpperCase()}
       </span>
     {/if}
-  </button>
+  </div>
   {#if menuOpen}
-    <!-- Backdrop overlay for click-outside functionality -->
-    <div
-      class="fixed inset-0 z-40 bg-transparent"
-      onclick={() => menuOpen = false}
-      onkeydown={(e) => e.key === 'Escape' && (menuOpen = false)}
-      role="button"
-      tabindex="0"
-      aria-label="Close menu"
-    ></div>
-
     <!-- Dropdown menu -->
     <!-- svelte-ignore a11y_interactive_supports_focus -->
     <div
@@ -105,17 +179,27 @@
       <!-- Account Info Header -->
       <div class="px-4 py-3 border-b border-zinc-200 dark:border-zinc-700">
         <div class="flex items-center gap-3">
-          {#if effectiveAccount?.avatar}
-            <img src={effectiveAccount.avatar} alt="avatar" class="w-8 h-8 rounded-full object-cover" />
-          {:else}
-            <div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold">
-              {avatarInitial}
-            </div>
-          {/if}
+          <div class="relative">
+            {#if avatarUrl || effectiveAccount?.avatar}
+              <img 
+                src={avatarUrl || effectiveAccount.avatar} 
+                alt="avatar" 
+                class="w-8 h-8 rounded-full object-cover"
+                style={`box-shadow: 0 0 0 2px ${ringColor}`}
+              />
+            {:else}
+              <div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold"
+                   style={`box-shadow: 0 0 0 2px ${ringColor}`}>
+                {avatarInitial}
+              </div>
+            {/if}
+          </div>
           <div class="flex-1 min-w-0">
             <div class="font-medium text-sm truncate">{displayName}</div>
             <div class="text-xs text-zinc-500 truncate">{shortAddr(effectiveAccount?.address)}</div>
-            <div class="text-xs text-indigo-600 dark:text-indigo-400 capitalize">{plan || 'Basic'} Plan</div>
+            <div class="text-xs capitalize" style={`color: ${ringColor}`}>
+              {plan || 'Basic'} Plan
+            </div>
           </div>
         </div>
       </div>

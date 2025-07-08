@@ -291,7 +291,7 @@
 
 	<!-- Upgrade Modal Placeholder -->
 	{#if showUpgradeModal}
-		<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+		<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
 			<div class="bg-white rounded-lg p-6 max-w-md">
 				<h2 class="text-xl font-bold mb-4">Upgrade Required</h2>
 				<p class="mb-4">

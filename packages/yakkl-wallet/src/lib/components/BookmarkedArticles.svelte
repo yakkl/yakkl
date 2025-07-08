@@ -6,8 +6,7 @@
 	import BookmarkIcon from './icons/BookmarkIcon.svelte';
 	import NewsFeedLineView from './NewsFeedLineView.svelte';
 	import SearchSortControls from './SearchSortControls.svelte';
-	import type { RSSItem } from '$lib/managers/ExtensionRSSFeedService';
-	import { yakklBookmarkedArticlesStore, setYakklBookmarkedArticles } from '$lib/common/stores';
+	import { yakklBookmarkedArticlesStore } from '$lib/common/stores';
 	import { derived, writable } from 'svelte/store';
 	import LockedSectionCard from './LockedSectionCard.svelte';
 	import Upgrade from './Upgrade.svelte';
@@ -83,13 +82,6 @@
 		sortDirection.update((d) => (d === 'asc' ? 'desc' : 'asc'));
 	}
 
-	async function handleArticleDelete(article: RSSItem) {
-		const currentArticles = $yakklBookmarkedArticlesStore;
-		const updatedArticles = currentArticles.filter(
-			(a) => !(a.title === article.title && a.source === article.source)
-		);
-		await setYakklBookmarkedArticles(updatedArticles);
-	}
 
 	// Only show locked footer if not pro
 	let showLockedFooter = $state(false);
@@ -140,16 +132,16 @@
 			{#each $filteredArticles as article, index}
 				<div class="relative group">
 					<div
-						class="group-hover:bg-gray-50 dark:group-hover:bg-zinc-800/50 transition-colors duration-200"
+						class="group-hover:bg-gray-50 dark:group-hover:bg-zinc-800/50 transition-colors duration-200 relative"
 					>
 						<NewsFeedLineView newsItem={article} />
+						<ArticleControls
+							{article}
+							bookmarkEnabled={true}
+							printEnabled={true}
+							deleteEnabled={false}
+						/>
 					</div>
-					<ArticleControls
-						{article}
-						bookmarkEnabled={false}
-						deleteEnabled={true}
-						onDelete={handleArticleDelete}
-					/>
 					{#if index < $filteredArticles.length - 1}
 						<div class="flex justify-center">
 							<div class="w-[80%] h-[1px] bg-gray-200 dark:bg-gray-700"></div>

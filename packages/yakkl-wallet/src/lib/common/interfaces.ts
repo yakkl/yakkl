@@ -540,6 +540,7 @@ export interface TokenData extends SwapToken {
 	customDefault?: 'custom' | 'default'; // If 'custom' then it's a custom token and if 'default' then it's a default token
 	sidepanel?: boolean; // If true then the token is only available in the sidepanel
 	evmCompatible?: boolean; // If true then the token is EVM compatible
+	icon?: string; // Icon URL or emoji - can be logoURI or custom icon
 	// Enhanced fields for multi-blockchain support
 	blockchain?: string; // 'ethereum', 'solana', 'bitcoin', 'cosmos', etc.
 	network?: string; // 'mainnet', 'testnet', 'devnet', etc.
@@ -1117,6 +1118,7 @@ export interface YakklContact {
 	addressType: string; //'EOA' | 'SC'; // EOA or SC
 	avatar?: string;
 	blockchain: string; // Ethereum
+	chainId: number;
 	alias?: string;
 	note?: string; // Note on the contact for anything you wish to keep
 	version: string; // Travels with the data for upgrades

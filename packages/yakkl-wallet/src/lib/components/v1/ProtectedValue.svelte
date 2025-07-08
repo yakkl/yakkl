@@ -6,7 +6,7 @@
 		placeholder?: string;
 	}>();
 
-	let visible = $state(false);
+	let visible = $state(true);
 
 	$effect(() => {
 		const unsubscribe = visibilityStore.subscribe((value) => {
