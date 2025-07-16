@@ -2,15 +2,15 @@
 <script lang="ts">
 	import TokenComponentList from '$lib/components/TokenComponentList.svelte';
 	import RotatingBanner from '$lib/components/RotatingBanner.svelte';
-	import SectionCard from '$lib/components/SectionCard.svelte';
 	import { browser_ext, browserSvelte } from '$lib/common/environment';
 	import WalletIcon from '$lib/components/icons/WalletIcon.svelte';
 	import TokenIcon from '$lib/components/icons/TokenIcon.svelte';
 	import NewsIcon from '$lib/components/icons/NewsIcon.svelte';
 	import ToolIcon from '$lib/components/icons/ToolIcon.svelte';
-	import { onDestroy, onMount } from 'svelte';
+	import { onMount } from 'svelte';
 	import {
 		getSettings,
+		setSettingsStorage,
 		setYakklCombinedTokenStorage,
 		updateCombinedTokenStore,
 		yakklCombinedTokenStore
@@ -26,19 +26,18 @@
 	import { setBadgeText } from '$lib/utilities/utilities';
 	import Copyright from '$lib/components/Copyright.svelte';
 	import BookmarkedArticles from '$lib/components/BookmarkedArticles.svelte';
+	import { ExtensionRSSFeedService } from '$lib/managers/ExtensionRSSFeedService';
 	// import LockedSectionCard from '$lib/components/LockedSectionCard.svelte';
 	import { isProLevel } from '$lib/common/utils';
 	import Upgrade from '$lib/components/Upgrade.svelte';
-	import GenericFooter from '$lib/components/GenericFooter.svelte';
+	// import GenericFooter from '$lib/components/GenericFooter.svelte';
 	import UpgradeFooter from '$lib/components/UpgradeFooter.svelte';
-	import Placeholder from '$lib/components/Placeholder.svelte';
+	// import Placeholder from '$lib/components/Placeholder.svelte';
 	import DynamicRSSNewsFeed from '$lib/components/DynamicRSSNewsFeed.svelte';
 	import PlanBadge from '$lib/components/PlanBadge.svelte';
-	import Sponsorship, { type Sponsor } from '$lib/components/Sponsorship.svelte';
-	import SponsorIcon from '$lib/components/icons/SponsorIcon.svelte';
+	import { type Sponsor } from '$lib/components/Sponsorship.svelte';
 	import ScrollIndicator from '$lib/components/ScrollIndicator.svelte';
 	import SimpleTooltip from '$lib/components/SimpleTooltip.svelte';
-	import { goto } from '$app/navigation';
 
 	let showUpgradeModal = $state(false);
 	let showEthConverter = $state(false);
@@ -52,17 +51,22 @@
 	let showBanner = $state(true);
 	let showNewsfeeds = $state(false);
 	let showDynamicNewsfeeds = $state(false);
-
-	let storageListener: {
-		(changes: any, areaName: any): void;
-		(changes: { [key: string]: chrome.storage.StorageChange }, areaName: string): void;
-	};
+	let showLegalTerms = $state(false);
+	let isAgreed = $state(false);
+	let planType = $state('Pro (Trial)');
+	let trialEnds = $state('2025-07-01');
 
 	// List of crypto news RSS feeds
 	const cryptoFeeds = [
 		'https://cointelegraph.com/rss/?utm_source=yakkl&utm_medium=extension',
+		'https://cryptonews.com/news/feed/?utm_source=yakkl&utm_medium=extension',
+		'https://decrypt.co/feed/?utm_source=yakkl&utm_medium=extension',
 		'https://www.coindesk.com/arc/outboundfeeds/rss/?utm_source=yakkl&utm_medium=extension',
-		'https://cryptonews.com/news/feed/?utm_source=yakkl&utm_medium=extension'
+		'https://thedefiant.io/api/feed',
+		'https://cryptopotato.com/feed/',
+		'https://www.cnbc.com/id/10000664/device/rss/rss.html',
+		'https://cryptoslate.com/feed/',
+		'https://www.cryptobreaking.com/feed/'
 	];
 
 	// WebSocket URL for dynamic feed
@@ -70,7 +74,16 @@
 
 	function openWallet() {
 		if (browserSvelte) {
-			browser_ext.runtime.sendMessage({ type: 'popout' });
+			try {
+				browser_ext.runtime.sendMessage({ type: 'popout' })
+					.catch((error) => {
+						// Silently handle the error - this is expected when extension context is invalid
+						console.debug('Extension context not available:', error.message);
+					});
+			} catch (error) {
+				// Handle synchronous errors
+				console.debug('Failed to send message:', error);
+			}
 		}
 	}
 
@@ -208,6 +221,8 @@
 
 			const settings = await getSettings();
 			if (!settings.init || !settings.legal.termsAgreed) {
+				// Show legal terms first for new users
+				showLegalTerms = true;
 				init = false;
 				document.documentElement.classList.remove('dark');
 				localStorage.theme = 'light';
@@ -218,25 +233,29 @@
 				locked = (await isProLevel()) ? false : true;
 				tokensLockedCount = 0; // Show all tokens for both Basic and Pro
 				newsfeedsLockedCount = (await isProLevel()) ? 10 : 4;
+				planType = (await isProLevel()) ? 'Pro' : 'Basic';
+				trialEnds = settings.plan.trialEndDate || null;
 			}
 
 			// Always load default tokens regardless of init state
 			await loadDefaultTokens();
 			updateCombinedTokenStore();
 			await setYakklCombinedTokenStorage(get(yakklCombinedTokenStore));
+
+			// Clear any cached CoinDesk feeds to prevent preload warnings
+			try {
+				const rssService = ExtensionRSSFeedService.getInstance();
+				await rssService.clearCachedFeed('https://www.coindesk.com/arc/outboundfeeds/rss/?utm_source=yakkl&utm_medium=extension');
+				await rssService.clearCachedFeed('https://www.coindesk.com/arc/outboundfeeds/rss/');
+				log.info('Cleared CoinDesk cached feeds to prevent preload warnings');
+			} catch (error) {
+				log.debug('Error clearing CoinDesk cached feeds:', false, error);
+			}
 		} catch (error) {
 			log.warn('Error initializing sidepanel:', false, error);
 		}
 	});
 
-	onDestroy(() => {
-		if (!browserSvelte) return;
-
-		// Clean up listener
-		if (storageListener) {
-			browser_ext.storage.onChanged.removeListener(storageListener);
-		}
-	});
 
 	function onComplete() {
 		showUpgradeModal = true;
@@ -247,51 +266,137 @@
 		// Refresh any necessary data
 	}
 
-	function handleUpgradeClose() {
-		showUpgradeModal = false;
-		// Handle any cleanup
+	async function handleLegalAccept() {
+		if (!isAgreed) return;
+
+		try {
+			const settings = await getSettings();
+			if (settings) {
+				settings.legal.privacyViewed = true;
+				settings.legal.termsAgreed = true;
+				settings.isLocked = true;
+				await setSettingsStorage(settings);
+
+				// Hide legal terms and show normal sidepanel
+				showLegalTerms = false;
+				init = true;
+
+				// Update local state instead of reloading
+				locked = (await isProLevel()) ? false : true;
+				tokensLockedCount = 0; // Show all tokens for both Basic and Pro
+				newsfeedsLockedCount = (await isProLevel()) ? 10 : 4;
+				planType = (await isProLevel()) ? 'Pro' : 'Basic';
+				trialEnds = settings.plan.trialEndDate || null;
+
+				// Load default tokens and update stores
+				await loadDefaultTokens();
+				updateCombinedTokenStore();
+				await setYakklCombinedTokenStorage(get(yakklCombinedTokenStore));
+			}
+		} catch (error) {
+			log.error('Error accepting legal terms:', false, error);
+		}
 	}
 </script>
 
 <Upgrade
 	bind:show={showUpgradeModal}
-	{openWallet}
 	onComplete={handleUpgradeComplete}
-	onClose={handleUpgradeClose}
 	onCancel={() => (showUpgradeModal = false)}
 />
 
+{#if showLegalTerms}
+<!-- Legal Terms View -->
 <div class="flex flex-col h-screen bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-100">
-	<header
-		class="px-4 py-3 border-b border-zinc-200 dark:border-zinc-700 flex justify-between items-center"
-	>
-		<h1 class="text-lg font-bold">YAKKL Insights</h1>
-		<!-- Preview2 Integration -->
-    <div class="flex items-center gap-2">
-			<SimpleTooltip content="Try the new wallet experience" position="bottom">
-				<button
-					onclick={() => goto('/preview2')}
-					class="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-3 py-2 rounded-lg shadow-md hover:from-purple-600 hover:to-indigo-700 transition-all text-sm group"
-				>
-					<svg class="w-4 h-4 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-					</svg>
-					Preview 2.0
-				</button>
-			</SimpleTooltip>
+	<div class="min-h-screen flex items-center justify-center p-4">
+		<div class="max-w-3xl w-full">
+			<div class="yakkl-card p-8">
+				<!-- Header -->
+				<div class="text-center mb-6">
+					<img src="/images/logoBullFav128x128.png" alt="YAKKL" class="w-16 h-16 mx-auto mb-4" />
+					<h1 class="text-2xl font-bold text-zinc-900 dark:text-white mb-2">
+						Welcome to YAKKL Insights
+					</h1>
+					<p class="text-zinc-600 dark:text-zinc-400">
+						Please review and accept our terms of service to continue
+					</p>
+				</div>
 
-			<SimpleTooltip content="Click here to unlock your wallet" position="bottom">
-				<button
-					onclick={openWallet}
-					class="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-xl shadow-md hover:from-green-600 hover:to-emerald-700 transition-all {!init
-						? 'animate-pulse'
-						: ''}"
-				>
-					<WalletIcon className="w-5 h-5" />
-					Open Smart Wallet
-				</button>
-			</SimpleTooltip>
+				<!-- Terms Content -->
+				<div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-6 mb-6 h-[400px] overflow-y-auto border border-zinc-200 dark:border-zinc-700">
+					<div class="prose dark:prose-invert max-w-none text-sm">
+						<h2>Terms of Service</h2>
+						<p>By using YAKKL Smart Wallet, you agree to these terms...</p>
+						<h3>1. Acceptance of Terms</h3>
+						<p>By accessing or using YAKKL Smart Wallet, you agree to be bound by these Terms of Service.</p>
+						<h3>2. Privacy Policy</h3>
+						<p>Your use of our service is also governed by our Privacy Policy.</p>
+						<h3>3. Wallet Security</h3>
+						<p>You are responsible for maintaining the security of your wallet credentials.</p>
+						<p>For complete terms and conditions, please visit <a href="https://yakkl.com/terms" target="_blank" rel="noopener">yakkl.com/terms</a></p>
+					</div>
+				</div>
+
+				<!-- Agreement Checkbox -->
+				<div class="mb-6">
+					<label class="flex items-start gap-3 cursor-pointer group">
+						<input
+							type="checkbox"
+							bind:checked={isAgreed}
+							class="mt-1 w-5 h-5 rounded border-zinc-300 dark:border-zinc-600 text-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 dark:bg-zinc-700"
+						/>
+						<div class="flex-1">
+							<span class="text-zinc-900 dark:text-white font-medium group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+								I have read and agree to the terms of service
+							</span>
+							<p class="text-xs text-zinc-600 dark:text-zinc-400 mt-1">
+								By checking this box, you agree to our Terms of Service and Privacy Policy.
+							</p>
+						</div>
+					</label>
+				</div>
+
+				<!-- Actions -->
+				<div class="flex justify-center">
+					<button
+						onclick={handleLegalAccept}
+						disabled={!isAgreed}
+						class="yakkl-btn-primary"
+					>
+						Accept and Continue
+					</button>
+				</div>
+			</div>
 		</div>
+	</div>
+</div>
+{:else}
+<!-- Normal Sidepanel View -->
+<!-- Fixed centered logo watermark -->
+<div class="fixed inset-0 flex items-center justify-center pointer-events-none select-none z-0">
+	<img src="/images/logoBullFav128x128.png" class="w-44 h-44 opacity-10 dark:opacity-15" alt="logo" />
+</div>
+
+<div class="flex flex-col h-screen yakkl-body text-zinc-800 dark:text-zinc-100 relative">
+	<header
+		class="yakkl-header fixed-top backdrop-blur-sm flex justify-between items-center relative z-10"
+	>
+		<div class="flex items-center gap-3">
+			<img src="/images/logoBullFav128x128.png" alt="YAKKL" class="w-8 h-8" />
+			<h1 class="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">YAKKL Insights</h1>
+		</div>
+		<!-- Wallet Integration -->
+		<SimpleTooltip content="Click here to unlock your wallet" position="bottom">
+			<button
+				onclick={openWallet}
+				class="yakkl-btn-primary flex items-center gap-2 transition-all duration-300 group hover:shadow-lg {!init
+					? 'animate-pulse'
+					: ''}"
+			>
+				<WalletIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+				<span class="font-semibold">Open Smart Wallet</span>
+			</button>
+		</SimpleTooltip>
 		{#if !init}
 			<span class="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-500 animate-ping"
 			></span>
@@ -306,13 +411,13 @@
 	/>
 
 	<div class="flex justify-end px-4 py-2">
-		<PlanBadge />
+		<PlanBadge planType={planType} trialEnds={trialEnds} />
 	</div>
 
 	<ScrollIndicator>
-		<main class="flex-1 overflow-y-auto px-4 pb-4">
+		<main class="flex-1 overflow-y-auto px-5 pb-4 relative z-10">
 			<!-- Grid container for cards -->
-			<div class="grid grid-cols-1 md:grid-cols-3 gap-4 pb-4 pt-0">
+			<div class="max-w-[400px] mx-auto space-y-5 mt-1 pt-2 relative md:max-w-none md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-5 md:space-y-0">
 				<!-- <SectionCard title="Sponsors" icon={SponsorIcon}>
           <Sponsorship
             {sponsors}
@@ -323,41 +428,35 @@
         </SectionCard> -->
 
 				<!-- Token Prices Card -->
-				<!-- eye={false} for now but if we want to show the balances, we can set it to true -->
-				<SectionCard
-					title="Token Prices"
-					icon={TokenIcon}
-					isPinned={false}
-					eye={false}
-					eyeTooltip="Toggle visibility of balances"
-					minHeight="300px"
-					maxHeight="750px"
-					{locked}
-					lockedFooter={GenericFooter}
-					lockedFooterProps={{
-						text: 'Unlock visibility of all tokens by',
-						buttonText: 'Upgrading today!',
-						onAction: () => (showUpgradeModal = true),
-						variant: 'info'
-					}}
-				>
+				<div class="yakkl-card relative z-10 hover:shadow-lg transition-all duration-300">
+					<div class="yakkl-card-title flex items-center gap-2 mb-4">
+						<TokenIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+						<span>Token Prices</span>
+					</div>
 					<TokenComponentList {maxVisibleTokens} maxTokens={tokensLockedCount} {locked} />
-				</SectionCard>
+					{#if locked}
+						<div class="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+							<div class="text-center">
+								<p class="text-xs text-zinc-500 dark:text-zinc-400 mb-2">
+									Unlock visibility of all tokens by
+								</p>
+								<button
+									onclick={() => (showUpgradeModal = true)}
+									class="yakkl-btn-primary text-xs"
+								>
+									Upgrading today!
+								</button>
+							</div>
+						</div>
+					{/if}
+				</div>
 
 				<!-- Newsfeeds Card -->
-				<SectionCard
-					title="Newsfeeds"
-					icon={NewsIcon}
-					minHeight="350px"
-					maxHeight="1000px"
-					locked={false}
-					lockedFooter={UpgradeFooter}
-					lockedFooterProps={{
-						onUpgrade: () => (showUpgradeModal = true),
-						text: 'Unlock visibility of all newsfeeds with faster refresh times by',
-						buttonText: 'Upgrade Now'
-					}}
-				>
+				<div class="yakkl-card relative z-10 hover:shadow-lg transition-all duration-300">
+					<div class="yakkl-card-title flex items-center gap-2 mb-4">
+						<NewsIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+						<span>Crypto News</span>
+					</div>
 					<!-- Use DynamicRSSNewsFeed for WebSocket feed -->
 					{#if showDynamicNewsfeeds}
 						<DynamicRSSNewsFeed
@@ -366,7 +465,7 @@
 							title="Live Crypto News"
 							maxVisibleItems={newsfeedsLockedCount}
 							maxItemsPerFeed={newsfeedsLockedCount}
-							className="bg-white dark:bg-gray-900 rounded-lg shadow-md"
+							className="bg-transparent"
 							{locked}
 						/>
 					{:else}
@@ -375,111 +474,106 @@
 							feedUrls={cryptoFeeds}
 							maxVisibleItems={newsfeedsLockedCount}
 							maxItemsPerFeed={newsfeedsLockedCount}
-							className="bg-white dark:bg-gray-900 rounded-lg shadow-md"
+							className="bg-transparent"
 							locked={false}
+							title=""
 						/>
 					{/if}
-				</SectionCard>
+				</div>
 
 				<!-- Bookmarked Articles Card -->
-				<!-- Example of how to use the GenericFooter component
-          footer={GenericFooter}
-          footerProps={{
-            text: 'Manage your bookmarked articles',
-            buttonText: 'View All',
-            onAction: () => console.log('View all bookmarks'),
-            variant: 'info'
-          }}
-        -->
-				<BookmarkedArticles
-					{onComplete}
-					show={true}
-					{locked}
-					lockedFooter={UpgradeFooter}
-					lockedFooterProps={{
-						onUpgrade: () => (showUpgradeModal = true),
-						text: 'Unlock bookmarking features by',
-						buttonText: 'Upgrading today!'
-					}}
-				/>
+				<div class="yakkl-card relative z-10 hover:shadow-lg transition-all duration-300">
+					<BookmarkedArticles
+						{onComplete}
+						show={true}
+						{locked}
+						lockedFooter={UpgradeFooter}
+						lockedFooterProps={{
+							onUpgrade: () => (showUpgradeModal = true),
+							text: 'Unlock bookmarking features by',
+							buttonText: 'Upgrading today!'
+						}}
+					/>
+				</div>
 
 				<!-- Utilities Card -->
-				<SectionCard title="Utilities" icon={ToolIcon} minHeight="250px" maxHeight="800px">
+				<div class="yakkl-card relative z-10 hover:shadow-lg transition-all duration-300">
+					<div class="yakkl-card-title flex items-center gap-2 mb-4">
+						<ToolIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+						<span>Utilities</span>
+					</div>
 					<!-- Grid container -->
-					<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 p-2 mt-2">
-						<!-- Icon button 1 -->
+					<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+						<!-- ETH Unit Converter -->
 						<SimpleTooltip content="ETH Unit Converter">
 							<button
-								class="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
+								class="yakkl-btn-secondary p-3 flex flex-col items-center gap-2 aspect-square text-xs"
 								aria-label="Open Conversion Calculator"
 								onclick={() => (showEthConverter = true)}
 							>
-								<CalcIcon className="w-7 h-7" />
+								<CalcIcon className="w-6 h-6" />
+								<span>ETH Converter</span>
 							</button>
 						</SimpleTooltip>
 						<EthUnitConverter bind:show={showEthConverter} />
 
-						<!-- Icon button 2 -->
-
-						<!-- <SimpleTooltip content="Token Fiat Converter">
-              <button
-                class="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
-                aria-label="Open Token Fiat Converter"
-                onclick={() => showTokenFiatConverter = true}
-              >
-                <FiatIcon className="w-7 h-7" />
-              </button>
-            </SimpleTooltip>
-            <TokenFiatConverter
-              bind:show={showTokenFiatConverter}
-            /> -->
+						<!-- Placeholder for more utilities -->
+						<div class="yakkl-btn-secondary p-3 flex flex-col items-center gap-2 aspect-square text-xs opacity-50 cursor-not-allowed">
+							<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+							</svg>
+							<span>More Soon</span>
+						</div>
 					</div>
-				</SectionCard>
+				</div>
 
-				<!-- Chart Section (for expanded view) -->
-				<div class="hidden md:block mt-4">
-					<SectionCard
-						title="Market Overview"
-						minHeight="300px"
-						maxHeight="600px"
-						{locked}
-						lockedFooter={GenericFooter}
-						lockedFooterProps={{
-							text: 'Unlock visibility of the market overview by',
-							buttonText: 'Upgrading today!',
-							onAction: () => (showUpgradeModal = true),
-							variant: 'info'
-						}}
-					>
-						<!-- Chart component will go here -->
-						<!-- Could use !border-none to remove all borders if desired or use showBorderTop={false}-->
-						<Placeholder
-							text="Chart coming soon..."
-							className="flex items-center justify-center text-zinc-500 !border-t-0"
-							anchorTop={true}
-							centerHorizontal={true}
-							centerVertical={true}
-							showBorderTop={false}
-						/>
-						<!-- <div class="h-[300px] flex items-center justify-center text-zinc-500">
-              Chart coming soon...
-            </div> -->
-					</SectionCard>
+				<!-- Market Overview Section (for expanded view) -->
+				<div class="hidden md:block yakkl-card relative z-10 hover:shadow-lg transition-all duration-300 border-2 border-dashed border-gray-300 dark:border-gray-600">
+					<div class="yakkl-card-title flex items-center gap-2 mb-4">
+						<svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+						</svg>
+						<span>Market Overview</span>
+						<div class="flex-1"></div>
+						<div class="text-xs text-zinc-400 dark:text-zinc-500">Pro Feature</div>
+					</div>
+					<div class="text-center py-12">
+						<div class="text-gray-400 dark:text-gray-500 mb-3">
+							<svg class="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+							</svg>
+							<h3 class="text-lg font-medium mb-2">Market Analytics</h3>
+							<p class="text-sm mb-4">Get comprehensive market insights, charts, and performance metrics.</p>
+							<button
+								onclick={() => (showUpgradeModal = true)}
+								class="yakkl-btn-primary"
+							>
+								Upgrade to Pro
+							</button>
+						</div>
+					</div>
 				</div>
 			</div>
 		</main>
 	</ScrollIndicator>
 
 	<!-- Responsive message for narrow viewports -->
-	<Placeholder
-		text="👈 💡 Drag the edge of this panel to make it wider and discover more features!"
-		className="md:hidden"
-	/>
+	<div class="md:hidden yakkl-card relative z-10 mx-5 mt-2 mb-4 text-center">
+		<div class="text-sm text-zinc-600 dark:text-zinc-400">
+			👈 💡 Drag the edge of this panel to make it wider and discover more features!
+		</div>
+	</div>
 
 	<footer
-		class="px-4 py-2 border-t border-zinc-200 dark:border-zinc-700 text-xs text-center font-bold flex flex-col items-center justify-center gap-2"
+		class="yakkl-footer fixed-bottom h-[6rem] backdrop-blur-sm text-xs text-center flex flex-col items-center justify-center gap-1 relative z-10"
 	>
-		<span class="text-zinc-500 mb-4">Smart Wallet Insights</span>
+		<div class="inline-flex items-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-3 py-1 rounded-full text-xs font-medium shadow-md">
+			<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+			</svg>
+			YAKKL Insights
+		</div>
 		<Copyright />
 	</footer>
 </div>
+{/if}

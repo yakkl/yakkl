@@ -1,371 +1,461 @@
-<!-- @migration-task Error while migrating Svelte code: can't migrate `let error = false;` to `$state` because there's a variable named state.
-     Rename the variable and try again or migrate by hand. -->
 <script lang="ts">
-	import {
-		getYakklContacts,
-		setYakklContactsStorage,
-		yakklMiscStore,
-		getYakklCurrentlySelected
-	} from '$lib/common/stores';
-	import { createForm } from 'svelte-forms-lib';
-	import * as yup from 'yup';
-	import { dateString } from '$lib/common/datetime';
-	import { onDestroy, onMount } from 'svelte';
-	import { decryptAndSetData } from '$lib/common/gets';
-	import { setDefinedProperty } from '$lib/common/gets';
-	import { Dropdown, DropdownItem, Button, Helper } from 'flowbite-svelte';
-	// import * as Icon from 'flowbite-svelte-icons';
-	// import ChevronDoubleUpOutline from '$lib/components/ChevronDoubleUpOutline.svelte.tmp';
-	import Back from '$lib/components/Back.svelte';
-	import type { YakklContact, YakklCurrentlySelected } from '$lib/common';
-	import WalletManager from '$lib/managers/WalletManager';
-	import type { Wallet } from '$lib/managers/Wallet';
-	import { isEthereum } from '$lib/managers/BlockchainGuards';
+  import { onMount } from 'svelte';
+  import { yakklContactsStore, setYakklContactsStorage } from '$lib/common/stores';
+  import { notificationService } from '$lib/services/notification.service';
+  import { currentChain } from '$lib/stores/chain.store';
+  import { Plus, Search, Trash2, Copy, ExternalLink, User, Pencil } from 'lucide-svelte';
+  import type { YakklContact, YakklCurrentlySelected } from '$lib/common/interfaces';
+  import { getYakklCurrentlySelected } from '$lib/common/stores';
 
-	let wallet: Wallet;
+  // State
+  let contacts = $state<YakklContact[]>([]);
+  let showAddModal = $state(false);
+  let showEditModal = $state(false);
+  let editingContact = $state<YakklContact | null>(null);
+  let searchQuery = $state('');
+  let loading = $state(false);
+  let currentlySelected: YakklCurrentlySelected = undefined;
 
-	let currentlySelected: YakklCurrentlySelected;
+  // Form state
+  let formData = $state({
+    name: '',
+    address: '',
+    alias: '',
+    chainId: 1,
+    note: '',
+    blockchain: 'Ethereum',
+    addressType: 'EOA'
+  });
 
-	let error = false;
-	let errorValue = '';
-	let dropdownOpen = false;
-	let name: string;
-	let address: string;
-	let alias: string;
-	let note: string;
-	let index = -1; // Default - means only add
-	let contacts: YakklContact[] = [];
+  // Derived values
+  let chain = $derived($currentChain);
+  let filteredContacts = $derived(
+    contacts.filter(contact =>
+      contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      contact.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (contact.alias && contact.alias.toLowerCase().includes(searchQuery.toLowerCase()))
+    )
+  );
 
-	onMount(async () => {
-		handleClear();
-		currentlySelected = await getYakklCurrentlySelected();
-		wallet = WalletManager.getInstance(
-			['Alchemy'],
-			['Ethereum'],
-			currentlySelected.shortcuts.chainId ?? 1,
-			import.meta.env.VITE_ALCHEMY_API_KEY_PROD
-		);
-		contacts = await getYakklContacts();
-		if (!contacts) {
-			contacts = [];
-		}
-	});
+  // Watch for store changes
+  $effect(() => {
+    contacts = $yakklContactsStore || [];
+  });
 
-	onDestroy(() => {
-		handleClear();
-	});
+  onMount(async () => {
+    // Set default chainId
+    if (chain) {
+      formData.chainId = chain.chainId;
+      currentlySelected = await getYakklCurrentlySelected();
+    }
+  });
 
-	const { form, errors, state, isValid, handleChange, handleSubmit } = createForm({
-		initialValues: { name: '', address: '', alias: '', note: '' },
-		validationSchema: yup.object().shape({
-			name: yup.string().required('Please enter contact name'),
+  function resetForm() {
+    formData = {
+      name: '',
+      address: '',
+      alias: '',
+      chainId: 1,
+      note: '',
+      blockchain: 'Ethereum',
+      addressType: 'EOA'
+    };
+  }
 
-			// TODO: This needs a function based on the blockchain to validate the address
-			address: yup
-				.string()
-				.required('Please enter the crypto address of this contact')
-				.matches(/^(0x)?[0-9a-fA-F]{40}$|^.*\.eth$/, 'Must be a valid address or ENS name'),
+  function openAddModal() {
+    resetForm();
+    showAddModal = true;
+  }
 
-			alias: yup.string().optional(),
-			note: yup.string().optional()
-		}),
-		onSubmit: async (data) => {
-			try {
-				if (await verifyContact(data.name, data.address, data.alias, data.note)) {
-					processContact(); // Accept the defaults for now
-				} else {
-					errorValue = 'Unable to verify contact before processing.';
-					error = true;
-				}
-			} catch (e) {
-				error = true;
-				errorValue = e as string;
-				console.log(e);
-			}
-		}
-	});
+  function openEditModal(contact: YakklContact) {
+    editingContact = contact;
+    formData = {
+      name: contact.name,
+      address: contact.address,
+      alias: contact.alias || '',
+      chainId: contact.chainId || 1,
+      note: contact.note || '',
+      blockchain: contact.blockchain || 'Ethereum',
+      addressType: contact.addressType || 'EOA'
+    };
+    showEditModal = true;
+  }
 
-	async function verifyContact(fname: string, faddress: string, falias: string, fnote: string) {
-		name = fname;
-		address = faddress;
-		alias = falias;
-		note = fnote;
+  async function handleAdd() {
+    if (!formData.name || !formData.address) {
+      await notificationService.show({
+        message: 'Name and address are required',
+        type: 'error'
+      });
+      return;
+    }
 
-		let resolvedAddr = null;
-		const blockchain = wallet.getBlockchain();
+    // Validate address format
+    if (!formData.address.match(/^0x[a-fA-F0-9]{40}$/)) {
+      await notificationService.show({
+        message: 'Invalid Ethereum address format',
+        type: 'error'
+      });
+      return;
+    }
 
-		if (isEthereum(blockchain)) {
-			resolvedAddr = await blockchain.resolveName(alias);
-		}
+    // Check if contact already exists
+    if (contacts.some(c => c.address.toLowerCase() === formData.address.toLowerCase())) {
+      await notificationService.show({
+        message: 'Contact with this address already exists',
+        type: 'error'
+      });
+      return;
+    }
 
-		if (resolvedAddr) {
-			address = resolvedAddr;
-		}
+    loading = true;
+    try {
+      const newContact: YakklContact = {
+        ...formData,
+        id: currentlySelected?.id || '',
+        createDate: new Date().toISOString(),
+        updateDate: new Date().toISOString(),
+        version: '1.0.0'
+      };
 
-		if (!blockchain.isAddress(address)) {
-			errorValue = `Address ${address} is not a valid address. A valid toAddress is required.`;
-			error = true;
-			return false;
-		}
+      yakklContactsStore.update(contacts => [...contacts, newContact]);
+      await setYakklContactsStorage($yakklContactsStore);
 
-		return true;
-	}
+      await notificationService.show({
+        message: 'Contact added successfully',
+        type: 'success'
+      });
 
-	function handleClear() {
-		name = $form.name = '';
-		address = $form.address = '';
-		alias = $form.alias = '';
-		note = $form.note = '';
-	}
+      showAddModal = false;
+      resetForm();
+    } catch (error) {
+      await notificationService.show({
+        message: 'Failed to add contact',
+        type: 'error'
+      });
+    } finally {
+      loading = false;
+    }
+  }
 
-	function handleClick(idx: number) {
-		if (contacts) {
-			index = idx;
-			$form.name = contacts[index].name;
-			$form.address = contacts[index].address;
-			$form.alias = contacts[index].alias === undefined ? '' : (contacts[index].alias as string);
-			$form.note = contacts[index].note === undefined ? '' : (contacts[index].note as string);
+  async function handleUpdate() {
+    if (!formData.name || !formData.address || !editingContact) {
+      return;
+    }
 
-			dropdownOpen = false;
-		}
-	}
+    loading = true;
+    try {
+      yakklContactsStore.update(contacts =>
+        contacts.map(c =>
+          c.id === editingContact.id
+            ? { ...c, ...formData, updatedAt: new Date().toISOString() }
+            : c
+        )
+      );
+      await setYakklContactsStorage($yakklContactsStore);
 
-	async function handleUpdate() {
-		try {
-			if (index >= 0) {
-				if (await verifyContact($form.name, $form.address, $form.alias, $form.note)) {
-					contacts[index].name = name;
-					contacts[index].address = address;
-					contacts[index].alias = alias;
-					contacts[index].note = note;
-					contacts[index].updateDate = dateString();
+      await notificationService.show({
+        message: 'Contact updated successfully',
+        type: 'success'
+      });
 
-					await setYakklContactsStorage(contacts);
+      showEditModal = false;
+      editingContact = null;
+      resetForm();
+    } catch (error) {
+      await notificationService.show({
+        message: 'Failed to update contact',
+        type: 'error'
+      });
+    } finally {
+      loading = false;
+    }
+  }
 
-					handleClear();
-				} else {
-					errorValue = 'Unable to update contact.';
-					error = true;
-				}
-			} else {
-				errorValue = 'Update was called but there is not a valid index.';
-				error = true;
-			}
-		} catch (e) {
-			errorValue = e as string;
-			error = true;
-		}
-	}
+  async function handleDelete(contact: YakklContact) {
+    if (!confirm(`Delete contact "${contact.name}"?`)) {
+      return;
+    }
 
-	async function handleDelete() {
-		try {
-			if (index >= 0) {
-				contacts.splice(index, 1);
+    loading = true;
+    try {
+      yakklContactsStore.update(contacts =>
+        contacts.filter(c => c.id !== contact.id)
+      );
+      await setYakklContactsStorage($yakklContactsStore);
 
-				await setYakklContactsStorage(contacts);
+      await notificationService.show({
+        message: 'Contact deleted successfully',
+        type: 'success'
+      });
+    } catch (error) {
+      await notificationService.show({
+        message: 'Failed to delete contact',
+        type: 'error'
+      });
+    } finally {
+      loading = false;
+    }
+  }
 
-				handleClear();
-			} else {
-				errorValue = 'Delete was called but there is not a valid index.';
-				error = true;
-			}
-		} catch (e) {
-			errorValue = e as string;
-			error = true;
-		}
-	}
+  async function copyAddress(address: string) {
+    try {
+      await navigator.clipboard.writeText(address);
+      await notificationService.show({
+        message: 'Address copied to clipboard',
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Failed to copy:', error);
+    }
+  }
 
-	function handleClose() {
-		error = false;
-	}
+  function viewOnExplorer(address: string) {
+    const explorerUrl = chain?.explorerUrl || 'https://etherscan.io';
+    window.open(`${explorerUrl}/address/${address}`, '_blank');
+  }
 
-	async function processContact() {
-		try {
-			let duplicate = false;
-			if (contacts) {
-				if (contacts.find((element) => element.name === name) !== undefined) duplicate = true;
-			} else {
-				contacts = []; // fallback
-			}
-
-			if (duplicate) {
-				errorValue = 'Unable to ADD due to name already registered.';
-				error = true;
-				return;
-			}
-
-			let contact: YakklContact = {
-				id: currentlySelected.id.toString(),
-				name: name,
-				address: address,
-				alias: alias,
-				note: note,
-				addressType: 'EOA',
-				blockchain: currentlySelected.shortcuts.blockchain as string,
-				version: currentlySelected.version,
-				createDate: dateString(),
-				updateDate: dateString()
-			};
-
-			await decryptAndSetData(contact, $yakklMiscStore);
-
-			setDefinedProperty(contact, 'alias', alias);
-			setDefinedProperty(contact, 'note', note);
-
-			contacts.push(contact);
-			await setYakklContactsStorage(contacts);
-
-			handleClear();
-		} catch (e) {
-			errorValue = e as string;
-			console.log(e);
-			error = true;
-		}
-	}
+  function shortAddr(addr: string): string {
+    if (!addr) return '';
+    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  }
 </script>
 
-<div class="modal" class:modal-open={error}>
-	<div class="modal-box relative">
-		<h3 class="text-lg font-bold">ERROR!</h3>
-		<p class="py-4">{errorValue}</p>
-		<div class="modal-action">
-			<button class="btn" on:click={handleClose}>Close</button>
-		</div>
-	</div>
-</div>
+<div class="max-w-[800px] mx-auto p-5 space-y-5">
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-zinc-900 dark:text-white">Contacts</h1>
+      <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-1">Save and manage known wallet addresses</p>
+    </div>
+    <button
+      onclick={openAddModal}
+      class="yakkl-btn-primary flex items-center gap-2"
+    >
+      <Plus class="w-4 h-4" />
+      Add Contact
+    </button>
+  </div>
 
-<div class="text-center min-h-[75rem]">
-	<div class="relative w-full h-9">
-		<Back defaultClass="left-0 top-0 absolute" href="" />
-		<h2 class="text-xl tracking-tight font-extrabold text-base-content">
-			<span class="lg:inline">Contact</span>
-		</h2>
-	</div>
+  <!-- Search Bar -->
+  <div class="relative">
+    <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
+    <input
+      type="text"
+      bind:value={searchQuery}
+      placeholder="Search by name, address, or ENS..."
+      class="w-full pl-10 pr-4 py-3 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+    />
+  </div>
 
-	<hr class="mb-0.5 mt-0.5" />
+  <!-- Contacts List -->
+  {#if filteredContacts.length > 0}
+    <div class="grid gap-4">
+      {#each filteredContacts as contact}
+        <div class="bg-white dark:bg-zinc-800 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+          <div class="flex items-start justify-between">
+            <div class="flex items-start gap-3">
+              <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold">
+                {contact.name.charAt(0).toUpperCase()}
+              </div>
+              <div class="space-y-1">
+                <h3 class="font-semibold text-zinc-900 dark:text-white">{contact.name}</h3>
+                <div class="flex items-center gap-2 text-sm">
+                  <span class="font-mono text-zinc-600 dark:text-zinc-400">{shortAddr(contact.address)}</span>
+                  <button
+                    onclick={() => copyAddress(contact.address)}
+                    class="text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                    title="Copy address"
+                  >
+                    <Copy class="w-3 h-3" />
+                  </button>
+                  <button
+                    onclick={() => viewOnExplorer(contact.address)}
+                    class="text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                    title="View on explorer"
+                  >
+                    <ExternalLink class="w-3 h-3" />
+                  </button>
+                </div>
+                {#if contact.alias}
+                  <p class="text-sm text-indigo-600 dark:text-indigo-400">{contact.alias}</p>
+                {/if}
+                {#if contact.note}
+                  <p class="text-sm text-zinc-600 dark:text-zinc-400">{contact.note}</p>
+                {/if}
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                onclick={() => openEditModal(contact)}
+                class="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-lg transition-colors"
+                title="Edit contact"
+              >
+                <Pencil class="w-4 h-4" />
+              </button>
+              <button
+                onclick={() => handleDelete(contact)}
+                class="p-2 hover:bg-red-100 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg transition-colors"
+                title="Delete contact"
+              >
+                <Trash2 class="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      {/each}
+    </div>
+  {:else if searchQuery}
+    <div class="text-center py-12">
+      <p class="text-zinc-600 dark:text-zinc-400">No contacts found matching "{searchQuery}"</p>
+    </div>
+  {:else}
+    <div class="text-center py-12">
+      <div class="w-16 h-16 mx-auto mb-4 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center">
+        <User class="w-8 h-8 text-zinc-400" />
+      </div>
+      <h3 class="text-lg font-semibold text-zinc-700 dark:text-zinc-300 mb-2">No Contacts Yet</h3>
+      <p class="text-zinc-600 dark:text-zinc-400 mb-6">Add your first contact to make sending easier</p>
+      <button
+        onclick={openAddModal}
+        class="yakkl-btn-primary inline-flex items-center gap-2"
+      >
+        <Plus class="w-4 h-4" />
+        Add Your First Contact
+      </button>
+    </div>
+  {/if}
 
-	<div class="justify-center mb-4 mt-2">
-		<Button
-			>Contact List
-		</Button><!--<ChevronDoubleUpOutline name="chevron-down-solid" class="w-3 h-3 ml-2 text-white dark:text-white" /></Button> -->
-		<Dropdown class="overflow-y-auto px-3 pb-3 text-sm h-44" bind:open={dropdownOpen}>
-			<div slot="header" class="p-3">Contact List</div>
-			{#each contacts as contact, i}
-				<DropdownItem on:click={() => handleClick(i)}>
-					{contact.name}
-					<small class="text-xs text-gray-500">{contact.address}</small>
-				</DropdownItem>
-			{/each}
-		</Dropdown>
-	</div>
+  <!-- Add Contact Modal -->
+  {#if showAddModal}
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
+      <div class="bg-white dark:bg-zinc-800 rounded-xl p-6 w-full max-w-md">
+        <h2 class="text-xl font-semibold mb-4">Add Contact</h2>
+        <div class="space-y-4">
+          <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
+            <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Name *</label>
+            <input
+              type="text"
+              bind:value={formData.name}
+              placeholder="John Doe"
+              class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
+            <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Address *</label>
+            <input
+              type="text"
+              bind:value={formData.address}
+              placeholder="0x..."
+              class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
+            />
+          </div>
+          <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
+            <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Alias</label>
+            <input
+              type="text"
+              bind:value={formData.alias}
+              placeholder="Optional alias"
+              class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
+            <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Notes</label>
+            <textarea
+              bind:value={formData.note}
+              placeholder="Optional notes..."
+              rows="3"
+              class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-indigo-500"
+            ></textarea>
+          </div>
+        </div>
+        <div class="flex gap-3 mt-6">
+          <button
+            onclick={() => showAddModal = false}
+            class="flex-1 yakkl-btn-secondary"
+          >
+            Cancel
+          </button>
+          <button
+            onclick={handleAdd}
+            disabled={loading || !formData.name || !formData.address}
+            class="flex-1 yakkl-btn-primary disabled:opacity-50"
+          >
+            {loading ? 'Adding...' : 'Add Contact'}
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
 
-	<form on:submit|preventDefault={handleSubmit}>
-		<div class="flex justify-center">
-			<div class="w-full max-w-xs">
-				<span class="mt-2 text-left text-xs text-base-content font-bold mb-1">Name:</span>
-				<input
-					id="name"
-					class="input input-bordered input-primary w-full mb-2"
-					placeholder="Name"
-					autocomplete="off"
-					bind:value={$form.name}
-					on:change={handleChange}
-					required
-				/>
-				{#if $errors.name}
-					<small class="text-red-600 font-bold animate-pulse">{$errors.name}</small>
-				{/if}
-
-				<span class="mt-2 text-left text-xs text-base-content font-bold mb-1">Crypto Address:</span>
-				<input
-					id="address"
-					class="input input-bordered input-primary w-full mb-2"
-					placeholder="Crypto address"
-					autocomplete="off"
-					bind:value={$form.address}
-					on:change={handleChange}
-					required
-				/>
-				{#if $errors.address}
-					<small class="text-red-600 font-bold animate-pulse">{$errors.address}</small>
-				{/if}
-
-				<span class="mt-2 text-left text-xs text-base-content font-bold mb-1"
-					>Alias (optional):</span
-				>
-				<input
-					id="alias"
-					class="input input-bordered input-primary w-full mb-2"
-					placeholder="Alias"
-					autocomplete="off"
-					bind:value={$form.alias}
-					on:change={handleChange}
-				/>
-				{#if $errors.alias}
-					<small class="text-red-600 font-bold animate-pulse">{$errors.alias}</small>
-				{/if}
-
-				<span class="mt-2 text-left text-xs text-base-content font-bold mb-1">Note (optional):</span
-				>
-				<textarea
-					id="note"
-					rows="2"
-					class="textarea textarea-primary mb-2 w-full"
-					placeholder="Note"
-					autocomplete="off"
-					bind:value={$form.note}
-					on:change={handleChange}
-				></textarea>
-				{#if $errors.note}
-					<small class="text-red-600 font-bold animate-pulse">{$errors.note}</small>
-				{/if}
-			</div>
-		</div>
-
-		<div class="mt-4 flex flex-row justify-center">
-			<button
-				class="flex flex-row btn btn-primary rounded-full"
-				data-mdb-ripple="true"
-				data-mdb-ripple-color="light"
-			>
-				<div class="items-center align-middle">
-					<span>+ADD</span>
-				</div>
-			</button>
-
-			<button
-				on:click|preventDefault={() => handleUpdate()}
-				class="ml-4 flex flex-row btn btn-primary rounded-full"
-				data-mdb-ripple="true"
-				data-mdb-ripple-color="light"
-			>
-				<div class="inline-flex items-center align-middle">
-					<span>Update</span>
-				</div>
-			</button>
-
-			<button
-				on:click|preventDefault={() => handleDelete()}
-				class="ml-4 flex flex-row btn btn-primary rounded-full"
-				data-mdb-ripple="true"
-				data-mdb-ripple-color="light"
-			>
-				<div class="inline-flex items-center align-middle">
-					<span>Delete</span>
-				</div>
-			</button>
-		</div>
-		<div class="mt-4 flex flex-row justify-center">
-			<button
-				on:click|preventDefault={handleClear}
-				class="flex flex-row w-[150px] btn btn-primary rounded-full"
-				data-mdb-ripple="true"
-				data-mdb-ripple-color="light"
-			>
-				<div class="items-center align-middle">
-					<span class="text-center block w-[90px]">Clear</span>
-				</div>
-			</button>
-		</div>
-	</form>
+  <!-- Edit Contact Modal -->
+  {#if showEditModal}
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
+      <div class="bg-white dark:bg-zinc-800 rounded-xl p-6 w-full max-w-md">
+        <h2 class="text-xl font-semibold mb-4">Edit Contact</h2>
+        <div class="space-y-4">
+          <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
+            <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Name *</label>
+            <input
+              type="text"
+              bind:value={formData.name}
+              placeholder="John Doe"
+              class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
+            <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Address *</label>
+            <input
+              type="text"
+              bind:value={formData.address}
+              placeholder="0x..."
+              class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
+              disabled
+            />
+          </div>
+          <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
+            <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Alias</label>
+            <input
+              type="text"
+              bind:value={formData.alias}
+              placeholder="Optional alias"
+              class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
+            <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Notes</label>
+            <textarea
+              bind:value={formData.note}
+              placeholder="Optional notes..."
+              rows="3"
+              class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-indigo-500"
+            ></textarea>
+          </div>
+        </div>
+        <div class="flex gap-3 mt-6">
+          <button
+            onclick={() => {showEditModal = false; editingContact = null;}}
+            class="flex-1 yakkl-btn-secondary"
+          >
+            Cancel
+          </button>
+          <button
+            onclick={handleUpdate}
+            disabled={loading || !formData.name || !formData.address}
+            class="flex-1 yakkl-btn-primary disabled:opacity-50"
+          >
+            {loading ? 'Updating...' : 'Update Contact'}
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
 </div>

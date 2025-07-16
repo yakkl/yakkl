@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Tooltip from '$lib/components/ui/tooltip';
+	// import * as Tooltip from '$lib/components/ui/tooltip';
 	import { cn } from '$lib/utils.js';
 
 	interface Props {
@@ -28,7 +28,7 @@
 	const defaultContentClass = 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900';
 </script>
 
-<Tooltip.Provider>
+<!-- <Tooltip.Provider>
 	<Tooltip.Root>
 		<Tooltip.Trigger class={triggerClass}>
 			{@render children()}
@@ -43,4 +43,4 @@
 			{content}
 		</Tooltip.Content>
 	</Tooltip.Root>
-</Tooltip.Provider>
+</Tooltip.Provider> -->

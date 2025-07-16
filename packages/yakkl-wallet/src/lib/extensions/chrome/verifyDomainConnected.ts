@@ -70,9 +70,9 @@ export async function verifyDomainConnected(
 	}
 }
 
-export function verifyDomainConnectedBackground(requestId: string) {
+export async function verifyDomainConnectedBackground(requestId: string) {
 	try {
-		const request = requestManager.getRequest(requestId);
+		const request = await requestManager.getRequest(requestId);
 		if (!request) {
 			return false;
 		}
@@ -139,7 +139,7 @@ export async function getAddressesForDomain(domain: string) {
 }
 
 export async function getDomainForRequestId(requestId: string) {
-	const request = requestManager.getRequest(requestId);
+	const request = await requestManager.getRequest(requestId);
 	if (!request) {
 		return null;
 	}

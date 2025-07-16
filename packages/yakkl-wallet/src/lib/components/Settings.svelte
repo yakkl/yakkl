@@ -2,12 +2,13 @@
 <script lang="ts">
 	import { createForm } from 'svelte-forms-lib';
 	import * as yup from 'yup';
-	import Modal from './Modal.svelte';
+	import Modal from './v1/Modal.svelte';
 	import { getSettings, setSettings, getProfile, setProfileStorage } from '$lib/common/stores';
 	import { log } from '$lib/managers/Logger';
-	import { onMount } from 'svelte';
 	import type { Settings, Profile } from '$lib/common/interfaces';
 	import { SystemTheme, PlanType } from '$lib/common/types';
+	import SoundSettings from './SoundSettings.svelte';
+	import { chainStore } from '$lib/stores/chain.store';
 
 	interface Props {
 		show?: boolean;
@@ -106,12 +107,12 @@
 	// Custom submit handler for Svelte 5
 	async function handleFormSubmit(event: Event) {
 		event.preventDefault();
-		
+
 		// Validate the form
 		if (!$isValid) {
 			return;
 		}
-		
+
 		// Call saveSettings directly with form values
 		await saveSettings($form);
 	}
@@ -140,7 +141,7 @@
 				trialCountdownPinned: settings.trialCountdownPinned ?? false
 			};
 
-			hasChanges = 
+			hasChanges =
 				currentValues.showTestNetworks !== originalValues.showTestNetworks ||
 				currentValues.theme !== originalValues.theme ||
 				currentValues.locale !== originalValues.locale ||
@@ -158,7 +159,7 @@
 	async function loadSettingsData() {
 		isLoading = true;
 		error = '';
-		
+
 		try {
 			// Load both settings and profile (for preferences)
 			[settings, profile] = await Promise.all([
@@ -244,9 +245,12 @@
 			settings = updatedSettings;
 			profile = updatedProfile;
 
+			// Update chain store to reflect test network preference
+			chainStore.setShowTestnets(values.showTestNetworks);
+
 			success = 'Settings updated successfully!';
 			hasChanges = false;
-			
+
 			// Call completion callback
 			onComplete();
 
@@ -297,10 +301,14 @@
 		switch (planType) {
 			case PlanType.BASIC_MEMBER:
 				return 'Basic Member';
+			case PlanType.FOUNDING_MEMBER:
+				return 'Founding Member';
+			case PlanType.EARLY_ADOPTER:
+				return 'Early Adopter';
 			case PlanType.YAKKL_PRO:
 				return 'YAKKL Pro';
-			case PlanType.YAKKL_PREMIUM:
-				return 'YAKKL Premium';
+			case PlanType.ENTERPRISE:
+				return 'Enterprise';
 			default:
 				return 'Unknown';
 		}
@@ -490,6 +498,12 @@
 					</div>
 				</div>
 
+				<!-- Notification Settings -->
+				<div>
+					<h3 class="text-lg font-medium text-gray-900 mb-4">Notifications</h3>
+					<SoundSettings className="mt-4" />
+				</div>
+
 				<!-- Trial Settings (if applicable) -->
 				{#if settings?.plan?.trialEndDate}
 					<div>
@@ -531,7 +545,7 @@
 					>
 						Reset
 					</button>
-					
+
 					<div class="flex space-x-3">
 						<button
 							type="button"
@@ -541,7 +555,7 @@
 						>
 							Cancel
 						</button>
-						
+
 						<button
 							type="submit"
 							class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"

@@ -1,166 +1,395 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { sessionInitialized } from '$lib/common/stores';
-	import { DEFAULT_POPUP_HEIGHT, DEFAULT_TITLE, DEFAULT_POPUP_WIDTH } from '$lib/common';
-	import Header from '$components/Header.svelte';
-	import Footer from '$components/Footer.svelte';
-	import { blockContextMenu, blockWindowResize } from '$lib/utilities';
-	import ErrorNoAction from '$lib/components/ErrorNoAction.svelte';
+  import { onMount } from 'svelte';
+  // Note: Using window.location instead of goto to avoid HMR conflicts in browser extensions
+  import '../../app.css';
+  import DockLauncher from '$lib/components/DockLauncher.svelte';
+  import AIHelpButton from '$lib/components/AIHelpButton.svelte';
+  import Header from '$lib/components/Header.svelte';
+  import Footer from '$lib/components/Footer.svelte';
+  import Settings from '$lib/components/Settings.svelte';
+  import Profile from '$lib/components/Profile.svelte';
+  import ConfirmLogout from '$lib/components/ConfirmLogout.svelte';
+  import SessionWarning from '$lib/components/SessionWarning.svelte';
+  import EmergencyKit from '$lib/components/EmergencyKit.svelte';
+  import ManageAccounts from '$lib/components/ManageAccounts.svelte';
+  import NetworkMismatchModal from '$lib/components/NetworkMismatchModal.svelte';
+  import { accountStore, currentAccount } from '$lib/stores/account.store';
+  import { chainStore, currentChain, visibleChains } from '$lib/stores/chain.store';
+  import { planStore } from '$lib/stores/plan.store';
+  import { canUseFeature } from '$lib/stores/plan.store';
+  import { modalStore, isModalOpen } from '$lib/stores/modal.store';
+  import { transactionStore } from '$lib/stores/transaction.store';
+  import { sessionManager } from '$lib/managers/SessionManager';
+  import { getYakklAccounts, getProfile, syncStorageToStore } from '$lib/common/stores';
+  import type { ChainDisplay } from '$lib/types';
+  import { setupConsoleFilters } from '$lib/utils/console-filter';
+  import { lockWallet } from '$lib/common/lockWallet';
+  import { validateAndRefreshAuth } from '$lib/common/authValidation';
+  import { messagingService } from '$lib/common/messaging';
 
-	// Global error filtering function
-	function shouldShowErrorToUser(error: any): boolean {
-		const errorMessage = error?.message || error?.toString() || '';
+  interface Props {
+    children?: import('svelte').Snippet;
+  }
+  let { children }: Props = $props();
 
-		// Network/API errors that should be handled silently
-		const networkErrors = [
-			'missing response',
-			'timeout',
-			'TIMEOUT',
-			'SERVER_ERROR',
-			'NETWORK_ERROR',
-			'Failed to fetch',
-			'fetch',
-			'Connection failed',
-			'Request timeout',
-			'eth_getBalance',
-			'call revert exception',
-			'alchemy.com',
-			'infura.io',
-			'requestBody',
-			'serverError',
-			'code=SERVER_ERROR',
-			'version=web/',
-			'JsonRpcError',
-			'RPC Error',
-			'getBalance',
-			'Balance fetch'
-		];
+  // State
+  let initializing = $state(true);
+  let showTestnets = $state(false);
+  let showSettings = $state(false);
+  let showProfile = $state(false);
+  let showLogoutConfirm = $state(false);
+  let showEmergencyKit = $state(false);
+  let showManageAccounts = $state(false);
+  let showNetworkMismatch = $state(false);
+  let isAuthenticated = $state(false);
+  let pendingChain = $state<ChainDisplay | null>(null);
 
-		return !networkErrors.some((pattern) =>
-			errorMessage.toLowerCase().includes(pattern.toLowerCase())
-		);
-	}
-	import { browserSvelte, browser_ext } from '$lib/common/environment';
-	import { log } from '$lib/common/logger-wrapper';
-	import { initializeUiContext } from '$lib/common/messaging';
-	import InAppNotifications from '$lib/components/InAppNotifications.svelte';
-	import SecurityWarningEnhanced from '$lib/components/SecurityWarningEnhanced.svelte';
-	import Card from '$lib/components/Card.svelte';
-	import { yakklMiscStore } from '$lib/common/stores';
-	import TrialCountdown from '$lib/components/TrialCountdown.svelte';
-	import Upgrade from '$lib/components/Upgrade.svelte';
-	import { modal, modalName, closeModal } from '$lib/common/stores/modal';
+  // Computed from stores
+  let account = $derived($currentAccount || { address: '', ens: null });
+  let selectedChain = $derived($currentChain);
+  let chains = $derived($visibleChains);
+  let trialEnds = $derived($planStore.plan.trialEndsAt);
+  let planType = $derived($planStore.plan.type);
+  let modalOpen = $derived($isModalOpen);
 
-	interface Props {
-		children?: import('svelte').Snippet;
-	}
+  // Initialize stores on mount
 
-	let { children }: Props = $props();
 
-	// Use reactive store subscription instead of a one-time value
+  onMount(async () => {
+    // Don't block UI - let components handle their own loading
+    initializing = true;
 
-	// UI State
-	let popupWidth: number = $state(DEFAULT_POPUP_WIDTH);
-	let popupHeight: number = DEFAULT_POPUP_HEIGHT;
-	let title: string = $state(DEFAULT_TITLE);
-	let contextMenu: boolean = $state(false);
-	let resize: boolean = $state(false);
-	let error: boolean = $state(false);
-	let errorValue: string = $state('');
-	let errorCooldown: boolean = $state(false);
-	let maxHeightClass: string = $state('max-h-[448px]');
+    // Added: Setup console filters to suppress known warnings
+    setupConsoleFilters();
 
-	// Effect: Handle Internet Connection Status
-	$effect(() => {
-		if (browserSvelte && !navigator.onLine) {
-			log.warn('Internet connection is offline');
-			errorValue =
-				'It appears your Internet connection is offline. YAKKL needs access to the Internet to obtain current market prices and gas fees. A number of areas will either not function or work in a limited capacity. Thank you!';
-			error = true;
-		} else {
-			error = false;
-		}
-	});
+    // Run initialization without blocking the UI
+    (async () => {
+      try {
+        // Add a small delay to ensure background script is ready
+        // This helps prevent "Receiving end does not exist" errors during extension reload
+        await new Promise(resolve => setTimeout(resolve, 100));
 
-	// Effect: Manage Debug Mode and Blocking Features
-	$effect(() => {
-		if (process.env.DEV_MODE || process.env.NODE_ENV === 'development') {
-			contextMenu = true;
-			resize = true;
-		}
+        // Perform authentication validation
+        const authResult = await validateAndRefreshAuth();
+        isAuthenticated = authResult;
 
-		if (!contextMenu) blockContextMenu();
-		if (!resize) blockWindowResize(popupWidth, popupHeight);
-	});
+        if (authResult) {
+          // User is authenticated, sync all stores from persistent storage
+          console.log('Layout: User authenticated, syncing stores from persistent storage...');
+          await syncStorageToStore();
+          console.log('Layout: Stores synchronized');
+        } else {
+          console.log('Layout: User not authenticated, skipping store sync');
+        }
 
-	onMount(async () => {
-		try {
-			log.debug('+layout.svelte (wallet level) - onMount');
-			// Reset session initialization state when app first loads
-			sessionInitialized.set(false);
+        // Load wallet data in parallel with timeout
+        await Promise.race([
+          Promise.all([
+            accountStore.loadAccounts(),
+            chainStore.loadChains(),
+            planStore.loadPlan()
+          ]),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Store loading timeout')), 3000)
+          )
+        ]);
 
-			if (browser_ext) {
-				await initializeUiContext(browser_ext);
-			}
+        // Initialize session if authenticated
+        if (authResult) {
+          const profile = await getProfile();
+          if (profile && profile.data) {
+            const profileData = profile.data as any;
+            // Start session with JWT
+            await sessionManager.startSession(
+              profile.id,
+              profileData.userName || 'user',
+              profile.id,
+              profileData.planType || 'basic'
+            );
 
-			// Global error handlers to prevent network errors from reaching user
-			window.addEventListener('error', (event) => {
-				const error = event.error;
-				if (error && !shouldShowErrorToUser(error)) {
-					log.warn('[Global] Suppressed network error from user:', false, error);
-					event.preventDefault();
-					return false;
-				}
-			});
+            // Load testnet preference from user profile
+            if (profile.preferences?.showTestNetworks) {
+              showTestnets = true;
+              // Update the chain store to show testnets
+              chainStore.setShowTestnets(true);
+            }
+          }
+          
+          // Transaction monitoring is now handled in background context
+          // No need to start it here as it runs independently
+          console.log('Layout: Transaction monitoring handled by background context');
+        }
+      } catch (error) {
+        console.error('Layout: Error initializing stores:', error);
+      } finally {
+        initializing = false;
+      }
+    })();
 
-			window.addEventListener('unhandledrejection', (event) => {
-				const error = event.reason;
-				if (error && !shouldShowErrorToUser(error)) {
-					log.warn('[Global] Suppressed network rejection from user:', false, error);
-					event.preventDefault();
-					return false;
-				}
-			});
-		} catch (error) {
-			log.error('+layout.svelte (wallet level) - onMount:', false, error);
-		}
-	});
+    // Note: Window close is now handled by SingletonWindowManager
+    // The beforeunload event is unreliable for async operations
+    // Locking is done in the background script when window is removed
+  });
+
+
+  async function handleSwitchChain(chain: ChainDisplay) {
+    // Check if switching to a different chain
+    if (selectedChain && selectedChain.chainId !== chain.chainId) {
+      // Check if user has an account that supports this specific chain
+      const accounts = await getYakklAccounts();
+      const hasAccountForChain = accounts?.some(acc => {
+        // Check if account explicitly supports this chain
+        if (acc.chainIds?.includes(chain.chainId)) {
+          return true;
+        }
+
+        // For Ethereum mainnet and testnets, check if it's an Ethereum account without specific chains
+        const isEthereumChain = [1, 5, 11155111].includes(chain.chainId);
+        if (isEthereumChain && (!acc.blockchain || acc.blockchain === 'ethereum') && !acc.chainIds) {
+          return true;
+        }
+
+        return false;
+      });
+
+      if (!hasAccountForChain) {
+        pendingChain = chain;
+        showNetworkMismatch = true;
+        return;
+      }
+    }
+
+    // Proceed with chain switch
+    await chainStore.switchChain(chain.chainId);
+  }
+
+
+  async function handleCreateAccountForNetwork() {
+    if (!pendingChain) return;
+
+    try {
+      // TODO: Implement account creation for the specific network
+      // For now, just close the modal
+      console.log('Creating account for network:', pendingChain);
+
+      // After account creation, switch to the network
+      await chainStore.switchChain(pendingChain.chainId);
+
+      showNetworkMismatch = false;
+      pendingChain = null;
+    } catch (error) {
+      console.error('Failed to create account:', error);
+    }
+  }
+
+  function handleCancelNetworkSwitch() {
+    // Stay on the current network
+    showNetworkMismatch = false;
+    pendingChain = null;
+  }
+
+  function handleManageAccount() {
+    showProfile = true;
+  }
+
+  function handleEmergencyKit() {
+    showEmergencyKit = true;
+  }
+
+  function handleManageAccounts() {
+    showManageAccounts = true;
+  }
+
+  function handleSettings() {
+    showSettings = true;
+  }
+
+  function handleTheme() {
+    // Toggle theme
+    document.documentElement.classList.toggle('dark');
+  }
+
+  async function handleLogout() {
+    // Check if user has disabled logout confirmation
+    const skipConfirmation = localStorage.getItem('yakkl:skip-logout-confirmation') === 'true';
+
+    if (skipConfirmation) {
+      // Skip confirmation and logout directly
+      await performLogout();
+    } else {
+      // Show confirmation dialog
+      showLogoutConfirm = true;
+    }
+  }
+
+  async function handleLogoutConfirm(dontShowAgain: boolean) {
+    if (dontShowAgain) {
+      // Save the preference to skip confirmation next time
+      localStorage.setItem('yakkl:skip-logout-confirmation', 'true');
+    }
+
+    await performLogout();
+  }
+
+  async function performLogout() {
+    try {
+      // Reset v2 specific stores before locking
+      if (accountStore && typeof accountStore.reset === 'function') {
+        accountStore.reset();
+      }
+      if (chainStore && typeof chainStore.reset === 'function') {
+        chainStore.reset();
+      }
+      if (planStore && typeof planStore.reset === 'function') {
+        planStore.reset();
+      }
+
+      // End session
+      await sessionManager.endSession();
+
+      // Lock the wallet using centralized function
+      await lockWallet('user-logout');
+
+      console.log('V2: Logout completed successfully');
+
+      // Send logout message to background to handle all windows
+      try {
+        await messagingService.sendMessage('logout', { reason: 'user-logout' });
+      } catch (error) {
+        console.error('Failed to send logout message to background', error);
+      }
+
+      // Navigate to logout page to handle proper cleanup
+      window.location.href = '/logout';
+
+    } catch (error) {
+      console.error('V2: Logout failed:', error);
+      // Try to navigate to logout page anyway
+      try {
+        window.location.href = '/logout';
+      } catch (navError) {
+        // As last resort, try window.location
+        window.location.href = '/logout';
+      }
+    }
+  }
 </script>
 
-<svelte:head>
-	<title>{title}</title>
-</svelte:head>
+<div class="yakkl-body h-screen flex flex-col overflow-hidden">
+  <!-- Settings Modal -->
+  <Settings bind:show={showSettings} />
 
-<SecurityWarningEnhanced />
-<ErrorNoAction bind:show={error} title="Error" value={errorValue} />
+  <!-- Profile Modal -->
+  <Profile bind:show={showProfile} />
 
-<div
-	id="wrapper"
-	class="w-[{popupWidth}px] max-w-[{popupWidth}px] rounded-md flex flex-col bg-gradient-to-br from-gray-900 via-gray-800 to-black min-h-screen transition-opacity duration-500 animate-fade-in overflow-hidden"
->
-	<!-- containerWidth={popupWidth} /> -->
-	<Header />
+  <!-- Emergency Kit Modal -->
+  {#if showEmergencyKit}
+    <EmergencyKit onClose={() => showEmergencyKit = false} />
+  {/if}
 
-	{#if $yakklMiscStore}
-		<Card />
-	{:else}
-		<!-- Debug: Card not showing because yakklMiscStore is falsy -->
-		<div class="text-xs text-gray-500 p-2">Card loading...</div>
-	{/if}
+  <!-- Manage Accounts Modal -->
+  {#if showManageAccounts}
+    <ManageAccounts onClose={() => showManageAccounts = false} />
+  {/if}
 
-	<div class="min-h-[40rem] mx-2 overflow-hidden">
-		<div class="relative mt-1 overflow-hidden">
-			<!-- rounded-xl overflow-y-auto bg-base-100 border-2 border-stone-700 border-r-stone-700/75 border-b-slate-700/75 -->
-			<main class="p-2 {maxHeightClass} overflow-y-auto overflow-x-hidden">
-				{@render children?.()}
-			</main>
-		</div>
-	</div>
+  <!-- Logout Confirmation Modal -->
+  <ConfirmLogout
+    bind:show={showLogoutConfirm}
+    onConfirm={handleLogoutConfirm}
+    onCancel={() => showLogoutConfirm = false}
+  />
 
-	<Footer containerWidth={popupWidth.toString()} />
+  <!-- Session Warning Component -->
+  {#if isAuthenticated}
+    <SessionWarning />
+  {/if}
+
+  <!-- Network Mismatch Modal -->
+  {#if pendingChain}
+    <NetworkMismatchModal
+      bind:show={showNetworkMismatch}
+      chain={pendingChain}
+      onCreateAccount={handleCreateAccountForNetwork}
+      onCancel={handleCancelNetworkSwitch}
+    />
+  {/if}
+
+  <!-- Fixed Header -->
+  <Header
+    link="/home"
+    account={account}
+    chains={chains}
+    selectedChain={selectedChain}
+    showTestnets={showTestnets}
+    onSwitchChain={handleSwitchChain}
+    onManageAccount={handleManageAccount}
+    onSettings={handleSettings}
+    onTheme={handleTheme}
+    onLogout={handleLogout}
+    onEmergencyKit={handleEmergencyKit}
+    onManageAccounts={handleManageAccounts}
+    className="flex-shrink-0"
+  />
+
+  <!-- Scrollable Content Area -->
+  <main class="flex-1 overflow-y-auto overflow-x-hidden">
+    <!-- Changed: Always render content, let components handle their own loading -->
+    <div class="min-h-full">
+      {@render children?.()}
+    </div>
+
+    <!-- Show initializing indicator only if taking too long -->
+    {#if initializing}
+      <div class="fixed bottom-20 right-4 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-3 py-2 rounded-lg shadow-lg text-sm z-40">
+        <div class="flex items-center gap-2">
+          <div class="animate-spin rounded-full h-3 w-3 border-b-2 border-yellow-600"></div>
+          <span>Initializing wallet...</span>
+        </div>
+      </div>
+    {/if}
+  </main>
+
+  <!-- Fixed Footer -->
+  <Footer
+    {planType}
+    trialEnds={trialEnds}
+    appName="YAKKL"
+    className="flex-shrink-0"
+  />
+
+  <!-- ScrollIndicator as overlay -->
+  <!-- <ScrollIndicator /> -->
+
+  <!-- Floating Elements above footer - only show if features are available and no modals open -->
+  {#if !modalOpen}
+    <!-- {#if canUseFeature('basic_features')} -->
+      <DockLauncher className="fixed bottom-12 left-4 z-40" />
+    <!-- {/if} -->
+
+    {#if canUseFeature('ai_assistant')}
+      <AIHelpButton className="fixed bottom-12 right-4 z-40" />
+    {:else}
+      <!-- Show locked AI button for non-Pro users -->
+      <div class="fixed bottom-12 right-4 z-40">
+        <button
+          onclick={() => modalStore.openModal('upgrade')}
+          class="yakkl-circle-button text-xl opacity-60 hover:opacity-80 transition-opacity"
+          title="AI Assistant (Pro Feature - Upgrade Required)"
+        >
+          🤖
+        </button>
+      </div>
+    {/if}
+  {/if}
+
 </div>
 
-<InAppNotifications />
-
-<TrialCountdown />
-<Upgrade show={$modal && $modalName === 'upgrade'} onClose={closeModal} onCancel={closeModal} />
+<style>
+  :global(body) {
+    margin: 0;
+    background-color: #f8fafc;
+  }
+  :global(html.dark body) {
+    background-color: #0e0e11;
+  }
+</style>

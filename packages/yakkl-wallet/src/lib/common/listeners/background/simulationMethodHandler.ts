@@ -2,7 +2,7 @@
 
 import { log } from '$lib/managers/Logger';
 import { getYakklCurrentlySelected } from '$lib/common/stores';
-import { sendErrorResponse } from '$lib/extensions/chrome/errorResponseHandler';
+import { sendErrorResponse } from '$contexts/background/extensions/chrome/errorResponseHandler';
 import type { Runtime } from 'webextension-polyfill';
 import type { YakklResponse } from '$lib/common/interfaces';
 

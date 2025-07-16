@@ -6,7 +6,7 @@ import type {
 	NotificationOptions,
 	ProgressNotificationOptions
 } from './types';
-import { startLockIconTimer, stopLockIconTimer } from '$lib/extensions/chrome/iconTimer';
+import { startLockIconTimer, stopLockIconTimer } from '$contexts/background/extensions/chrome/iconTimer';
 import { browser_ext } from './environment';
 import { log } from '$lib/common/logger-wrapper';
 import type { Notifications } from 'webextension-polyfill';
@@ -25,7 +25,7 @@ export class NotificationService {
 	private static clearTimeout: number | null = null;
 
 	// Enhanced features tracking
-	private static _badgeCountdownInterval: number | null = null;
+	private static _badgeCountdownInterval: ReturnType<typeof setInterval> | null = null;
 	private static _urgentSoundContext: AudioContext | null = null;
 	private static _isClearing: boolean = false;
 	private static _clearingPromise: Promise<void> | null = null;
@@ -453,8 +453,8 @@ export class NotificationService {
 
 		let timeLeft = seconds;
 
-		if (typeof window !== 'undefined') {
-			this._badgeCountdownInterval = window.setInterval(async () => {
+		// Use setInterval directly (available in service worker context)
+		this._badgeCountdownInterval = setInterval(async () => {
 				timeLeft--;
 
 				if (timeLeft <= 0) {
@@ -480,13 +480,12 @@ export class NotificationService {
 						log.debug('Badge update failed:', false, error);
 					}
 				}
-			}, 1000);
+		}, 1000);
 
-			log.info('[NotificationService] Badge countdown started:', false, {
-				seconds,
-				intervalId: this._badgeCountdownInterval
-			});
-		}
+		log.info('[NotificationService] Badge countdown started:', false, {
+			seconds,
+			intervalId: this._badgeCountdownInterval
+		});
 	}
 
 	/**

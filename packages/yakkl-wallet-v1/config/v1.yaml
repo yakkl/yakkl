@@ -1,0 +1,38 @@
+# YAKKL Wallet v1 Configuration
+version: "1.5.6"
+product_name: "YAKKL Wallet"
+product_short: "YAKKL"
+
+# Build configuration
+build:
+  hooks_client: "./src/hooks.client.v1.ts"
+  app_html: "./src/app.v1.html"
+  
+# Extension paths
+paths:
+  extension_root: "./src/lib/extension/chrome"
+  background_script: "./src/lib/extension/chrome/background/index.ts"
+  content_script: "./src/lib/extension/chrome/content.ts"
+  inpage_script: "./src/lib/extension/chrome/inpage.ts"
+  manifest_template: "./src/lib/extension/chrome/manifest.json.mustache"
+  initial_route: "/welcome/welcome"
+  
+# UI configuration
+ui:
+  popup_width: 428
+  popup_height: 926
+  show_testnet_default: false
+  theme_default: "light"
+  
+# Feature flags
+features:
+  preview_mode: false
+  legacy_storage: true
+  ai_assistant: false
+  advanced_analytics: false
+  secure_recovery: false
+  
+# Environment
+env:
+  node_env: "production"
+  dev_mode: false

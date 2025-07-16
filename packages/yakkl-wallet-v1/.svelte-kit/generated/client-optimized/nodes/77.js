@@ -1,0 +1,1 @@
+export { default as component } from "../../../../src/routes/preview2/register/+page.svelte";

@@ -5,7 +5,7 @@
 	import { shouldShowProFeatures } from '$lib/common/token-analytics';
 	import { PlanType } from '$lib/common/types';
 	import type { Settings } from '$lib/common/interfaces';
-	import SimpleTooltip from './SimpleTooltip.svelte';
+	import SimpleTooltip from '$lib/components/SimpleTooltip.svelte';
 
 	interface Props {
 		/// <reference types="svelte" />
@@ -36,52 +36,62 @@
 	}
 </script>
 
-<div class="bg-surface-light dark:bg-surface-dark rounded-lg p-6 shadow-md">
-	<h1 class="text-2xl font-bold text-center text-primary-light dark:text-primary-dark mb-4">
+<div class="yakkl-card">
+	<h1 class="text-2xl font-bold text-center text-zinc-900 dark:text-white mb-4">
 		{title}
 	</h1>
 
 	<div class="space-y-4 mb-6">
-		<p class="text-secondary-light dark:text-secondary-dark text-center">
+		<p class="text-zinc-600 dark:text-zinc-400 text-center">
 			Choose an option to get started with your wallet:
 		</p>
-		<ul class="list-disc list-inside text-secondary-light dark:text-secondary-dark space-y-2">
-			<li>Create a new account if this is your first time</li>
-			<!-- <li>Import an existing account if you have one</li> -->
-			<li>
-				Restore from a YAKKL Emergency Kit if you're recovering your wallet (AFTER creating the
-				initial account!)
-			</li>
-		</ul>
+		<div class="bg-zinc-50 dark:bg-zinc-800 rounded-xl p-4 space-y-3">
+			<div class="flex items-start gap-3">
+				<span class="text-indigo-600 dark:text-indigo-400 mt-0.5">•</span>
+				<span class="text-zinc-700 dark:text-zinc-300">Create a new account if this is your first time</span>
+			</div>
+			<div class="flex items-start gap-3">
+				<span class="text-green-600 dark:text-green-400 mt-0.5">•</span>
+				<span class="text-zinc-700 dark:text-zinc-300">Import an existing account if you have one</span>
+			</div>
+			<div class="flex items-start gap-3">
+				<span class="text-red-600 dark:text-red-400 mt-0.5">•</span>
+				<span class="text-zinc-700 dark:text-zinc-300">Restore from Emergency Kit if recovering your wallet</span>
+			</div>
+		</div>
 	</div>
 
 	<div class="space-y-3">
 		<!-- Create New Account Button -->
 		<button
 			onclick={onCreate}
-			class="w-full py-2 px-4 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75 transition duration-200 ease-in-out"
+			class="yakkl-btn-primary w-full flex items-center justify-center gap-2"
 		>
+			<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+			</svg>
 			Create New Account
 		</button>
-
-		<div class="my-4 border-t border-neutral-dark dark:border-neutral-light"></div>
 
 		<!-- Import Existing Account Button -->
 		<button
 			onclick={onImport}
-			class="w-full py-2 px-4 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75 transition duration-200 ease-in-out"
+			class="yakkl-btn-secondary w-full flex items-center justify-center gap-2"
 		>
-			Import Existing Account(s)
+			<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+			</svg>
+			Import Existing Account
 		</button>
 
 		<!-- Restore from Emergency Kit Button -->
 		{#if isProUser}
 			<button
 				onclick={handleRestore}
-				class="w-full py-2 px-4 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75 transition duration-200 ease-in-out flex items-center justify-center gap-2"
+				class="yakkl-btn-danger w-full flex items-center justify-center gap-2"
 			>
-				<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-					<path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/>
+				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
 				</svg>
 				Restore from Emergency Kit
 			</button>
@@ -89,17 +99,15 @@
 			<SimpleTooltip content="Upgrade to Pro for full Emergency Kit features">
 				<button
 					disabled
-					class="w-full py-2 px-4 bg-gray-400 text-gray-200 font-semibold rounded-lg shadow-md cursor-not-allowed transition duration-200 ease-in-out flex items-center justify-center gap-2 relative"
+					class="w-full bg-zinc-300 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 font-semibold px-4 py-2 rounded-lg cursor-not-allowed flex items-center justify-center gap-2 relative"
 				>
-					<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-						<path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/>
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
 					</svg>
 					Restore from Emergency Kit
-					<div class="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-indigo-400 to-purple-400 rounded-full flex items-center justify-center">
-						<svg class="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-							<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
-						</svg>
-					</div>
+					<span class="absolute -top-1 -right-1 bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">
+						PRO
+					</span>
 				</button>
 			</SimpleTooltip>
 		{/if}

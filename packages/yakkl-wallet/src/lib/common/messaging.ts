@@ -1,9 +1,11 @@
 // src/lib/common/messaging.ts
-import { browser as isBrowser } from '$app/environment';
 import { log } from '$lib/common/logger-wrapper';
 import type { Browser, Runtime } from 'webextension-polyfill';
 import { protectedContexts } from './globals';
 import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
+
+// Check if we're in browser environment
+const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
 
 // Helper function to check if context needs idle protection
 function contextNeedsIdleProtection(contextType: string): boolean {
@@ -107,12 +109,15 @@ class ExtensionMessaging {
 
 		try {
 			// Send directly without waiting for response and with error suppression
-			this.browserApi.runtime.sendMessage(message).catch((error) => {
-				log.debug(
-					`[Messaging - sendCleanupMessage] Cleanup message ${type} send failed (this is normal):`,
-					false,
-					error
-				);
+			this.browserApi.runtime.sendMessage(message).catch((error: any) => {
+				// Only log if it's not the expected "no receiver" error
+				if (error instanceof Error && !error.message.includes('Receiving end does not exist')) {
+					log.debug(
+						`[Messaging - sendCleanupMessage] Cleanup message ${type} send failed:`,
+						false,
+						error
+					);
+				}
 			});
 		} catch (error) {
 			log.debug(
@@ -230,12 +235,15 @@ class ExtensionMessaging {
 		if (!waitForResponse) {
 			try {
 				// Send directly without waiting for response
-				this.browserApi.runtime.sendMessage(message).catch((error) => {
-					log.debug(
-						`[Messaging - sendMessage] Error sending fire-and-forget message ${type}:`,
-						false,
-						error
-					);
+				this.browserApi.runtime.sendMessage(message).catch((error: any) => {
+					// Suppress "Receiving end does not exist" errors for fire-and-forget messages
+					if (error instanceof Error && !error.message.includes('Receiving end does not exist')) {
+						log.debug(
+							`[Messaging - sendMessage] Error sending fire-and-forget message ${type}:`,
+							false,
+							error
+						);
+					}
 				});
 
 				// Return resolved promise immediately
@@ -309,7 +317,10 @@ class ExtensionMessaging {
 					try {
 						// Send the message
 						await this.browserApi.runtime.sendMessage(item.message).catch((error: any) => {
-							log.debug('[Messaging - processQueue] Error sending message:', false, error);
+							// Suppress "Receiving end does not exist" errors
+							if (!(error instanceof Error && error.message.includes('Receiving end does not exist'))) {
+								log.debug('[Messaging - processQueue] Error sending message:', false, error);
+							}
 
 							// If we should retry and haven't exceeded the retry limit
 							if (item.retryOnFail && item.retryCount < this.MAX_RETRIES) {
@@ -317,10 +328,12 @@ class ExtensionMessaging {
 								item.retryCount++;
 								queue.push(item);
 
-								log.debug('[Messaging - processQueue] Retrying message:', false, {
-									type: item.message.type,
-									attempt: item.retryCount
-								});
+								if (!(error instanceof Error && error.message.includes('Receiving end does not exist'))) {
+									log.debug('[Messaging - processQueue] Retrying message:', false, {
+										type: item.message.type,
+										attempt: item.retryCount
+									});
+								}
 							} else {
 								// Reject the promise
 								const pendingRequest = this.pendingRequests.get(item.message.messageId);

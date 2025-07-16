@@ -32,6 +32,7 @@ export class ExtensionRSSFeedService {
 	private static instance: ExtensionRSSFeedService;
 	private feedCache: Map<string, { data: RSSFeed; timestamp: number }> = new Map();
 	private cacheTimeout = 5 * 60 * 1000; // 5 minutes
+	private readonly ARTICLE_CACHE_KEY = 'yakkl_rss_articles_cache';
 
 	private constructor() {}
 
@@ -55,7 +56,8 @@ export class ExtensionRSSFeedService {
 				headers: {
 					'User-Agent': 'YAKKL Smart Wallet Extension/' + VERSION,
 					Accept: 'application/rss+xml, application/xml, text/xml'
-				}
+				},
+				credentials: 'omit'
 			});
 
 			if (!response.ok) {
@@ -83,6 +85,59 @@ export class ExtensionRSSFeedService {
 
 			throw error;
 		}
+	}
+
+	// Method to clear specific cached feeds
+	async clearCachedFeed(feedUrl: string): Promise<void> {
+		try {
+			// Clear from memory cache
+			this.feedCache.delete(feedUrl);
+			
+			// Clear from extension storage
+			const key = `rss_feed_${btoa(feedUrl)}`;
+			await browser_ext.storage.local.remove(key);
+			
+			console.log(`Cleared cached feed for ${feedUrl}`);
+		} catch (error) {
+			console.error('Failed to clear cached feed:', error);
+		}
+	}
+
+	// Method to clear all RSS feed caches
+	async clearAllCachedFeeds(): Promise<void> {
+		try {
+			// Clear memory cache
+			this.feedCache.clear();
+			
+			// Get all storage keys
+			const allData = await browser_ext.storage.local.get(null);
+			const rssKeys = Object.keys(allData).filter(key => key.startsWith('rss_feed_'));
+			
+			// Remove all RSS feed keys
+			if (rssKeys.length > 0) {
+				await browser_ext.storage.local.remove(rssKeys);
+				console.log(`Cleared ${rssKeys.length} cached RSS feeds`);
+			}
+			
+			// Also clear the article cache
+			await browser_ext.storage.local.remove(this.ARTICLE_CACHE_KEY);
+		} catch (error) {
+			console.error('Failed to clear all cached feeds:', error);
+		}
+	}
+
+	// Get all cached articles from central store
+	async getCachedArticles(): Promise<RSSItem[]> {
+		try {
+			const stored = await browser_ext.storage.local.get(this.ARTICLE_CACHE_KEY);
+			if (stored[this.ARTICLE_CACHE_KEY]) {
+				const cacheData = stored[this.ARTICLE_CACHE_KEY] as { articles: RSSItem[]; lastUpdated: string };
+				return cacheData.articles || [];
+			}
+		} catch (error) {
+			console.error('Failed to get cached articles:', error);
+		}
+		return [];
 	}
 
 	private async storeFeedInExtensionStorage(feedUrl: string, feed: RSSFeed) {
@@ -132,6 +187,12 @@ export class ExtensionRSSFeedService {
 		content: string;
 		quality: 'complete' | 'partial' | 'minimal';
 	} {
+		// First, remove problematic tags that cause browser warnings
+		// Remove all link preload tags to prevent font preload warnings
+		html = html.replace(/<link[^>]*rel=["']?preload["']?[^>]*>/gi, '');
+		// Remove prefetch and dns-prefetch as well
+		html = html.replace(/<link[^>]*rel=["']?(prefetch|dns-prefetch)["']?[^>]*>/gi, '');
+		
 		const parser = new DOMParser();
 		const doc = parser.parseFromString(html, 'text/html');
 

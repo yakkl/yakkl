@@ -88,8 +88,8 @@ import {
 
 // NOTE: Update these two as needed!!
 // WIP - May need to add a dataModel for providers and the blockchains they support. Review interfaces! This could be used for the wallet provider and blockchain combo for the future.
-export let yakklWalletBlockchains = ['Ethereum'];
-export let yakklWalletProviders = ['Alchemy'];
+export let yakklWalletBlockchains = ['Ethereum', 'Base'];
+export let yakklWalletProviders = ['Alchemy', 'Infura'];
 // WIP - Already have stores and storage defined
 
 // Preferences - User specified and defaults
@@ -318,6 +318,24 @@ export let yakklCurrentlySelected: YakklCurrentlySelected = {
 				type: NetworkType.TESTNET,
 				explorer: 'https://sepolia.etherscan.io',
 				decimals: 18
+			},
+			{
+				blockchain: 'Base',
+				name: 'Base',
+				chainId: 8453,
+				symbol: 'ETH',
+				type: NetworkType.MAINNET,
+				explorer: 'https://basescan.org',
+				decimals: 18
+			},
+			{
+				blockchain: 'Base',
+				name: 'Base Sepolia',
+				chainId: 84532,
+				symbol: 'ETH',
+				type: NetworkType.TESTNET,
+				explorer: 'https://sepolia.basescan.org',
+				decimals: 18
 			}
 		], // List of the associated networks for both mainnet and testnets
 		network: {
@@ -426,6 +444,7 @@ export let yakklContact: YakklContact = {
 	addressType: 'EOA', // EOA or SC
 	avatar: '',
 	blockchain: 'Ethereum',
+	chainId: 1,
 	alias: '',
 	note: '', // Note on the contact for anything you wish to keep
 	version: VERSION, // Travels with the data for upgrades
@@ -541,7 +560,7 @@ export const yakklStoredObjects = [
 //     subClass: '',  // Mainly applies to RWA such as deeds, titles, ...
 //     description: 'Ethereum crypto',
 //     status: 'enabled',
-//     icon: '/images/ethereum.svg',
+//     icon: '/images/eth.svg',
 //     symbol: 'ETH',
 //     network: 'Ethereum',  // Primary network
 //     networks: [  // TODO: Verify 'network' and 'name' are handled correctly
@@ -631,7 +650,7 @@ export const yakklStoredObjects = [
 //   name: 'Ethereum',
 //   symbol: 'ETH',
 //   card: 'ethereum-background.png',
-//   icon: '/images/ethereum.svg',
+//   icon: '/images/eth.svg',
 //   decimals: 18,
 //   types: [
 //     {type: 'mainnet', release: 'Production', name: 'Mainnet', chainId: 1},
@@ -647,7 +666,7 @@ export const yakklStoredObjects = [
 //     name: 'Ethereum',
 //     symbol: 'ETH',
 //     card: 'ethereum-background.png',
-//     icon: '/images/ethereum.svg',
+//     icon: '/images/eth.svg',
 //     decimals: 18,
 //     types: [
 //       {type: 'mainnet', release: 'Production', name: 'Mainnet', chainId: '0x1'},
@@ -764,13 +783,13 @@ export const yakklStoredObjects = [
 //   description: 'Ethereum crypto',
 //   status: 'enabled',
 //   card: 'ethereum-background.png',
-//   icon: '/images/ethereum.svg',
+//   icon: '/images/eth.svg',
 //   symbol: 'ETH',
 //   decimals: 18,
 //   network:   {
 //     name: 'Ethereum',
 //     symbol: 'ETH',
-//     icon: '/images/ethereum.svg',
+//     icon: '/images/eth.svg',
 //     rpcUrls: [],  // These are the provider urls for the given network
 //     types: [
 //       {type: 'mainnet', release: 'Production', name: 'Mainnet', chainId: '0x1'},
@@ -791,13 +810,13 @@ export const yakklStoredObjects = [
 //     description: "Ethereum crypto",
 //     status: "enabled",
 //     card: "ethereum-background.png",
-//     icon: "/images/ethereum.svg",
+//     icon: "/images/eth.svg",
 //     symbol: "ETH",
 //     decimals: 18,
 //     network: {
 //       name: "Ethereum",
 //       symbol: "ETH",
-//       icon: "/images/ethereum.svg",
+//       icon: "/images/eth.svg",
 //       rpcUrls: [],
 //       types: [
 //         {type: "mainnet", release: "Production", name: "Mainnet", chainId: "0x1"},
@@ -814,13 +833,13 @@ export const yakklStoredObjects = [
 //     description: "Ethereum NFT",
 //     status: "enabled",
 //     card: "ethereum-background.png",
-//     icon: "/images/ethereum.svg",
+//     icon: "/images/eth.svg",
 //     symbol: "ETH",
 //     decimals: 18,
 //     network: {
 //       name: "Ethereum",
 //       symbol: "ETH",
-//       icon: "/images/ethereum.svg",
+//       icon: "/images/eth.svg",
 //       rpcUrls: [],
 //       types: [
 //         {type: "mainnet", release: "Production", name: "Mainnet", chainId: "0x1"},
@@ -836,14 +855,14 @@ export const yakklStoredObjects = [
 //     subClass: "",
 //     description: "Ethereum RWA (Real World Asset)",
 //     status: "enabled",
-//     icon: "/images/ethereum.svg",
+//     icon: "/images/eth.svg",
 //     card: "ethereum-background.png",
 //     symbol: "ETH",
 //     decimals: 18,
 //     network: {
 //       name: "Ethereum",
 //       symbol: "ETH",
-//       icon: "/images/ethereum.svg",
+//       icon: "/images/eth.svg",
 //       rpcUrls: [],
 //       types: [
 //         {type: "mainnet", release: "Production", name: "Mainnet", chainId: "0x1"},

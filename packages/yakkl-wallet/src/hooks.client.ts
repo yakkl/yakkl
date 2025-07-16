@@ -2,12 +2,15 @@
 import type { Browser } from 'webextension-polyfill';
 import { getSettings, setContextTypeStore, syncStorageToStore } from '$lib/common/stores';
 import { loadTokens } from '$lib/common/stores/tokens';
+import { BalanceCacheManager } from '$lib/managers/BalanceCacheManager';
+import { AccountTokenCacheManager } from '$lib/managers/AccountTokenCacheManager';
 import { ErrorHandler } from '$lib/managers/ErrorHandler';
 import { log } from '$lib/managers/Logger';
 import { addUIListeners, removeUIListeners } from '$lib/common/listeners/ui/uiListeners';
 import { globalListenerManager } from '$lib/managers/GlobalListenerManager';
 import { uiListenerManager } from '$lib/common/listeners/ui/uiListeners';
 import { protectedContexts } from '$lib/common/globals';
+import { initializeGlobalErrorHandlers, cleanupGlobalErrorHandlers } from '$lib/common/globalErrorHandler';
 
 // Helper function to check if context needs idle protection
 function contextNeedsIdleProtection(contextType: string): boolean {
@@ -113,6 +116,65 @@ function getBrowserExt(): Browser | null {
 
 const errorHandler = ErrorHandler.getInstance(); // Initialize error handlers
 
+// Global handler for unhandled promise rejections
+if (isClient) {
+	window.addEventListener('unhandledrejection', (event) => {
+		const error = event.reason;
+
+		// Check if it's a connection error from extension messaging
+		if (error?.message?.includes('Could not establish connection') ||
+			error?.message?.includes('Receiving end does not exist')) {
+			// Prevent the default error handling
+			event.preventDefault();
+
+			// Log it as a debug message instead of an error
+			log.debug('Extension messaging not ready:', false, error);
+			return;
+		}
+
+		// Let other errors propagate normally
+		log.error('Unhandled promise rejection:', false, error);
+	});
+
+	// Also intercept console.error to suppress these specific errors
+	const originalConsoleError = console.error;
+	console.error = function(...args) {
+		// Check if any argument contains the connection error messages
+		const errorString = args.map(arg => String(arg)).join(' ');
+		if (errorString.includes('Could not establish connection') ||
+		    errorString.includes('Receiving end does not exist')) {
+			// Log as debug instead
+			log.debug('Suppressed console error:', false, ...args);
+			return;
+		}
+		
+		// Call the original console.error for other errors
+		originalConsoleError.apply(console, args);
+	};
+}
+
+/**
+ * Load cache managers early to ensure cached data is available
+ */
+async function loadCacheManagers(): Promise<void> {
+	if (!isClient) return;
+	
+	try {
+		// Initialize cache managers to load their data from storage
+		// These will load cached balance and token data that needs to be available immediately
+		BalanceCacheManager.getInstance();
+		AccountTokenCacheManager.getInstance();
+		
+		// Give them a moment to load from storage
+		await new Promise(resolve => setTimeout(resolve, 10));
+		
+		log.debug('Cache managers loaded successfully');
+	} catch (error) {
+		log.warn('Failed to load cache managers:', false, error);
+		// Don't throw - this shouldn't block initialization
+	}
+}
+
 /**
  * Determine the context type based on the current URL
  */
@@ -128,8 +190,18 @@ export function getContextType(): string {
 	} else if (
 		pathname.includes('index.html') ||
 		href.includes('index.html') ||
+		pathname.includes('home.html') ||
+		href.includes('home.html') ||
 		pathname === '/' ||
-		pathname === ''
+		pathname === '' ||
+		pathname === '/home' ||
+		// Include other wallet HTML pages
+		pathname.includes('register.html') ||
+		pathname.includes('login.html') ||
+		pathname.includes('legal.html') ||
+		pathname.includes('settings.html') ||
+		pathname.includes('accounts.html') ||
+		pathname.includes('tokens.html')
 	) {
 		setContextTypeStore('popup-wallet');
 		return 'popup-wallet';
@@ -163,6 +235,9 @@ export async function init() {
 			console.info(`[${CONTEXT_ID}] Failed to get settings in hooks - passing on:`, error);
 		}
 
+		// Initialize global error handlers early
+		initializeGlobalErrorHandlers();
+
 		// First get the browser API
 		const browserApi = getBrowserExt();
 
@@ -174,12 +249,21 @@ export async function init() {
 		// Initialize stores first (these need to be ready before any UI rendering)
 		await syncStorageToStore();
 		await loadTokens();
+		
+		// Load cache managers very early to ensure cached data is available
+		await loadCacheManagers();
 
 		// Get context type for this initialization
 		const contextType = getContextType();
 
 		// Set up UI listeners through the manager
 		await setupUIListeners();
+
+		// Register with background script after a delay to ensure it's ready
+		// This delay helps prevent the "Receiving end does not exist" error
+		setTimeout(() => {
+			registerWithBackgroundScript();
+		}, 500); // Wait 500ms to ensure background script is ready
 
 		// Mark as initialized
 		window.EXTENSION_INIT_STATE.initialized = true;
@@ -191,8 +275,39 @@ export async function init() {
 
 export function handleError(error: Error) {
 	console.warn(`[${CONTEXT_ID}] Error:`, error);
+
+	// Prevent navigation errors from causing reloads
+	if (error?.message?.includes('navigate') || error?.message?.includes('Navigation')) {
+		console.warn('Navigation error detected, preventing reload');
+		return;
+	}
+
 	errorHandler.handleError(error);
 }
+
+// Export for SvelteKit hooks
+export const handleClientError = ({ error, event }: any) => {
+	console.error('Client error:', {
+		error: error?.message || error,
+		url: event?.url?.href
+	});
+
+	// Check if this is a navigation error
+	if (error?.message?.includes('navigate') || error?.message?.includes('Navigation')) {
+		console.warn('Navigation error in hooks, preventing reload');
+		// Return a safe error that won't trigger a reload
+		return {
+			message: 'Navigation temporarily unavailable',
+			code: 'NAV_ERROR'
+		};
+	}
+
+	// Return the error without triggering a reload
+	return {
+		message: error?.message || 'An error occurred',
+		code: error?.code || 'UNKNOWN_ERROR'
+	};
+};
 
 async function setupUIListeners() {
 	if (!isClient) return; // Skip on server
@@ -248,26 +363,52 @@ if (isClient) {
 	}, 50);
 }
 
-// Register with background script if we're in a UI context
-if (isClient && getBrowserExt()) {
+// Function to register with background script - moved to a function so we can call it at the right time
+async function registerWithBackgroundScript() {
+	if (!isClient || !getBrowserExt()) return;
+	
 	try {
 		const contextType = getContextType();
 		const browserExt = getBrowserExt();
 
-		browserExt?.runtime
-			.sendMessage({
-				type: 'ui_context_initialized',
-				contextId: CONTEXT_ID,
-				contextType: contextType,
-				timestamp: Date.now()
-			})
-			.catch((err) => console.warn(`[${CONTEXT_ID}] Failed to register context:`, err));
+		// Function to send initialization message with retry logic
+		const sendInitMessage = async (retries = 3, delay = 100) => {
+			// Give the background script a moment to initialize
+			await new Promise(resolve => setTimeout(resolve, 50));
+			for (let i = 0; i < retries; i++) {
+				try {
+					await browserExt?.runtime.sendMessage({
+						type: 'ui_context_initialized',
+						contextId: CONTEXT_ID,
+						contextType: contextType,
+						timestamp: Date.now()
+					});
+					console.log(`[${CONTEXT_ID}] Successfully registered context with background script`);
+					return; // Success, exit the retry loop
+				} catch (err: any) {
+					if (i === retries - 1) {
+						// Last attempt failed
+						console.warn(`[${CONTEXT_ID}] Failed to register context after ${retries} attempts:`, err);
+					} else {
+						// Wait before retrying
+						console.log(`[${CONTEXT_ID}] Retrying context registration (attempt ${i + 2}/${retries})...`);
+						await new Promise(resolve => setTimeout(resolve, delay * (i + 1))); // Exponential backoff
+					}
+				}
+			}
+		};
+
+		// Send initialization message with retry logic
+		sendInitMessage().catch(err => {
+			// Silently ignore - we already logged the error in sendInitMessage
+			// This prevents uncaught promise rejection
+		});
 
 		// Only set up idle status listener for protected contexts
 		if (contextNeedsIdleProtection(contextType)) {
 			// Set up idle status listener
 			browserExt?.runtime.onMessage.addListener(
-				(message: any, _sender: any, _sendResponse: any) => {
+				(message: any, _sender: any, _sendResponse: any): any => {
 					if (message.type === 'IDLE_STATUS_CHANGED') {
 						// Check if message is targeted to this context type
 						if (
@@ -301,7 +442,7 @@ if (isClient && getBrowserExt()) {
 					type: 'ui_context_closing',
 					contextId: CONTEXT_ID
 				})
-				.catch((err) => console.warn('Failed to send context closing message', err));
+				.catch((err: any) => console.warn('Failed to send context closing message', err));
 		});
 	} catch (err) {
 		console.warn(`[${CONTEXT_ID}] Error registering context:`, err);

@@ -28,7 +28,7 @@ export default defineConfig(({ mode }) => {
 				___HTML_SNIPPET___: htmlContent,
 				preventAssignment: true
 			}),
-			mockBrowserPolyfill(),
+			mockBrowserPolyfill() as any,
 			sveltekit(),
 			isoImport(),
 			nodePolyfills({
@@ -60,6 +60,7 @@ export default defineConfig(({ mode }) => {
 				$routes: path.resolve('./src/routes'),
 				$managers: path.resolve('./src/lib/managers'),
 				$plugins: path.resolve('./src/lib/plugins'),
+				$contexts: path.resolve('./src/contexts'),
 				// ...(process.env.YAKKL_PRO === 'true' && { $pro: path.resolve('./src/pro') }),
 				// ...(process.env.YAKKL_PRIVATE === 'true' && { $private: path.resolve('./src/private') }),
 				//// 'webextension-polyfill': path.resolve( __dirname, 'node_modules/webextension-polyfill/dist/browser-polyfill.js' ),
@@ -69,6 +70,7 @@ export default defineConfig(({ mode }) => {
 				fs: path.resolve(__dirname, 'empty.js'),
 				path: 'path-browserify',
 				crypto: 'crypto-browserify',
+				'crypto-ssr': path.resolve(__dirname, 'src/lib/crypto-ssr-mock.js'),
 				ethersv6: path.resolve('node_modules/ethers-v6'),
 				ethers: path.resolve('node_modules/ethers'),
 				'@yakkl/uniswap-alpha-router-service': '../uniswap-alpha-router-service/src',
@@ -108,7 +110,7 @@ export default defineConfig(({ mode }) => {
 		},
 		ssr: {
 			noExternal: ['@walletconnect/web3wallet', '@walletconnect/core'],
-			external: ['webextension-polyfill']
+			external: ['webextension-polyfill', 'crypto-browserify']
 		},
 		build: {
 			sourcemap: true,
@@ -168,6 +170,14 @@ export default defineConfig(({ mode }) => {
 			drop: isProd ? ['debugger'] : [],
 			// Mark certain functions as pure for tree-shaking
 			pure: isProd ? ['log.debug', 'log.info', 'log.debugStack', 'log.infoStack'] : []
+		},
+		server: {
+			// Disable HMR for browser extensions
+			hmr: false,
+			watch: {
+				// Don't trigger full page reloads
+				usePolling: false
+			}
 		}
 	};
 });

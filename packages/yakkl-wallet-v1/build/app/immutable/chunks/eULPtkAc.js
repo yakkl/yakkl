@@ -1,0 +1,2 @@
+import{s as stores,p as page$2}from"./CkqS9PXN.js";import"./BaS8d5lg.js";const page$1={get data(){return page$2.data},get error(){return page$2.error},get form(){return page$2.form},get params(){return page$2.params},get route(){return page$2.route},get state(){return page$2.state},get status(){return page$2.status},get url(){return page$2.url}};({check:stores.updated.check});const page=page$1;export{page as p};
+//# sourceMappingURL=eULPtkAc.js.map

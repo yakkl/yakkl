@@ -1,7 +1,7 @@
 // import { browserSvelte, browser_ext } from "$lib/common/environment";
 import browser from 'webextension-polyfill';
-import { isBlacklisted } from '$lib/extensions/chrome/database';
-import { portsExternal } from '$lib/extensions/chrome/ports';
+import { isBlacklisted } from '$contexts/background/extensions/chrome/database';
+import { portsExternal } from '$contexts/background/extensions/chrome/ports';
 import { log } from '$lib/managers/Logger';
 import type { Tabs } from 'webextension-polyfill';
 import { activeTabBackgroundStore, activeTabUIStore } from '$lib/common/stores';

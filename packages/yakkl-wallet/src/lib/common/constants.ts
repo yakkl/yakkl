@@ -1,7 +1,7 @@
 // IMPORTANT NOTE: Edit 'constants.mustache' since it is the template for 'constants.ts'
 
 // Global shared constants. Network specifics are in the network/<whatever>/contants.js file
-export const VERSION = "1.5.6";
+export const VERSION = "2.0.0";
 
 export const YEAR = "2025"; // Instead of computing year since user can change date on system - use a constant
 
@@ -114,6 +114,8 @@ export const STORAGE_YAKKL_CONTACTS = "yakklContacts";
 export const STORAGE_YAKKL_TOKENDATA = "yakklTokenData";
 export const STORAGE_YAKKL_TOKENDATA_CUSTOM = "yakklTokenDataCustom";
 export const STORAGE_YAKKL_COMBINED_TOKENS = "yakklCombinedTokens";
+export const STORAGE_YAKKL_ADDRESS_TOKEN_HOLDINGS = "yakklAddressTokenHoldings";
+export const STORAGE_YAKKL_TOKEN_CACHE = "yakklTokenCache";
 export const STORAGE_YAKKL_CHATS = "yakklChats";
 export const STORAGE_YAKKL_WATCHLIST = "yakklWatchList";
 export const STORAGE_YAKKL_BLOCKEDLIST = "yakklBlockedList";
@@ -128,11 +130,11 @@ export const STORAGE_YAKKL_MEMPOOL = "yakklMemPool";
 export const PASSKEY_HINTS_MIN = 3;
 
 export const PATH_HOME = "/";
-export const PATH_REGISTER = "/register/Register";
-export const PATH_LOGIN = "/login/Login";
+export const PATH_REGISTER = "/register";
+export const PATH_LOGIN = "/login";
 export const PATH_LOCK = "/lock";
 export const PATH_CONTACTS = "/contacts";
-export const PATH_WELCOME = "/welcome/welcome";
+export const PATH_WELCOME = "/";
 export const PATH_DASHBOARD = "/dashboard";
 export const PATH_LOGOUT = "/logout";
 export const PATH_IMPORT_EMERGENCYKIT = "/import/import-emergencykit";
@@ -142,10 +144,11 @@ export const PATH_IMPORT_PHRASE = "/import/import-phrase";
 export const PATH_EXPORT = "/export";
 export const PATH_EXPORT_EXPORT = "/export/export";
 export const PATH_ACCOUNTS = "/accounts";
+export const PATH_ACCOUNTS_CREATE = "/accounts/create";
 export const PATH_ACCOUNTS_ETHEREUM_CREATE_PRIMARY = "/accounts/ethereum/create/primary";
 export const PATH_ACCOUNTS_ETHEREUM_CREATE_DERIVED = "/accounts/ethereum/create/derived";
 export const PATH_ACCOUNT_MAINTENANCE = "/accounts/ethereum/maintenance";
-export const PATH_LEGAL = "/legal/Legal";
+export const PATH_LEGAL = "/legal";
 export const PATH_PROFILE = "/components/profile";
 export const PATH_ACTIVITIES = "/activities";
 export const PATH_CRYPTO = "/crypto";

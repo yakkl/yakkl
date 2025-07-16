@@ -197,8 +197,15 @@ class ContentScriptManager {
 				this.port = browser.runtime.connect({ name: YAKKL_DAPP });
 			} catch (error) {
 				if (error instanceof Error && error.message.includes('Extension context invalidated')) {
-					// throw new Error('Extension context invalidated during connection');
-					log.warn('Extension context invalidated during connection', false, error);
+					log.warn('Extension context invalidated during connection - scheduling reconnection', false, error);
+					// Schedule a delayed reconnection attempt when context may be restored
+					setTimeout(() => {
+						if (isExtensionContextValid() && !this.isConnected) {
+							log.info('Extension context restored, attempting reconnection', false);
+							this.reconnectAttempts = 0;
+							this.initialize();
+						}
+					}, 2000);
 					return;
 				}
 				log.warn('Error creating connection port', false, error);
@@ -920,10 +927,11 @@ class ContentScriptManager {
 				script.src = browser.runtime.getURL('/ext/inpage.js');
 			} catch (error) {
 				if (error instanceof Error && error.message.includes('Extension context invalidated')) {
-					log.warn('Extension context invalidated during getURL', false);
+					log.warn('Extension context invalidated during getURL - script injection failed', false);
 					return;
 				}
-				throw error;
+				log.warn('Error getting extension URL for script injection', false, error);
+				return; // Don't throw, just fail gracefully
 			}
 
 			script.id = 'yakkl-provider';

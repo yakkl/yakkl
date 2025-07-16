@@ -9,5 +9,11 @@
   ],
   "python.linting.enabled": true,
   "python.linting.pylintEnabled": true,
-  "python.testing.unittestEnabled": true
+  "python.testing.unittestEnabled": true,
+  "terminal.integrated.profiles.osx": {
+    "zsh": {
+      "path": "zsh",
+      "args": ["-l"]
+    }
+  },
 }

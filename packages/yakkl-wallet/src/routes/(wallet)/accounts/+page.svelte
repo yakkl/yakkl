@@ -1,307 +1,296 @@
 <script lang="ts">
-	import { browserSvelte } from '$lib/common/environment';
-	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
-	import {
-		PATH_ACCOUNTS_ETHEREUM_CREATE_DERIVED,
-		PATH_ACCOUNTS_ETHEREUM_CREATE_PRIMARY,
-		YAKKL_ZERO_ADDRESS
-	} from '$lib/common/constants';
-	import { getYakklCurrentlySelected } from '$lib/common/stores';
-	import ErrorNoAction from '$lib/components/ErrorNoAction.svelte';
-	import Back from '$lib/components/Back.svelte';
-	import ButtonGrid from '$lib/components/ButtonGrid.svelte';
-	import ButtonGridItem from '$lib/components/ButtonGridItem.svelte';
-	import type { YakklAccount, YakklCurrentlySelected, YakklWatch } from '$lib/common';
-	import ImportWatchAccount from '$lib/components/ImportWatchAccount.svelte';
-	import ImportPrivateKey from '$lib/components/ImportPrivateKey.svelte';
-	import ExportPrivateKey from '$lib/components/ExportPrivateKey.svelte';
-	import Accounts from '$lib/components/Accounts.svelte';
+  import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
+  import { accounts as accountsStore, currentAccount, accountStore } from '$lib/stores/account.store';
+  import { Copy, Plus, Download, Upload, MoreVertical } from 'lucide-svelte';
+  import { get } from 'svelte/store';
 
-	let error = $state(false);
-	let errorValue: string = $state('');
-	let isPortfolioModalOpen = $state(false);
-	let isSubPortfolioModalOpen = $state(false);
-	let showImportWatch = $state(false);
-	let showImportAccount = $state(false);
-	let showExportPrivateKey = $state(false);
-	let showAccounts = $state(false);
+  let accountsList = $derived($accountsStore);
+  let selectedAccount = $derived($currentAccount);
+  let showMenu = $state<string | null>(null);
 
-	let currentlySelected: YakklCurrentlySelected;
+  onMount(() => {
+    // Load accounts on mount
+    accountStore.loadAccounts();
 
-	onMount(async () => {
-		try {
-			if (browserSvelte) {
-				currentlySelected = await getYakklCurrentlySelected();
-			}
-		} catch (e) {
-			console.log(e);
-		}
-	});
+    // Click outside handler to close menu
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.relative')) {
+        showMenu = null;
+      }
+    }
 
-	function handleAccounts(e: any) {
-		if (browserSvelte) {
-			isPortfolioModalOpen = false;
-			goto(PATH_ACCOUNTS_ETHEREUM_CREATE_PRIMARY);
-		}
-	}
+    document.addEventListener('click', handleClickOutside);
 
-	function handleSubAccounts(e: any) {
-		if (browserSvelte) {
-			isSubPortfolioModalOpen = false;
-			if (currentlySelected.shortcuts.address === YAKKL_ZERO_ADDRESS) {
-				errorValue =
-					'NO WALLET ACCOUNT has been created yet. Please create a portfolio wallet account first.';
-				error = true;
-			} else {
-				if (currentlySelected.shortcuts.accountType !== 'imported') {
-					goto(PATH_ACCOUNTS_ETHEREUM_CREATE_DERIVED);
-				} else {
-					errorValue =
-						'The currently selected Wallet Account is an imported account. To create a secondary account (an account attached to a primary account) you must first select a non-imported account. Click or hover over the circle with 3 dots (•••) on the card, then select "List" option, and then select a primary or secondary account from the popup list.';
-					error = true;
-				}
-			}
-		}
-	}
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  });
 
-	// function handleExport() {
-	//   if (browserSvelte) {
-	//     if (currentlySelected.shortcuts.address === YAKKL_ZERO_ADDRESS) {
-	//       errorValue = 'NO WALLET ACCOUNT has been created yet. Please create a portfolio wallet account first.';
-	//       error = true;
-	//     } else {
-	//       goto(PATH_EXPORT);
-	//     }
-	//   }
-	// }
+  async function switchAccount(account: any) {
+    await accountStore.switchAccount(account.address);
+  }
 
-	// function handleAccountMaintenance() {
-	//   if (browserSvelte) {
-	//     if (currentlySelected.shortcuts.address === YAKKL_ZERO_ADDRESS) {
-	//       errorValue = 'NO ACCOUNT has been created yet. Please create a portfolio account first.';
-	//       error = true;
-	//     } else {
-	//       goto(PATH_ACCOUNT_MAINTENANCE);
-	//     }
-	//   }
-	// }
+  function shortAddr(addr: string) {
+    if (!addr) return '';
+    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  }
 
-	function handleImport(account: YakklAccount) {
-		if (browserSvelte) {
-			showImportAccount = true;
-		}
-	}
+  function copyAddress(address: string) {
+    navigator.clipboard.writeText(address);
+    // TODO: Show toast notification
+  }
 
-	function handleImportWatch(account: YakklWatch) {
-		if (browserSvelte) {
-			showImportWatch = true;
-		}
-	}
+  function toggleMenu(address: string) {
+    showMenu = showMenu === address ? null : address;
+  }
 
-	function handleExportPrivateKey() {
-		if (browserSvelte) {
-			showExportPrivateKey = false;
-		}
-	}
+  function handleExport(account: any) {
+    showMenu = null;
+    // Store the account to export in a temporary location
+    sessionStorage.setItem('export-account', account.address);
+    goto('/accounts/export');
+  }
 
-	function handleAccountMaintenance(account: YakklAccount) {
-		if (browserSvelte) {
-			showAccounts = true;
-		}
-	}
+  function getAccountColor(account: any): string {
+    // Ensure tags is an array before using includes
+    const tags = Array.isArray(account.tags) ? account.tags : [];
+    
+    // Color coding based on account type
+    if (account.accountType === 'imported' || tags.includes('imported')) {
+      return 'from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200 dark:border-green-800';
+    } else if (account.accountType === 'primary' || tags.includes('primary') || account.isPrimary) {
+      return 'from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border-purple-200 dark:border-purple-800';
+    } else if (account.accountType === 'sub' || tags.includes('sub')) {
+      return 'from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border-blue-200 dark:border-blue-800';
+    }
+    // Default color
+    return 'from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 border-gray-200 dark:border-gray-700';
+  }
+
+  function getAccountTypeLabel(account: any): string {
+    // Ensure tags is an array before using includes
+    const tags = Array.isArray(account.tags) ? account.tags : [];
+    
+    if (account.accountType === 'imported' || tags.includes('imported')) {
+      return 'Imported';
+    } else if (account.accountType === 'primary' || tags.includes('primary') || account.isPrimary) {
+      return 'Primary';
+    } else if (account.accountType === 'sub' || tags.includes('sub')) {
+      return 'Sub-Account';
+    }
+    return 'Account';
+  }
+
+  function getAccountIcon(account: any): string {
+    // Ensure tags is an array before using includes
+    const tags = Array.isArray(account.tags) ? account.tags : [];
+    
+    if (account.accountType === 'imported' || tags.includes('imported')) {
+      return '📥';
+    } else if (account.accountType === 'primary' || tags.includes('primary') || account.isPrimary) {
+      return '👑';
+    } else if (account.accountType === 'sub' || tags.includes('sub')) {
+      return '🔗';
+    }
+    return '👤';
+  }
+
+  async function handleAccountClick(account: any) {
+    // If clicking the currently selected account, navigate to manage page
+    if (account.address === selectedAccount?.address) {
+      goto(`/accounts/manage/${account.address}`);
+    } else {
+      // Otherwise, switch to this account
+      await switchAccount(account);
+    }
+  }
+
+  async function handleRemove(account: any) {
+    showMenu = null;
+    
+    // Don't allow removing the current account
+    if (account.address === selectedAccount?.address) {
+      alert('Cannot remove the current account. Please switch to another account first.');
+      return;
+    }
+
+    // Don't allow removing the last account
+    if (accountsList.length <= 1) {
+      alert('Cannot remove the last account.');
+      return;
+    }
+
+    if (confirm(`Are you sure you want to remove "${account.ens || account.username || 'this account'}"? This action cannot be undone.`)) {
+      const success = await accountStore.removeAccount(account.address);
+      if (!success) {
+        const state = get(accountStore);
+        alert(state.error?.message || 'Failed to remove account');
+      }
+    }
+  }
 </script>
 
-<Back defaultClass="left-3 top-[.8rem] absolute" href="" />
-<ImportWatchAccount
-	bind:show={showImportWatch}
-	onComplete={handleImportWatch}
-	className="text-gray-600 z-[999]"
-/>
-<ImportPrivateKey
-	bind:show={showImportAccount}
-	onComplete={handleImport}
-	className="text-gray-600 z-[999]"
-/>
-<ExportPrivateKey
-	bind:show={showExportPrivateKey}
-	onVerify={handleExportPrivateKey}
-	className="text-gray-600 z-[999]"
-/>
-<Accounts
-	bind:show={showAccounts}
-	onAccountSelect={handleAccountMaintenance}
-	className="text-gray-600"
-/>
-<ErrorNoAction bind:show={error} value={errorValue} title="ERROR" />
+<div class="min-h-screen p-6 bg-gray-50 dark:bg-gray-900">
+  <div class="max-w-md mx-auto">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Accounts</h1>
+      <div class="flex gap-2">
+        <button
+          onclick={() => goto('/accounts/import')}
+          class="p-2 bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-all"
+          title="Import Account"
+        >
+          <Upload class="w-5 h-5 text-gray-700 dark:text-gray-300" />
+        </button>
+        <button
+          onclick={() => goto('/accounts/create-new')}
+          class="p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow hover:shadow-lg transition-all"
+          title="Create Account"
+        >
+          <Plus class="w-5 h-5" />
+        </button>
+      </div>
+    </div>
 
-<div class="text-center text-base-content">
-	<div
-		class="bg-secondary absolute top-[0.1rem] left-[.1rem] rounded-tl-xl rounded-tr-xl w-[99%] h-2"
-	></div>
-	<h1 class="text-xl tracking-tight font-extrabold">
-		<span class="2xl:inline">Wallet Accounts</span>
-	</h1>
-	<br />
+    <div class="space-y-3">
+      {#if accountsList.length === 0}
+        <div class="text-center py-12">
+          <p class="text-gray-500 dark:text-gray-400 mb-4">No accounts found</p>
+          <button
+            onclick={() => goto('/accounts/create-new')}
+            class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            Create Your First Account
+          </button>
+        </div>
+      {:else}
+        {#each accountsList as account, index}
+          <div class="group relative">
+            <!-- Main Account Card -->
+            <div class="bg-gradient-to-br {getAccountColor(account)} border rounded-lg shadow hover:shadow-xl transition-all duration-300 p-4 relative hover:scale-[1.02]">
+              <div class="flex items-center justify-between">
+                <button
+                  onclick={() => handleAccountClick(account)}
+                  class="flex-1 text-left"
+                >
+                  <div class="flex items-center gap-3">
+                    <div class="relative">
+                      <div class="w-12 h-12 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center text-2xl shadow-md">
+                        {getAccountIcon(account)}
+                      </div>
+                      <div class="absolute -bottom-1 -right-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 rounded-full text-xs font-medium shadow">
+                        {index + 1}
+                      </div>
+                    </div>
+                    <div class="flex-1">
+                      <div class="flex items-center gap-2">
+                        <div class="font-semibold text-gray-900 dark:text-gray-100">
+                          {account.ens || account.username || 'Account'}
+                        </div>
+                        <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-white/50 dark:bg-black/20">
+                          {getAccountTypeLabel(account)}
+                        </span>
+                      </div>
+                      <div class="text-sm text-gray-600 dark:text-gray-400 font-mono">
+                        {shortAddr(account.address)}
+                      </div>
+                      {#if account.balance || account.value}
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          Balance: ${account.value?.toFixed(2) || '0.00'}
+                        </div>
+                      {/if}
+                    </div>
+                  </div>
+                </button>
+
+              <div class="flex items-center gap-2">
+                {#if account.address === selectedAccount?.address}
+                  <span class="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-xs rounded-full font-medium">
+                    Active
+                  </span>
+                {/if}
+
+                <button
+                  onclick={() => copyAddress(account.address)}
+                  class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                  title="Copy Address"
+                >
+                  <Copy class="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                </button>
+
+                <div class="relative">
+                  <button
+                    onclick={() => toggleMenu(account.address)}
+                    class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                  >
+                    <MoreVertical class="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                  </button>
+
+                  {#if showMenu === account.address}
+                    <div class="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10">
+                      <button
+                        onclick={() => handleExport(account)}
+                        class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors rounded-t-lg"
+                      >
+                        <div class="flex items-center gap-2">
+                          <Download class="w-4 h-4" />
+                          Export Private Key
+                        </div>
+                      </button>
+                      <button
+                        onclick={() => handleRemove(account)}
+                        class="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors rounded-b-lg"
+                      >
+                        Remove Account
+                      </button>
+                    </div>
+                  {/if}
+                </div>
+              </div>
+            </div>
+
+            <!-- Hover Tooltip with Details -->
+            <div class="absolute left-0 right-0 top-full mt-2 z-20 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-200">
+              <div class="bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 p-4">
+                <h4 class="font-semibold text-gray-900 dark:text-gray-100 mb-2">Account Details</h4>
+                <div class="space-y-1 text-sm">
+                  <div class="flex justify-between">
+                    <span class="text-gray-600 dark:text-gray-400">Type:</span>
+                    <span class="font-medium">{getAccountTypeLabel(account)}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600 dark:text-gray-400">Address:</span>
+                    <span class="font-mono text-xs">{account.address}</span>
+                  </div>
+                  {#if account.createdAt || account.createDate}
+                    <div class="flex justify-between">
+                      <span class="text-gray-600 dark:text-gray-400">Created:</span>
+                      <span>{new Date(account.createdAt || account.createDate).toLocaleDateString()}</span>
+                    </div>
+                  {/if}
+                  {#if account.chainIds}
+                    <div class="flex justify-between">
+                      <span class="text-gray-600 dark:text-gray-400">Chains:</span>
+                      <span>{account.chainIds.length} supported</span>
+                    </div>
+                  {/if}
+                  <div class="pt-2 mt-2 border-t border-gray-200 dark:border-gray-700">
+                    <button
+                      onclick={() => handleAccountClick(account)}
+                      class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 text-xs"
+                    >
+                      {account.address === selectedAccount?.address ? 'Click to manage account →' : 'Click to switch to this account →'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          </div>
+        {/each}
+      {/if}
+    </div>
+  </div>
 </div>
-
-<ButtonGrid>
-	<ButtonGridItem handle={() => (showAccounts = true)} title="Maintenance" btn="btn-secondary">
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			fill="none"
-			viewBox="0 0 24 24"
-			stroke-width="1.5"
-			stroke="currentColor"
-			class=" flex flex-col w-10 h-10 m-0"
-		>
-			<path
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3"
-			/>
-		</svg>
-	</ButtonGridItem>
-
-	<ButtonGridItem
-		handle={() => (isPortfolioModalOpen = true)}
-		title="Add Portfolio Wallet"
-		btn="btn-secondary"
-	>
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			fill="none"
-			viewBox="0 0 24 24"
-			stroke-width="1.5"
-			stroke="currentColor"
-			class="flex flex-col w-10 h-10 m-0"
-		>
-			<path
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3"
-			/>
-		</svg>
-	</ButtonGridItem>
-
-	<!-- Modal for portfolio -->
-	<div class="modal" class:modal-open={isPortfolioModalOpen}>
-		<div class="modal-box relative">
-			<h3 class="text-lg font-bold">Portfolio Wallet Account Creation</h3>
-			<p class="py-4">
-				This will create a portfolio level wallet account. Do you wish to continue?
-			</p>
-			<div class="modal-action">
-				<button class="btn" onclick={handleAccounts}>Yes</button>
-				<button class="btn" onclick={() => (isPortfolioModalOpen = false)}>Cancel</button>
-			</div>
-		</div>
-	</div>
-
-	<ButtonGridItem
-		handle={() => (isSubPortfolioModalOpen = true)}
-		title="Add Subportfolio Wallet"
-		btn="btn-secondary"
-	>
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			fill="none"
-			viewBox="0 0 24 24"
-			stroke-width="1.5"
-			stroke="currentColor"
-			class="w-10 h-10 m-0"
-		>
-			<path
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3"
-			/>
-		</svg>
-	</ButtonGridItem>
-
-	<!-- Modal for Subportfolio -->
-	<div class="modal" class:modal-open={isSubPortfolioModalOpen}>
-		<div class="modal-box relative">
-			<!-- <label for="my-modal-3" class="btn btn-sm btn-circle absolute right-2 top-2">✕</label> -->
-			<h3 class="text-lg font-bold">Subportfolio Wallet Account Creation</h3>
-			<p class="py-4">
-				This will create a subportfolio level wallet account. Do you wish to continue?
-			</p>
-			<div class="modal-action">
-				<button class="btn" onclick={handleSubAccounts}>Yes</button>
-				<button class="btn" onclick={() => (isSubPortfolioModalOpen = false)}>Cancel</button>
-			</div>
-		</div>
-	</div>
-
-	<ButtonGridItem
-		handle={() => (showImportWatch = true)}
-		title="Add Watch-Only Wallet"
-		btn="btn-secondary"
-	>
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			fill="none"
-			viewBox="0 0 24 24"
-			stroke-width="1.5"
-			stroke="currentColor"
-			class="w-10 h-10 m-0"
-		>
-			<path
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"
-			/>
-			<path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-		</svg>
-	</ButtonGridItem>
-
-	<!-- All Contacts were moved to the Speed dial area -->
-	<!-- <ButtonGridItem handle={() => goto(PATH_CONTACTS)} title="Contacts" btn="btn-secondary" >
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-10 h-10 m-0">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-    </svg>
-  </ButtonGridItem> -->
-
-	<ButtonGridItem
-		handle={() => (showImportAccount = true)}
-		title="Import Wallet"
-		btn="btn-secondary"
-	>
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			fill="none"
-			viewBox="0 0 24 24"
-			stroke-width="1.5"
-			stroke="currentColor"
-			class="w-10 h-10 m-0"
-		>
-			<path
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"
-			/>
-		</svg>
-	</ButtonGridItem>
-
-	<ButtonGridItem
-		handle={() => (showExportPrivateKey = true)}
-		title="Export Wallet"
-		btn="btn-secondary"
-	>
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			fill="none"
-			viewBox="0 0 24 24"
-			stroke-width="1.5"
-			stroke="currentColor"
-			class="w-10 h-10 m-0"
-		>
-			<path
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
-			/>
-		</svg>
-	</ButtonGridItem>
-</ButtonGrid>

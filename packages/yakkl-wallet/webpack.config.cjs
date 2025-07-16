@@ -25,10 +25,10 @@ function getEnvKeys() {
 
 module.exports = {
 	entry: {
-		background: ['./src/lib/extensions/chrome/background.ts'],
-		content: ['./src/lib/extensions/chrome/content.ts'],
-		inpage: ['./src/lib/extensions/chrome/inpage.ts'],
-		sandbox: ['./src/lib/extensions/chrome/sandbox.ts']
+		background: ['./src/contexts/background/extensions/chrome/background.ts'],
+		content: ['./src/contexts/background/extensions/chrome/content.ts'],
+		inpage: ['./src/contexts/background/extensions/chrome/inpage.ts'],
+		sandbox: ['./src/contexts/background/extensions/chrome/sandbox.ts']
 	},
 	target: 'webworker',
 	mode: process.env.NODE_ENV || 'development',
@@ -36,7 +36,8 @@ module.exports = {
 	output: {
 		filename: '[name].js',
 		path: path.resolve(__dirname, 'static/ext'),
-		publicPath: '/'
+		publicPath: '/',
+		chunkLoadingGlobal: 'webpackChunkYakkl'
 	},
 	optimization: {
 		splitChunks: false,
@@ -95,10 +96,13 @@ module.exports = {
 		alias: {
 			'process/browser': require.resolve('process/browser'),
 			'webextension-polyfill': require.resolve('webextension-polyfill'),
+			'dexie': require.resolve('dexie'), // Force resolution to a single dexie instance
 			$lib: path.resolve(__dirname, 'src/lib'),
 			'$lib/common': path.resolve(__dirname, 'src/lib/common'),
+			'$lib/utilities': path.resolve(__dirname, 'src/lib/utilities'),
 			$managers: path.resolve(__dirname, 'src/lib/managers'),
-			$plugins: path.resolve(__dirname, 'src/lib/plugins')
+			$plugins: path.resolve(__dirname, 'src/lib/plugins'),
+			$contexts: path.resolve(__dirname, 'src/contexts')
 		},
 		fallback: {
 			crypto: require.resolve('crypto-browserify'),

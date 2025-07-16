@@ -1,0 +1,2 @@
+import{c as check_target,l as legacy_api}from"../chunks/BXFaAXnq.js";import"../chunks/Doq7snb5.js";import{p as push,a as pop,F as FILENAME}from"../chunks/BaS8d5lg.js";_page[FILENAME]="src/routes/(upgrade)/upgrade/+page.svelte";function _page($$anchor,$$props){check_target(new.target);push($$props,false,_page);return pop({...legacy_api()})}export{_page as component};
+//# sourceMappingURL=30.FCvq36S5.js.map

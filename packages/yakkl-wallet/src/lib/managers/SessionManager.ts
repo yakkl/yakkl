@@ -4,8 +4,7 @@
  * Browser extension context-aware implementation
  */
 
-import { browser } from '$app/environment';
-import { browser_ext } from '$lib/common/environment';
+import { getBrowserExt, browserSvelte } from '$lib/common/environment';
 import { log } from '$lib/common/logger-wrapper';
 import { jwtManager, type JWTPayload } from '$lib/utilities/jwt';
 
@@ -109,7 +108,8 @@ export class SessionManager {
 			});
 
 			// Notify background script if in extension
-			if (browser && browser_ext) {
+			const browserExt = getBrowserExt();
+			if (browserSvelte && browserExt) {
 				this.notifyBackgroundScript('SESSION_STARTED', {
 					sessionId,
 					expiresAt: this.sessionState.expiresAt
@@ -167,7 +167,8 @@ export class SessionManager {
 			}
 
 			// Notify background script
-			if (browser && browser_ext) {
+			const browserExt = getBrowserExt();
+			if (browserSvelte && browserExt) {
 				this.notifyBackgroundScript('SESSION_EXTENDED', {
 					sessionId: this.sessionState.sessionId,
 					expiresAt: newExpiresAt
@@ -189,7 +190,8 @@ export class SessionManager {
 			});
 
 			// Notify background script before clearing state
-			if (browser && browser_ext) {
+			const browserExt = getBrowserExt();
+			if (browserSvelte && browserExt) {
 				this.notifyBackgroundScript('SESSION_ENDED', {
 					sessionId: this.sessionState.sessionId
 				});
@@ -289,7 +291,7 @@ export class SessionManager {
 	 * Initialize session from storage
 	 */
 	private async initializeFromStorage(): Promise<void> {
-		if (!browser) return;
+		if (!browserSvelte) return;
 
 		try {
 			const stored = await this.loadSessionState();
@@ -364,7 +366,7 @@ export class SessionManager {
 	 * Start activity tracking
 	 */
 	private startActivityTracking(): void {
-		if (!browser || this.activityListenersAdded) return;
+		if (!browserSvelte || this.activityListenersAdded) return;
 
 		const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'mousemove'];
 		const handleActivity = () => this.updateActivity();
@@ -381,7 +383,7 @@ export class SessionManager {
 	 * Remove activity listeners
 	 */
 	private removeActivityListeners(): void {
-		if (!browser || !this.activityListenersAdded) return;
+		if (!browserSvelte || !this.activityListenersAdded) return;
 
 		const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'mousemove'];
 		const handleActivity = () => this.updateActivity();
@@ -421,11 +423,12 @@ export class SessionManager {
 	 * Save session state to storage
 	 */
 	private async saveSessionState(): Promise<void> {
-		if (!browser || !this.sessionState) return;
+		if (!browserSvelte || !this.sessionState) return;
 
 		try {
-			if (browser_ext) {
-				await browser_ext.storage.local.set({
+			const browserExt = getBrowserExt();
+			if (browserExt) {
+				await browserExt.storage.local.set({
 					yakklSession: this.sessionState
 				});
 			} else {
@@ -440,11 +443,12 @@ export class SessionManager {
 	 * Load session state from storage
 	 */
 	private async loadSessionState(): Promise<SessionState | null> {
-		if (!browser) return null;
+		if (!browserSvelte) return null;
 
 		try {
-			if (browser_ext) {
-				const result = await browser_ext.storage.local.get(['yakklSession']);
+			const browserExt = getBrowserExt();
+			if (browserExt) {
+				const result = await browserExt.storage.local.get(['yakklSession']);
 				return (result.yakklSession as SessionState) || null;
 			} else {
 				const stored = localStorage.getItem('yakklSession');
@@ -460,11 +464,12 @@ export class SessionManager {
 	 * Clear session storage
 	 */
 	private async clearSessionStorage(): Promise<void> {
-		if (!browser) return;
+		if (!browserSvelte) return;
 
 		try {
-			if (browser_ext) {
-				await browser_ext.storage.local.remove(['yakklSession']);
+			const browserExt = getBrowserExt();
+			if (browserExt) {
+				await browserExt.storage.local.remove(['yakklSession']);
 			} else {
 				localStorage.removeItem('yakklSession');
 			}
@@ -477,12 +482,18 @@ export class SessionManager {
 	 * Notify background script of session events
 	 */
 	private notifyBackgroundScript(type: string, data: any): void {
-		if (!browser || !browser_ext) return;
+		if (!browserSvelte) return;
 
 		try {
-			browser_ext.runtime.sendMessage({
+			const browserExt = getBrowserExt();
+			if (!browserExt) return;
+			
+			browserExt.runtime.sendMessage({
 				type: `SESSION_${type}`,
 				data
+			}).catch(error => {
+				// Expected during startup before background is ready
+				log.debug('Background script not ready for session notification:', false, error);
 			});
 		} catch (error) {
 			log.warn('Failed to notify background script:', false, error);

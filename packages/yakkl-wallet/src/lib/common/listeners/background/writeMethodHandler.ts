@@ -1,14 +1,14 @@
 // src/lib/extensions/chrome/handlers/writeMethodHandler.ts
 
 import { log } from '$lib/managers/Logger';
-import { sendErrorResponse } from '$lib/extensions/chrome/errorResponseHandler';
-import { pendingRequests, type BackgroundPendingRequest } from '$lib/extensions/chrome/background';
-import { showEIP6963Popup } from '$lib/extensions/chrome/eip-6963';
+import { sendErrorResponse } from '$contexts/background/extensions/chrome/errorResponseHandler';
+import { pendingRequests, type BackgroundPendingRequest } from '$contexts/background/extensions/chrome/background';
+import { showEIP6963Popup } from '$contexts/background/extensions/chrome/eip-6963';
 import type { Runtime } from 'webextension-polyfill';
 import type { YakklRequest, YakklResponse } from '$lib/common/interfaces';
 import { extractSecureDomain } from '$lib/common/security';
 import browser from 'webextension-polyfill';
-import { verifyDomainConnected } from '$lib/extensions/chrome/verifyDomainConnectedBackground';
+import { verifyDomainConnected } from '$contexts/background/extensions/chrome/verifyDomainConnectedBackground';
 
 /**
  * Handles write methods that require user approval

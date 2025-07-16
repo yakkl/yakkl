@@ -255,7 +255,7 @@
 	title="Connect to {domain}"
 	message="This will connect {domain} to YAKKL®. Do you wish to continue?"
 	onConfirm={handleProcess}
-	onReject={handleReject}
+	onCancel={handleReject}
 />
 
 <div class="flex flex-col h-full max-h-screen overflow-hidden">

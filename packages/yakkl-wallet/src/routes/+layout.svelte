@@ -1,37 +1,217 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { initializeBrowserAPI } from '$lib/browser-polyfill-wrapper';
-	import '../app.css';
-	import { browser_ext } from '$lib/common/environment';
-	import { sessionToken, sessionExpiresAt, storeSessionToken } from '$lib/common/auth/session';
-	import { get } from 'svelte/store';
-	import { log } from '$lib/managers/Logger';
-	import SessionProvider from '$lib/components/SessionProvider.svelte';
+  import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
+  import '../app.css';
+  import Settings from '$lib/components/Settings.svelte';
+  import Profile from '$lib/components/Profile.svelte';
+  import ConfirmLogout from '$lib/components/ConfirmLogout.svelte';
+  import { accountStore, currentAccount } from '$lib/stores/account.store';
+  import { chainStore, currentChain, visibleChains } from '$lib/stores/chain.store';
+  import { planStore } from '$lib/stores/plan.store';
+  import { isModalOpen } from '$lib/stores/modal.store';
 
-	let { children } = $props();
+  interface Props {
+    children?: import('svelte').Snippet;
+  }
+  let { children }: Props = $props();
 
-	onMount(async () => {
-		try {
-			browser_ext.runtime.onMessage.addListener((message: any): any => {
-				if (message?.type === 'SESSION_TOKEN_BROADCAST') {
-					storeSessionToken(message.token, message.expiresAt);
-					log.info(
-						'[Layout] Session token set:',
-						false,
-						{ sessionToken, sessionExpiresAt },
-						get(sessionToken),
-						get(sessionExpiresAt)
-					);
-				}
-				return false;
-			});
-			initializeBrowserAPI();
-		} catch (error) {
-			log.warn('Error initializing layout:', false, error);
-		}
-	});
+  // State
+  // Changed: Don't block UI with loading - let pages handle their own state
+  let loading = $state(false);
+  let initializing = $state(true);
+  let showTestnets = $state(false);
+  let showSettings = $state(false);
+  let showProfile = $state(false);
+  let showLogoutConfirm = $state(false);
+
+  // Computed from stores
+  let account = $derived($currentAccount || { address: '', ens: null });
+  let selectedChain = $derived($currentChain);
+  let chains = $derived($visibleChains);
+  let trialEnds = $derived($planStore.plan.trialEndsAt);
+  let planType = $derived($planStore.plan.type);
+  let modalOpen = $derived($isModalOpen);
+
+  // Initialize stores on mount
+  onMount(async () => {
+    // Don't block UI - run initialization in background
+    initializing = true;
+
+    // Run async initialization without blocking
+    (async () => {
+      try {
+        // Add a small delay to ensure background script is ready
+        // This helps prevent "Receiving end does not exist" errors during extension reload
+        await new Promise(resolve => setTimeout(resolve, 100));
+      // First check if user is authenticated
+      const { getSettings, syncStorageToStore } = await import('$lib/common/stores');
+      const settings = await getSettings();
+
+      if (settings && !settings.isLocked && settings.init) {
+        // User is authenticated, sync all stores from persistent storage
+        console.log('Layout: Syncing stores from persistent storage...');
+        await syncStorageToStore();
+        console.log('Layout: Stores synchronized');
+      }
+
+      // Load wallet data in parallel
+        // Load with timeout to prevent hanging
+        await Promise.race([
+          Promise.all([
+            accountStore.loadAccounts(),
+            chainStore.loadChains(),
+            planStore.loadPlan()
+          ]),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Store loading timeout')), 3000)
+          )
+        ]);
+      } catch (error) {
+        console.error('Layout: Error initializing stores:', error);
+      } finally {
+        initializing = false;
+      }
+    })();
+  });
+
+  function handleSwitchChain(chain: any) {
+    chainStore.switchChain(chain.chainId);
+  }
+
+  function handleManageAccount() {
+    showProfile = true;
+  }
+
+  function handleSettings() {
+    showSettings = true;
+  }
+
+  function handleTheme() {
+    // Toggle theme
+    document.documentElement.classList.toggle('dark');
+  }
+
+  async function handleLogout() {
+    // Check if user has disabled logout confirmation
+    const skipConfirmation = localStorage.getItem('yakkl:skip-logout-confirmation') === 'true';
+
+    if (skipConfirmation) {
+      // Skip confirmation and logout directly
+      await performLogout();
+    } else {
+      // Show confirmation dialog
+      showLogoutConfirm = true;
+    }
+  }
+
+  async function handleLogoutConfirm(dontShowAgain: boolean) {
+    if (dontShowAgain) {
+      // Save the preference to skip confirmation next time
+      localStorage.setItem('yakkl:skip-logout-confirmation', 'true');
+    }
+
+    await performLogout();
+  }
+
+  async function performLogout() {
+    try {
+      // Import all necessary functions
+      const {
+        resetStores,
+        setMiscStore,
+        setYakklTokenDataCustomStorage,
+        yakklTokenDataCustomStore
+      } = await import('$lib/common/stores');
+
+      const { setBadgeText, setIconLock } = await import('$lib/utilities/utilities');
+      const { removeTimers } = await import('$lib/common/timers');
+      const { removeListeners } = await import('$lib/common/listeners');
+      const { setLocks } = await import('$lib/common/locks');
+      const { resetTokenDataStoreValues } = await import('$lib/common/resetTokenDataStoreValues');
+      const { stopActivityTracking } = await import('$lib/common/messaging');
+      const { log } = await import('$lib/common/logger-wrapper');
+      const { get } = await import('svelte/store');
+
+      // Stop activity tracking
+      await stopActivityTracking();
+
+      // Set lock icon and clear badge
+      await setBadgeText('');
+      await setIconLock();
+
+      // Lock the wallet
+      await setLocks(true);
+
+      // Clear session-specific state
+      removeTimers();
+      removeListeners();
+      setMiscStore('');
+      resetTokenDataStoreValues();
+
+      // Zero out values in custom token storage
+      setYakklTokenDataCustomStorage(get(yakklTokenDataCustomStore));
+
+      // Reset all stores
+      resetStores();
+
+      // Reset preview2 specific stores
+      if (accountStore && typeof accountStore.reset === 'function') {
+        accountStore.reset();
+      }
+      if (chainStore && typeof chainStore.reset === 'function') {
+        chainStore.reset();
+      }
+      if (planStore && typeof planStore.reset === 'function') {
+        planStore.reset();
+      } else {
+        console.warn('planStore.reset is not available, skipping plan store reset');
+      }
+
+      // Clear session marker
+      sessionStorage.removeItem('wallet-authenticated');
+
+      console.log('V2: Logout completed successfully');
+
+      // Navigate to login page using SvelteKit navigation
+      await goto('/login');
+
+    } catch (error) {
+      console.error('V2: Logout failed:', error);
+      alert('Logout encountered an error. Please try again or refresh the extension.');
+    }
+  }
 </script>
 
-<SessionProvider>
-	{@render children?.()}
-</SessionProvider>
+<div class="yakkl-body h-screen flex flex-col overflow-hidden">
+
+  <!-- Scrollable Content Area -->
+  <main class="flex-1 overflow-y-auto overflow-x-hidden">
+    <!-- Changed: Always render content - don't block with loading -->
+    <div class="min-h-full pb-16">
+      {@render children?.()}
+    </div>
+  </main>
+
+  <!-- Settings Modal -->
+  <Settings bind:show={showSettings} />
+
+  <!-- Profile Modal -->
+  <Profile bind:show={showProfile} />
+
+  <!-- Logout Confirmation Modal -->
+  <ConfirmLogout
+    bind:show={showLogoutConfirm}
+    onConfirm={handleLogoutConfirm}
+    onCancel={() => showLogoutConfirm = false}
+  />
+</div>
+
+<style>
+  :global(body) {
+    margin: 0;
+    background-color: #f8fafc;
+  }
+  :global(html.dark body) {
+    background-color: #0e0e11;
+  }
+</style>

@@ -2,11 +2,11 @@
 <script lang="ts">
 	import { createForm } from 'svelte-forms-lib';
 	import { verify } from '$lib/common/security';
-	import { getContextTypeStore } from '$lib/common/stores';
+	import { getContextTypeStore, getMiscStore, getSettings } from '$lib/common/stores';
 	import { log } from '$lib/common/logger-wrapper';
 	import { authStore } from '$lib/stores/auth-store';
-	import AuthError from './AuthError.svelte';
-	import AuthLoading from './AuthLoading.svelte';
+	import AuthError from '$lib/components/AuthError.svelte';
+	import AuthLoading from '$lib/components/AuthLoading.svelte';
 	import { sessionManager } from '$lib/managers/SessionManager';
 	import { jwtManager } from '$lib/utilities/jwt';
 
@@ -71,8 +71,9 @@
 			// If useAuthStore is enabled, use the auth store login method
 			if (props.useAuthStore) {
 				const profile = await authStore.login(userName, password);
-				const digest = await import('$lib/common/stores').then((module) => module.getMiscStore());
+				const digest = getMiscStore();
 
+				log.info('Login.svelte: useAuthStore: digest =', false, digest);
 				if (!digest) {
 					throw 'Authentication succeeded but failed to retrieve security digest';
 				}
@@ -98,18 +99,23 @@
 
 			// Get the digest that was set during verification
 			// This is important as it's used for decryption throughout the app
-			const digest = await import('$lib/common/stores').then((module) => module.getMiscStore());
+			const digest = getMiscStore();
 
 			if (!digest) {
 				throw 'Authentication succeeded but failed to retrieve security digest';
 			}
 
+			log.info('Login.svelte: profile =', false, profile, digest);
 			// Generate JWT token if requested
 			if (props.generateJWT) {
 				try {
 					// Get user's plan level for JWT
-					const { getSettings } = await import('$lib/common/stores');
 					const settings = await getSettings();
+
+					log.info('Login.svelte: settings =', false, settings);
+					log.info('Login.svelte: settings.plan =', false, settings?.plan);
+					log.info('Login.svelte: settings.plan.type =', false, settings?.plan?.type);
+
 					const planLevel = settings?.plan?.type || 'basic';
 
 					// Generate JWT token

@@ -1,0 +1,1 @@
+export { default as component } from "../../../../src/routes/(wallet)/import/import-phrase/+page.svelte";

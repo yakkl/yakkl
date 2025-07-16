@@ -1,7 +1,7 @@
 <!-- File: src/lib/components/ScrollIndicator.svelte -->
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { fade, fly } from 'svelte/transition';
+	import { fly } from 'svelte/transition';
 	import ChevronDownIcon from './icons/ChevronDownIcon.svelte';
 	import ChevronUpIcon from './icons/ChevronUpIcon.svelte';
 	import { cn } from '$lib/utils';
@@ -64,7 +64,7 @@
 		<button
 			bind:this={button}
 			class={cn(
-				'fixed bottom-4 right-4 z-50',
+				'fixed bottom-4 right-4 z-40',
 				'w-10 h-10 rounded-full',
 				'bg-blue-500 dark:bg-blue-600',
 				'shadow-lg hover:shadow-xl',

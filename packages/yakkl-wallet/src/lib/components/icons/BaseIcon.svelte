@@ -1,17 +1,13 @@
 <script lang="ts">
-	interface Props {
-		className?: string;
-	}
-
-	let { className = 'h-6 w-6 rounded-full' }: Props = $props();
+  let { class: className = '' } = $props();
 </script>
 
-<div>
-	<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" class={className}>
-		<circle cx="512" cy="512" r="512" fill="#0052FF" />
-		<path
-			d="M512 704c53 0 96-43 96-96s-43-96-96-96-96 43-96 96 43 96 96 96zm0-192c53 0 96-43 96-96s-43-96-96-96-96 43-96 96 43 96 96 96z"
-			fill="#fff"
-		/>
-	</svg>
-</div>
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 24 24"
+  class="w-5 h-5 {className}"
+  fill="currentColor"
+>
+  <circle cx="12" cy="12" r="10" fill="#0052FF"/>
+  <path d="M12 17.5C15.0376 17.5 17.5 15.0376 17.5 12C17.5 8.96243 15.0376 6.5 12 6.5C8.96243 6.5 6.5 8.96243 6.5 12C6.5 15.0376 8.96243 17.5 12 17.5Z" fill="white"/>
+</svg>

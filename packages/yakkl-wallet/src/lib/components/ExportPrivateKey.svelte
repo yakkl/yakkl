@@ -1,153 +1,173 @@
 <!-- ExportPrivateKey.svelte -->
 <script lang="ts">
-	import { browserSvelte } from '$lib/utilities/browserSvelte.ts.tmp';
-	import { getYakklCurrentlySelected, yakklMiscStore } from '$lib/common/stores';
-	import { onMount } from 'svelte';
-	import { decryptData } from '$lib/common/encryption';
-	import {
-		isEncryptedData,
-		type AccountData,
-		type CurrentlySelectedData,
-		type EncryptedData,
-		type YakklCurrentlySelected
-	} from '$lib/common';
-	import PincodeVerify from './PincodeVerify.svelte';
-	import Modal from './Modal.svelte';
-	import { log } from '$lib/managers/Logger';
-	import Copy from './Copy.svelte';
+  import { onMount } from 'svelte';
+  import { yakklCurrentlySelectedStore } from '$lib/common/stores';
+  import { get } from 'svelte/store';
+  import PincodeVerify from './v1/PincodeVerify.svelte';
+  import Modal from '$lib/components/Modal.svelte';
+  import Copy from './v1/Copy.svelte';
+  import { AlertTriangle, Key } from 'lucide-svelte';
+  import { sendToBackground } from '$lib/services/message.service';
 
-	interface Props {
-		show?: boolean;
-		className?: string;
-		onVerify?: () => void;
-	}
+  interface Props {
+    show?: boolean;
+    className?: string;
+    onVerify?: () => void;
+  }
 
-	let { show = $bindable(false), className = 'z-[999]', onVerify = () => {} }: Props = $props();
+  let { show = $bindable(false), className = 'z-[999]', onVerify = () => {} }: Props = $props();
 
-	let privateKey = $state('');
-	let address: string = $state();
-	let showPincodeModal = $state(false);
-	let showPrivateKeyModal = $state(false);
-	let currentlySelected: YakklCurrentlySelected;
+  let privateKey = $state('');
+  let address: string = $state('');
+  let showPincodeModal = $state(false);
+  let showPrivateKeyModal = $state(false);
+  let currentlySelected = $state(null);
 
-	onMount(async () => {
-		if (browserSvelte) {
-			currentlySelected = await getYakklCurrentlySelected();
-			address = currentlySelected.shortcuts.address;
-		}
-	});
+  onMount(async () => {
+    const cs = get(yakklCurrentlySelectedStore);
+    if (cs) {
+      currentlySelected = cs;
+      address = cs.shortcuts.address;
+    }
+  });
 
-	async function verifyPincode(pincode: string) {
-		try {
-			let account;
+  async function verifyPincode(pincode: string) {
+    try {
+      if (!address) return;
 
-			if (isEncryptedData(currentlySelected.data)) {
-				await decryptData(currentlySelected.data, $yakklMiscStore).then((result) => {
-					currentlySelected.data = result as CurrentlySelectedData;
-				});
-			}
-			account = (currentlySelected.data as CurrentlySelectedData).account;
+      // Use background handler to get private key securely
+      const response = await sendToBackground({
+        type: 'yakkl_getPrivateKey',
+        payload: { address }
+      });
 
-			if (isEncryptedData(account && account.data)) {
-				await decryptData(account!.data as EncryptedData, $yakklMiscStore).then((result) => {
-					account!.data = result as AccountData;
-				});
-			}
+      if (!response.success) {
+        const errorMessage = typeof response.error === 'string' ? response.error : 'Failed to retrieve private key';
+        throw new Error(errorMessage);
+      }
 
-			privateKey = (account!.data as AccountData).privateKey;
-			showPincodeModal = false;
-			showPrivateKeyModal = true;
-			show = false;
+      privateKey = response.data.privateKey;
+      showPincodeModal = false;
+      showPrivateKeyModal = true;
+      show = false;
 
-			onVerify(); // Call the onVerify callback - currently does not do anything except set the modal to false
-		} catch (e) {
-			log.error('Error verifying pincode:', e);
-		}
-	}
+      onVerify();
+    } catch (e) {
+      console.error('Error verifying pincode:', e);
+    }
+  }
 
-	function closeModal() {
-		show = false;
-	}
+  function closeModal() {
+    show = false;
+  }
 </script>
 
 <div class="relative {className}">
-	<PincodeVerify bind:show={showPincodeModal} onVerified={verifyPincode} />
+  <PincodeVerify bind:show={showPincodeModal} onVerified={verifyPincode} />
 
-	<Modal
-		bind:show={showPrivateKeyModal}
-		title="Private Key"
-		onClose={() => (showPrivateKeyModal = false)}
-	>
-		<div class="p-6">
-			<p class="text-sm text-red-500 mb-4">
-				Please be careful! <strong>Your PRIVATE KEY should remain PRIVATE</strong>. A bad actor
-				could take the content of your wallet if they have access to the PRIVATE KEY! Copy the
-				PRIVATE KEY and store it somewhere safe!!
-			</p>
-			<div class="mb-4">
-				<!-- svelte-ignore a11y_label_has_associated_control -->
-				<label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Address</label>
-				<input
-					type="text"
-					class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm bg-gray-100 text-gray-700 cursor-not-allowed"
-					value={address}
-					readonly
-				/>
-			</div>
-			<div class="mb-4">
-				<!-- svelte-ignore a11y_label_has_associated_control -->
-				<label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Private Key</label
-				>
-				<div class="mt-1 flex">
-					<input
-						type="text"
-						class="flex-1 block w-full rounded-none rounded-l-md border-gray-300 bg-gray-100 cursor-not-allowed focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-						value={privateKey}
-						readonly
-					/>
-					<Copy
-						className="relative -ml-px inline-flex items-center space-x-2 rounded-r-md border border-gray-300 bg-gray-50 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-						target={{
-							value: privateKey,
-							timeout: 20000,
-							redactText: 'PRIVATE-KEY-REDACTED'
-						}}
-					/>
-				</div>
-			</div>
+  <Modal
+    bind:show={showPrivateKeyModal}
+    title="Private Key"
+    onClose={() => (showPrivateKeyModal = false)}
+  >
+    <div class="p-6">
+      <div class="flex items-start gap-3 p-4 mb-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+        <AlertTriangle class="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+        <p class="text-sm text-red-800 dark:text-red-200">
+          <strong>Critical Security Warning:</strong> Your PRIVATE KEY provides complete access to your wallet.
+          Never share it with anyone. Anyone with this key can steal all your funds.
+          Only copy if you need to import this account elsewhere.
+        </p>
+      </div>
 
-			<div class="mt-6 flex justify-end space-x-4">
-				<button
-					type="button"
-					class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-					onclick={() => {
-						showPrivateKeyModal = false;
-					}}>Close</button
-				>
-			</div>
-		</div>
-	</Modal>
+      <div class="mb-4">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Address</label>
+        <div class="flex items-center gap-2 p-3 bg-gray-100 dark:bg-gray-800 rounded-md">
+          <input
+            type="text"
+            class="flex-1 bg-transparent text-sm font-mono text-gray-700 dark:text-gray-300 outline-none"
+            value={address}
+            readonly
+          />
+          <Copy
+            className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+            target={{
+              value: address,
+              timeout: 2000
+            }}
+          />
+        </div>
+      </div>
 
-	<Modal bind:show title="Export Private Key" onClose={closeModal}>
-		<div class="p-6">
-			<p class="text-sm text-gray-700 dark:text-gray-200 mb-4">
-				To export the private key of your account, please verify your pincode first.
-			</p>
-			<div class="mt-6 flex justify-end space-x-4">
-				<button
-					type="button"
-					class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-					onclick={closeModal}>Cancel</button
-				>
-				<button
-					type="button"
-					class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-					onclick={() => {
-						show = false;
-						showPincodeModal = true;
-					}}>Continue</button
-				>
-			</div>
-		</div>
-	</Modal>
+      <div class="mb-4">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Private Key</label>
+        <div class="flex items-center gap-2 p-3 bg-gray-100 dark:bg-gray-800 rounded-md">
+          <Key class="w-4 h-4 text-gray-500 dark:text-gray-400" />
+          <input
+            type="password"
+            class="flex-1 bg-transparent text-sm font-mono text-gray-700 dark:text-gray-300 outline-none"
+            value={privateKey}
+            readonly
+          />
+          <Copy
+            className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+            target={{
+              value: privateKey,
+              timeout: 20000,
+              redactText: 'PRIVATE-KEY-REDACTED'
+            }}
+          />
+        </div>
+      </div>
+
+      <div class="mt-6 flex justify-end">
+        <button
+          type="button"
+          class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+          onclick={() => {
+            showPrivateKeyModal = false;
+            privateKey = '';
+          }}
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </Modal>
+
+  <Modal bind:show title="Export Private Key" onClose={closeModal}>
+    <div class="p-6">
+      <div class="flex items-center justify-center mb-4">
+        <div class="p-3 bg-purple-100 dark:bg-purple-900 rounded-full">
+          <Key class="w-8 h-8 text-purple-600 dark:text-purple-400" />
+        </div>
+      </div>
+
+      <p class="text-center text-gray-700 dark:text-gray-200 mb-6">
+        To export the private key of your account, please verify your PIN code first.
+      </p>
+
+      <div class="flex gap-3 justify-end">
+        <button
+          type="button"
+          class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+          onclick={closeModal}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+          onclick={() => {
+            show = false;
+            showPincodeModal = true;
+          }}
+        >
+          Continue
+        </button>
+      </div>
+    </div>
+  </Modal>
 </div>

@@ -6,9 +6,9 @@
  * For background/service worker contexts, use jwt-background.ts instead.
  */
 
-import { browser } from '$app/environment';
 import { log } from '$lib/common/logger-wrapper';
 import { backgroundJWTManager } from './jwt-background';
+import { browserSvelte } from '$lib/common/environment';
 
 export interface JWTPayload {
 	sub: string; // Subject (user ID)
@@ -95,6 +95,14 @@ export class JWTManager {
 			log.error('Failed to generate JWT token:', false, error);
 			throw new Error('Token generation failed');
 		}
+	}
+
+	/**
+	 * Verify if a JWT token is valid (returns boolean)
+	 */
+	async verifyToken(token: string): Promise<boolean> {
+		const payload = await this.validateToken(token);
+		return payload !== null;
 	}
 
 	/**
@@ -226,7 +234,7 @@ export class JWTManager {
 	private async getSigningKey(): Promise<string> {
 		// In production, this should be retrieved from secure storage
 		// For now, we'll generate a key based on the user's profile
-		if (browser) {
+		if (browserSvelte) {
 			try {
 				const { getSettings } = await import('$lib/common/stores');
 				const settings = await getSettings();
@@ -325,7 +333,7 @@ export class ContextAwareJWTManager {
 		}
 
 		// Check for extension background context
-		if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local && !browser) {
+		if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local && !browserSvelte) {
 			return true;
 		}
 

@@ -24,11 +24,11 @@ import {
 	type BigNumberish
 } from '$lib/common';
 import { dateString } from '$lib/common/datetime';
-import { AbstractBlockchain } from '$managers/Blockchain';
-import type { Provider } from '$managers/Provider';
+import { AbstractBlockchain } from '../../../Blockchain';
+import type { Provider } from '../../../Provider';
 import { ethers as ethersv6 } from 'ethers-v6';
 import { EthereumContract } from './EthereumContract';
-import type { AbstractContract } from '$lib/managers/Contract';
+import type { AbstractContract } from '../../../Contract';
 
 const networks: Network[] = [
 	{
@@ -71,7 +71,7 @@ export class Ethereum extends AbstractBlockchain<EthereumTransaction> {
 		options: { [key: string]: MetaData } = {},
 		overrideAll: boolean = false
 	) {
-		super('Ethereum', chainId, providers, networks, 'ETH', '/images/ethereum_icon_purple.svg');
+		super('Ethereum', chainId, providers, networks, 'ETH', '/images/eth.svg');
 		this.chainId = chainId;
 		this.options = options;
 		this._updateOptions(options, overrideAll);

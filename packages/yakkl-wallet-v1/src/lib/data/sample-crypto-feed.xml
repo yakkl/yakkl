@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Top Crypto News – Jun 12, 2025</title>
+    <link>https://example.com/crypto-feed</link>
+    <description>Top 10+ most-viewed or highest-rated crypto news (~24–36 h) with summaries, creator credits, and UTM‑tagged links.</description>
+    <lastBuildDate>Thu, 12 Jun 2025 12:15:00 -0400</lastBuildDate>
+
+    <item>
+      <title>Bitcoin Sentiment Hits 7-Month High as BTC Flirts with $112K</title>
+      <link>https://cointelegraph.com/news/bitcoin-sentiment-7-month-high-btc-nears-112k?utm_source=yakkl.com&utm_medium=yakkl_extension&utm_campaign=cryptogramps.ai</link>
+      <description>Social media sentiment for Bitcoin has surged to a seven-month high as BTC approaches its all‑time highs near $112K, driven by increasing retail interest :contentReference[oaicite:1]{index=1}.</description>
+      <dc:creator>Cointelegraph</dc:creator>
+      <pubDate>Thu, 12 Jun 2025 05:00:00 GMT</pubDate>
+      <guid isPermaLink="false">cointelegraph-btc-sentiment-20250612</guid>
+    </item>
+
+    <item>
+      <title>Trident Digital Plans $500M XRP Treasury Acquisition</title>
+      <link>https://www.coindesk.com/markets/2025/06/12/singapores-trident-digital-targets-mammoth-500m-raise-to-establish-xrp-treasury?utm_source=yakkl.com&utm_medium=yakkl_extension&utm_campaign=cryptogramps.ai</link>
+      <description>Trident Digital from Singapore is seeking to raise $500 million to incorporate XRP as a core treasury asset, signaling increased institutional adoption :contentReference[oaicite:2]{index=2}.</description>
+      <dc:creator>Shaurya Malwa / CoinDesk</dc:creator>
+      <pubDate>Thu, 12 Jun 2025 11:00:00 GMT</pubDate>
+      <guid isPermaLink="false">coindesk-trident-xrp-treasury-20250612</guid>
+    </item>
+
+    <item>
+      <title>Most Viewed Coins on CoinGecko: aura, Resolv, SPX6900</title>
+      <link>https://www.coingecko.com/en/highlights/most-viewed-crypto?utm_source=yakkl.com&utm_medium=yakkl_extension&utm_campaign=cryptogramps.ai</link>
+      <description>CoinGecko's most‑viewed tokens in the last 24 hours are aura, Resolv, and SPX6900, highlighting current community interest :contentReference[oaicite:3]{index=3}.</description>
+      <dc:creator>CoinGecko</dc:creator>
+      <pubDate>Thu, 12 Jun 2025 07:00:00 GMT</pubDate>
+      <guid isPermaLink="false">coingecko-most-viewed-20250612</guid>
+    </item>
+  </channel>
+</rss>
