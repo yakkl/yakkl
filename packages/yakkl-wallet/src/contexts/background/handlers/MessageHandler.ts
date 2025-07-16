@@ -7,6 +7,10 @@ import { actionHandlers } from './action';
 import { alarmsHandlers } from './alarms';
 import { sidePanelHandlers } from './sidePanel';
 import { blockchainHandlers } from './blockchain';
+import { sessionHandlers } from './session';
+import { swapEnhancedHandlers } from './swapEnhanced';
+import { cryptoHandlers } from './crypto';
+import { sensitiveOperationHandlers } from './sensitiveOperations';
 import type { Runtime } from 'webextension-polyfill';
 
 export interface MessageRequest {
@@ -32,7 +36,11 @@ const handlers = new Map<string, MessageHandlerFunc>([
   ...actionHandlers,
   ...alarmsHandlers,
   ...sidePanelHandlers,
-  ...blockchainHandlers
+  ...blockchainHandlers,
+  ...sessionHandlers,
+  ...swapEnhancedHandlers,
+  ...cryptoHandlers,
+  ...sensitiveOperationHandlers
 ]);
 
 export async function handleMessage(request: MessageRequest, sender: Runtime.MessageSender): Promise<MessageResponse> {

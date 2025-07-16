@@ -133,8 +133,8 @@
 	onVerified={handleVerified}
 	className="text-gray-600"
 />
-<ErrorNoAction bind:show={showError} value={errorValue} handle={handleClose} />
-<Warning bind:show={showWarning} value={warningValue} handle={handleClose} />
+<ErrorNoAction bind:show={showError} value={errorValue} onClose={handleClose} />
+<Warning bind:show={showWarning} value={warningValue} onClose={handleClose} />
 
 <!-- Just shows you how to set it up but it is not plugged into Swap itself -->
 

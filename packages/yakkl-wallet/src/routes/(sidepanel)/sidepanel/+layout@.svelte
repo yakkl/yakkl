@@ -2,7 +2,7 @@
 <!-- This breaks out of parent layout hierarchy -->
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { browserSvelte, browser_ext } from '$lib/common/environment';
+	import { browser_ext } from '$lib/common/environment';
 	import { log } from '$lib/common/logger-wrapper';
 	import { initializeUiContext } from '$lib/common/messaging';
 	import TrialCountdown from '$lib/components/TrialCountdown.svelte';
@@ -31,9 +31,17 @@
 </script>
 
 <!-- Sidepanel layout - no idle management needed -->
-<main class="w-full h-screen">
-	{@render children?.()}
-</main>
+<div class="w-full h-screen relative overflow-hidden">
+	<!-- Fixed watermark logo in the background -->
+	<div class="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0">
+		<img src="/images/logoBullFav128x128.png" class="w-44 h-44 opacity-10 dark:opacity-15" alt="logo" />
+	</div>
+
+	<!-- Main content -->
+	<main class="relative z-10 w-full h-full">
+		{@render children?.()}
+	</main>
+</div>
 
 <TrialCountdown />
 <Upgrade

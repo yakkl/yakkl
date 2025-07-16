@@ -18,7 +18,7 @@
   }
 </script>
 
-<div class="group z-50 {className}">
+<div class="group {className}">
   <div class="bg-zinc-800 text-white w-full h-full rounded-xl shadow-lg text-xl flex items-center justify-center cursor-pointer">
     🌓
   </div>

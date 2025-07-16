@@ -1,4 +1,5 @@
 import type { ChainDisplay } from '$lib/types';
+import type { ExplorerConfig } from '$lib/managers/providers/explorer/BlockchainExplorer';
 
 // Default chain configurations with explorer URLs
 export const DEFAULT_CHAINS: ChainDisplay[] = [
@@ -11,8 +12,13 @@ export const DEFAULT_CHAINS: ChainDisplay[] = [
     chainId: 1,
     rpcUrl: 'https://mainnet.infura.io/v3/YOUR_KEY',
     explorerUrl: 'https://etherscan.io',
-    explorerApiUrl: 'https://api.etherscan.io/api',
-    explorerApiKey: process.env.ETHERSCAN_API_KEY || ''
+    explorerApiUrl: 'https://api.etherscan.io/v2/api',
+    explorerApiKey: 'YourEtherscanAPIKeyHere', // TODO: Move to secure config
+    nativeCurrency: {
+      name: 'Ether',
+      symbol: 'ETH',
+      decimals: 18
+    }
   },
   {
     key: 'eth-sepolia',
@@ -23,8 +29,13 @@ export const DEFAULT_CHAINS: ChainDisplay[] = [
     chainId: 11155111,
     rpcUrl: 'https://sepolia.infura.io/v3/YOUR_KEY',
     explorerUrl: 'https://sepolia.etherscan.io',
-    explorerApiUrl: 'https://api-sepolia.etherscan.io/api',
-    explorerApiKey: process.env.ETHERSCAN_API_KEY || ''
+    explorerApiUrl: 'https://api-sepolia.etherscan.io/v2/api',
+    explorerApiKey: 'YourEtherscanAPIKeyHere', // TODO: Move to secure config
+    nativeCurrency: {
+      name: 'Ether',
+      symbol: 'ETH',
+      decimals: 18
+    }
   },
   {
     key: 'eth-goerli',
@@ -36,7 +47,12 @@ export const DEFAULT_CHAINS: ChainDisplay[] = [
     rpcUrl: 'https://goerli.infura.io/v3/YOUR_KEY',
     explorerUrl: 'https://goerli.etherscan.io',
     explorerApiUrl: 'https://api-goerli.etherscan.io/api',
-    explorerApiKey: process.env.ETHERSCAN_API_KEY || ''
+    explorerApiKey: 'YourEtherscanAPIKeyHere', // TODO: Move to secure config
+    nativeCurrency: {
+      name: 'Ether',
+      symbol: 'ETH',
+      decimals: 18
+    }
   },
   {
     key: 'polygon-mainnet',
@@ -48,7 +64,12 @@ export const DEFAULT_CHAINS: ChainDisplay[] = [
     rpcUrl: 'https://polygon-rpc.com',
     explorerUrl: 'https://polygonscan.com',
     explorerApiUrl: 'https://api.polygonscan.com/api',
-    explorerApiKey: ''
+    explorerApiKey: '',
+    nativeCurrency: {
+      name: 'MATIC',
+      symbol: 'MATIC',
+      decimals: 18
+    }
   },
   {
     key: 'polygon-mumbai',
@@ -60,7 +81,12 @@ export const DEFAULT_CHAINS: ChainDisplay[] = [
     rpcUrl: 'https://rpc-mumbai.maticvigil.com',
     explorerUrl: 'https://mumbai.polygonscan.com',
     explorerApiUrl: 'https://api-testnet.polygonscan.com/api',
-    explorerApiKey: ''
+    explorerApiKey: '',
+    nativeCurrency: {
+      name: 'MATIC',
+      symbol: 'MATIC',
+      decimals: 18
+    }
   },
   {
     key: 'bsc-mainnet',
@@ -72,7 +98,12 @@ export const DEFAULT_CHAINS: ChainDisplay[] = [
     rpcUrl: 'https://bsc-dataseed.binance.org',
     explorerUrl: 'https://bscscan.com',
     explorerApiUrl: 'https://api.bscscan.com/api',
-    explorerApiKey: ''
+    explorerApiKey: '',
+    nativeCurrency: {
+      name: 'BNB',
+      symbol: 'BNB',
+      decimals: 18
+    }
   },
   {
     key: 'bsc-testnet',
@@ -84,7 +115,12 @@ export const DEFAULT_CHAINS: ChainDisplay[] = [
     rpcUrl: 'https://data-seed-prebsc-1-s1.binance.org:8545',
     explorerUrl: 'https://testnet.bscscan.com',
     explorerApiUrl: 'https://api-testnet.bscscan.com/api',
-    explorerApiKey: ''
+    explorerApiKey: '',
+    nativeCurrency: {
+      name: 'BNB',
+      symbol: 'BNB',
+      decimals: 18
+    }
   },
   {
     key: 'avalanche-mainnet',
@@ -96,7 +132,12 @@ export const DEFAULT_CHAINS: ChainDisplay[] = [
     rpcUrl: 'https://api.avax.network/ext/bc/C/rpc',
     explorerUrl: 'https://snowtrace.io',
     explorerApiUrl: 'https://api.snowtrace.io/api',
-    explorerApiKey: ''
+    explorerApiKey: '',
+    nativeCurrency: {
+      name: 'AVAX',
+      symbol: 'AVAX',
+      decimals: 18
+    }
   },
   {
     key: 'avalanche-fuji',
@@ -210,13 +251,23 @@ export function getExplorerAddressUrl(chainId: number, address: string): string 
 }
 
 // Helper function to get explorer API configuration
-export function getExplorerApiConfig(chainId: number) {
+export function getExplorerApiConfig(chainId: number, isBackgroundContext: boolean = false) {
   const chain = getChainById(chainId);
   if (chain) {
+    // Get API key from environment variable based on chain
+    let apiKey = '';
+    
+    // Only use environment variables in background context
+    if (isBackgroundContext && chain.explorerApiUrl?.includes('etherscan.io')) {
+      // In background context (webpack), use process.env
+      apiKey = process.env.ETHERSCAN_API_KEY || '';
+    }
+    // Never expose API keys in client context
+    
     return {
       name: chain.name,
       baseUrl: chain.explorerApiUrl || '',
-      apiKey: chain.explorerApiKey || '',
+      apiKey,
       chainId: chain.chainId
     };
   }

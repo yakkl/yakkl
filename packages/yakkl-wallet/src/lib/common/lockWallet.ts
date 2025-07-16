@@ -8,8 +8,9 @@ import { setMiscStore, resetStores, setYakklTokenDataCustomStorage, yakklTokenDa
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from './storage';
 import { resetTokenDataStoreValues } from './resetTokenDataStoreValues';
 import { get } from 'svelte/store';
-import { STORAGE_YAKKL_CURRENTLY_SELECTED } from './constants';
-import browser from 'webextension-polyfill';
+import { STORAGE_YAKKL_CURRENTLY_SELECTED, STORAGE_YAKKL_SETTINGS } from './constants';
+import { getBrowserExt } from './environment';
+import type { Browser } from 'webextension-polyfill';
 
 /**
  * Lock the wallet and clear all sensitive data
@@ -32,6 +33,13 @@ export async function lockWallet(reason: string = 'manual'): Promise<void> {
       yakklCurrentlySelected.shortcuts.isLocked = true;
       await setObjectInLocalStorage(STORAGE_YAKKL_CURRENTLY_SELECTED, yakklCurrentlySelected);
     }
+    
+    // Also update settings to ensure consistent locked state
+    const settings = await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS) as any;
+    if (settings) {
+      settings.isLocked = true;
+      await setObjectInLocalStorage(STORAGE_YAKKL_SETTINGS, settings);
+    }
 
     // 4. Clear all sensitive data from memory
     removeTimers();
@@ -50,13 +58,32 @@ export async function lockWallet(reason: string = 'manual'): Promise<void> {
       sessionStorage.removeItem('wallet-authenticated');
     }
 
-    // 8. Clear extension session storage
-    if (browser?.storage?.session) {
-      await browser.storage.session.clear();
+    // 8. Clear extension session storage (except windowId)
+    const browserExt = getBrowserExt();
+    if (browserExt?.storage?.session) {
+      // Get all keys from session storage
+      const allData = await browserExt.storage.session.get(null);
+      const keysToRemove = Object.keys(allData).filter(key => key !== 'windowId');
+      
+      // Remove all keys except windowId
+      if (keysToRemove.length > 0) {
+        await browserExt.storage.session.remove(keysToRemove);
+      }
     }
 
     // 9. Clear any auth tokens from local storage
-    await browser.storage.local.remove(['sessionToken', 'sessionExpiresAt', 'authToken']);
+    if (browserExt?.storage?.local) {
+      await browserExt.storage.local.remove(['sessionToken', 'sessionExpiresAt', 'authToken']);
+    }
+
+    // 10. Reset SingletonWindowManager to clear any stale window references
+    try {
+      const { SingletonWindowManager } = await import('$lib/managers/SingletonWindowManager');
+      SingletonWindowManager.reset();
+      log.info('SingletonWindowManager reset during wallet lock');
+    } catch (error) {
+      log.warn('Failed to reset SingletonWindowManager during wallet lock', false, error);
+    }
 
     log.info(`Wallet locked successfully - Reason: ${reason}`);
   } catch (error) {
@@ -75,9 +102,10 @@ export async function lockWallet(reason: string = 'manual'): Promise<void> {
 
 /**
  * Register handlers to lock wallet on various exit scenarios
+ * Note: Extension-specific handlers (onSuspend, idle) should only be registered in background context
  */
 export function registerWalletLockHandlers(): void {
-  // Handle browser/tab close
+  // Handle browser/tab close - safe for all contexts
   if (typeof window !== 'undefined') {
     window.addEventListener('beforeunload', () => {
       lockWallet('window-close').catch(err => 
@@ -94,9 +122,24 @@ export function registerWalletLockHandlers(): void {
     });
   }
 
+  // Extension-specific event handlers should be registered separately in background context
+  // Not here, as this function is called from client context
+}
+
+/**
+ * Register background-specific wallet lock handlers
+ * This should only be called from the background script
+ * @param browserApi - The browser API object (pass browser from webextension-polyfill)
+ */
+export function registerBackgroundWalletLockHandlers(browserApi: Browser): void {
+  if (!browserApi) {
+    log.error('Browser API is required for background handlers');
+    return;
+  }
+
   // Handle extension-specific events
-  if (browser?.runtime?.onSuspend) {
-    browser.runtime.onSuspend.addListener(() => {
+  if (browserApi.runtime?.onSuspend) {
+    browserApi.runtime.onSuspend.addListener(() => {
       lockWallet('extension-suspend').catch(err =>
         log.error('Error locking wallet on suspend:', false, err)
       );
@@ -104,9 +147,9 @@ export function registerWalletLockHandlers(): void {
   }
 
   // Handle idle detection
-  if (browser?.idle) {
-    browser.idle.setDetectionInterval(300); // 5 minutes
-    browser.idle.onStateChanged.addListener((state) => {
+  if (browserApi.idle) {
+    browserApi.idle.setDetectionInterval(300); // 5 minutes
+    browserApi.idle.onStateChanged.addListener((state: string) => {
       if (state === 'idle' || state === 'locked') {
         lockWallet(`idle-${state}`).catch(err =>
           log.error('Error locking wallet on idle:', false, err)

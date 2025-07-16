@@ -244,7 +244,7 @@
 </div>
 
 {#if showClearWarning}
-	<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+	<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
 		<div class="bg-white p-6 rounded-lg shadow-xl">
 			<h3 class="text-lg font-bold mb-4">Clear all messages?</h3>
 			<p class="mb-4">Are you sure you want to clear all messages? This action cannot be undone.</p>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  // Note: Using window.location instead of goto to avoid HMR conflicts in browser extensions
   import '../../app.css';
   import DockLauncher from '$lib/components/DockLauncher.svelte';
   import AIHelpButton from '$lib/components/AIHelpButton.svelte';
@@ -16,10 +17,15 @@
   import { chainStore, currentChain, visibleChains } from '$lib/stores/chain.store';
   import { planStore } from '$lib/stores/plan.store';
   import { canUseFeature } from '$lib/stores/plan.store';
-  import { isModalOpen } from '$lib/stores/modal.store';
+  import { modalStore, isModalOpen } from '$lib/stores/modal.store';
+  import { transactionStore } from '$lib/stores/transaction.store';
   import { sessionManager } from '$lib/managers/SessionManager';
-  import { getYakklAccounts } from '$lib/common/stores';
+  import { getYakklAccounts, getProfile, syncStorageToStore } from '$lib/common/stores';
   import type { ChainDisplay } from '$lib/types';
+  import { setupConsoleFilters } from '$lib/utils/console-filter';
+  import { lockWallet } from '$lib/common/lockWallet';
+  import { validateAndRefreshAuth } from '$lib/common/authValidation';
+  import { messagingService } from '$lib/common/messaging';
 
   interface Props {
     children?: import('svelte').Snippet;
@@ -27,7 +33,7 @@
   let { children }: Props = $props();
 
   // State
-  let loading = $state(true);
+  let initializing = $state(true);
   let showTestnets = $state(false);
   let showSettings = $state(false);
   let showProfile = $state(false);
@@ -35,8 +41,8 @@
   let showEmergencyKit = $state(false);
   let showManageAccounts = $state(false);
   let showNetworkMismatch = $state(false);
+  let isAuthenticated = $state(false);
   let pendingChain = $state<ChainDisplay | null>(null);
-  let previousChain = $state<ChainDisplay | null>(null);
 
   // Computed from stores
   let account = $derived($currentAccount || { address: '', ens: null });
@@ -47,68 +53,84 @@
   let modalOpen = $derived($isModalOpen);
 
   // Initialize stores on mount
+
+
   onMount(async () => {
-    loading = true;
+    // Don't block UI - let components handle their own loading
+    initializing = true;
 
-    // Add a small delay to ensure background script is ready
-    // This helps prevent "Receiving end does not exist" errors during extension reload
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Added: Setup console filters to suppress known warnings
+    setupConsoleFilters();
 
-    try {
-      // Perform authentication validation
-      const { validateAndRefreshAuth } = await import('$lib/common/authValidation');
-      const { syncStorageToStore } = await import('$lib/common/stores');
-      
-      const isAuthenticated = await validateAndRefreshAuth();
-      
-      if (isAuthenticated) {
-        // User is authenticated, sync all stores from persistent storage
-        console.log('Layout: User authenticated, syncing stores from persistent storage...');
-        await syncStorageToStore();
-        console.log('Layout: Stores synchronized');
-      } else {
-        console.log('Layout: User not authenticated, skipping store sync');
-      }
+    // Run initialization without blocking the UI
+    (async () => {
+      try {
+        // Add a small delay to ensure background script is ready
+        // This helps prevent "Receiving end does not exist" errors during extension reload
+        await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Load wallet data in parallel
-      await Promise.all([
-        accountStore.loadAccounts(),
-        chainStore.loadChains(),
-        planStore.loadPlan()
-      ]);
+        // Perform authentication validation
+        const authResult = await validateAndRefreshAuth();
+        isAuthenticated = authResult;
 
-      // Initialize session if authenticated
-      if (isAuthenticated) {
-        const { getProfile } = await import('$lib/common/stores');
-        const profile = await getProfile();
-        if (profile && profile.data) {
-          const profileData = profile.data as any;
-          // Start session with JWT
-          await sessionManager.startSession(
-            profile.id,
-            profileData.userName || 'user',
-            profile.id,
-            profileData.planType || 'basic'
-          );
-          
-          // Load testnet preference from user profile
-          if (profile.preferences?.showTestNetworks) {
-            showTestnets = true;
-            // Update the chain store to show testnets
-            chainStore.setShowTestnets(true);
-          }
+        if (authResult) {
+          // User is authenticated, sync all stores from persistent storage
+          console.log('Layout: User authenticated, syncing stores from persistent storage...');
+          await syncStorageToStore();
+          console.log('Layout: Stores synchronized');
+        } else {
+          console.log('Layout: User not authenticated, skipping store sync');
         }
-      }
-    } catch (error) {
-      console.error('Layout: Error initializing stores:', error);
-    }
 
-    loading = false;
+        // Load wallet data in parallel with timeout
+        await Promise.race([
+          Promise.all([
+            accountStore.loadAccounts(),
+            chainStore.loadChains(),
+            planStore.loadPlan()
+          ]),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Store loading timeout')), 3000)
+          )
+        ]);
+
+        // Initialize session if authenticated
+        if (authResult) {
+          const profile = await getProfile();
+          if (profile && profile.data) {
+            const profileData = profile.data as any;
+            // Start session with JWT
+            await sessionManager.startSession(
+              profile.id,
+              profileData.userName || 'user',
+              profile.id,
+              profileData.planType || 'basic'
+            );
+
+            // Load testnet preference from user profile
+            if (profile.preferences?.showTestNetworks) {
+              showTestnets = true;
+              // Update the chain store to show testnets
+              chainStore.setShowTestnets(true);
+            }
+          }
+          
+          // Transaction monitoring is now handled in background context
+          // No need to start it here as it runs independently
+          console.log('Layout: Transaction monitoring handled by background context');
+        }
+      } catch (error) {
+        console.error('Layout: Error initializing stores:', error);
+      } finally {
+        initializing = false;
+      }
+    })();
 
     // Note: Window close is now handled by SingletonWindowManager
     // The beforeunload event is unreliable for async operations
     // Locking is done in the background script when window is removed
   });
+
 
   async function handleSwitchChain(chain: ChainDisplay) {
     // Check if switching to a different chain
@@ -120,66 +142,50 @@
         if (acc.chainIds?.includes(chain.chainId)) {
           return true;
         }
-        
+
         // For Ethereum mainnet and testnets, check if it's an Ethereum account without specific chains
         const isEthereumChain = [1, 5, 11155111].includes(chain.chainId);
         if (isEthereumChain && (!acc.blockchain || acc.blockchain === 'ethereum') && !acc.chainIds) {
           return true;
         }
-        
+
         return false;
       });
-      
+
       if (!hasAccountForChain) {
-        // Store the current chain before showing modal
-        previousChain = selectedChain;
         pendingChain = chain;
         showNetworkMismatch = true;
         return;
       }
     }
-    
+
     // Proceed with chain switch
     await chainStore.switchChain(chain.chainId);
   }
-  
-  function getBlockchainType(chainId: number): string {
-    // Ethereum and EVM-compatible chains
-    if ([1, 5, 11155111, 137, 80001, 56, 97, 43114, 43113, 42161, 421613, 10, 420, 8453, 250].includes(chainId)) {
-      return 'ethereum';
-    }
-    // Solana
-    if ([101, 102, 103].includes(chainId)) {
-      return 'solana';
-    }
-    // Add more blockchain types as needed
-    return 'unknown';
-  }
-  
+
+
   async function handleCreateAccountForNetwork() {
     if (!pendingChain) return;
-    
+
     try {
       // TODO: Implement account creation for the specific network
       // For now, just close the modal
       console.log('Creating account for network:', pendingChain);
-      
+
       // After account creation, switch to the network
       await chainStore.switchChain(pendingChain.chainId);
-      
+
       showNetworkMismatch = false;
       pendingChain = null;
-      previousChain = null;
     } catch (error) {
       console.error('Failed to create account:', error);
     }
   }
-  
+
   function handleCancelNetworkSwitch() {
     // Stay on the current network
     showNetworkMismatch = false;
     pendingChain = null;
-    previousChain = null;
   }
 
   function handleManageAccount() {
@@ -227,40 +233,7 @@
 
   async function performLogout() {
     try {
-      // Import all necessary functions from v1
-      const { stopActivityTracking } = await import('$lib/common/messaging');
-      const { setBadgeText, setIconLock } = await import('$lib/utilities/utilities');
-      const { setLocks } = await import('$lib/common/locks');
-      const { removeTimers } = await import('$lib/common/timers');
-      const { removeListeners } = await import('$lib/common/listeners');
-      const { setMiscStore, resetStores, setYakklTokenDataCustomStorage, yakklTokenDataCustomStore } = await import('$lib/common/stores');
-      const { resetTokenDataStoreValues } = await import('$lib/common/resetTokenDataStoreValues');
-      const { log } = await import('$lib/common/logger-wrapper');
-      const { get } = await import('svelte/store');
-
-      // Follow v1 logout sequence exactly
-      await stopActivityTracking();
-      
-      // Set lock icon and clear badge
-      await setBadgeText('');
-      await setIconLock();
-      
-      // CRITICAL: Set isLocked to true in settings
-      await setLocks(true);
-
-      // Clear session-specific state
-      removeTimers();
-      removeListeners();
-      setMiscStore('');
-      resetTokenDataStoreValues();
-      
-      // Zero out values in custom token storage
-      setYakklTokenDataCustomStorage(get(yakklTokenDataCustomStore));
-      
-      // Reset all stores
-      resetStores();
-
-      // Reset preview2 specific stores
+      // Reset v2 specific stores before locking
       if (accountStore && typeof accountStore.reset === 'function') {
         accountStore.reset();
       }
@@ -271,80 +244,38 @@
         planStore.reset();
       }
 
-      // Clear session marker
-      sessionStorage.removeItem('wallet-authenticated');
-      
       // End session
       await sessionManager.endSession();
 
+      // Lock the wallet using centralized function
+      await lockWallet('user-logout');
+
       console.log('V2: Logout completed successfully');
 
-      // Close the popup window
-      window.close();
+      // Send logout message to background to handle all windows
+      try {
+        await messagingService.sendMessage('logout', { reason: 'user-logout' });
+      } catch (error) {
+        console.error('Failed to send logout message to background', error);
+      }
+
+      // Navigate to logout page to handle proper cleanup
+      window.location.href = '/logout';
 
     } catch (error) {
       console.error('V2: Logout failed:', error);
-      alert('Logout encountered an error. Please try again or refresh the extension.');
+      // Try to navigate to logout page anyway
+      try {
+        window.location.href = '/logout';
+      } catch (navError) {
+        // As last resort, try window.location
+        window.location.href = '/logout';
+      }
     }
   }
 </script>
 
 <div class="yakkl-body h-screen flex flex-col overflow-hidden">
-  <!-- Fixed Header -->
-  <Header
-    link="/"
-    account={account}
-    chains={chains}
-    selectedChain={selectedChain}
-    showTestnets={showTestnets}
-    onSwitchChain={handleSwitchChain}
-    onManageAccount={handleManageAccount}
-    onSettings={handleSettings}
-    onTheme={handleTheme}
-    onLogout={handleLogout}
-    onEmergencyKit={handleEmergencyKit}
-    onManageAccounts={handleManageAccounts}
-    className="flex-shrink-0"
-  />
-
-
-  <!-- Scrollable Content Area -->
-  <main class="flex-1 overflow-y-auto overflow-x-hidden">
-    {#if loading}
-      <div class="min-h-full flex items-center justify-center">
-        <div class="text-center">
-          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-          <p class="mt-4 text-gray-600 dark:text-gray-400">Loading wallet...</p>
-        </div>
-      </div>
-    {:else}
-      <div class="min-h-full pb-16">
-        {@render children?.()}
-      </div>
-    {/if}
-  </main>
-
-  <!-- Fixed Footer -->
-  <div class="flex-shrink-0">
-    <Footer
-      {planType}
-      trialEnds={trialEnds}
-      appName="YAKKL"
-      className=""
-    />
-  </div>
-
-  <!-- Floating Elements above footer - only show if features are available and no modals open -->
-  {#if !modalOpen}
-    {#if canUseFeature('basic_features')}
-      <DockLauncher className="fixed bottom-12 left-4 z-50" />
-    {/if}
-
-    {#if canUseFeature('ai_assistant')}
-      <AIHelpButton className="fixed bottom-12 right-4 z-50" />
-    {/if}
-  {/if}
-
   <!-- Settings Modal -->
   <Settings bind:show={showSettings} />
 
@@ -367,10 +298,12 @@
     onConfirm={handleLogoutConfirm}
     onCancel={() => showLogoutConfirm = false}
   />
-  
+
   <!-- Session Warning Component -->
-  <SessionWarning />
-  
+  {#if isAuthenticated}
+    <SessionWarning />
+  {/if}
+
   <!-- Network Mismatch Modal -->
   {#if pendingChain}
     <NetworkMismatchModal
@@ -380,6 +313,75 @@
       onCancel={handleCancelNetworkSwitch}
     />
   {/if}
+
+  <!-- Fixed Header -->
+  <Header
+    link="/home"
+    account={account}
+    chains={chains}
+    selectedChain={selectedChain}
+    showTestnets={showTestnets}
+    onSwitchChain={handleSwitchChain}
+    onManageAccount={handleManageAccount}
+    onSettings={handleSettings}
+    onTheme={handleTheme}
+    onLogout={handleLogout}
+    onEmergencyKit={handleEmergencyKit}
+    onManageAccounts={handleManageAccounts}
+    className="flex-shrink-0"
+  />
+
+  <!-- Scrollable Content Area -->
+  <main class="flex-1 overflow-y-auto overflow-x-hidden">
+    <!-- Changed: Always render content, let components handle their own loading -->
+    <div class="min-h-full">
+      {@render children?.()}
+    </div>
+
+    <!-- Show initializing indicator only if taking too long -->
+    {#if initializing}
+      <div class="fixed bottom-20 right-4 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-3 py-2 rounded-lg shadow-lg text-sm z-40">
+        <div class="flex items-center gap-2">
+          <div class="animate-spin rounded-full h-3 w-3 border-b-2 border-yellow-600"></div>
+          <span>Initializing wallet...</span>
+        </div>
+      </div>
+    {/if}
+  </main>
+
+  <!-- Fixed Footer -->
+  <Footer
+    {planType}
+    trialEnds={trialEnds}
+    appName="YAKKL"
+    className="flex-shrink-0"
+  />
+
+  <!-- ScrollIndicator as overlay -->
+  <!-- <ScrollIndicator /> -->
+
+  <!-- Floating Elements above footer - only show if features are available and no modals open -->
+  {#if !modalOpen}
+    <!-- {#if canUseFeature('basic_features')} -->
+      <DockLauncher className="fixed bottom-12 left-4 z-40" />
+    <!-- {/if} -->
+
+    {#if canUseFeature('ai_assistant')}
+      <AIHelpButton className="fixed bottom-12 right-4 z-40" />
+    {:else}
+      <!-- Show locked AI button for non-Pro users -->
+      <div class="fixed bottom-12 right-4 z-40">
+        <button
+          onclick={() => modalStore.openModal('upgrade')}
+          class="yakkl-circle-button text-xl opacity-60 hover:opacity-80 transition-opacity"
+          title="AI Assistant (Pro Feature - Upgrade Required)"
+        >
+          🤖
+        </button>
+      </div>
+    {/if}
+  {/if}
+
 </div>
 
 <style>

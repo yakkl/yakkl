@@ -6,12 +6,16 @@
   import { startActivityTracking } from '$lib/common/messaging';
   import { log } from '$lib/common/logger-wrapper';
   import type { Profile, Settings } from '$lib/common/interfaces';
-  import { getNormalizedSettings, PATH_WELCOME, PlanType } from '$lib/common';
+  import { getNormalizedSettings, PlanType } from '$lib/common';
   import { setLocks } from '$lib/common/locks';
-  import Welcome from '$lib/components/Welcome.svelte';
   import ErrorNoAction from '$lib/components/ErrorNoAction.svelte';
   import { onMount } from 'svelte';
   import { protectedContexts } from '$lib/common/globals';
+  // Added: Import navigation debug helper to diagnose home page navigation issue
+  import { debugGoto, fallbackNavigate } from '$lib/utils/navigationDebug';
+	import { goto } from '$app/navigation';
+	import { BalanceCacheManager } from '$lib/managers/BalanceCacheManager';
+	import { AccountTokenCacheManager } from '$lib/managers/AccountTokenCacheManager';
 
   // State
   let showError = $state(false);
@@ -33,6 +37,14 @@
     yakklSettings = await getNormalizedSettings();
     await setSettingsStorage(yakklSettings);
     planType = yakklSettings?.plan.type ?? PlanType.BASIC_MEMBER;
+    
+    // Load cache managers early to ensure cached data is available
+    try {
+      BalanceCacheManager.getInstance();
+      AccountTokenCacheManager.getInstance();
+    } catch (error) {
+      log.warn('Failed to load cache managers in login:', false, error);
+    }
   });
 
   // Handle successful login
@@ -46,6 +58,14 @@
 
       // KEY: Sync all storage to stores - this loads all persistent data
       await syncStorageToStore();
+      
+      // Ensure cache managers are loaded after login
+      try {
+        BalanceCacheManager.getInstance();
+        AccountTokenCacheManager.getInstance();
+      } catch (error) {
+        log.warn('Failed to load cache managers after login:', false, error);
+      }
 
       // Unlock the wallet using setLocks function - this updates both storage and stores
       await setLocks(false, yakklSettings?.plan.type || PlanType.BASIC_MEMBER);
@@ -65,8 +85,25 @@
       // Mark session as authenticated
       sessionStorage.setItem('wallet-authenticated', 'true');
 
-      // Navigate to dashboard
-      safeNavigate('/', 0, { replaceState: true, invalidateAll: true });
+      // Check if we're in an extension popup context
+      // We can detect this by checking if we're running in an extension URL
+      let isPopupContext = false;
+      if (typeof window !== 'undefined' && window.location.href.includes('chrome-extension://')) {
+        isPopupContext = true;
+        log.info('Login in extension popup context');
+      }
+
+      // Added: Use debug navigation to diagnose why home page doesn't appear
+      // Original: await goto('/home', { replaceState: true });
+      try {
+        // await debugGoto('/home', { replaceState: true });
+        await goto('/home', { replaceState: true });
+      } catch (navError) {
+        // If SvelteKit navigation fails, try fallback method
+        log.warn('SvelteKit navigation failed, trying fallback', false, navError);
+        fallbackNavigate('/home');
+      }
+
     } catch (e: any) {
       log.error('Error during post-login initialization', false, e);
       errorValue = e;
@@ -82,7 +119,13 @@
 
   // Handle login cancel
   function onCancel() {
-    safeLogout();
+    // In extension popup context, close the window instead of navigating
+    if (typeof window !== 'undefined' && window.close) {
+      window.close();
+    } else {
+      // Fallback to logout for other contexts
+      safeLogout();
+    }
   }
 
   // Handle close
@@ -100,7 +143,7 @@
       <!-- Logo -->
       <div class="mb-6">
         <img src="/images/logoBullFav128x128.png" alt="YAKKL" class="w-20 h-20 mx-auto" />
-        <h1 class="text-2xl font-bold text-zinc-900 dark:text-white mt-4">YAKKL Wallet</h1>
+        <h1 class="text-2xl font-bold text-zinc-900 dark:text-white mt-4">YAKKL Smart Wallet</h1>
         <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Preview 2.0</p>
       </div>
 

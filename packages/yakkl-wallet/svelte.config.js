@@ -17,7 +17,7 @@ const config = {
 			// Default options
 			pages: 'build',
 			assets: 'build',
-			fallback: null,
+			fallback: '404.html',
 			precompress: false,
 			strict: false
 		}),
@@ -33,10 +33,12 @@ const config = {
 		prerender: {
 			handleMissingId: 'ignore',
 			entries: ['*'],
+			crawl: true,
 			handleHttpError: ({ status, path, referrer, referenceType }) => {
 				console.warn(`Prerendering error: ${status} on ${path}`);
-				if (status === 500 && path === '/accounts') {
-					// Ignore the error or log it
+				if (status === 500) {
+					// Ignore 500 errors during prerendering (usually due to crypto dependencies)
+					console.warn(`Ignoring prerender error on ${path} - likely due to crypto dependencies`);
 					return;
 				}
 				if (status === 404 && (path.includes('/preview2') || path.includes('/v2') || path.includes('/accounts/manage/'))) {

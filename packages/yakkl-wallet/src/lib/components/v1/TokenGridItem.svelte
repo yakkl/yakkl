@@ -3,7 +3,7 @@
 	import { formatPrice, getTokenChange } from '$lib/utilities/utilities';
 	import ProtectedValue from './ProtectedValue.svelte';
 	import SkeletonBalance from './SkeletonBalance.svelte';
-	import * as HoverCard from './ui/hover-card';
+	import * as HoverCard from './ui.tmp/hover-card';
 	import { accountTokenCacheManager } from '$lib/managers/AccountTokenCacheManager';
 	import { log } from '$lib/managers/Logger';
 

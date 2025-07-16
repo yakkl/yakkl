@@ -8,7 +8,7 @@ import { PlanType } from './types';
 
 // Will keep this for now but may want to deprecate it and use the new background script to handle locks
 
-export async function setLocks(locked: boolean = true, planType: PlanType = PlanType.BASIC_MEMBER) {
+export async function setLocks(locked: boolean = true, planType?: PlanType) {
 	try {
 		let dirty = false;
 
@@ -21,7 +21,10 @@ export async function setLocks(locked: boolean = true, planType: PlanType = Plan
 				if (!yakklSettings.isLocked) {
 					yakklSettings.isLocked = true;
 					yakklSettings.lastAccessDate = dateString();
-					if (planType) yakklSettings.plan.type = planType;
+					// Only update plan type if explicitly provided and it's a valid plan type
+					if (planType && Object.values(PlanType).includes(planType)) {
+						yakklSettings.plan.type = planType;
+					}
 					await setObjectInLocalStorage('settings', yakklSettings);
 					dirty = true;
 				}
@@ -29,7 +32,10 @@ export async function setLocks(locked: boolean = true, planType: PlanType = Plan
 				if (yakklSettings.isLocked) {
 					yakklSettings.isLocked = false;
 					yakklSettings.lastAccessDate = dateString();
-					if (planType) yakklSettings.plan.type = planType;
+					// Only update plan type if explicitly provided and it's a valid plan type
+					if (planType && Object.values(PlanType).includes(planType)) {
+						yakklSettings.plan.type = planType;
+					}
 					await setObjectInLocalStorage('settings', yakklSettings);
 					dirty = true;
 				}

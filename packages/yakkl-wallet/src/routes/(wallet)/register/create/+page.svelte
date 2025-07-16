@@ -210,7 +210,7 @@
       };
 
       // Create ProfileData
-      const profileData: ProfileData = {
+      const profileData = {
         id: crypto.randomUUID(),
         name,
         email,
@@ -234,7 +234,7 @@
         primaryAccounts: [],
         importedAccounts: [],
         watchList: []
-      };
+      } as ProfileData;
 
       // Encrypt the profile data
       const encryptedData = await encryptData(profileData, digest);

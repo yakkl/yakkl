@@ -70,7 +70,7 @@ function safePostMessage(message: any, context = 'inpage'): boolean {
 			retryKey: `${message.type}-${message.id || Date.now()}`
 		});
 	} catch (error) {
-		log.warn(`Failed to post message in ${context}:`, false, {
+		log.debug(`Failed to post message in ${context}:`, false, {
 			error: error instanceof Error ? error.message : error,
 			messageType: message.type,
 			messageId: message.id,
@@ -209,7 +209,7 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 					await this.connect();
 					connected = true;
 				} catch (error) {
-					log.warn(`Connection attempt ${attempts} failed:`, false, error);
+					log.debug(`Connection attempt ${attempts} failed:`, false, error);
 					if (attempts < maxAttempts) {
 						// Wait before retry
 						await new Promise((resolve) => setTimeout(resolve, 1000 * attempts));
@@ -220,7 +220,7 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 			if (!connected) {
 				// Still initialize the provider even if connection failed
 				// It can reconnect later
-				log.warn(
+				log.debug(
 					'Failed to establish initial connection, provider will work in disconnected mode',
 					false
 				);
@@ -232,7 +232,7 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 
 			log.debug('YAKKL provider initialized successfully', false);
 		} catch (error) {
-			log.error('Failed to initialize provider:', false, error);
+			log.debug('Failed to initialize provider:', false, error);
 
 			if (this.initializationAttempts < this.MAX_INIT_ATTEMPTS) {
 				// Retry initialization after a delay
@@ -243,7 +243,7 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 				throw error;
 			} else {
 				// Maximum attempts reached, continue with disconnected provider
-				log.warn(
+				log.debug(
 					'Maximum initialization attempts reached, continuing with disconnected provider',
 					false
 				);
@@ -318,7 +318,7 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 						break;
 				}
 			} catch (error) {
-				log.warn('Error in message listener:', false, error);
+				log.debug('Error in message listener:', false, error);
 			}
 		};
 
@@ -361,11 +361,15 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 				try {
 					await this.refreshProviderState();
 				} catch (error) {
-					log.warn('Failed to refresh provider state, using defaults:', false, error);
+					log.debug('Failed to refresh provider state, using defaults:', false, error);
 				}
 
 				// Emit connect event
-				this.emit('connect', { chainId: this.state.chainId || '0x1' });
+				try {
+					this.emit('connect', { chainId: this.state.chainId || '0x1' });
+				} catch (error) {
+					log.debug('Error emitting connect event:', false, error);
+				}
 
 				log.debug('Connected to content script', false);
 			} else {
@@ -373,7 +377,7 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 			}
 		} catch (error) {
 			this.state.isConnected = false;
-			log.error('Failed to connect to content script:', false, error);
+			log.debug('Failed to connect to content script:', false, error);
 			throw error;
 		}
 	}
@@ -462,6 +466,13 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 
 			// Resolve or reject the promise with proper error types
 			if (error) {
+				// Log wallet locked errors as debug/warn instead of error
+				if (error.message && error.message.includes('Wallet is locked')) {
+					log.debug('Wallet is locked, request rejected:', false, { method, id });
+				} else if (error.message && error.message.includes('not initialized')) {
+					log.debug('Wallet not initialized, request rejected:', false, { method, id });
+				}
+				
 				const rpcError = new ProviderRpcError(error.code, error.message, error.data);
 				pendingRequest.reject(rpcError);
 			} else {
@@ -470,7 +481,8 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 
 			log.debug('Inpage successfully processed response', false, { id, method });
 		} catch (error) {
-			log.warn('Error handling response:', false, error);
+			// Use debug for response handling errors
+			log.debug('Error handling response:', false, error);
 		}
 	}
 
@@ -486,7 +498,11 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 				case 'accountsChanged':
 					this.state.accounts = data || [];
 					this.state.selectedAddress = data?.[0] || null;
-					this.emit('accountsChanged', data);
+					try {
+						this.emit('accountsChanged', data);
+					} catch (error) {
+						log.debug('Error emitting accountsChanged event:', false, error);
+					}
 					break;
 
 				case 'chainChanged':
@@ -495,12 +511,20 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 					if (data) {
 						this.state.networkVersion = parseInt(data, 16).toString();
 					}
-					this.emit('chainChanged', data);
+					try {
+						this.emit('chainChanged', data);
+					} catch (error) {
+						log.debug('Error emitting chainChanged event:', false, error);
+					}
 					break;
 
 				case 'connect':
 					this.state.isConnected = true;
-					this.emit('connect', { chainId: this.state.chainId || '0x1' });
+					try {
+						this.emit('connect', { chainId: this.state.chainId || '0x1' });
+					} catch (error) {
+						log.debug('Error emitting connect event:', false, error);
+					}
 					break;
 
 				case 'disconnect':
@@ -508,7 +532,11 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 					break;
 
 				case 'message':
-					this.emit('message', data);
+					try {
+						this.emit('message', data);
+					} catch (error) {
+						log.debug('Error emitting message event:', false, error);
+					}
 					break;
 
 				default:
@@ -516,7 +544,7 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 					break;
 			}
 		} catch (error) {
-			log.warn('Error handling event:', false, error);
+			log.debug('Error handling event:', false, error);
 		}
 	}
 
@@ -547,11 +575,15 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 			await this.refreshProviderState();
 
 			// Emit reconnect event
-			this.emit('connect', { chainId: this.state.chainId });
+			try {
+				this.emit('connect', { chainId: this.state.chainId });
+			} catch (error) {
+				log.debug('Error emitting reconnect event:', false, error);
+			}
 
 			log.debug('Connection successfully restored', false);
 		} catch (error) {
-			log.error('Failed to restore connection:', false, error);
+			log.debug('Failed to restore connection:', false, error);
 			this.scheduleReconnection();
 		}
 	}
@@ -562,10 +594,14 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 		this.state.accounts = [];
 		this.state.selectedAddress = null;
 
-		this.emit('disconnect', {
-			code: 1000,
-			reason: 'Disconnected'
-		});
+		try {
+			this.emit('disconnect', {
+				code: 1000,
+				reason: 'Disconnected'
+			});
+		} catch (error) {
+			log.debug('Error emitting disconnect event:', false, error);
+		}
 	}
 
 	// Schedule reconnection attempts with exponential backoff
@@ -598,7 +634,7 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 					if (attempts < maxAttempts) {
 						attemptReconnection();
 					} else {
-						log.warn('All reconnection attempts failed', false);
+						log.debug('All reconnection attempts failed', false);
 						// Reject any remaining pending requests only after all attempts fail
 						this.rejectPendingRequests('Connection failed after multiple attempts');
 					}
@@ -643,7 +679,7 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 						this.handleConnectionLoss();
 					}
 				} catch (error) {
-					log.warn('Connection watchdog error:', false, error);
+					log.debug('Connection watchdog error:', false, error);
 				}
 			} else {
 				// If we're not connected, try to reconnect
@@ -713,7 +749,7 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 				accountsCount: this.state.accounts.length
 			});
 		} catch (error) {
-			log.warn('Failed to refresh provider state:', false, error);
+			log.debug('Failed to refresh provider state:', false, error);
 			// Don't throw - use default state
 		}
 	}
@@ -943,21 +979,25 @@ function announceProvider() {
 		hasAnnounced = true;
 		log.debug('YAKKL provider announced successfully', false);
 	} catch (error) {
-		log.error('Error announcing EIP-6963 provider', false, error);
+		log.debug('Error announcing EIP-6963 provider', false, error);
 		hasAnnounced = false;
 	}
 }
 
 // Handle provider request events from dapps
 function handleProviderRequest() {
-	log.debug('Received EIP-6963 provider request', false);
+	try {
+		log.debug('Received EIP-6963 provider request', false);
 
-	// Re-announce the provider when requested
-	window.dispatchEvent(
-		new CustomEvent('eip6963:announceProvider', {
-			detail: providerDetail
-		})
-	);
+		// Re-announce the provider when requested
+		window.dispatchEvent(
+			new CustomEvent('eip6963:announceProvider', {
+				detail: providerDetail
+			})
+		);
+	} catch (error) {
+		log.debug('Error handling provider request:', false, error);
+	}
 }
 
 // Handle page visibility changes to ensure provider remains available
@@ -973,7 +1013,7 @@ function handleVisibilityChange() {
 				}
 			})
 			.catch((error) => {
-				log.error('Error checking provider status on visibility change', false, error);
+				log.debug('Error checking provider status on visibility change', false, error);
 			});
 	}
 }
@@ -1015,7 +1055,7 @@ async function initializeInpageScript() {
 
 		log.debug('Inpage script initialized successfully', false);
 	} catch (error) {
-		log.error('Failed to initialize inpage script:', false, error);
+		log.debug('Failed to initialize inpage script:', false, error);
 
 		// Even if initialization fails, still expose the provider
 		// It might reconnect later
@@ -1026,7 +1066,7 @@ async function initializeInpageScript() {
 		try {
 			announceProvider();
 		} catch (announceError) {
-			log.error('Failed to announce provider after init failure:', false, announceError);
+			log.debug('Failed to announce provider after init failure:', false, announceError);
 		}
 	}
 }
@@ -1039,7 +1079,7 @@ function cleanup() {
 		window.removeEventListener('eip6963:requestProvider', handleProviderRequest);
 		log.debug('Inpage script cleaned up successfully', false);
 	} catch (error) {
-		log.error('Error during cleanup:', false, error);
+		log.debug('Error during cleanup:', false, error);
 	}
 }
 
@@ -1048,9 +1088,9 @@ try {
 	window.addEventListener('beforeunload', cleanup);
 } catch (e: any) {
 	if (e.message.includes('fenced frames')) {
-		log.warn('Skipping unload in fenced frame context');
+		log.debug('Skipping unload in fenced frame context', false);
 	} else {
-		log.warn(`Failed to add unload handler:`, e);
+		log.debug(`Failed to add unload handler:`, false, e);
 	}
 }
 
@@ -1058,7 +1098,7 @@ try {
 	// Start the initialization process
 	initializeInpageScript();
 } catch (e: any) {
-	log.warn(`Failed to initialize inpage script:`, e);
+	log.debug(`Failed to initialize inpage script:`, false, e);
 }
 
 // Export the provider for use in other modules if needed

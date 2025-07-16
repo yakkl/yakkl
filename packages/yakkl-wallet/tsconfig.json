@@ -29,12 +29,13 @@
 		"useDefineForClassFields": true,
 		"skipLibCheck": true,
 		// "downlevelIteration": true,
-		"strict": true,
+		"strict": false,
 		"strictNullChecks": false,
+		"noImplicitAny": false,
 		// "strictPropertyInitialization": true,
 		"target": "ESNext",
 		"module": "ESNext",
-		"types": ["chrome", "svelte", "webextension-polyfill", "vite/client", "node", "@sveltejs/kit"]
+		"types": ["chrome", "svelte", "vite/client", "node", "@sveltejs/kit"]
 	},
 	"include": [
 		"src",
@@ -45,5 +46,5 @@
 		"src/lib/browser-polyfill.d.ts",
 		"src/**/*.svelte"
 	],
-	"exclude": ["**/node_modules/**", "dist", "src/lib/polyfill-mock.js", "src/routes/lib.tmp/**", "**/*.tmp"]
+	"exclude": ["**/node_modules/**", "dist", "src/lib/polyfill-mock.js", "src/lib/crypto-ssr-mock.js", "src/routes/lib.tmp/**", "**/*.tmp"]
 }

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { transactionStore, isLoadingTx, txError } from '../stores/transaction.store';
-  import { canUseFeature } from '../stores/plan.store';
-  import { ethers } from 'ethers';
+  // Removed: canUseFeature import - send_tokens is available to all users
+  import { ethers } from 'ethers-v6';
   import GasFeeSelector from './GasFeeSelector.svelte';
 
   let {
@@ -10,12 +10,13 @@
     onSend = null,
     tokens = [],
     chain = { icon: '/images/eth.svg', name: 'Ethereum' },
-    mode = 'send' // or 'swap'
+    mode = 'send', // or 'swap'
+    selectedToken: preSelectedToken = null
   } = $props();
 
   let recipient = $state('');
   let amount = $state('');
-  let selectedToken = $state(tokens[0] || { symbol: 'ETH', icon: '/images/eth.svg' });
+  let selectedToken = $state(preSelectedToken || tokens[0] || { symbol: 'ETH', icon: '/images/eth.svg' });
   let gasEstimate = $state('');
   let estimatingGas = $state(false);
   let validationError = $state('');
@@ -30,9 +31,11 @@
   let sending = $derived($isLoadingTx);
   let error = $derived($txError);
 
-  // Update selected token when tokens change
+  // Update selected token when tokens change or preSelectedToken is set
   $effect(() => {
-    if (tokens.length > 0 && !selectedToken) {
+    if (preSelectedToken) {
+      selectedToken = preSelectedToken;
+    } else if (tokens.length > 0 && !selectedToken) {
       selectedToken = tokens[0];
     }
   });
@@ -60,8 +63,6 @@
   });
 
   async function estimateGas() {
-    if (!canUseFeature('send_tokens')) return;
-    
     estimatingGas = true;
     try {
       const isETH = selectedToken.symbol === 'ETH';
@@ -108,10 +109,7 @@
       return;
     }
 
-    if (!canUseFeature('send_tokens')) {
-      validationError = 'Send feature requires Pro plan';
-      return;
-    }
+    // Send tokens is available to all users
 
     try {
       const isETH = selectedToken.symbol === 'ETH';
@@ -153,7 +151,7 @@
 </script>
 
 {#if show}
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in"
+  <div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in"
     onclick={closeModal}
     onkeydown={e => e.key === 'Escape' && closeModal()}
     role="dialog"
@@ -285,7 +283,7 @@
       <!-- Submit Button -->
       <button 
         class="w-full p-3 rounded-xl font-semibold shadow transition-all disabled:opacity-60 disabled:cursor-not-allowed {mode === 'send' ? 'bg-green-600 hover:bg-green-700' : 'bg-purple-600 hover:bg-purple-700'} text-white"
-        disabled={!recipient || !amount || sending || !canUseFeature(mode === 'send' ? 'send_tokens' : 'swap_tokens')}
+        disabled={!recipient || !amount || sending}
         onclick={handleSubmit}
       >
         {#if sending}
@@ -293,8 +291,6 @@
             <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             {mode === 'send' ? 'Sending...' : 'Swapping...'}
           </div>
-        {:else if !canUseFeature(mode === 'send' ? 'send_tokens' : 'swap_tokens')}
-          Upgrade to Pro
         {:else}
           {mode === 'send' ? 'Send' : 'Swap'}
         {/if}

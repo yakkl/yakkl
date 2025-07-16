@@ -1,11 +1,14 @@
 import type { MessageHandlerFunc, MessageResponse } from './MessageHandler';
 import { BlockchainExplorer } from '$lib/managers/providers/explorer/BlockchainExplorer';
 import { getYakklCurrentlySelected } from '$lib/common/stores';
+import { log } from '$lib/common/logger-wrapper';
+import browser from 'webextension-polyfill';
+import { safeSendMessage } from '$lib/common/safeMessaging';
 
 export const blockchainHandlers = new Map<string, MessageHandlerFunc>([
   ['yakkl_getTransactionHistory', async (payload): Promise<MessageResponse> => {
     try {
-      const { address, limit = 10 } = payload || {};
+      const { address, limit = 0 } = payload || {};  // Default 0 means fetch all transactions
       
       if (!address) {
         return { success: false, error: 'Address is required' };
@@ -14,15 +17,73 @@ export const blockchainHandlers = new Map<string, MessageHandlerFunc>([
       // Get current chain from store
       const currentlySelected = await getYakklCurrentlySelected();
       const chainId = currentlySelected?.shortcuts?.chainId || 1;
+      
+      log.info('Blockchain handler: Getting transaction history', false, {
+        address,
+        chainId,
+        limit,
+        currentlySelected: currentlySelected?.shortcuts
+      });
 
       // Get transaction history from blockchain explorer
       const explorer = BlockchainExplorer.getInstance();
-      const transactions = await explorer.getTransactionHistory(address, chainId, limit);
+      const transactions = await explorer.getTransactionHistory(address, chainId, limit, true);
+      
+      log.info('Blockchain handler: Retrieved transactions from explorer', false, {
+        count: transactions.length,
+        firstTransaction: transactions[0] ? {
+          hash: transactions[0].hash,
+          type: transactions[0].type,
+          value: transactions[0].value,
+          timestamp: transactions[0].timestamp,
+          status: transactions[0].status
+        } : null,
+        hasTransactions: transactions.length > 0,
+        transactionHashes: transactions.slice(0, 5).map(tx => tx.hash)
+      });
 
-      return { success: true, data: transactions };
+      // Ensure transactions are serializable before returning
+      const serializedTransactions = transactions.map(tx => {
+        // Since timestamp is already a number (milliseconds) in TransactionDisplay, 
+        // we don't need to convert it
+        return { ...tx };
+      });
+
+      log.info('Blockchain handler: Returning serialized transactions', false, {
+        count: serializedTransactions.length,
+        success: true,
+        sampleData: serializedTransactions[0]
+      });
+
+      // Store transactions in session storage for persistence across contexts
+      await browser.storage.session.set({
+        [`transactions_${address}_${chainId}`]: {
+          transactions: serializedTransactions,
+          timestamp: Date.now()
+        }
+      });
+
+      // Broadcast the transaction update to all UI contexts
+      await safeSendMessage({
+        type: 'yakkl_transactionUpdate',
+        payload: {
+          address,
+          chainId,
+          transactions: serializedTransactions
+        }
+      });
+
+      const result = { success: true, data: serializedTransactions };
+      log.info('Blockchain handler: Final return value', false, result);
+      
+      return result;
     } catch (error) {
-      console.error('Failed to get transaction history:', error);
-      return { success: false, error: (error as Error).message };
+      log.error('Failed to get transaction history:', false, {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        payload
+      });
+      return { success: false, error: (error as Error).message || 'Failed to get transaction history' };
     }
   }],
 
@@ -40,6 +101,65 @@ export const blockchainHandlers = new Map<string, MessageHandlerFunc>([
       return { success: true, data: true };
     } catch (error) {
       console.error('Failed to track activity:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  }],
+
+  ['yakkl_broadcastTransactions', async (payload): Promise<MessageResponse> => {
+    try {
+      const { address, chainId, transactions } = payload || {};
+      
+      if (!address || !transactions) {
+        return { success: false, error: 'Address and transactions are required' };
+      }
+
+      // Broadcast the transaction update to all UI contexts
+      await safeSendMessage({
+        type: 'yakkl_transactionUpdate',
+        payload: {
+          address,
+          chainId,
+          transactions
+        }
+      });
+
+      log.info('Blockchain handler: Broadcasted transaction update', false, {
+        address,
+        chainId,
+        transactionCount: transactions.length
+      });
+
+      return { success: true, data: true };
+    } catch (error) {
+      log.error('Failed to broadcast transactions:', false, {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        payload
+      });
+      return { success: false, error: (error as Error).message || 'Failed to broadcast transactions' };
+    }
+  }],
+
+  ['blockchain.getTokenDetails', async (payload): Promise<MessageResponse> => {
+    try {
+      const { address, chainId } = payload || {};
+      
+      if (!address) {
+        return { success: false, error: 'Token address is required' };
+      }
+
+      // For now, return mock data
+      // TODO: Implement actual token contract reading via ethers.js
+      const mockTokenDetails = {
+        name: 'Sample Token',
+        symbol: 'SAMP',
+        decimals: 18,
+        address: address,
+        chainId: chainId || 1
+      };
+
+      return { success: true, data: mockTokenDetails };
+    } catch (error) {
+      console.error('Failed to get token details:', error);
       return { success: false, error: (error as Error).message };
     }
   }]

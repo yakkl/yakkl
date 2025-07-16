@@ -2,13 +2,12 @@
 <script lang="ts">
 	import TokenComponentList from '$lib/components/TokenComponentList.svelte';
 	import RotatingBanner from '$lib/components/RotatingBanner.svelte';
-	import SectionCard from '$lib/components/SectionCard.svelte';
 	import { browser_ext, browserSvelte } from '$lib/common/environment';
 	import WalletIcon from '$lib/components/icons/WalletIcon.svelte';
 	import TokenIcon from '$lib/components/icons/TokenIcon.svelte';
 	import NewsIcon from '$lib/components/icons/NewsIcon.svelte';
 	import ToolIcon from '$lib/components/icons/ToolIcon.svelte';
-	import { onDestroy, onMount } from 'svelte';
+	import { onMount } from 'svelte';
 	import {
 		getSettings,
 		setSettingsStorage,
@@ -27,19 +26,18 @@
 	import { setBadgeText } from '$lib/utilities/utilities';
 	import Copyright from '$lib/components/Copyright.svelte';
 	import BookmarkedArticles from '$lib/components/BookmarkedArticles.svelte';
+	import { ExtensionRSSFeedService } from '$lib/managers/ExtensionRSSFeedService';
 	// import LockedSectionCard from '$lib/components/LockedSectionCard.svelte';
 	import { isProLevel } from '$lib/common/utils';
 	import Upgrade from '$lib/components/Upgrade.svelte';
-	import GenericFooter from '$lib/components/GenericFooter.svelte';
+	// import GenericFooter from '$lib/components/GenericFooter.svelte';
 	import UpgradeFooter from '$lib/components/UpgradeFooter.svelte';
-	import Placeholder from '$lib/components/Placeholder.svelte';
+	// import Placeholder from '$lib/components/Placeholder.svelte';
 	import DynamicRSSNewsFeed from '$lib/components/DynamicRSSNewsFeed.svelte';
 	import PlanBadge from '$lib/components/PlanBadge.svelte';
-	import Sponsorship, { type Sponsor } from '$lib/components/Sponsorship.svelte';
-	import SponsorIcon from '$lib/components/icons/SponsorIcon.svelte';
+	import { type Sponsor } from '$lib/components/Sponsorship.svelte';
 	import ScrollIndicator from '$lib/components/ScrollIndicator.svelte';
 	import SimpleTooltip from '$lib/components/SimpleTooltip.svelte';
-	import { goto } from '$app/navigation';
 
 	let showUpgradeModal = $state(false);
 	let showEthConverter = $state(false);
@@ -58,16 +56,17 @@
 	let planType = $state('Pro (Trial)');
 	let trialEnds = $state('2025-07-01');
 
-	let storageListener: {
-		(changes: any, areaName: any): void;
-		(changes: { [key: string]: chrome.storage.StorageChange }, areaName: string): void;
-	};
-
 	// List of crypto news RSS feeds
 	const cryptoFeeds = [
 		'https://cointelegraph.com/rss/?utm_source=yakkl&utm_medium=extension',
+		'https://cryptonews.com/news/feed/?utm_source=yakkl&utm_medium=extension',
+		'https://decrypt.co/feed/?utm_source=yakkl&utm_medium=extension',
 		'https://www.coindesk.com/arc/outboundfeeds/rss/?utm_source=yakkl&utm_medium=extension',
-		'https://cryptonews.com/news/feed/?utm_source=yakkl&utm_medium=extension'
+		'https://thedefiant.io/api/feed',
+		'https://cryptopotato.com/feed/',
+		'https://www.cnbc.com/id/10000664/device/rss/rss.html',
+		'https://cryptoslate.com/feed/',
+		'https://www.cryptobreaking.com/feed/'
 	];
 
 	// WebSocket URL for dynamic feed
@@ -242,19 +241,21 @@
 			await loadDefaultTokens();
 			updateCombinedTokenStore();
 			await setYakklCombinedTokenStorage(get(yakklCombinedTokenStore));
+
+			// Clear any cached CoinDesk feeds to prevent preload warnings
+			try {
+				const rssService = ExtensionRSSFeedService.getInstance();
+				await rssService.clearCachedFeed('https://www.coindesk.com/arc/outboundfeeds/rss/?utm_source=yakkl&utm_medium=extension');
+				await rssService.clearCachedFeed('https://www.coindesk.com/arc/outboundfeeds/rss/');
+				log.info('Cleared CoinDesk cached feeds to prevent preload warnings');
+			} catch (error) {
+				log.debug('Error clearing CoinDesk cached feeds:', false, error);
+			}
 		} catch (error) {
 			log.warn('Error initializing sidepanel:', false, error);
 		}
 	});
 
-	onDestroy(() => {
-		if (!browserSvelte) return;
-
-		// Clean up listener
-		if (storageListener) {
-			browser_ext.storage.onChanged.removeListener(storageListener);
-		}
-	});
 
 	function onComplete() {
 		showUpgradeModal = true;
@@ -263,11 +264,6 @@
 	function handleUpgradeComplete() {
 		showUpgradeModal = false;
 		// Refresh any necessary data
-	}
-
-	function handleUpgradeClose() {
-		showUpgradeModal = false;
-		// Handle any cleanup
 	}
 
 	async function handleLegalAccept() {
@@ -383,7 +379,7 @@
 
 <div class="flex flex-col h-screen yakkl-body text-zinc-800 dark:text-zinc-100 relative">
 	<header
-		class="yakkl-header backdrop-blur-sm flex justify-between items-center relative z-10"
+		class="yakkl-header fixed-top backdrop-blur-sm flex justify-between items-center relative z-10"
 	>
 		<div class="flex items-center gap-3">
 			<img src="/images/logoBullFav128x128.png" alt="YAKKL" class="w-8 h-8" />
@@ -460,8 +456,6 @@
 					<div class="yakkl-card-title flex items-center gap-2 mb-4">
 						<NewsIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
 						<span>Crypto News</span>
-						<div class="flex-1"></div>
-						<div class="text-xs text-zinc-400 dark:text-zinc-500">Live Updates</div>
 					</div>
 					<!-- Use DynamicRSSNewsFeed for WebSocket feed -->
 					{#if showDynamicNewsfeeds}
@@ -482,6 +476,7 @@
 							maxItemsPerFeed={newsfeedsLockedCount}
 							className="bg-transparent"
 							locked={false}
+							title=""
 						/>
 					{/if}
 				</div>
@@ -563,20 +558,20 @@
 	</ScrollIndicator>
 
 	<!-- Responsive message for narrow viewports -->
-	<div class="md:hidden yakkl-card relative z-10 mx-5 mb-4 text-center">
+	<div class="md:hidden yakkl-card relative z-10 mx-5 mt-2 mb-4 text-center">
 		<div class="text-sm text-zinc-600 dark:text-zinc-400">
 			👈 💡 Drag the edge of this panel to make it wider and discover more features!
 		</div>
 	</div>
 
 	<footer
-		class="yakkl-footer backdrop-blur-sm text-xs text-center flex flex-col items-center justify-center gap-1 relative z-10"
+		class="yakkl-footer fixed-bottom h-[6rem] backdrop-blur-sm text-xs text-center flex flex-col items-center justify-center gap-1 relative z-10"
 	>
 		<div class="inline-flex items-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-3 py-1 rounded-full text-xs font-medium shadow-md">
 			<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
 			</svg>
-			YAKKL v2 Insights
+			YAKKL Insights
 		</div>
 		<Copyright />
 	</footer>

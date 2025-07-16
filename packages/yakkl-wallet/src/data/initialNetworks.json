@@ -4,7 +4,7 @@
 		{
 			"name": "Ethereum",
 			"symbol": "ETH",
-			"icon": "/images/ethereum.svg",
+			"icon": "/images/eth.svg",
 			"types": [
 				{ "type": "mainnet", "release": "Production", "name": "Mainnet", "chainId": "0x1" }
 			],

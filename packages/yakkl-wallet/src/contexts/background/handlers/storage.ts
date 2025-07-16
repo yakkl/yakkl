@@ -1,5 +1,6 @@
 import type { MessageHandlerFunc, MessageResponse } from './MessageHandler';
 import browser from 'webextension-polyfill';
+import { sendToExtensionUI } from '$lib/common/safeMessaging';
 
 export const storageHandlers = new Map<string, MessageHandlerFunc>([
   ['storage.get', async (payload): Promise<MessageResponse> => {
@@ -44,7 +45,7 @@ export const storageHandlers = new Map<string, MessageHandlerFunc>([
 
 browser.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === 'local') {
-    browser.runtime.sendMessage({
+    sendToExtensionUI({
       type: 'storage.changed',
       response: { success: true, data: changes }
     });

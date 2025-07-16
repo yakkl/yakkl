@@ -62,11 +62,16 @@
 			{#each visibleItems as item, index}
 				<div class="relative group">
 					<div
-						class="group-hover:bg-gray-50 dark:group-hover:bg-zinc-800/50 transition-colors duration-200"
+						class="group-hover:bg-gray-50 dark:group-hover:bg-zinc-800/50 transition-colors duration-200 relative"
 					>
 						<NewsFeedLineView newsItem={item} {locked} />
+						<ArticleControls 
+							article={item} 
+							bookmarkEnabled={true}
+							printEnabled={true}
+							deleteEnabled={false}
+						/>
 					</div>
-					<ArticleControls article={item} />
 					{#if index < visibleItems.length - 1}
 						<div class="flex justify-center">
 							<div class="w-[80%] h-[1px] bg-gray-200 dark:bg-gray-700"></div>
@@ -100,11 +105,16 @@
 						{#each remainingItems as item, index}
 							<div class="relative group">
 								<div
-									class="group-hover:bg-gray-50 dark:group-hover:bg-zinc-800/50 transition-colors duration-200"
+									class="group-hover:bg-gray-50 dark:group-hover:bg-zinc-800/50 transition-colors duration-200 relative"
 								>
 									<NewsFeedLineView newsItem={item} />
+									<ArticleControls 
+										article={item} 
+										bookmarkEnabled={true}
+										printEnabled={true}
+										deleteEnabled={false}
+									/>
 								</div>
-								<ArticleControls article={item} />
 								{#if index < remainingItems.length - 1}
 									<div class="flex justify-center">
 										<div class="w-[80%] h-[1px] bg-gray-200 dark:bg-gray-700"></div>

@@ -26,9 +26,10 @@ import { handleReadOnlyRequest } from '$lib/common/listeners/background/readMeth
 import { handleSimulationRequest } from '$lib/common/listeners/background/simulationMethodHandler';
 import { handleWriteRequest } from '$lib/common/listeners/background/writeMethodHandler';
 import { initContextTracker } from './context';
-import { registerWalletLockHandlers } from '$lib/common/lockWallet';
-import { handleMessage } from '$contexts/background/handlers/MessageHandler';
+import { registerWalletLockHandlers, registerBackgroundWalletLockHandlers } from '$lib/common/lockWallet';
+// import { handleMessage } from '$contexts/background/handlers/MessageHandler';
 import { validateBackgroundRequest, validateMethodParams, logSecurityEvent } from './requestValidator';
+import { showPopup } from './ui';
 
 // Type definitions for our unified architecture
 export type RuntimePort = Runtime.Port;
@@ -279,6 +280,18 @@ browser.runtime.onConnect.addListener((port: RuntimePort) => {
 	});
 });
 
+// Simple message handler function for runtime messages
+async function handleMessage(request: any, sender: Runtime.MessageSender): Promise<any> {
+	log.debug('Handling message:', false, { type: request?.type });
+	
+	switch (request?.type) {
+		// The 'popout' case is handled by unifiedMessageListener to avoid duplicate popups
+		default:
+			// For unhandled message types, return null
+			return null;
+	}
+}
+
 // Handle one-off runtime messages (for BaseService/safeClientSendMessage)
 browser.runtime.onMessage.addListener((request: any, sender: Runtime.MessageSender, sendResponse: (response?: any) => void) => {
 	log.debug('Background: Runtime message received:', false, {
@@ -351,8 +364,11 @@ async function handleProviderMessage(message: any, port: RuntimePort, portId: st
 					
 					// Send appropriate error response
 					if (!validation.isAuthenticated) {
+						// Log as debug since this is an expected condition when wallet is locked
+						log.debug('Request rejected - wallet is locked or not initialized', false, { method, origin });
 						sendErrorResponse(port, message.id, new Error('Wallet is locked or not initialized'));
 					} else {
+						log.warn('Request rejected - unauthorized', false, { method, origin, reason: validation.reason });
 						sendErrorResponse(port, message.id, new Error('Unauthorized: ' + validation.reason));
 					}
 					return;
@@ -717,7 +733,8 @@ async function initializeBackground() {
 
 		if (typeof chrome !== 'undefined' && chrome.sidePanel) {
 			log.info('Background initializing: chrome.sidePanel is defined', false);
-			chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }); // Using sidepanel as default now
+			// Disable automatic side panel opening - we'll handle popup/sidepanel manually
+			// chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 		}
 
 		// Initialize core components
@@ -745,7 +762,10 @@ async function initializeBackground() {
 		initContextTracker();
 		
 		// Register wallet lock handlers
+		// Register general handlers
 		registerWalletLockHandlers();
+		// Register background-specific handlers (pass browser API directly)
+		registerBackgroundWalletLockHandlers(browser);
 
 		log.debug('Background script initialized successfully', false);
 	} catch (error) {
@@ -805,6 +825,13 @@ async function getActiveTab(): Promise<ActiveTab | null> {
 
 // Export the connection manager for testing and debugging
 (globalThis as any).connectionManager = connectionManager;
+
+// Handle extension icon clicks - open popup window
+browser.action.onClicked.addListener(async (tab) => {
+	log.info('Extension icon clicked', false, { tab });
+	// Open the popup using the singleton manager
+	await showPopup('', '');
+});
 
 // Initialize immediately on load
 initializeBackground();

@@ -11,6 +11,7 @@
 	import RefreshIcon from './icons/RefreshIcon.svelte';
 	import { browser_ext } from '$lib/common/environment';
 	import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
+	import { rssStore } from '$lib/stores/rss.store';
 
 	const FIVE_MINUTES = 5 * 60 * 1000; // 5 minutes in milliseconds
 	const THIRTY_MINUTES = 30 * 60 * 1000; // 30 minutes in milliseconds
@@ -40,47 +41,92 @@
 	// Override interval if locked
 	const effectiveInterval = locked ? THIRTY_MINUTES : interval;
 
+	// Subscribe to store values
 	let newsItems = $state<RSSItem[]>([]);
 	let isLoading = $state(true);
+	let isUpdating = $state(false);
+	let lastUpdateTime = $state<Date | null>(null);
 	let error = $state<string | null>(null);
+	let isFirstLoad = $state(true);
 
 	const rssService = ExtensionRSSFeedService.getInstance();
 	const timerManager = UnifiedTimerManager.getInstance();
 	const timerId = 'rss-feed-refresh';
 
-	onMount(() => {
-		loadFeeds();
+	// Subscribe to store changes
+	const unsubscribeStore = rssStore.subscribe(items => {
+		newsItems = items;
+		// Only set isFirstLoad to false if we have items
+		if (items.length > 0) {
+			isFirstLoad = false;
+		}
+	});
+
+	const unsubscribeLoading = rssStore.isLoading.subscribe(loading => {
+		// Only show loading spinner on first load when we have no items
+		if (newsItems.length === 0) {
+			isLoading = loading;
+		}
+	});
+
+	const unsubscribeUpdating = rssStore.isUpdating.subscribe(updating => {
+		isUpdating = updating;
+	});
+
+	const unsubscribeLastUpdate = rssStore.lastUpdateTime.subscribe(time => {
+		lastUpdateTime = time;
+	});
+
+	onMount(async () => {
+		// Initialize store if needed
+		await rssStore.init();
+		
+		// Check if we have cached articles
+		if (newsItems.length === 0) {
+			// No cache, show loading and fetch immediately
+			isLoading = true;
+			await fetchAllFeeds();
+		} else {
+			// We have cache, update in background
+			isLoading = false;
+			backgroundUpdate();
+		}
 
 		// Set up refresh interval using UnifiedTimerManager
-		timerManager.addInterval(timerId, loadFeeds, effectiveInterval);
+		timerManager.addInterval(timerId, backgroundUpdate, effectiveInterval);
 		timerManager.startInterval(timerId);
 
 		// Listen for updates from background script
-		const messageListener = (message: any, sender: any, sendResponse: any): true | void => {
+		const messageListener = (message: any, sender: any, sendResponse: any): boolean => {
 			if (message.type === 'RSS_FEED_UPDATE') {
-				loadFeeds();
-				return true; // Indicate we're handling this message
+				backgroundUpdate();
+				return true;
 			}
-			// Return nothing for messages we don't handle
+			return false;
 		};
 
-		browser_ext.runtime.onMessage.addListener(messageListener);
+		browser_ext.runtime.onMessage.addListener(messageListener as any);
 
-		return () => {
+		// Return cleanup function
+		onDestroy(() => {
+			unsubscribeStore();
+			unsubscribeLoading();
+			unsubscribeUpdating();
+			unsubscribeLastUpdate();
 			timerManager.stopInterval(timerId);
 			timerManager.removeInterval(timerId);
-			browser_ext.runtime.onMessage.removeListener(messageListener);
-		};
+			browser_ext.runtime.onMessage.removeListener(messageListener as any);
+		});
 	});
 
-	async function loadFeeds() {
-		isLoading = true;
+	// Fetch all feeds and update the store
+	async function fetchAllFeeds() {
+		rssStore.setLoading(true);
 		error = null;
 
 		try {
 			const allItems: RSSItem[] = [];
 
-			// Try to fetch fresh data
 			const feedPromises = feedUrls.map(
 				(url: string): Promise<RSSFeed | null> =>
 					rssService.fetchFeed(url).catch((err: unknown): null => {
@@ -91,76 +137,105 @@
 
 			const feeds = await Promise.all(feedPromises);
 
-			// Combine and sort items from all feeds
 			feeds.forEach((feed) => {
 				if (feed) {
 					allItems.push(...feed.items.slice(0, maxItemsPerFeed));
 				}
 			});
 
-			// Sort by date (assuming the date strings can be parsed)
-			allItems.sort((a, b) => {
-				const dateA = parseRelativeDate(a.date);
-				const dateB = parseRelativeDate(b.date);
-				return dateB.getTime() - dateA.getTime();
-			});
-
-			newsItems = allItems;
+			if (allItems.length > 0) {
+				await rssStore.setArticles(allItems);
+			} else if (newsItems.length === 0) {
+				// Only show error if we have no existing content
+				error = 'No articles found';
+			}
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to load RSS feeds';
+			if (newsItems.length === 0) {
+				error = err instanceof Error ? err.message : 'Failed to load RSS feeds';
+			}
 			log.warn('RSS feed error:', false, err);
 		} finally {
+			rssStore.setLoading(false);
 			isLoading = false;
 		}
 	}
 
-	async function refreshFeeds() {
-		// Send message to background script to refresh feeds
-		// chrome.runtime.sendMessage({ action: 'fetchRSSFeeds' }, (response) => {
-		//   if (response.success) {
-		loadFeeds();
-		//   }
-		// });
+	// Update feeds in background without clearing existing content
+	async function backgroundUpdate() {
+		if (isUpdating) return; // Prevent concurrent updates
+		
+		rssStore.setUpdating(true);
+
+		try {
+			const allItems: RSSItem[] = [];
+
+			const feedPromises = feedUrls.map(
+				(url: string): Promise<RSSFeed | null> =>
+					rssService.fetchFeed(url).catch((err: unknown): null => {
+						log.debug(`Background update failed for ${url}:`, false, err);
+						return null;
+					})
+			);
+
+			const feeds = await Promise.all(feedPromises);
+
+			feeds.forEach((feed) => {
+				if (feed) {
+					allItems.push(...feed.items.slice(0, maxItemsPerFeed));
+				}
+			});
+
+			if (allItems.length > 0) {
+				// Add new articles to the store (it will handle deduplication)
+				await rssStore.addArticles(allItems);
+			}
+		} catch (err) {
+			log.debug('Background RSS update error:', false, err);
+		} finally {
+			rssStore.setUpdating(false);
+		}
 	}
 
-	function parseRelativeDate(dateStr: string): Date {
+	// Manual refresh - clear and reload
+	async function refreshFeeds() {
+		if (isLoading || isUpdating) return;
+		
+		// Clear existing items to show full refresh
+		await rssStore.clear();
+		newsItems = [];
+		isLoading = true;
+		await fetchAllFeeds();
+	}
+
+	// Format last update time
+	function formatLastUpdate(date: Date | null): string {
+		if (!date) return '';
+		
 		const now = new Date();
-
-		if (dateStr === 'Just now') {
-			return now;
-		}
-
-		const match = dateStr.match(/(\d+)\s+(minute|hour|day)s?\s+ago/);
-		if (match) {
-			const value = parseInt(match[1]);
-			const unit = match[2];
-
-			switch (unit) {
-				case 'minute':
-					return new Date(now.getTime() - value * 60 * 1000);
-				case 'hour':
-					return new Date(now.getTime() - value * 60 * 60 * 1000);
-				case 'day':
-					return new Date(now.getTime() - value * 24 * 60 * 60 * 1000);
-			}
-		}
-
-		if (dateStr === 'Yesterday') {
-			return new Date(now.getTime() - 24 * 60 * 60 * 1000);
-		}
-
-		// Default to now if we can't parse
-		return now;
+		const diff = now.getTime() - date.getTime();
+		const minutes = Math.floor(diff / 60000);
+		
+		if (minutes < 1) return 'Just updated';
+		if (minutes === 1) return '1 minute ago';
+		if (minutes < 60) return `${minutes} minutes ago`;
+		
+		const hours = Math.floor(minutes / 60);
+		if (hours === 1) return '1 hour ago';
+		if (hours < 24) return `${hours} hours ago`;
+		
+		return 'More than a day ago';
 	}
 </script>
 
 {#if show}
 	<div class={className}>
-		{#if isLoading}
+		{#if isLoading && newsItems.length === 0}
+			<!-- Show centered loading spinner only on first load -->
 			<div class="flex items-center justify-center p-8">
 				<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
 			</div>
-		{:else if error}
+		{:else if error && newsItems.length === 0}
+			<!-- Only show error if we have no content at all -->
 			<div class="flex flex-col items-center justify-center p-8 text-red-500">
 				<p class="text-sm font-medium">Error loading news</p>
 				<p class="text-xs mt-1">{error}</p>
@@ -172,17 +247,61 @@
 				</button>
 			</div>
 		{:else}
-			<div class="flex items-center justify-between mb-0">
-				<h2 class="text-lg font-semibold">{title}</h2>
-				<button
-					onclick={refreshFeeds}
-					class="p-1 text-blue-500 hover:text-blue-600 transition-colors"
-					aria-label="Refresh feeds"
-				>
-					<RefreshIcon className="w-4 h-4" />
-				</button>
+			<!-- Header with title and update indicator -->
+			<div class="flex items-center justify-between mb-2 relative">
+				{#if title}
+					<h2 class="text-lg font-semibold">{title}</h2>
+				{/if}
+				<div class="flex items-center gap-3 {!title ? 'ml-auto' : ''}">
+					{#if isUpdating}
+						<!-- Update indicator -->
+						<div class="flex items-center gap-2 text-xs text-zinc-400 dark:text-zinc-500">
+							<div class="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-400"></div>
+							<span class="animate-pulse">Updating articles...</span>
+						</div>
+					{:else if lastUpdateTime && !isFirstLoad}
+						<!-- Last update time -->
+						<span class="text-xs text-zinc-400 dark:text-zinc-500">
+							{formatLastUpdate(lastUpdateTime)}
+						</span>
+					{/if}
+					
+					<!-- Refresh button -->
+					<button
+						onclick={refreshFeeds}
+						class="p-1 text-blue-500 hover:text-blue-600 transition-colors"
+						aria-label="Refresh feeds"
+						disabled={isLoading || isUpdating}
+						title="Refresh articles"
+					>
+						<RefreshIcon 
+							className="w-4 h-4 {isLoading || isUpdating ? 'opacity-50' : ''}" 
+						/>
+					</button>
+				</div>
 			</div>
-			<NewsFeed {newsItems} {maxVisibleItems} {className} {locked} {maxItemsPerFeed} />
+			
+			<!-- News items -->
+			{#if newsItems.length > 0}
+				<NewsFeed 
+					{newsItems} 
+					{maxVisibleItems} 
+					{className} 
+					{locked} 
+					{maxItemsPerFeed} 
+				/>
+			{:else if !isLoading}
+				<!-- No articles state -->
+				<div class="flex flex-col items-center justify-center p-8 text-zinc-500">
+					<p class="text-sm">No articles available</p>
+					<button
+						onclick={refreshFeeds}
+						class="mt-2 text-xs text-blue-500 hover:text-blue-600"
+					>
+						Load articles
+					</button>
+				</div>
+			{/if}
 		{/if}
 	</div>
 {/if}

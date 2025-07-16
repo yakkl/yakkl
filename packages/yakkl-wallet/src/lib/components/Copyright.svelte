@@ -38,7 +38,7 @@
 	let displayPlan = $derived(formatPlanType(planType || registered));
 </script>
 
-<div class={`inline-flex items-center gap-2 w-full justify-center text-center ${className}`}>
+<div class={`flex items-center gap-2 justify-center ${className}`}>
 	<!-- Blue highlighted plan type at the beginning -->
 	{#if displayPlan}
 		<span class="inline-flex items-center px-2 py-0.5 rounded-full shadow text-[10px] font-semibold opacity-80

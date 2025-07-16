@@ -182,6 +182,13 @@ class ContentScriptManager {
 	// Check if we can add beforeunload handlers (not allowed in fenced frames)
 	private canAddBeforeUnloadHandler(): boolean {
 		try {
+			// Check if we're in a fenced frame context
+			// @ts-ignore - window.fence is non-standard
+			if (typeof window !== 'undefined' && window.fence) {
+				log.debug('Detected fenced frame context, skipping beforeunload handler', false);
+				return false;
+			}
+
 			// Try to add and immediately remove a beforeunload handler
 			const testHandler = () => {};
 			window.addEventListener('beforeunload', testHandler);
@@ -189,13 +196,13 @@ class ContentScriptManager {
 			return true;
 		} catch (e: any) {
 			// If we get a fenced frame error, we can't add the handler
-			if (e.message && e.message.includes('fenced frames')) {
-				log.debug('Cannot add beforeunload handler in fenced frame context', false);
+			if (e.message && (e.message.includes('fenced frames') || e.message.includes('prohibited'))) {
+				log.debug('Cannot add beforeunload handler in restricted context', false);
 				return false;
 			}
-			// For other errors, log but allow the handler
-			log.warn('Unexpected error testing beforeunload handler:', false, e);
-			return true;
+			// For other errors, log but don't allow the handler to be safe
+			log.debug('Error testing beforeunload handler, skipping:', false, e);
+			return false;
 		}
 	}
 
@@ -223,13 +230,14 @@ class ContentScriptManager {
 				
 				this.port = browser.runtime.connect({ name: YAKKL_DAPP });
 			} catch (error) {
-				if (error instanceof Error && error.message.includes('Extension context invalidated')) {
-					// throw new Error('Extension context invalidated during connection');
-					log.warn('Extension context invalidated during connection', false, error);
-					return;
+				if (error instanceof Error) {
+					if (error.message.includes('Extension context invalidated') ||
+					    error.message.includes('Receiving end does not exist')) {
+						// Expected errors during initialization - suppress them
+						return;
+					}
 				}
 				log.warn('Error creating connection port', false, error);
-				// throw error;
 			}
 
 			if (!this.port) {
@@ -264,27 +272,35 @@ class ContentScriptManager {
 
 	// Set up page lifecycle event handlers
 	private setupPageLifecycleHandlers() {
-		// Handle bfcache restoration
-		window.addEventListener('pageshow', (event) => {
-			if (event.persisted) {
-				log.debug('Page restored from bfcache, checking connection...', false);
-				this.handleBfcacheRestore();
-			}
-		});
+		try {
+			// Handle bfcache restoration
+			window.addEventListener('pageshow', (event) => {
+				if (event.persisted) {
+					log.debug('Page restored from bfcache, checking connection...', false);
+					this.handleBfcacheRestore();
+				}
+			});
 
-		// Handle page hide (entering bfcache)
-		window.addEventListener('pagehide', (event) => {
-			if (event.persisted) {
-				log.debug('Page entering bfcache, preparing for suspension...', false);
-				this.prepareForBfcache();
-			}
-		});
+			// Handle page hide (entering bfcache)
+			window.addEventListener('pagehide', (event) => {
+				if (event.persisted) {
+					log.debug('Page entering bfcache, preparing for suspension...', false);
+					this.prepareForBfcache();
+				}
+			});
 
-		// Handle page unload - safely check if we can add beforeunload
-		if (this.canAddBeforeUnloadHandler()) {
-			window.addEventListener('beforeunload', () => {
-				log.debug('Page unloading, cleaning up...', false);
-				this.cleanup();
+			// Handle page unload - safely check if we can add beforeunload
+			if (this.canAddBeforeUnloadHandler()) {
+				window.addEventListener('beforeunload', () => {
+					log.debug('Page unloading, cleaning up...', false);
+					this.cleanup();
+				});
+			}
+		} catch (error) {
+			// Catch any errors from adding event listeners (e.g., in fenced frames)
+			log.debug('Could not set up some page lifecycle handlers:', false, {
+				error: error instanceof Error ? error.message : error,
+				context: 'fenced frames or restricted context'
 			});
 		}
 	}
@@ -338,33 +354,41 @@ class ContentScriptManager {
 	private setupMessageHandlers() {
 		// Handle messages from inpage script
 		window.addEventListener('message', (event) => {
-			if (event.data && event.data.type) {
-				switch (event.data.type) {
-					case 'YAKKL_TEST_REQUEST':
-						// Respond to test messages from inpage script
-						safeWindowPostMessage(
-							{
-								type: 'YAKKL_TEST_RESPONSE',
-								id: event.data.id
-							},
-							'test-response'
-						);
-						break;
+			try {
+				if (event.data && event.data.type) {
+					switch (event.data.type) {
+						case 'YAKKL_TEST_REQUEST':
+							// Respond to test messages from inpage script
+							safeWindowPostMessage(
+								{
+									type: 'YAKKL_TEST_RESPONSE',
+									id: event.data.id
+								},
+								'test-response'
+							);
+							break;
 
-					case 'YAKKL_PING':
-						// Respond to ping messages
-						safeWindowPostMessage(
-							{
-								type: 'YAKKL_PONG',
-								id: event.data.id
-							},
-							'ping-response'
-						);
-						break;
+						case 'YAKKL_PING':
+							// Respond to ping messages
+							safeWindowPostMessage(
+								{
+									type: 'YAKKL_PONG',
+									id: event.data.id
+								},
+								'ping-response'
+							);
+							break;
 
-					default:
-						this.handleInpageMessage(event);
+						default:
+							this.handleInpageMessage(event);
+					}
 				}
+			} catch (error) {
+				// Silently log errors to avoid disrupting page functionality
+				log.debug('Error handling window message:', false, {
+					error: error instanceof Error ? error.message : error,
+					messageType: event.data?.type
+				});
 			}
 		});
 

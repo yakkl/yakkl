@@ -7,12 +7,12 @@
 			"subClass": "",
 			"description": "Ethereum crypto",
 			"status": "enabled",
-			"icon": "/images/ethereum.svg",
+			"icon": "/images/eth.svg",
 			"symbol": "ETH",
 			"network": {
 				"network": "Ethereum",
 				"symbol": "ETH",
-				"icon": "/images/ethereum.svg",
+				"icon": "/images/eth.svg",
 				"types": [
 					{ "type": "mainnet", "release": "Production", "name": "Mainnet", "chainId": "0x1" },
 					{ "type": "testnet", "release": "Test", "name": "Sepolia", "chainId": "0xaa36a7" }
@@ -26,12 +26,12 @@
 			"subClass": "",
 			"description": "Ethereum NFT",
 			"status": "enabled",
-			"icon": "/images/ethereum.svg",
+			"icon": "/images/eth.svg",
 			"symbol": "ETH",
 			"network": {
 				"network": "Ethereum",
 				"symbol": "ETH",
-				"icon": "/images/ethereum.svg",
+				"icon": "/images/eth.svg",
 				"types": [
 					{ "type": "mainnet", "release": "Production", "name": "Mainnet", "chainId": "0x1" },
 					{ "type": "testnet", "release": "Test", "name": "Sepolia", "chainId": "0xaa36a7" }
@@ -45,12 +45,12 @@
 			"subClass": "",
 			"description": "Ethereum RWA (Real World Asset)",
 			"status": "enabled",
-			"icon": "/images/ethereum.svg",
+			"icon": "/images/eth.svg",
 			"symbol": "ETH",
 			"network": {
 				"network": "Ethereum",
 				"symbol": "ETH",
-				"icon": "/images/ethereum.svg",
+				"icon": "/images/eth.svg",
 				"types": [
 					{ "type": "mainnet", "release": "Production", "name": "Mainnet", "chainId": "0x1" },
 					{ "type": "testnet", "release": "Test", "name": "Sepolia", "chainId": "0xaa36a7" }

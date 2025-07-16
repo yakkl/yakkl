@@ -1,5 +1,5 @@
-import { STORAGE_YAKKL_PREFERENCES } from '$lib/common/constants';
-import type { Preferences } from '$lib/common/interfaces';
+import { STORAGE_YAKKL_PREFERENCES, STORAGE_YAKKL_SETTINGS } from '$lib/common/constants';
+import type { Preferences, Settings } from '$lib/common/interfaces';
 import type { Windows } from 'webextension-polyfill';
 import browser from 'webextension-polyfill';
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from '$lib/common/storage';
@@ -91,22 +91,47 @@ export async function showExtensionPopup(
 			left = 0;
 		}
 
-		// Clean up the URL - remove 'index.html' prefix if present
-		let finalUrl = url || 'index.html';
-		if (finalUrl.startsWith('index.html#')) {
-			// Convert index.html#/route to just the route
-			finalUrl = finalUrl.replace('index.html#', '');
-		}
-		
-		return browser_ext.windows.create({
-			url: browser_ext.runtime.getURL(finalUrl),
+		// Use the URL as-is since v2 uses actual HTML files
+		let finalUrl = url || 'home.html';
+		const fullUrl = browser_ext.runtime.getURL(finalUrl);
+
+		log.info('showExtensionPopup: Creating window', false, {
+			finalUrl,
+			fullUrl,
 			type: 'popup',
-			left: left,
-			top: top,
+			left,
+			top,
 			width: popupWidth,
 			height: popupHeight,
 			focused: true
 		});
+
+		try {
+			const window = await browser_ext.windows.create({
+				url: fullUrl,
+				type: 'popup',
+				left: left,
+				top: top,
+				width: popupWidth,
+				height: popupHeight,
+				focused: true
+			});
+			
+			log.info('showExtensionPopup: Window created successfully', false, { 
+				windowId: window?.id,
+				windowState: window?.state 
+			});
+			
+			return window;
+		} catch (error) {
+			log.error('showExtensionPopup: Failed to create window', false, {
+				error: error instanceof Error ? error.message : error,
+				errorStack: error instanceof Error ? error.stack : undefined,
+				finalUrl,
+				fullUrl
+			});
+			throw error;
+		}
 	} catch (error) {
 		log.error('Error in showExtensionPopup', false, error);
 		return Promise.reject(); // May want to do something else here.
@@ -119,25 +144,40 @@ export async function showPopup(url: string = '', pinnedLocation: string = '0'):
 	try {
 		// Perform comprehensive authentication validation
 		const isAuthenticated = await quickAuthCheck();
-		
+
 		// If not authenticated, redirect to appropriate page
 		if (!isAuthenticated) {
-			const settings = await getSettings();
-			
-			// Determine the appropriate redirect
-			if (!settings?.init) {
-				url = 'index.html#/register';
-			} else if (!settings?.legal?.termsAgreed) {
-				url = 'index.html#/legal';
+			// const settings = await getSettings();
+      const settings = await getObjectFromLocalStorage<Settings>(STORAGE_YAKKL_SETTINGS);
+			log.info('showPopup: settings =', false, settings);
+			log.info('showPopup: settings.init =', false, settings?.init);
+			log.info('showPopup: settings.legal =', false, settings?.legal);
+
+			// Only go to register if settings.init is explicitly false or undefined (very first time)
+			// If settings.init is true, user has already registered and should go to login
+			if (settings?.init === true) {
+				// User has already initialized, check if they need to agree to terms
+				if (!settings?.legal?.termsAgreed) {
+					url = 'legal.html';
+				} else {
+					url = 'login.html';
+				}
 			} else {
-				url = 'index.html#/login';
+				// settings.init is false/undefined - first time user
+				url = 'register.html';
 			}
-			
+
 			log.info('showPopup: User not authenticated, redirecting to:', false, url);
+		} else if (!url || url === '') {
+			// For authenticated users, use home.html
+			url = 'home.html';
+			log.info('showPopup: User authenticated, opening main wallet interface');
 		}
-		
+
 		const windowManager = SingletonWindowManager.getInstance();
+		log.info('showPopup: About to call windowManager.showPopup', false, { url, pinnedLocation });
 		await windowManager.showPopup(url, pinnedLocation);
+		log.info('showPopup: windowManager.showPopup completed successfully');
 
 		// showExtensionPopup(428, 926, url, pinnedLocation).then(async (result) => {
 		//   browser_ext.windows.update(result.id, {drawAttention: true});

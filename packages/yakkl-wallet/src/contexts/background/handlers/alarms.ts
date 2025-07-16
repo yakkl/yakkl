@@ -1,5 +1,6 @@
 import type { MessageHandlerFunc, MessageResponse } from './MessageHandler';
 import browser from 'webextension-polyfill';
+import { sendToExtensionUI } from '$lib/common/safeMessaging';
 
 export const alarmsHandlers = new Map<string, MessageHandlerFunc>([
   ['alarms.create', async (payload): Promise<MessageResponse> => {
@@ -52,7 +53,7 @@ export const alarmsHandlers = new Map<string, MessageHandlerFunc>([
 ]);
 
 browser.alarms.onAlarm.addListener((alarm) => {
-  browser.runtime.sendMessage({
+  sendToExtensionUI({
     type: 'alarms.onAlarm',
     response: { success: true, data: alarm }
   });

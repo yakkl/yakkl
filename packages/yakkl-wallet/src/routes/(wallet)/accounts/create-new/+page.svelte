@@ -4,7 +4,7 @@
   import { ChevronLeft, Plus, AlertTriangle } from 'lucide-svelte';
   import { accountStore } from '$lib/stores/account.store';
   import { currentChain } from '$lib/stores/chain.store';
-  import { 
+  import {
     getProfile,
     getYakklAccounts,
     setYakklAccountsStorage,
@@ -13,7 +13,7 @@
   } from '$lib/common/stores';
   import { createPortfolioAccount } from '$lib/managers/networks/ethereum/createPortfolioAccount';
   import { log } from '$lib/common/logger-wrapper';
-  
+
   let isCreating = $state(false);
   let error = $state('');
   let accountName = $state('');
@@ -21,7 +21,7 @@
   let selectedPrimaryAccount = $state('');
   let primaryAccounts = $state<any[]>([]);
   let chain = $derived($currentChain);
-  
+
   onMount(async () => {
     // Load primary accounts for sub-account creation
     const primaries = await getYakklPrimaryAccounts();
@@ -33,31 +33,31 @@
       accountType = 'primary';
     }
   });
-  
+
   function handleBack() {
     goto('/accounts');
   }
-  
+
   async function createAccount() {
     if (!accountName.trim()) {
       error = 'Please enter an account name';
       return;
     }
-    
+
     isCreating = true;
     error = '';
-    
+
     try {
       const profile = await getProfile();
       if (!profile) {
         throw new Error('Profile not found');
       }
-      
+
       const miscStore = $yakklMiscStore;
       if (!miscStore) {
         throw new Error('Security key not available');
       }
-      
+
       if (accountType === 'primary') {
         // Create new primary account with new mnemonic
         await createPortfolioAccount(miscStore, profile);
@@ -67,11 +67,11 @@
         if (!primaryAccount) {
           throw new Error('Primary account not found');
         }
-        
+
         // TODO: Implement sub-account creation
         throw new Error('Sub-account creation not yet implemented');
       }
-      
+
       // Success - go back to accounts list
       goto('/accounts');
     } catch (err: any) {
@@ -92,9 +92,9 @@
       <ChevronLeft class="w-5 h-5" />
       Back
     </button>
-    
+
     <h1 class="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100">Create New Account</h1>
-    
+
     {#if error}
       <div class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
         <div class="flex gap-3">
@@ -103,7 +103,7 @@
         </div>
       </div>
     {/if}
-    
+
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
       <form onsubmit={(e) => { e.preventDefault(); createAccount(); }} class="space-y-6">
         <!-- Account Name -->
@@ -120,9 +120,10 @@
             disabled={isCreating}
           />
         </div>
-        
+
         <!-- Account Type -->
         <div>
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Account Type
           </label>
@@ -145,7 +146,7 @@
                 </div>
               </label>
             {/if}
-            
+
             <label class="flex items-start gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
               <input
                 type="radio"
@@ -164,7 +165,7 @@
             </label>
           </div>
         </div>
-        
+
         <!-- Primary Account Selection (for sub-accounts) -->
         {#if accountType === 'sub' && primaryAccounts.length > 0}
           <div>
@@ -185,7 +186,7 @@
             </select>
           </div>
         {/if}
-        
+
         <!-- Current Network Info -->
         <div class="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
           <div class="text-sm text-gray-600 dark:text-gray-400">Creating account for</div>
@@ -193,7 +194,7 @@
             {chain?.name || 'Ethereum'} {chain?.isTestnet ? '(Testnet)' : ''}
           </div>
         </div>
-        
+
         <!-- Warning for Primary Account -->
         {#if accountType === 'primary'}
           <div class="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
@@ -202,7 +203,7 @@
             </p>
           </div>
         {/if}
-        
+
         <!-- Actions -->
         <div class="flex gap-3">
           <button

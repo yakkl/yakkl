@@ -35,6 +35,7 @@ const PRO_FEATURES = [
   'priority_support',
   'bulk_transactions',
   'api_access',
+  'api_key_management',
   'custom_rpc',
   'advanced_security',
   'multi_sig'

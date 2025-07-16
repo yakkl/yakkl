@@ -35,7 +35,9 @@ import {
 	STORAGE_YAKKL_WALLET_PROVIDERS,
 	STORAGE_YAKKL_TOKENDATA,
 	STORAGE_YAKKL_TOKENDATA_CUSTOM,
-	STORAGE_YAKKL_COMBINED_TOKENS
+	STORAGE_YAKKL_COMBINED_TOKENS,
+	STORAGE_YAKKL_ADDRESS_TOKEN_HOLDINGS,
+	STORAGE_YAKKL_TOKEN_CACHE
 } from '$lib/common/constants';
 
 import { encryptData, decryptData } from '$lib/common/encryption';
@@ -177,6 +179,33 @@ export const yakklWalletBlockchainsStore = writable<string[]>([]);
 export const yakklTokenDataStore = writable<TokenData[]>([]); // This is the official list of default tokens that we check to see if the user has any positions in
 export const yakklTokenDataCustomStore = writable<TokenData[]>([]); // This is the official list of user added tokens that we check to see if the user has any positions in
 export const yakklCombinedTokenStore = writable<TokenData[]>([]); // This is the combined list of default and custom tokens. We use this instead of derived so we can control the reactiveness better
+
+// New stores for proper token holdings and caching
+export interface AddressTokenHolding {
+  walletAddress: string;      // The wallet address that holds tokens
+  chainId: number;           // Chain ID
+  tokenAddress: string;      // Token contract address
+  symbol: string;            // Token symbol for quick reference
+  quantity: number;          // Amount held
+  lastUpdated: Date;         // When balance was last fetched
+}
+
+export interface TokenCacheEntry {
+  walletAddress: string;
+  chainId: number;
+  tokenAddress: string;
+  symbol: string;            // For quick reference
+  quantity: number;
+  price: number;
+  value: number;
+  lastPriceUpdate: Date;
+  lastBalanceUpdate: Date;
+  priceProvider: string;     // Changed from provider to priceProvider
+}
+
+export const yakklAddressTokenHoldingsStore = writable<AddressTokenHolding[]>([]); // Tracks which addresses hold which tokens
+export const yakklTokenCacheStore = writable<TokenCacheEntry[]>([]); // Cache of last known prices and balances for instant display
+
 export const yakklInstancesStore = writable<
 	[Wallet | null, Provider | null, Blockchain | null, TokenService<any> | null]
 >([null, null, null, null]);
@@ -326,7 +355,10 @@ export async function syncStorageToStore() {
 			yakklChats,
 			yakklTokenData,
 			yakklTokenDataCustom,
-			yakklConnectedDomains
+			yakklCombinedTokens,
+			yakklConnectedDomains,
+			yakklAddressTokenHoldings,
+			yakklTokenCache
 		] = await Promise.all([
 			getPreferences(),
 			getSettings(),
@@ -340,7 +372,10 @@ export async function syncStorageToStore() {
 			getYakklChats(),
 			getYakklTokenData(),
 			getYakklTokenDataCustom(),
-			getYakklConnectedDomains()
+			getYakklCombinedToken(),
+			getYakklConnectedDomains(),
+			getYakklAddressTokenHoldings(),
+			getYakklTokenCache()
 		]);
 
 		setPreferencesStore(preferences ?? yakklPreferences);
@@ -355,7 +390,10 @@ export async function syncStorageToStore() {
 		setYakklChatsStore(yakklChats);
 		setYakklTokenDataStore(yakklTokenData);
 		setYakklTokenDataCustomStore(yakklTokenDataCustom);
+		setYakklCombinedTokenStore(yakklCombinedTokens);
 		setYakklConnectedDomainsStore(yakklConnectedDomains);
+		yakklAddressTokenHoldingsStore.set(yakklAddressTokenHoldings);
+		yakklTokenCacheStore.set(yakklTokenCache);
 	} catch (error) {
 		log.error('Error syncing stores:', false, error);
 		throw error; // Rethrow so that load() can catch it
@@ -1184,6 +1222,114 @@ export async function setYakklChatsStorage(values: YakklChat[]) {
 		// }
 	} catch (error) {
 		log.error('Error in setYakklChatsStorage:', false, error);
+		throw error;
+	}
+}
+
+// New getter and setter functions for Address Token Holdings
+export async function getYakklAddressTokenHoldings(): Promise<AddressTokenHolding[]> {
+	try {
+		const value = await getObjectFromLocalStorage<AddressTokenHolding[]>(STORAGE_YAKKL_ADDRESS_TOKEN_HOLDINGS);
+		if (typeof value === 'string') {
+			throw new Error('Unexpected string value received from local storage');
+		}
+		return value || [];
+	} catch (error) {
+		log.error('Error in getYakklAddressTokenHoldings:', false, error);
+		throw error;
+	}
+}
+
+export async function setYakklAddressTokenHoldingsStorage(values: AddressTokenHolding[]) {
+	try {
+		yakklAddressTokenHoldingsStore.set(values);
+		await setObjectInLocalStorage(STORAGE_YAKKL_ADDRESS_TOKEN_HOLDINGS, values);
+	} catch (error) {
+		log.error('Error in setYakklAddressTokenHoldingsStorage:', false, error);
+		throw error;
+	}
+}
+
+// New getter and setter functions for Token Cache
+export async function getYakklTokenCache(): Promise<TokenCacheEntry[]> {
+	try {
+		const value = await getObjectFromLocalStorage<TokenCacheEntry[]>(STORAGE_YAKKL_TOKEN_CACHE);
+		if (typeof value === 'string') {
+			throw new Error('Unexpected string value received from local storage');
+		}
+		return value || [];
+	} catch (error) {
+		log.error('Error in getYakklTokenCache:', false, error);
+		throw error;
+	}
+}
+
+export async function setYakklTokenCacheStorage(values: TokenCacheEntry[]) {
+	try {
+		// Check if user is a new user (first login after registration)
+		// Using Settings.init instead of ProfileData to avoid decryption in sidepanel
+		let isNewUser = false;
+		try {
+			const settings = await getSettings();
+			// If init is false, this is a new user who hasn't completed setup
+			isNewUser = settings?.init === false;
+		} catch (error) {
+			log.debug('[Cache Validation] Could not check new user status:', false, error);
+		}
+		
+		// Get existing cache to preserve non-zero values
+		const existingCache = await getYakklTokenCache();
+		
+		// Validate and filter cache entries
+		const validatedValues = values.map(newEntry => {
+			// Skip validation for new users - they can have zero values
+			if (isNewUser) {
+				return newEntry;
+			}
+			
+			// For existing users, never cache zero values
+			if (newEntry.price === 0 || newEntry.value === 0) {
+				// Try to find existing non-zero entry
+				const existingEntry = existingCache.find(e => 
+					e.walletAddress === newEntry.walletAddress &&
+					e.tokenAddress === newEntry.tokenAddress &&
+					e.chainId === newEntry.chainId
+				);
+				
+				// If we have a valid existing entry, preserve it
+				if (existingEntry && existingEntry.price > 0 && existingEntry.value > 0) {
+					log.debug('[Cache Validation] Preserving non-zero cache entry for token:', false, {
+						symbol: newEntry.symbol,
+						existingPrice: existingEntry.price,
+						existingValue: existingEntry.value
+					});
+					return existingEntry;
+				}
+				
+				// Otherwise, skip this entry (don't cache zero values)
+				log.warn('[Cache Validation] Skipping zero value cache entry:', false, {
+					symbol: newEntry.symbol,
+					address: newEntry.tokenAddress,
+					price: newEntry.price,
+					value: newEntry.value
+				});
+				return null;
+			}
+			
+			// Valid non-zero entry
+			return newEntry;
+		}).filter(entry => entry !== null) as TokenCacheEntry[];
+		
+		// Only update if we have valid entries
+		if (validatedValues.length > 0) {
+			yakklTokenCacheStore.set(validatedValues);
+			await setObjectInLocalStorage(STORAGE_YAKKL_TOKEN_CACHE, validatedValues);
+			log.debug('[Cache Validation] Saved validated cache with', false, validatedValues.length, 'entries');
+		} else {
+			log.warn('[Cache Validation] No valid cache entries to save');
+		}
+	} catch (error) {
+		log.error('Error in setYakklTokenCacheStorage:', false, error);
 		throw error;
 	}
 }

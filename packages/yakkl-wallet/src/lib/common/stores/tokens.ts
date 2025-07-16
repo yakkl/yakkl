@@ -30,7 +30,7 @@ export const sortedTokens = derived(
 			decimals: 18,
 			isNative: true,
 			isStablecoin: false,
-			logoURI: '/images/ethereum.svg'
+			logoURI: '/images/eth.svg'
 		};
 
 		preferredTokens.unshift(eth);

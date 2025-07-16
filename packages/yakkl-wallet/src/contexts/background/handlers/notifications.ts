@@ -1,5 +1,6 @@
 import type { MessageHandlerFunc, MessageResponse } from './MessageHandler';
 import browser from 'webextension-polyfill';
+import { sendToExtensionUI } from '$lib/common/safeMessaging';
 
 export const notificationsHandlers = new Map<string, MessageHandlerFunc>([
   ['notifications.create', async (payload): Promise<MessageResponse> => {
@@ -51,21 +52,21 @@ export const notificationsHandlers = new Map<string, MessageHandlerFunc>([
 ]);
 
 browser.notifications.onClicked.addListener((notificationId) => {
-  browser.runtime.sendMessage({
+  sendToExtensionUI({
     type: 'notifications.clicked',
     response: { success: true, data: { notificationId } }
   });
 });
 
 browser.notifications.onButtonClicked.addListener((notificationId, buttonIndex) => {
-  browser.runtime.sendMessage({
+  sendToExtensionUI({
     type: 'notifications.buttonClicked',
     response: { success: true, data: { notificationId, buttonIndex } }
   });
 });
 
 browser.notifications.onClosed.addListener((notificationId, byUser) => {
-  browser.runtime.sendMessage({
+  sendToExtensionUI({
     type: 'notifications.closed',
     response: { success: true, data: { notificationId, byUser } }
   });

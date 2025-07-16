@@ -1,21 +1,39 @@
 <script lang="ts">
   import { accounts, currentAccount, accountStore } from '$lib/stores/account.store';
   import { uiStore } from '$lib/stores/ui.store';
+  import { goto } from '$app/navigation';
+  import { displayTokens } from '$lib/stores/token.store';
+  import Modal from './Modal.svelte';
+  import ProtectedValue from './v1/ProtectedValue.svelte';
+  import EditControls from './v1/EditControls.svelte';
+  import type { AccountDisplay } from '$lib/types';
   
-  let { onClose } = $props();
+  interface Props {
+    onClose: () => void;
+  }
+  
+  let { onClose }: Props = $props();
   
   let allAccounts = $derived($accounts);
   let current = $derived($currentAccount);
-  let editingAccount = $state(null);
-  let showOptions = $state({});
+  let tokens = $derived($displayTokens);
+  let editingAccount = $state<any>(null);
+  let showOptions = $state<Record<string, boolean>>({});
+  let editingName = $state('');
   
   async function selectAccount(account: any) {
-    if (account.address === current?.address) return;
+    if (account.address === current?.address) {
+      // If already selected, close modal and go to home
+      onClose();
+      await goto('/home');
+      return;
+    }
     
     try {
-      await accountStore.selectAccount(account.address);
-      uiStore.showSuccess('Account Switched', `Now using ${account.name || account.username || 'account'}`);
+      await accountStore.switchAccount(account.address);
+      uiStore.showSuccess('Account Switched', `Now using ${account.ens || account.username || 'account'}`);
       onClose();
+      await goto('/home');
     } catch (error) {
       console.error('Failed to switch account:', error);
       uiStore.showError('Switch Failed', 'Unable to switch accounts');
@@ -28,6 +46,33 @@
   
   async function editAccount(account: any) {
     editingAccount = account;
+    editingName = account.ens || account.username || '';
+  }
+  
+  async function saveAccountName() {
+    if (!editingAccount || !editingName.trim()) return;
+    
+    try {
+      // Update account name
+      await accountStore.updateAccountName(editingAccount.address, editingName.trim());
+      uiStore.showSuccess('Updated', 'Account name updated successfully');
+      editingAccount = null;
+    } catch (error) {
+      console.error('Failed to update account name:', error);
+      uiStore.showError('Update Failed', 'Unable to update account name');
+    }
+  }
+  
+  async function printAccount(account: any) {
+    // Store account for emergency kit printing
+    sessionStorage.setItem('print-account', account.address);
+    window.open('/accounts/print-emergency-kit', '_blank');
+  }
+  
+  async function exportAccount(account: any) {
+    sessionStorage.setItem('export-account', account.address);
+    await goto('/accounts/export');
+    onClose();
   }
   
   async function deleteAccount(account: any) {
@@ -36,7 +81,7 @@
       return;
     }
     
-    if (confirm(`Are you sure you want to delete ${account.name || account.username || 'this account'}?`)) {
+    if (confirm(`Are you sure you want to delete ${account.ens || account.username || 'this account'}?`)) {
       try {
         await accountStore.deleteAccount(account.address);
         uiStore.showSuccess('Account Deleted', 'Account removed successfully');
@@ -60,28 +105,35 @@
     if (!addr) return '';
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   }
+  
+  // Calculate total value for account across all tokens
+  function getAccountValue(address: string): number {
+    if (!tokens || !Array.isArray(tokens)) return 0;
+    
+    // In multi-chain view, tokens are already filtered by address
+    // In single-chain view, we need to check if this is the current account
+    if (address === current?.address) {
+      return tokens.reduce((sum, token) => {
+        const value = typeof token.value === 'number' ? token.value : parseFloat(token.value || '0');
+        return sum + value;
+      }, 0);
+    }
+    
+    // For other accounts, we don't have their balance data
+    return 0;
+  }
+  
+  // Get total token count for account
+  function getTokenCount(address: string): number {
+    if (!tokens || !Array.isArray(tokens) || address !== current?.address) return 0;
+    return tokens.filter(token => (token.qty || 0) > 0).length;
+  }
 </script>
 
-<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-  <div class="bg-white dark:bg-zinc-800 rounded-xl w-full max-w-lg max-h-[80vh] overflow-y-auto">
-    <!-- Header -->
-    <div class="p-6 border-b border-zinc-200 dark:border-zinc-700">
-      <div class="flex items-center justify-between">
-        <h2 class="text-xl font-bold text-zinc-900 dark:text-white">Manage Accounts</h2>
-        <button
-          onclick={onClose}
-          class="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-lg transition-colors"
-          aria-label="Close"
-        >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-    </div>
-    
+<Modal show={true} {onClose} title="Switch Accounts" className="max-w-2xl">
+  <div class="max-h-[60vh] overflow-y-auto">
     <!-- Account List -->
-    <div class="p-6 space-y-3">
+    <div class="space-y-3">
       {#if allAccounts.length === 0}
         <div class="text-center py-8 text-gray-500 dark:text-gray-400">
           <p>No accounts found</p>
@@ -89,96 +141,97 @@
       {:else}
         {#each allAccounts as account}
           {@const isActive = account.address === current?.address}
-          <div class="relative">
+          {@const value = getAccountValue(account.address)}
+          {@const tokenCount = getTokenCount(account.address)}
+          <div class="relative group">
             <!-- Account Item -->
             <div
-              class="w-full flex items-center gap-3 p-4 rounded-lg transition-colors {isActive 
-                ? 'bg-indigo-50 dark:bg-indigo-900/20 border-2 border-indigo-500' 
-                : 'bg-zinc-50 dark:bg-zinc-900/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700'}"
-            >
+              class="w-full flex items-center gap-3 p-4 rounded-lg transition-all duration-200 {isActive 
+                ? 'bg-indigo-50 dark:bg-indigo-900/20 border-2 border-indigo-500 shadow-md' 
+                : 'bg-zinc-50 dark:bg-zinc-900/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:shadow-md'}">
+              
+              <!-- Edit Controls Overlay -->
+              <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                <EditControls
+                  controls={['copy', 'edit', 'delete']}
+                  onCopy={() => copyAddress(account.address)}
+                  onEdit={() => editAccount(account)}
+                  onDelete={() => deleteAccount(account)}
+                  hasBalance={getAccountValue(account.address) > 0}
+                />
+              </div>
+              
               <!-- Clickable area for account selection -->
               <button
-                onclick={() => !isActive && selectAccount(account)}
-                class="flex-1 flex items-center gap-3 text-left"
-                disabled={isActive}
+                onclick={() => selectAccount(account)}
+                class="flex-1 flex items-center gap-3 text-left pr-24"
+                title={isActive ? 'Click to go to home' : 'Click to switch to this account'}
               >
                 <!-- Avatar -->
-                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center text-white font-bold">
-                  {account.name?.[0]?.toUpperCase() || account.username?.[0]?.toUpperCase() || '?'}
+                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-md">
+                  {account.ens?.[0]?.toUpperCase() || account.username?.[0]?.toUpperCase() || '?'}
                 </div>
                 
                 <!-- Account Info -->
                 <div class="flex-1">
-                  <div class="font-medium text-zinc-900 dark:text-white">
-                    {account.name || account.username || 'Account'}
+                  <div class="flex items-center gap-2">
+                    <span class="font-semibold text-zinc-900 dark:text-white">
+                      {account.ens || account.username || 'Account'}
+                    </span>
                     {#if isActive}
-                      <span class="ml-2 text-xs text-indigo-600 dark:text-indigo-400">(Active)</span>
+                      <span class="px-2 py-0.5 text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full font-medium">Active</span>
                     {/if}
                   </div>
-                  <div class="text-sm text-zinc-500 dark:text-zinc-400">{shortAddr(account.address)}</div>
+                  <div class="flex items-center gap-4 mt-1">
+                    <div class="text-sm text-zinc-600 dark:text-zinc-400 font-mono">
+                      <ProtectedValue value={account.address} placeholder="••••••••••••••••" />
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-4 mt-2 text-xs text-zinc-500 dark:text-zinc-500">
+                    {#if isActive && value > 0}
+                      <span class="flex items-center gap-1">
+                        <span class="font-medium">Value:</span>
+                        <ProtectedValue 
+                          value={`$${value.toFixed(2)}`} 
+                          placeholder="$•••••" 
+                        />
+                      </span>
+                      <span>•</span>
+                      <span>{tokenCount} {tokenCount === 1 ? 'token' : 'tokens'}</span>
+                    {:else if !isActive}
+                      <span class="italic">Switch to view balance</span>
+                    {/if}
+                  </div>
                 </div>
-              </button>
-              
-              <!-- Options Button -->
-              <button
-                onclick={(e) => {
-                  e.stopPropagation();
-                  toggleOptions(account.address);
-                }}
-                class="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                </svg>
               </button>
             </div>
             
-            <!-- Options Dropdown -->
-            {#if showOptions[account.address]}
-              <div class="absolute right-0 top-full mt-1 bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-700 py-1 z-10 min-w-[160px]">
-                <button
-                  onclick={() => {
-                    editAccount(account);
-                    showOptions[account.address] = false;
-                  }}
-                  class="w-full text-left px-4 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-700 flex items-center gap-2"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  Edit Name
-                </button>
-                
-                <button
-                  onclick={() => {
-                    copyAddress(account.address);
-                    showOptions[account.address] = false;
-                  }}
-                  class="w-full text-left px-4 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-700 flex items-center gap-2"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                  Copy Address
-                </button>
-                
-                <div class="border-t border-zinc-200 dark:border-zinc-700 my-1"></div>
-                
-                <button
-                  onclick={() => {
-                    deleteAccount(account);
-                    showOptions[account.address] = false;
-                  }}
-                  class="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
-                  disabled={allAccounts.length <= 1}
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                  Delete Account
-                </button>
+            <!-- Tooltip on hover -->
+            <div class="absolute left-0 right-0 top-full mt-2 z-20 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200">
+              <div class="bg-gray-900 text-white text-xs rounded-lg shadow-xl p-3 mx-4">
+                <div class="space-y-1">
+                  <div class="flex justify-between items-center">
+                    <span class="text-gray-400">Full Address:</span>
+                    <span class="font-mono ml-2">{account.address}</span>
+                  </div>
+                  {#if isActive && getAccountValue(account.address) > 0}
+                    <div class="flex justify-between items-center">
+                      <span class="text-gray-400">Total Value:</span>
+                      <span class="font-medium">${getAccountValue(account.address).toFixed(2)}</span>
+                    </div>
+                  {/if}
+                  <div class="flex justify-between items-center">
+                    <span class="text-gray-400">Type:</span>
+                    <span>{account.accountType || 'Standard'}</span>
+                  </div>
+                </div>
+                <div class="mt-2 pt-2 border-t border-gray-700 text-gray-300">
+                  {isActive ? 'Click to go to home page' : 'Click to switch to this account'}
+                </div>
               </div>
-            {/if}
+              <!-- Arrow -->
+              <div class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-45 w-2 h-2 bg-gray-900"></div>
+            </div>
           </div>
         {/each}
       {/if}
@@ -194,45 +247,65 @@
         <span class="text-zinc-600 dark:text-zinc-400">Add New Account</span>
       </a>
     </div>
+    
+    <!-- Quick Actions -->
+    <div class="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-700">
+      <div class="flex justify-center gap-3">
+        <button
+          onclick={() => exportAccount(current)}
+          class="px-4 py-2 text-sm bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors flex items-center gap-2"
+          disabled={!current}
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+          </svg>
+          Export Current
+        </button>
+        <button
+          onclick={() => printAccount(current)}
+          class="px-4 py-2 text-sm bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors flex items-center gap-2"
+          disabled={!current}
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+          </svg>
+          Print Emergency Kit
+        </button>
+      </div>
+    </div>
   </div>
-</div>
+</Modal>
 
 <!-- Edit Account Modal -->
 {#if editingAccount}
-  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-    <div class="bg-white dark:bg-zinc-800 rounded-xl p-6 max-w-sm w-full">
-      <h3 class="text-lg font-bold text-zinc-900 dark:text-white mb-4">Edit Account Name</h3>
-      
+  <Modal show={true} onClose={() => editingAccount = null} title="Edit Account Name" className="max-w-sm">
+    <div class="space-y-4">
       <input
         type="text"
-        value={editingAccount.name || editingAccount.username || ''}
+        bind:value={editingName}
         onkeydown={(e) => {
           if (e.key === 'Enter') {
-            // Save name
-            editingAccount = null;
+            saveAccountName();
           }
         }}
         class="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         placeholder="Enter account name"
       />
       
-      <div class="flex gap-3 mt-4">
+      <div class="flex gap-3">
         <button
           onclick={() => editingAccount = null}
-          class="flex-1 yakkl-btn-secondary text-sm"
+          class="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg transition-colors"
         >
           Cancel
         </button>
         <button
-          onclick={() => {
-            // Save the new name
-            editingAccount = null;
-          }}
-          class="flex-1 yakkl-btn-primary text-sm"
+          onclick={saveAccountName}
+          class="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
         >
           Save
         </button>
       </div>
     </div>
-  </div>
+  </Modal>
 {/if}

@@ -2,7 +2,7 @@
 
 import { log } from '$lib/managers/Logger';
 import type { TransactionDisplay } from '$lib/types';
-import { ethers } from 'ethers';
+import { ethers } from 'ethers-v6';
 import { etherscanRateLimiter } from '$lib/utils/rateLimiter';
 
 export interface ExplorerConfig {
@@ -24,6 +24,7 @@ export interface ExplorerTransaction {
   gas: string;
   gasPrice: string;
   gasUsed?: string;
+  nonce?: string;
   functionName?: string;
   methodId?: string;
   confirmations?: string;
@@ -48,7 +49,8 @@ export class BlockchainExplorer {
   async getTransactionHistory(
     address: string,
     chainId: number,
-    limit: number = 10
+    limit: number = 100,
+    isBackgroundContext: boolean = false
   ): Promise<TransactionDisplay[]> {
     try {
       // Check cache first
@@ -60,7 +62,7 @@ export class BlockchainExplorer {
         return cached.data;
       }
       
-      const config = getExplorerApiConfig(chainId);
+      const config = getExplorerApiConfig(chainId, isBackgroundContext);
       
       if (!config) {
         log.warn('No explorer config found for chain:', false, chainId);
@@ -104,6 +106,30 @@ export class BlockchainExplorer {
         this.convertToDisplayFormat(tx, address)
       );
       
+      log.info('BlockchainExplorer: Transaction processing complete', false, {
+        totalFetched: allTransactions.length,
+        uniqueCount: uniqueTransactions.length,
+        limitedCount: limitedTransactions.length,
+        displayCount: displayTransactions.length,
+        firstTransaction: displayTransactions[0],
+        // Show sample of raw transactions before conversion
+        sampleRawTransactions: limitedTransactions.slice(0, 2).map(tx => ({
+          hash: tx.hash,
+          from: tx.from,
+          to: tx.to,
+          value: tx.value,
+          timeStamp: tx.timeStamp
+        })),
+        // Show sample of converted transactions
+        sampleDisplayTransactions: displayTransactions.slice(0, 2).map(tx => ({
+          hash: tx.hash,
+          type: tx.type,
+          value: tx.value,
+          timestamp: tx.timestamp,
+          status: tx.status
+        }))
+      });
+      
       // Cache the results
       this.cache.set(cacheKey, {
         data: displayTransactions,
@@ -124,16 +150,22 @@ export class BlockchainExplorer {
     limit: number
   ): Promise<ExplorerTransaction[]> {
     try {
-      const params = new URLSearchParams({
-        module: 'account',
-        action: action,
-        address: address,
-        startblock: '0',
-        endblock: '99999999',
-        page: '1',
-        offset: limit.toString(),
-        sort: 'desc'
-      });
+      const params = new URLSearchParams();
+      
+      // Add chainid first for v2 API endpoints
+      if (config.baseUrl.includes('/v2/api')) {
+        params.append('chainid', config.chainId.toString());
+      }
+      
+      // Add other parameters in the correct order
+      params.append('module', 'account');
+      params.append('action', action);
+      params.append('address', address);
+      params.append('startblock', '0');
+      params.append('endblock', '99999999');
+      params.append('page', '1');
+      params.append('offset', limit.toString());
+      params.append('sort', 'desc');
 
       // Only add API key if it's not an empty string
       if (config.apiKey && config.apiKey.trim() !== '') {
@@ -141,6 +173,16 @@ export class BlockchainExplorer {
       }
 
       const url = `${config.baseUrl}?${params.toString()}`;
+      
+      // Log the API request for debugging (hide API key)
+      const debugUrl = config.apiKey ? url.replace(config.apiKey, 'API_KEY_HIDDEN') : url;
+      log.debug(`Fetching ${action} from ${config.name}:`, false, {
+        url: debugUrl,
+        chainId: config.chainId,
+        address,
+        action
+      });
+      
       const response = await fetch(url);
       
       if (!response.ok) {
@@ -149,7 +191,35 @@ export class BlockchainExplorer {
 
       const data = await response.json();
       
+      // Log the API response for debugging
+      log.debug(`Response from ${config.name} ${action}:`, false, {
+        status: data.status,
+        message: data.message,
+        resultCount: Array.isArray(data.result) ? data.result.length : typeof data.result,
+        // Log first few transactions for debugging
+        sampleTransactions: Array.isArray(data.result) ? data.result.slice(0, 3).map((tx: any) => ({
+          hash: tx.hash,
+          from: tx.from,
+          to: tx.to,
+          value: tx.value,
+          timeStamp: tx.timeStamp,
+          blockNumber: tx.blockNumber,
+          tokenSymbol: tx.tokenSymbol,
+          tokenName: tx.tokenName,
+          contractAddress: tx.contractAddress,
+          functionName: tx.functionName,
+          methodId: tx.methodId,
+          isError: tx.isError
+        })) : null
+      });
+      
       if (data.status === '1' && Array.isArray(data.result)) {
+        log.info(`Successfully fetched ${data.result.length} ${action} transactions`, false, {
+          chainId: config.chainId,
+          address,
+          firstTxHash: data.result[0]?.hash,
+          lastTxHash: data.result[data.result.length - 1]?.hash
+        });
         return data.result;
       }
 
@@ -165,7 +235,18 @@ export class BlockchainExplorer {
         return [];
       }
 
-      log.warn('Unexpected response from explorer:', false, data);
+      // Handle missing API key
+      if (data.status === '0' && data.result === 'Invalid API Key') {
+        log.warn('Explorer API key missing or invalid. Transactions will not be shown.');
+        return [];
+      }
+
+      log.warn('Unexpected response from explorer:', false, {
+        status: data.status,
+        message: data.message,
+        result: typeof data.result === 'string' ? data.result : 'see console',
+        fullData: data
+      });
       return [];
     } catch (error) {
       log.error(`Failed to fetch ${action} from ${config.name}:`, false, error);
@@ -230,7 +311,14 @@ export class BlockchainExplorer {
       status,
       type,
       gas: tx.gas,
-      gasPrice: tx.gasPrice
+      gasPrice: tx.gasPrice,
+      gasUsed: tx.gasUsed,
+      blockNumber: tx.blockNumber,
+      nonce: tx.nonce,
+      confirmations: tx.confirmations,
+      functionName: tx.functionName,
+      methodId: tx.methodId,
+      txreceipt_status: tx.txreceipt_status
     };
   }
 

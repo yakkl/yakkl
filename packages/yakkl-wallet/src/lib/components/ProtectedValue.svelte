@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { visibilityStore } from '$lib/common/stores/visibilityStore';
+	import { get } from 'svelte/store';
 
 	const { value, placeholder = '**********' } = $props<{
 		value: string;
 		placeholder?: string;
 	}>();
 
-	let visible = $state(false);
+	// Initialize with current store value
+	let visible = $state(get(visibilityStore));
 
 	$effect(() => {
 		const unsubscribe = visibilityStore.subscribe((value) => {

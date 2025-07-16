@@ -277,6 +277,17 @@ function createAuthStore() {
 					hasJWT: !!jwtToken
 				});
 
+				// Notify background script about login to start idle detection
+				try {
+					const { SessionVerificationService } = await import('$lib/services/session-verification.service');
+					const sessionService = SessionVerificationService.getInstance();
+					await sessionService.verifyLogin(true);
+					log.debug('Idle detection started after login');
+				} catch (error) {
+					log.warn('Failed to start idle detection:', false, error);
+					// Don't fail login if idle detection fails
+				}
+
 				log.debug('User logged in successfully', false, {
 					username: normalizedUsername,
 					sessionId: sessionState?.sessionId
@@ -306,6 +317,17 @@ function createAuthStore() {
 				// Import setLocks to set isLocked flag
 				const { setLocks } = await import('$lib/common/locks');
 				await setLocks(true);
+
+				// Notify background script about logout to stop idle detection
+				try {
+					const { SessionVerificationService } = await import('$lib/services/session-verification.service');
+					const sessionService = SessionVerificationService.getInstance();
+					await sessionService.verifyLogin(false);
+					log.debug('Idle detection stopped after logout');
+				} catch (error) {
+					log.warn('Failed to stop idle detection:', false, error);
+					// Don't fail logout if idle detection fails
+				}
 
 				setMiscStore('');
 				update((state) => ({

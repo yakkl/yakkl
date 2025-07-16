@@ -8,7 +8,7 @@
 	import { startPricingChecks } from '$lib/tokens/prices';
 	import { updateTokenPrices } from '$lib/common/tokenPriceManager';
 	import TokenLineView from './TokenLineView.svelte';
-	import * as Accordion from './ui/accordion';
+	import * as Accordion from './ui.tmp/accordion';
 	import { cn } from '$lib/utils';
 
 	interface Props {
@@ -72,7 +72,7 @@
 		}
 
 		if (browser_ext) {
-			browser_ext.runtime.onMessage.addListener(handleOnMessageForPricing);
+			browser_ext.runtime.onMessage.addListener(handleOnMessageForPricing as any);
 			browser_ext.runtime.sendMessage({ action: 'getTokenData' }).catch(err => {
 				// Expected during startup - token data will be loaded when background is ready
 				console.debug('Background not ready for getTokenData:', err);
@@ -93,7 +93,7 @@
 		return () => {
 			unsubscribe();
 			if (browser_ext) {
-				browser_ext.runtime.onMessage.removeListener(handleOnMessageForPricing);
+				browser_ext.runtime.onMessage.removeListener(handleOnMessageForPricing as any);
 			}
 		};
 	});

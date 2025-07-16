@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { TokenData } from '$lib/common/interfaces';
 	import { getTokenChange } from '$lib/utilities';
-	import * as HoverCard from './ui/hover-card';
+	import * as HoverCard from './ui.tmp/hover-card';
 	import { formatPrice, formatQuantity } from '$lib/utilities';
 
 	export interface Props {
