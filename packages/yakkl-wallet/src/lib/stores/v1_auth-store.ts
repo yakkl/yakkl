@@ -167,9 +167,9 @@ function createAuthStore() {
 
 				// Start session with JWT token generation
 				const jwtToken = await sessionManager.startSession(
-					profile.id || profile.userName,
-					profile.userName,
-					profile.id || profile.userName,
+					profile.id || profile.username,
+					profile.username,
+					profile.id || profile.username,
 					planLevel
 				);
 

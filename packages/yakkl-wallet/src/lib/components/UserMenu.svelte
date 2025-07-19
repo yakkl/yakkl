@@ -4,6 +4,7 @@
   import { getProfile } from '$lib/common/stores';
   import { getGravatarUrl } from '$lib/utils/gravatar';
   import { onMount } from 'svelte';
+	import type { ProfileData } from '$lib/common';
 
   let {
     account = { username: '', address: '', ens: null, avatar: null },
@@ -19,7 +20,7 @@
 
   let menuOpen = $state(false);
   let closeTimeout: number | null = null;
-  
+
   // Profile and avatar state
   let userEmail = $state<string | null>(null);
   let userName = $state<string | null>(null);
@@ -30,10 +31,10 @@
     try {
       const profile = await getProfile();
       if (profile?.data) {
-        const profileData = profile.data as any;
-        userEmail = profileData.userEmail || null;
-        userName = profileData.userName || null;
-        
+        const profileData = profile.data as ProfileData;
+        userEmail = profileData.email || null;
+        userName = profile.username || null;
+
         // Generate Gravatar URL if email exists
         if (userEmail) {
           avatarUrl = getGravatarUrl(userEmail, 80);
@@ -72,18 +73,18 @@
 
   let avatarInitial = $derived.by(() => {
     // Use username first letter if available
-    if (userName) return userName[0].toUpperCase();
+    if (username) return username[0].toUpperCase();
     const acc = effectiveAccount;
     if (!acc) return 'W';
     if (acc.username) return acc.username[0].toUpperCase();
     if (acc.ens) return acc.ens[0].toUpperCase();
     return 'W'; // Default to W if no username or ENS
   });
-  
+
   // Membership plan colors for rings
   let ringColor = $derived.by(() => {
-    const planLower = plan?.toLowerCase() || 'basic';
-    
+    const planLower = plan?.toLowerCase() || 'explorer_member';
+
     if (planLower.includes('founding')) {
       return 'oklch(71.97% 0.149 81.37 / 1)'; // Founding member color
     } else if (planLower.includes('early')) {
@@ -94,11 +95,11 @@
       return '#a16207'; // Brown for basic
     }
   });
-  
+
   // Plan tag for avatar
   let planTag = $derived.by(() => {
-    const planLower = plan?.toLowerCase() || 'basic';
-    
+    const planLower = plan?.toLowerCase() || 'explorer_member';
+
     if (planLower.includes('founding')) {
       return 'fpro';
     } else if (planLower.includes('early')) {
@@ -106,7 +107,7 @@
     } else if (planLower === 'yakkl_pro' || planLower === 'pro') {
       return 'pro';
     } else {
-      return 'basic';
+      return 'explorer_member';
     }
   });
 
@@ -143,13 +144,13 @@
       onclick={() => menuOpen = !menuOpen}
       onmouseenter={() => menuOpen = true}
       tabindex="0"
-      style={`box-shadow: 0 0 0 3px transparent, 0 0 0 5px ${ringColor}, 0 0 0 7px rgba(255,255,255,0.2)`}
+      style={`box-shadow: 0 0 0 3px transparent, 0 0 0 3px ${ringColor}, 0 0 0 5px rgba(255,255,255,0.2)`}
     >
       {#if avatarUrl || effectiveAccount?.avatar}
-        <img 
-          src={avatarUrl || effectiveAccount.avatar} 
-          alt="avatar" 
-          class="h-full w-full rounded-full object-cover" 
+        <img
+          src={avatarUrl || effectiveAccount.avatar}
+          alt="avatar"
+          class="h-full w-full rounded-full object-cover"
         />
       {:else}
         <div class="h-full w-full rounded-full bg-indigo-600 flex items-center justify-center">
@@ -159,8 +160,8 @@
         </div>
       {/if}
     </button>
-    {#if planTag !== 'basic'}
-      <span class="absolute -bottom-1 -right-1 text-[8px] font-semibold px-1 rounded text-white" 
+    {#if planTag !== 'explorer_member'}
+      <span class="absolute -bottom-1 -right-1 text-[8px] font-semibold px-1 rounded text-white"
             style={`background-color: ${ringColor}`}>
         {planTag.toUpperCase()}
       </span>
@@ -181,9 +182,9 @@
         <div class="flex items-center gap-3">
           <div class="relative">
             {#if avatarUrl || effectiveAccount?.avatar}
-              <img 
-                src={avatarUrl || effectiveAccount.avatar} 
-                alt="avatar" 
+              <img
+                src={avatarUrl || effectiveAccount.avatar}
+                alt="avatar"
                 class="w-8 h-8 rounded-full object-cover"
                 style={`box-shadow: 0 0 0 2px ${ringColor}`}
               />
@@ -198,7 +199,7 @@
             <div class="font-medium text-sm truncate">{displayName}</div>
             <div class="text-xs text-zinc-500 truncate">{shortAddr(effectiveAccount?.address)}</div>
             <div class="text-xs capitalize" style={`color: ${ringColor}`}>
-              {plan || 'Basic'} Plan
+              {plan || 'Basic'} Membership
             </div>
           </div>
         </div>

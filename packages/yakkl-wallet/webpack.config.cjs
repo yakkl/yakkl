@@ -70,7 +70,8 @@ module.exports = {
 				exclude: [
 					path.resolve(__dirname, 'node_modules'),
 					path.resolve(__dirname, '../../node_modules'),
-					path.resolve(__dirname, '../uniswap-alpha-router-service/node_modules')
+					path.resolve(__dirname, '../uniswap-alpha-router-service/node_modules'),
+					path.resolve(__dirname, '**v1**') // Exclude v1 files - remove this once we are done with v1
 				],
 				use: [
 					{

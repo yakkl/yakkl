@@ -103,7 +103,7 @@ export class BlockchainExplorer {
 
       // Convert to display format
       const displayTransactions = limitedTransactions.map(tx => 
-        this.convertToDisplayFormat(tx, address)
+        this.convertToDisplayFormat(tx, address, chainId)
       );
       
       log.info('BlockchainExplorer: Transaction processing complete', false, {
@@ -267,7 +267,8 @@ export class BlockchainExplorer {
 
   private convertToDisplayFormat(
     tx: ExplorerTransaction,
-    userAddress: string
+    userAddress: string,
+    chainId: number
   ): TransactionDisplay {
     const from = tx.from?.toLowerCase();
     const to = tx.to?.toLowerCase();
@@ -318,7 +319,8 @@ export class BlockchainExplorer {
       confirmations: tx.confirmations,
       functionName: tx.functionName,
       methodId: tx.methodId,
-      txreceipt_status: tx.txreceipt_status
+      txreceipt_status: tx.txreceipt_status,
+      chainId // Add chainId for multi-chain support
     };
   }
 

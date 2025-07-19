@@ -7,6 +7,7 @@
 	import { CoingeckoPriceProvider } from '$lib/managers/providers/price/coingecko/CoingeckoPriceProvider';
 	import { KrakenPriceProvider } from '$lib/managers/providers/price/kraken/KrakenPriceProvider';
 	import { log } from '$lib/managers/Logger';
+	import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
 
 	let {
 		show = $bindable(false),
@@ -157,7 +158,7 @@
 	async function fetchEthPrice() {
 		try {
 			const result = await priceManager.getMarketPrice('ETH-USD');
-			ethPrice = result && typeof result === 'object' && 'price' in result ? result.price : 0;
+			ethPrice = result && typeof result === 'object' && 'price' in result ? BigNumberishUtils.toNumber(result.price) : 0;
 		} catch (error) {
 			log.error('Failed to fetch ETH price:', false, error);
 			ethPrice = 0;

@@ -9,31 +9,73 @@ import { getObjectFromLocalStorage, setObjectInLocalStorage } from './storage';
 import { resetTokenDataStoreValues } from './resetTokenDataStoreValues';
 import { get } from 'svelte/store';
 import { STORAGE_YAKKL_CURRENTLY_SELECTED, STORAGE_YAKKL_SETTINGS } from './constants';
-import { getBrowserExt } from './environment';
+import { browser_ext } from './environment';
 import type { Browser } from 'webextension-polyfill';
+import { walletCacheStore } from '$lib/stores/wallet-cache.store';
+import { SingletonWindowManager } from '$lib/managers/SingletonWindowManager';
+import { invalidateJWT } from '$lib/utilities/jwt-background';
 
 /**
  * Lock the wallet and clear all sensitive data
  * This is the central function for locking the wallet from any context
  */
-export async function lockWallet(reason: string = 'manual'): Promise<void> {
+export async function lockWallet(reason: string = 'manual', tokenToInvalidate?: string): Promise<void> {
   try {
     log.info(`Locking wallet - Reason: ${reason}`);
 
-    // 1. Stop all active processes
+    // 1. Invalidate JWT token as early as possible for security
+    try {
+      await invalidateJWT(tokenToInvalidate);
+      log.debug('JWT token invalidated during wallet lock');
+    } catch (error) {
+      log.warn('Failed to invalidate JWT during wallet lock:', false, error);
+      // Continue with lock even if JWT invalidation fails
+    }
+
+    // 2. Stop all active processes
     await stopActivityTracking();
-    
-    // 2. Update UI indicators
+
+    // 3. Update UI indicators
     await setBadgeText('');
     await setIconLock();
 
-    // 3. Update storage to reflect locked state
+    // 4. Save wallet cache before clearing - CRITICAL: Do not save if being reset
+    try {
+      // Force save of wallet cache to ensure complete state is persisted
+      const cacheState = get(walletCacheStore);
+
+      // Only save if we have valid data (not zeroed out)
+      if (cacheState && cacheState.chainAccountCache) {
+        let hasValidData = false;
+
+        // Check if there's at least one non-zero value in the cache
+        Object.values(cacheState.chainAccountCache).forEach(chainData => {
+          Object.values(chainData as any).forEach((accountData: any) => {
+            if (accountData?.portfolio?.totalValue > 0 ||
+                accountData?.tokens?.some((t: any) => t.balance && parseFloat(t.balance) > 0)) {
+              hasValidData = true;
+            }
+          });
+        });
+
+        if (hasValidData) {
+          await setObjectInLocalStorage('yakklWalletCache', cacheState);
+          log.info('Wallet cache saved before lock with valid data');
+        } else {
+          log.warn('Skipping cache save - no valid data to persist');
+        }
+      }
+    } catch (error) {
+      log.error('Failed to save wallet cache during lock:', false, error);
+    }
+
+    // 4. Update storage to reflect locked state
     const yakklCurrentlySelected = await getObjectFromLocalStorage(STORAGE_YAKKL_CURRENTLY_SELECTED) as any;
     if (yakklCurrentlySelected?.shortcuts) {
       yakklCurrentlySelected.shortcuts.isLocked = true;
       await setObjectInLocalStorage(STORAGE_YAKKL_CURRENTLY_SELECTED, yakklCurrentlySelected);
     }
-    
+
     // Also update settings to ensure consistent locked state
     const settings = await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS) as any;
     if (settings) {
@@ -41,44 +83,42 @@ export async function lockWallet(reason: string = 'manual'): Promise<void> {
       await setObjectInLocalStorage(STORAGE_YAKKL_SETTINGS, settings);
     }
 
-    // 4. Clear all sensitive data from memory
+    // 5. Clear all sensitive data from memory
     removeTimers();
     removeListeners();
     setMiscStore('');
     resetTokenDataStoreValues();
-    
-    // 5. Zero out values in custom token storage
+
+    // 6. Zero out values in custom token storage
     setYakklTokenDataCustomStorage(get(yakklTokenDataCustomStore));
-    
-    // 6. Reset all stores
+
+    // 7. Reset all stores
     resetStores();
 
-    // 7. Clear session markers
+    // 8. Clear session markers
     if (typeof sessionStorage !== 'undefined') {
       sessionStorage.removeItem('wallet-authenticated');
     }
 
-    // 8. Clear extension session storage (except windowId)
-    const browserExt = getBrowserExt();
-    if (browserExt?.storage?.session) {
+    // 9. Clear extension session storage (except windowId)
+    if (browser_ext?.storage?.session) {
       // Get all keys from session storage
-      const allData = await browserExt.storage.session.get(null);
+      const allData = await browser_ext.storage.session.get(null);
       const keysToRemove = Object.keys(allData).filter(key => key !== 'windowId');
-      
+
       // Remove all keys except windowId
       if (keysToRemove.length > 0) {
-        await browserExt.storage.session.remove(keysToRemove);
+        await browser_ext.storage.session.remove(keysToRemove);
       }
     }
 
-    // 9. Clear any auth tokens from local storage
-    if (browserExt?.storage?.local) {
-      await browserExt.storage.local.remove(['sessionToken', 'sessionExpiresAt', 'authToken']);
+    // 10. Clear any auth tokens from local storage
+    if (browser_ext?.storage?.local) {
+      await browser_ext.storage.local.remove(['sessionToken', 'sessionExpiresAt', 'authToken']);
     }
 
-    // 10. Reset SingletonWindowManager to clear any stale window references
+    // 11. Reset SingletonWindowManager to clear any stale window references
     try {
-      const { SingletonWindowManager } = await import('$lib/managers/SingletonWindowManager');
       SingletonWindowManager.reset();
       log.info('SingletonWindowManager reset during wallet lock');
     } catch (error) {
@@ -108,7 +148,7 @@ export function registerWalletLockHandlers(): void {
   // Handle browser/tab close - safe for all contexts
   if (typeof window !== 'undefined') {
     window.addEventListener('beforeunload', () => {
-      lockWallet('window-close').catch(err => 
+      lockWallet('window-close').catch(err =>
         log.error('Error locking wallet on beforeunload:', false, err)
       );
     });

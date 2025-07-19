@@ -9,6 +9,7 @@
 import { log } from '$lib/common/logger-wrapper';
 import { backgroundJWTManager } from './jwt-background';
 import { browserSvelte } from '$lib/common/environment';
+import { getSettings } from '$lib/common/stores';
 
 export interface JWTPayload {
 	sub: string; // Subject (user ID)
@@ -49,7 +50,7 @@ export class JWTManager {
 		userId: string,
 		username: string,
 		profileId: string,
-		planLevel: string = 'basic',
+		planLevel: string = 'explorer_member',
 		expirationMinutes: number = 60
 	): Promise<string> {
 		try {
@@ -180,7 +181,7 @@ export class JWTManager {
 					payload.sub,
 					payload.username || '',
 					payload.profileId || '',
-					payload.planLevel || 'basic'
+					payload.planLevel || 'explorer_member'
 				);
 			}
 
@@ -236,7 +237,6 @@ export class JWTManager {
 		// For now, we'll generate a key based on the user's profile
 		if (browserSvelte) {
 			try {
-				const { getSettings } = await import('$lib/common/stores');
 				const settings = await getSettings();
 
 				// Create a signing key from user settings and current date (changes daily for security)
@@ -347,7 +347,7 @@ export class ContextAwareJWTManager {
 		userId: string,
 		username: string,
 		profileId: string,
-		planLevel: string = 'basic',
+		planLevel: string = 'explorer_member',
 		sessionId?: string,
 		expirationMinutes: number = 60
 	): Promise<string> {
@@ -422,7 +422,7 @@ export async function createJWTInBackground(
 	userId: string,
 	username: string,
 	profileId: string,
-	planLevel: string = 'basic',
+	planLevel: string = 'explorer_member',
 	sessionId?: string
 ): Promise<string> {
 	return await backgroundJWTManager.generateToken(

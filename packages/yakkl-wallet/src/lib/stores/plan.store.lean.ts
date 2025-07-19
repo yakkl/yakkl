@@ -4,7 +4,7 @@
  */
 
 import { writable, derived } from 'svelte/store';
-import { PlanType } from '../types';
+import { PlanType } from '$lib/common/types';
 import { featureManager, canUseFeature as checkFeature } from '../utils/features';
 import { getSettings } from '$lib/common/stores';
 import { log } from '../utils/logger';
@@ -21,40 +21,40 @@ interface PlanState {
 
 function createPlanStore() {
   const { subscribe, set, update } = writable<PlanState>({
-    plan: { type: PlanType.Basic },
+    plan: { type: PlanType.EXPLORER_MEMBER },
     loading: false
   });
 
   return {
     subscribe,
-    
+
     async loadPlan() {
       update(state => ({ ...state, loading: true }));
-      
+
       try {
         const settings = await getSettings();
         // Convert old plan types to new ones
         const oldPlanType = settings?.plan?.type;
         let planType: PlanType;
-        
+
         // Map old plan types to new ones
         if (oldPlanType === 'yakkl_pro' || oldPlanType === 'founding_member' || oldPlanType === 'early_adopter') {
-          planType = PlanType.Pro;
+          planType = PlanType.YAKKL_PRO;
         } else if (oldPlanType === 'enterprise' || oldPlanType === 'institution' || oldPlanType === 'business') {
-          planType = PlanType.Enterprise;
+          planType = PlanType.ENTERPRISE;
         } else {
-          planType = PlanType.Basic;
+          planType = PlanType.EXPLORER_MEMBER;
         }
-        
+
         const trialEndDate = settings?.plan?.trialEndDate;
-        
+
         // Check if user is on trial (Pro features during trial)
         const onTrial = trialEndDate && new Date(trialEndDate) > new Date();
-        const effectivePlan = onTrial ? PlanType.Pro : planType;
-        
+        const effectivePlan = onTrial ? PlanType.YAKKL_PRO : planType;
+
         // Update feature manager
         featureManager.setPlan(effectivePlan);
-        
+
         set({
           plan: {
             type: effectivePlan,
@@ -62,15 +62,15 @@ function createPlanStore() {
           },
           loading: false
         });
-        
+
         log.debug(`Plan loaded: ${effectivePlan}`, { onTrial, trialEndDate });
       } catch (error) {
         log.error('Failed to load plan:', error);
-        
+
         // Default to basic plan
-        featureManager.setPlan(PlanType.Basic);
+        featureManager.setPlan(PlanType.EXPLORER_MEMBER);
         set({
-          plan: { type: PlanType.Basic },
+          plan: { type: PlanType.EXPLORER_MEMBER },
           loading: false
         });
       }
@@ -78,10 +78,10 @@ function createPlanStore() {
 
     async upgradePlan(newPlan: PlanType) {
       log.info(`Upgrading plan to: ${newPlan}`);
-      
+
       // Update feature manager
       featureManager.setPlan(newPlan);
-      
+
       update(state => ({
         ...state,
         plan: { ...state.plan, type: newPlan }
@@ -89,9 +89,9 @@ function createPlanStore() {
     },
 
     reset() {
-      featureManager.setPlan(PlanType.Basic);
+      featureManager.setPlan(PlanType.EXPLORER_MEMBER);
       set({
-        plan: { type: PlanType.Basic },
+        plan: { type: PlanType.EXPLORER_MEMBER },
         loading: false
       });
     }
@@ -108,7 +108,7 @@ export const currentPlan = derived(
 
 export const isProUser = derived(
   planStore,
-  $store => featureManager.hasAccess(PlanType.Pro)
+  $store => featureManager.hasAccess(PlanType.YAKKL_PRO)
 );
 
 export const isOnTrial = derived(

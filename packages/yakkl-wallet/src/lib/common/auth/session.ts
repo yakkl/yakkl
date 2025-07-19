@@ -48,28 +48,47 @@ export async function storeSessionToken(
 }
 
 export async function storeEncryptedHash(encryptedHash: string, profileData?: { userId?: string; username?: string; profileId?: string }): Promise<SessionToken | null> {
+	console.log('[storeEncryptedHash] Called with:', {
+		encryptedHashLength: encryptedHash?.length,
+		profileData,
+		browserSvelte: !!browserSvelte,
+		browser_ext: !!browser_ext
+	});
+	
 	try {
 		if (browserSvelte) {
 			if (!encryptedHash) {
 				log.warn('No encrypted hash provided', false, { encryptedHash });
 				return null;
 			}
+			
+			console.log('[storeEncryptedHash] Sending STORE_SESSION_HASH message to background');
+			
 			const res: StoreHashResponse = await browser_ext.runtime.sendMessage({
 				type: 'STORE_SESSION_HASH',
 				payload: encryptedHash,
 				profileData: profileData
 			});
+			
+			console.log('[storeEncryptedHash] Background response:', res);
+			
 			if (res && res.token && res.expiresAt) {
 				storeSessionToken(res.token, res.expiresAt);
 				log.debug('Session token stored', false, res);
+				console.log('[storeEncryptedHash] Session token stored successfully');
 				return { token: res.token, expiresAt: res.expiresAt };
 			} else {
 				log.warn('Session token storage failed', false, res);
+				console.error('[storeEncryptedHash] Failed - no token in response:', res);
 				return null;
 			}
+		} else {
+			console.warn('[storeEncryptedHash] browserSvelte is not available');
+			return null;
 		}
 	} catch (error) {
 		log.error('Error storing encrypted hash', false, error);
+		console.error('[storeEncryptedHash] Error:', error);
 		return null;
 	}
 }

@@ -1,10 +1,9 @@
-import type { Runtime } from 'webextension-polyfill';
 import browser from 'webextension-polyfill';
+import type { Runtime } from 'webextension-polyfill';
 import { log } from '$lib/common/logger-wrapper';
 import { getTargetOrigin, safePostMessage } from '$lib/common/origin';
 
 type RuntimePort = Runtime.Port;
-const browser_ext = browser;
 
 // Port collections
 const portsDapp: RuntimePort[] = [];
@@ -24,7 +23,7 @@ export class PortManager {
 		if (this.port) return true;
 
 		try {
-			this.port = browser_ext.runtime.connect({ name: this.name });
+			this.port = browser.runtime.connect({ name: this.name });
 			this.port.onMessage.addListener(this.onMessageListener);
 			this.port.onDisconnect.addListener(this.onDisconnectListener.bind(this));
 			return true;

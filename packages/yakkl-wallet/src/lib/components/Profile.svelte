@@ -2,9 +2,9 @@
 <script lang="ts">
 	import { createForm } from 'svelte-forms-lib';
 	import * as yup from 'yup';
-	import Modal from './v1/Modal.svelte';
-	import Avatar from './v1/Avatar.svelte';
-	import ErrorNoAction from './v1/ErrorNoAction.svelte';
+	import Modal from './Modal.svelte';
+	import Avatar from './Avatar.svelte';
+	import ErrorNoAction from './ErrorNoAction.svelte';
 	import { getProfile, setProfileStorage, yakklMiscStore } from '$lib/common/stores';
 	import { log } from '$lib/common/logger-wrapper';
 	import type { Profile, ProfileData } from '$lib/common/interfaces';
@@ -37,7 +37,7 @@
 
 	// Form validation schema
 	const validationSchema = yup.object().shape({
-		userName: yup
+		username: yup
 			.string()
 			.required('Username is required')
 			.min(3, 'Username must be at least 3 characters')
@@ -90,7 +90,7 @@
 	// Initialize form
 	const { form, errors, isValid, touched, updateField } = createForm({
 		initialValues: {
-			userName: '',
+			username: '',
 			firstName: '',
 			lastName: '',
 			email: '',
@@ -109,12 +109,12 @@
 	// Custom submit handler for Svelte 5
 	async function handleFormSubmit(event: Event) {
 		event.preventDefault();
-		
+
 		// Validate the form
 		if (!$isValid) {
 			return;
 		}
-		
+
 		// Call saveProfile directly with form values
 		await saveProfile($form);
 	}
@@ -132,7 +132,7 @@
 			const currentValues = $form;
 			// Only track changes if form has been properly initialized
 			const originalValues = {
-				userName: profile.userName || '',
+				username: profile.username || '',
 				firstName: profileData.name?.first || '',
 				lastName: profileData.name?.last || '',
 				email: profileData.email || '',
@@ -142,7 +142,7 @@
 			};
 
 			hasChanges =
-				currentValues.userName !== originalValues.userName ||
+				currentValues.username !== originalValues.username ||
 				currentValues.firstName !== originalValues.firstName ||
 				currentValues.lastName !== originalValues.lastName ||
 				currentValues.email !== originalValues.email ||
@@ -161,7 +161,7 @@
 		if (avatarUrl && avatarUrl.trim() !== '') {
 			previewAvatarUrl = avatarUrl;
 		} else {
-			previewAvatarUrl = profileData?.avatarUrl as string || identicon(profile?.userName || 'default');
+			previewAvatarUrl = profileData?.avatarUrl as string || identicon(profile?.username || 'default');
 		}
 	});
 
@@ -189,7 +189,7 @@
 			}
 
 			// Update form with profile data
-			updateField('userName', profile.userName || '');
+			updateField('username', profile.username || '');
 			updateField('firstName', profileData.name?.first || '');
 			updateField('lastName', profileData.name?.last || '');
 			updateField('email', profileData.email || '');
@@ -256,13 +256,13 @@
 			// Update profile
 			const updatedProfile: Profile = {
 				...profile,
-				userName: values.userName,
+				username: values.username,
 				data: updatedProfileData,
 				updateDate: new Date().toISOString()
 			};
 
 			log.info('[Profile] Created updated profile:', false, {
-				userName: updatedProfile.userName,
+				username: updatedProfile.username,
 				updateDate: updatedProfile.updateDate
 			});
 
@@ -309,7 +309,7 @@
 
 			log.info('[Profile] Profile saved successfully, state updated:', false, {
 				hasChanges,
-				profile: profile.userName,
+				profile: profile.username,
 				profileData: profileData.name
 			});
 
@@ -318,7 +318,7 @@
 
 			// Close modal with a small delay to ensure state updates complete
 			log.info('[Profile] Preparing to close modal after successful save');
-			
+
 			// Use setTimeout to ensure state updates are complete
 			setTimeout(() => {
 				show = false;
@@ -349,7 +349,7 @@
 
 	function resetForm() {
 		if (profile && profileData) {
-			updateField('userName', profile.userName || '');
+			updateField('username', profile.username || '');
 			updateField('firstName', profileData.name?.first || '');
 			updateField('lastName', profileData.name?.last || '');
 			updateField('email', profileData.email || '');
@@ -380,7 +380,7 @@
 					<div class="text-center">
 						<Avatar
 							url={previewAvatarUrl}
-							userName={$form.firstName || $form.userName}
+							userName={$form.firstName || $form.username}
 							className="w-24 h-24 rounded-full ring-4 ring-offset-2 ring-indigo-500"
 							ariaLabel="Profile Avatar"
 						/>
@@ -407,19 +407,19 @@
 				<!-- Basic Information -->
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div>
-						<label for="userName" class="block text-sm font-medium text-gray-700 mb-1">
+						<label for="username" class="block text-sm font-medium text-gray-700 mb-1">
 							Username <span class="text-red-500">*</span>
 						</label>
 						<input
-							id="userName"
+							id="username"
 							type="text"
-							bind:value={$form.userName}
+							bind:value={$form.username}
 							placeholder="your_username"
 							class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-							class:border-red-500={$errors.userName && $touched.userName}
+							class:border-red-500={$errors.username && $touched.username}
 						/>
-						{#if $errors.userName && $touched.userName}
-							<p class="mt-1 text-sm text-red-600">{$errors.userName}</p>
+						{#if $errors.username && $touched.username}
+							<p class="mt-1 text-sm text-red-600">{$errors.username}</p>
 						{/if}
 					</div>
 

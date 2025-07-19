@@ -1,6 +1,7 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import type { ChainDisplay, LoadingState, ErrorState } from '../types';
 import { WalletService } from '../services/wallet.service';
+import { yakklCurrentlySelectedStore } from '$lib/common/stores';
 
 interface ChainState {
   chains: ChainDisplay[];
@@ -12,7 +13,7 @@ interface ChainState {
 
 function createChainStore() {
   const walletService = WalletService.getInstance();
-  
+
   const { subscribe, set, update } = writable<ChainState>({
     chains: [],
     currentChain: null,
@@ -23,7 +24,7 @@ function createChainStore() {
 
   return {
     subscribe,
-    
+
     async loadChains() {
       console.log('ChainStore: Loading chains...');
       update(state => ({
@@ -33,15 +34,13 @@ function createChainStore() {
 
       const response = await walletService.getChains();
       console.log('ChainStore: getChains response:', response);
-      
+
       if (response.success && response.data) {
         // Get the current chain ID from the store
-        const { yakklCurrentlySelectedStore } = await import('$lib/common/stores');
-        const { get } = await import('svelte/store');
         const currentlySelected = get(yakklCurrentlySelectedStore);
         const savedChainId = currentlySelected?.shortcuts?.chainId || 1;
         console.log('ChainStore: savedChainId:', savedChainId, 'chains:', response.data);
-        
+
         update(state => ({
           ...state,
           chains: response.data!,
@@ -67,7 +66,7 @@ function createChainStore() {
 
       const response = await walletService.switchChain(chainId);
       console.log('ChainStore: switchChain response:', response);
-      
+
       if (response.success) {
         update(state => {
           const chain = state.chains.find(c => c.chainId === chainId);
@@ -131,8 +130,8 @@ export const currentChain = derived(
 
 export const visibleChains = derived(
   chainStore,
-  $store => $store.showTestnets 
-    ? $store.chains 
+  $store => $store.showTestnets
+    ? $store.chains
     : $store.chains.filter(chain => !chain.isTestnet)
 );
 

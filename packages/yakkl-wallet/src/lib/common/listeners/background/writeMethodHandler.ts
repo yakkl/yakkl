@@ -5,10 +5,11 @@ import { sendErrorResponse } from '$contexts/background/extensions/chrome/errorR
 import { pendingRequests, type BackgroundPendingRequest } from '$contexts/background/extensions/chrome/background';
 import { showEIP6963Popup } from '$contexts/background/extensions/chrome/eip-6963';
 import type { Runtime } from 'webextension-polyfill';
+import browser from 'webextension-polyfill';
 import type { YakklRequest, YakklResponse } from '$lib/common/interfaces';
 import { extractSecureDomain } from '$lib/common/security';
-import browser from 'webextension-polyfill';
 import { verifyDomainConnected } from '$contexts/background/extensions/chrome/verifyDomainConnectedBackground';
+import { getAlchemyProvider } from '$lib/managers/providers/network/ethereum_provider/alchemy';
 
 /**
  * Handles write methods that require user approval
@@ -97,7 +98,7 @@ async function handleApprovalRequest(request: YakklRequest, port: Runtime.Port):
 		pendingRequests.set(id, pendingRequest);
 
 		// Show approval popup
-		await showEIP6963Popup(method, params || [], port, id);
+		await showEIP6963Popup(method, params || []);
 	} catch (error) {
 		log.error('Error handling approval request:', false, error);
 		sendErrorResponse(port, id, error);
@@ -108,9 +109,6 @@ async function handleApprovalRequest(request: YakklRequest, port: Runtime.Port):
  * Executes write methods that don't require approval
  */
 async function executeWriteMethod(method: string, params: any[]): Promise<any> {
-	const { getAlchemyProvider } = await import(
-		'$lib/managers/providers/network/ethereum_provider/alchemy'
-	);
 	const provider = await getAlchemyProvider();
 
 	// Execute the method via RPC

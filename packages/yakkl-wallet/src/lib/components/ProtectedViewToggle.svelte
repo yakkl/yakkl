@@ -3,7 +3,7 @@
   import EyeIcon from './icons/EyeIcon.svelte';
   import EyeOffIcon from './icons/EyeOffIcon.svelte';
   import Tooltip from './Tooltip.svelte';
-  import PincodeVerify from './v1/PincodeVerify.svelte';
+  import PincodeVerify from './PincodeVerify.svelte';
   import { visibilityStore } from '$lib/common/stores/visibilityStore';
   import { notificationService } from '$lib/services/notification.service';
 

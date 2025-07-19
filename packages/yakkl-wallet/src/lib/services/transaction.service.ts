@@ -17,7 +17,7 @@ export class TransactionService extends BaseService {
   private static instance: TransactionService;
 
   private constructor() {
-    super();
+    super('TransactionService');
   }
 
   static getInstance(): TransactionService {

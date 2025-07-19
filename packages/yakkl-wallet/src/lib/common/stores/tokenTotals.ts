@@ -3,6 +3,7 @@ import { yakklCombinedTokenStore } from '$lib/common/stores';
 import { log } from '$lib/managers/Logger';
 import { DEBUG_ALL_LOGS } from '../constants';
 import { computeTokenValue } from '$lib/common/computeTokenValue'; // Utility function to ensure accurate calculations
+import { BigNumberishUtils } from '../BigNumberishUtils';
 
 // Type definition for the store value
 export type TokenTotals = {
@@ -38,10 +39,11 @@ export const tokenTotals: Readable<TokenTotals> = derived(
 			if (!token) return;
 
 			const { value } = computeTokenValue(token); // Compute accurate token value
-			portfolioTotal += value;
+			const valueNum = BigNumberishUtils.toNumber(value);
+			portfolioTotal += valueNum;
 
 			const chainId = token.chainId ?? -1; // Default to -1 if undefined
-			chainTotals[chainId] = (chainTotals[chainId] ?? 0) + value;
+			chainTotals[chainId] = (chainTotals[chainId] ?? 0) + valueNum;
 		});
 
 		// Format portfolio total

@@ -7,11 +7,13 @@ import {
 	setYakklTokenDataCustomStorage,
 	setYakklTokenDataStorage,
 	updateCombinedTokenStore,
-	yakklCombinedTokenStore
+	yakklCombinedTokenStore,
+  yakklPricingStore
 } from '$lib/common/stores';
 import { isEqual } from 'lodash-es';
 import { log } from '$lib/managers/Logger';
 import { computeTokenValue } from './computeTokenValue';
+import { balanceCacheManager } from '$lib/managers/BalanceCacheManager';
 
 // Helper functions to get balance for a token
 
@@ -22,19 +24,21 @@ export async function getTokenBalance(
 ): Promise<string | undefined> {
 	try {
 		if (!ethers.isAddress(token.address)) {
-			log.error(`Invalid token address: ${token.address}`);
+			log.warn(`Invalid token address: ${token.address}`);
 			return undefined;
 		}
+
+    if (!provider) {
+      log.warn('No provider found');
+      return undefined;
+    }
 
 		// Handle native tokens (like ETH)
 		if (token.isNative) {
 			const balance = await provider.getBalance(userAddress);
 
 			// Update cache for native token balance
-			const { balanceCacheManager } = await import('$lib/managers/BalanceCacheManager');
-			const { yakklPricingStore } = await import('$lib/common/stores');
-			const { get: getStore } = await import('svelte/store');
-			const currentPrice = getStore(yakklPricingStore)?.price;
+			const currentPrice = get(yakklPricingStore)?.price;
 			if (currentPrice) {
 				balanceCacheManager.setCachedBalance(userAddress, balance, currentPrice);
 				log.debug('[tokens] Updated cache for native token balance');

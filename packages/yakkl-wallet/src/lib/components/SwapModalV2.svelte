@@ -10,6 +10,7 @@
   import { ethers } from 'ethers-v6';
   import { ArrowDownUp, Settings, Info, AlertTriangle } from 'lucide-svelte';
   import type { TokenDisplay } from '$lib/types';
+  import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
 
   let {
     show = $bindable(false),
@@ -25,7 +26,7 @@
   let slippage = $state(0.5); // 0.5% default
   let deadline = $state(30); // 30 minutes default
   let poolFee = $state(3000); // 0.3% default
-  
+
   // UI State
   let loading = $state(false);
   let fetchingQuote = $state(false);
@@ -35,19 +36,19 @@
   let quoteData = $state<any>(null);
   let priceImpact = $state(0);
   let insufficientLiquidity = $state(false);
-  
+
   // Auto-select fee tier for stablecoins
   let autoFeeEnabled = $state(true);
-  
+
   // Reactive values
   let account = $derived($currentAccount);
   let chain = $derived($currentChain);
   let tokenList = $derived($displayTokens);
-  
+
   // Supported tokens for swapping
   const SUPPORTED_TOKENS = ['ETH', 'WETH', 'USDC', 'USDT', 'DAI', 'WBTC', 'AAVE', 'UNI', 'LINK'];
   const STABLECOINS = ['USDC', 'USDT', 'DAI', 'BUSD'];
-  
+
   let swappableTokens = $derived(tokenList.filter(t =>
     SUPPORTED_TOKENS.includes(t.symbol.toUpperCase())
   ));
@@ -63,10 +64,10 @@
   // Auto-adjust fee tier for stablecoin pairs
   $effect(() => {
     if (autoFeeEnabled && fromToken && toToken) {
-      const isStablecoinPair = 
-        STABLECOINS.includes(fromToken.symbol) && 
+      const isStablecoinPair =
+        STABLECOINS.includes(fromToken.symbol) &&
         STABLECOINS.includes(toToken.symbol);
-      
+
       if (isStablecoinPair) {
         poolFee = 500; // 0.05% for stablecoin pairs
       } else {
@@ -80,11 +81,11 @@
     const temp = fromToken;
     fromToken = toToken;
     toToken = temp;
-    
+
     const tempAmount = fromAmount;
     fromAmount = toAmount;
     toAmount = tempAmount;
-    
+
     // Clear quote data
     quoteData = null;
   }
@@ -92,38 +93,38 @@
   // Validate swap
   function validateSwap(): boolean {
     validationError = '';
-    
+
     if (!fromToken || !toToken) {
       validationError = 'Please select tokens';
       return false;
     }
-    
+
     if (!fromAmount || parseFloat(fromAmount) <= 0) {
       validationError = 'Please enter an amount';
       return false;
     }
-    
-    const balance = parseFloat(fromToken.balance || '0');
+
+    const balance = BigNumberishUtils.toNumber(fromToken.balance || 0);
     if (parseFloat(fromAmount) > balance) {
       validationError = 'Insufficient balance';
       return false;
     }
-    
+
     if (fromToken.address === toToken.address) {
       validationError = 'Cannot swap same token';
       return false;
     }
-    
+
     return true;
   }
 
   // Fetch quote
   async function fetchQuote() {
     if (!validateSwap()) return;
-    
+
     fetchingQuote = true;
     insufficientLiquidity = false;
-    
+
     try {
       const response = await messagingService.sendMessage('swap.getQuote', {
         fromToken: {
@@ -141,15 +142,15 @@
         slippage,
         fee: poolFee
       });
-      
+
       if (response.success && response.data) {
         quoteData = response.data;
         toAmount = response.data.toAmount;
-        
+
         // Calculate price impact
         const impactPercent = parseFloat(response.data.priceImpact || '0');
         priceImpact = impactPercent;
-        
+
         // Check for high price impact
         if (impactPercent > 5) {
           validationError = 'High price impact! Consider smaller amount.';
@@ -159,7 +160,7 @@
       }
     } catch (error: any) {
       console.error('Quote error:', error);
-      
+
       if (error.message?.includes('insufficient liquidity')) {
         insufficientLiquidity = true;
         validationError = 'Insufficient liquidity for this trade';
@@ -191,7 +192,7 @@
   // Execute swap
   async function executeSwap() {
     if (!quoteData || !fromToken || !toToken) return;
-    
+
     loading = true;
     try {
       // Check allowance for ERC20 tokens
@@ -201,31 +202,31 @@
           ownerAddress: account?.address,
           spenderAddress: '0xE592427A0AEce92De3Edee1F18E0157C05861564' // Uniswap V3 Router
         });
-        
+
         if (allowanceResponse.success) {
-          const allowance = BigInt(allowanceResponse.data.allowance);
+          const allowance = BigNumberishUtils.toBigInt(allowanceResponse.data.allowance);
           const amountIn = ethers.parseUnits(fromAmount, fromToken.decimals || 18);
-          
+
           if (allowance < amountIn) {
             // Need approval
             notificationService.info('Approving token for swap...');
-            
+
             const approvalResponse = await messagingService.sendMessage('swap.approve', {
               tokenAddress: fromToken.address,
               spenderAddress: '0xE592427A0AEce92De3Edee1F18E0157C05861564',
               amount: amountIn.toString()
             });
-            
+
             if (!approvalResponse.success) {
               throw new Error('Failed to approve token');
             }
-            
+
             // Wait a bit for approval to be mined
             await new Promise(resolve => setTimeout(resolve, 2000));
           }
         }
       }
-      
+
       // Execute swap
       const swapResponse = await messagingService.sendMessage('swap.execute', {
         fromToken: {
@@ -244,22 +245,22 @@
         fee: poolFee,
         deadline: Math.floor(Date.now() / 1000) + (deadline * 60)
       });
-      
+
       if (swapResponse.success && swapResponse.data) {
         // Show success notification
         notificationService.success(
           'Swap Initiated!',
           `Transaction hash: ${swapResponse.data.txHash}`
         );
-        
+
         // Show pending transaction UI
         uiStore.showTransactionPending(swapResponse.data.txHash);
-        
+
         // Call parent handler
         if (onSwap) {
           onSwap(swapResponse.data);
         }
-        
+
         // Close modal
         show = false;
         resetForm();
@@ -277,7 +278,7 @@
   // Submit handler
   function handleSubmit() {
     if (!validateSwap() || !quoteData) return;
-    
+
     // Show PIN verification
     showPincode = true;
   }
@@ -326,9 +327,9 @@
   }
 </script>
 
-<Modal 
-  bind:show 
-  title="Swap Tokens" 
+<Modal
+  bind:show
+  title="Swap Tokens"
   size="lg"
   onClose={() => {
     show = false;
@@ -366,11 +367,11 @@
       </div>
       {#if fromToken}
         <div class="mt-2 flex justify-between text-sm text-gray-500">
-          <span>Balance: {formatAmount(fromToken.balance || '0')}</span>
+          <span>Balance: {formatAmount(BigNumberishUtils.toNumber(fromToken.balance || 0))}</span>
           <button
             class="text-indigo-600 hover:text-indigo-800"
             onclick={() => {
-              fromAmount = fromToken?.balance || '0';
+              fromAmount = BigNumberishUtils.toNumber(fromToken?.balance || 0).toString();
               handleAmountChange();
             }}
           >
@@ -418,7 +419,7 @@
       </div>
       {#if toToken}
         <div class="mt-2 text-sm text-gray-500">
-          Balance: {formatAmount(toToken.balance || '0')}
+          Balance: {formatAmount(BigNumberishUtils.toNumber(toToken.balance || 0))}
         </div>
       {/if}
     </div>
@@ -529,9 +530,9 @@
 
 <!-- Settings Modal -->
 {#if showSettings}
-  <Modal 
-    show={showSettings} 
-    title="Transaction Settings" 
+  <Modal
+    show={showSettings}
+    title="Transaction Settings"
     size="sm"
     onClose={() => showSettings = false}
   >

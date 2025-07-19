@@ -141,11 +141,12 @@
         <!-- Search -->
         {#if showSearch}
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label for="search-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Search
             </label>
             <div class="relative">
               <input
+                id="search-input"
                 type="text"
                 value={localSearchValue}
                 oninput={handleSearch}
@@ -161,10 +162,10 @@
         
         <!-- Filters -->
         {#if showFilters && filters.length > 0}
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <fieldset>
+            <legend class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Filters
-            </label>
+            </legend>
             <div class="space-y-2">
               {#each localFilters as filter}
                 <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-700 p-2 rounded transition-colors">
@@ -180,15 +181,15 @@
                 </label>
               {/each}
             </div>
-          </div>
+          </fieldset>
         {/if}
         
         <!-- Sort Options -->
         {#if showSort && sortOptions.length > 0}
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <fieldset>
+            <legend class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Sort By
-            </label>
+            </legend>
             <div class="space-y-1">
               {#each sortOptions as option}
                 <button
@@ -208,7 +209,7 @@
                 </button>
               {/each}
             </div>
-          </div>
+          </fieldset>
         {/if}
         
         <!-- Actions -->

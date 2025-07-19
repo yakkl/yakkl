@@ -1,4 +1,4 @@
-import type { SigningRequest } from './signingHandler';
+import type { SigningRequest } from '$lib/common/types/signing';
 import { log } from '$lib/managers/Logger';
 import { browser_ext, browserSvelte } from '$lib/common/environment';
 import { sessionToken } from '$lib/common/auth/session';

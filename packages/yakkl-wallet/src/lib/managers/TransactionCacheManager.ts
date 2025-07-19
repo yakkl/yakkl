@@ -1,7 +1,7 @@
 import { log } from '$lib/managers/Logger';
 import type { TransactionDisplay } from '$lib/types';
 import { StorageService } from '$lib/common/shared/StorageService';
-import { browser } from '$app/environment';
+import { browser_ext } from '$lib/common/environment';
 
 interface TransactionCache {
   transactions: TransactionDisplay[];
@@ -20,7 +20,7 @@ export class TransactionCacheManager {
   private static instance: TransactionCacheManager;
   private storageService: StorageService;
   private memoryCache: Map<string, TransactionCache> = new Map();
-  
+
   private readonly config: TransactionCacheConfig = {
     maxAge: 5 * 60 * 1000, // 5 minutes
     maxTransactions: 1000, // Store up to 1000 transactions per address/chain
@@ -88,7 +88,7 @@ export class TransactionCacheManager {
     sortOrder: 'newest' | 'oldest' = 'newest'
   ): Promise<TransactionDisplay[] | null> {
     const cacheKey = this.getCacheKey(address, chainId);
-    
+
     // Check memory cache first
     const memoryCache = this.memoryCache.get(cacheKey);
     if (memoryCache && Date.now() - memoryCache.lastUpdated < this.config.maxAge) {
@@ -99,7 +99,7 @@ export class TransactionCacheManager {
     // Check persistent storage
     const storageKey = this.getStorageKey(cacheKey);
     const storedCache = await this.storageService.getData<TransactionCache | null>(storageKey, null);
-    
+
     if (storedCache && Date.now() - storedCache.lastUpdated < this.config.maxAge) {
       // Update memory cache
       this.memoryCache.set(cacheKey, storedCache);
@@ -121,33 +121,33 @@ export class TransactionCacheManager {
   ): Promise<void> {
     const cacheKey = this.getCacheKey(address, chainId);
     const storageKey = this.getStorageKey(cacheKey);
-    
+
     // Get existing cache
     const existingCache = await this.storageService.getData<TransactionCache | null>(storageKey, null);
-    
+
     // Merge transactions (newer ones take precedence)
     const mergedTransactions = this.mergeTransactions(
       existingCache?.transactions || [],
       transactions
     );
-    
+
     // Limit the number of transactions
     const limitedTransactions = mergedTransactions.slice(0, this.config.maxTransactions);
-    
+
     const cache: TransactionCache = {
       transactions: limitedTransactions,
       lastUpdated: Date.now(),
       chainId,
       address: address.toLowerCase()
     };
-    
+
     // Update both memory and storage
     this.memoryCache.set(cacheKey, cache);
     await this.storageService.saveData(storageKey, cache);
-    
+
     // Update index
     await this.updateCacheIndex(cacheKey);
-    
+
     log.debug('TransactionCacheManager: Cache updated', false, {
       address,
       chainId,
@@ -165,14 +165,14 @@ export class TransactionCacheManager {
   ): Promise<void> {
     const cacheKey = this.getCacheKey(address, chainId);
     const storageKey = this.getStorageKey(cacheKey);
-    
+
     // Get existing cache
     const existingCache = await this.storageService.getData<TransactionCache | null>(storageKey, null);
     const transactions = existingCache?.transactions || [];
-    
+
     // Check if transaction already exists
     const existingIndex = transactions.findIndex(tx => tx.hash === transaction.hash);
-    
+
     if (existingIndex !== -1) {
       // Update existing transaction
       transactions[existingIndex] = transaction;
@@ -180,21 +180,21 @@ export class TransactionCacheManager {
       // Add new transaction at the beginning (newest first)
       transactions.unshift(transaction);
     }
-    
+
     // Limit the number of transactions
     const limitedTransactions = transactions.slice(0, this.config.maxTransactions);
-    
+
     const cache: TransactionCache = {
       transactions: limitedTransactions,
       lastUpdated: Date.now(),
       chainId,
       address: address.toLowerCase()
     };
-    
+
     // Update both memory and storage
     this.memoryCache.set(cacheKey, cache);
     await this.storageService.saveData(storageKey, cache);
-    
+
     log.debug('TransactionCacheManager: Transaction added', false, {
       hash: transaction.hash,
       address,
@@ -209,29 +209,29 @@ export class TransactionCacheManager {
     const cutoffTime = Date.now() - (this.config.retentionDays * 24 * 60 * 60 * 1000);
     const index = await this.loadCacheIndex();
     let cleanedCount = 0;
-    
+
     for (const cacheKey of index) {
       const storageKey = this.getStorageKey(cacheKey);
       const cache = await this.storageService.getData<TransactionCache | null>(storageKey, null);
-      
+
       if (cache) {
         // Filter out old transactions
         const filteredTransactions = cache.transactions.filter(
           tx => tx.timestamp > cutoffTime / 1000 // Convert to seconds
         );
-        
+
         if (filteredTransactions.length < cache.transactions.length) {
           cache.transactions = filteredTransactions;
           cache.lastUpdated = Date.now();
-          
+
           await this.storageService.saveData(storageKey, cache);
           this.memoryCache.set(cacheKey, cache);
-          
+
           cleanedCount += cache.transactions.length - filteredTransactions.length;
         }
       }
     }
-    
+
     log.info('TransactionCacheManager: Cleared old transactions', false, {
       transactionsRemoved: cleanedCount,
       retentionDays: this.config.retentionDays
@@ -244,25 +244,24 @@ export class TransactionCacheManager {
   async clearCache(address: string, chainId: number): Promise<void> {
     const cacheKey = this.getCacheKey(address, chainId);
     const storageKey = this.getStorageKey(cacheKey);
-    
+
     // Clear from memory
     this.memoryCache.delete(cacheKey);
-    
+
     // Clear from storage
-    if (browser) {
+    if (browser_ext) {
       try {
-        const browserApi = (await import('webextension-polyfill')).default;
-        await browserApi.storage.local.remove(storageKey);
+        await browser_ext.storage.local.remove(storageKey);
       } catch (error) {
         log.error('Failed to clear cache from storage', false, error);
       }
     }
-    
+
     // Update index
     const index = await this.loadCacheIndex();
     const newIndex = index.filter(key => key !== cacheKey);
     await this.saveCacheIndex(newIndex);
-    
+
     log.debug('TransactionCacheManager: Cache cleared', false, { address, chainId });
   }
 
@@ -271,24 +270,23 @@ export class TransactionCacheManager {
    */
   async clearAllCaches(): Promise<void> {
     const index = await this.loadCacheIndex();
-    
+
     // Clear all cache entries
-    if (browser) {
+    if (browser_ext) {
       try {
-        const browserApi = (await import('webextension-polyfill')).default;
         const keysToRemove = index.map(key => this.getStorageKey(key));
-        await browserApi.storage.local.remove(keysToRemove);
+        await browser_ext.storage.local.remove(keysToRemove);
       } catch (error) {
         log.error('Failed to clear all caches from storage', false, error);
       }
     }
-    
+
     // Clear memory cache
     this.memoryCache.clear();
-    
+
     // Clear index
     await this.saveCacheIndex([]);
-    
+
     log.info('TransactionCacheManager: All caches cleared', false);
   }
 
@@ -304,12 +302,12 @@ export class TransactionCacheManager {
     const index = await this.loadCacheIndex();
     let totalTransactions = 0;
     let oldestTransaction: number | null = null;
-    
+
     for (const cacheKey of index) {
       const cache = this.memoryCache.get(cacheKey);
       if (cache) {
         totalTransactions += cache.transactions.length;
-        
+
         for (const tx of cache.transactions) {
           if (!oldestTransaction || tx.timestamp < oldestTransaction) {
             oldestTransaction = tx.timestamp;
@@ -317,7 +315,7 @@ export class TransactionCacheManager {
         }
       }
     }
-    
+
     return {
       totalCaches: index.length,
       totalTransactions,
@@ -334,17 +332,17 @@ export class TransactionCacheManager {
     newTxs: TransactionDisplay[]
   ): TransactionDisplay[] {
     const txMap = new Map<string, TransactionDisplay>();
-    
+
     // Add existing transactions
     for (const tx of existing) {
       txMap.set(tx.hash, tx);
     }
-    
+
     // Add/update with new transactions
     for (const tx of newTxs) {
       txMap.set(tx.hash, tx);
     }
-    
+
     // Convert back to array and sort by timestamp (newest first)
     return Array.from(txMap.values()).sort((a, b) => b.timestamp - a.timestamp);
   }
@@ -357,13 +355,13 @@ export class TransactionCacheManager {
     order: 'newest' | 'oldest'
   ): TransactionDisplay[] {
     const sorted = [...transactions];
-    
+
     if (order === 'newest') {
       sorted.sort((a, b) => b.timestamp - a.timestamp);
     } else {
       sorted.sort((a, b) => a.timestamp - b.timestamp);
     }
-    
+
     return sorted;
   }
 
@@ -372,7 +370,7 @@ export class TransactionCacheManager {
    */
   private async updateCacheIndex(cacheKey: string): Promise<void> {
     const index = await this.loadCacheIndex();
-    
+
     if (!index.includes(cacheKey)) {
       index.push(cacheKey);
       await this.saveCacheIndex(index);
@@ -383,20 +381,18 @@ export class TransactionCacheManager {
    * Initialize periodic cleanup task
    */
   private initializeCleanupTask(): void {
-    if (browser) {
-      // Run cleanup daily
-      setInterval(() => {
-        this.clearOldTransactions().catch(error => {
-          log.error('Failed to run cleanup task', false, error);
-        });
-      }, 24 * 60 * 60 * 1000); // 24 hours
-      
-      // Run initial cleanup after 1 minute
-      setTimeout(() => {
-        this.clearOldTransactions().catch(error => {
-          log.error('Failed to run initial cleanup', false, error);
-        });
-      }, 60 * 1000); // 1 minute
-    }
+    // Run cleanup daily
+    setInterval(() => {
+      this.clearOldTransactions().catch(error => {
+        log.error('Failed to run cleanup task', false, error);
+      });
+    }, 24 * 60 * 60 * 1000); // 24 hours
+
+    // Run initial cleanup after 1 minute
+    setTimeout(() => {
+      this.clearOldTransactions().catch(error => {
+        log.error('Failed to run initial cleanup', false, error);
+      });
+    }, 60 * 1000); // 1 minute
   }
 }

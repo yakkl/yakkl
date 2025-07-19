@@ -1,5 +1,5 @@
 // src/hooks.client.ts
-import type { Browser } from 'webextension-polyfill';
+// import type { BrowserAPI } from '$lib/types/browser-types';
 import { getSettings, setContextTypeStore, syncStorageToStore } from '$lib/common/stores';
 import { loadTokens } from '$lib/common/stores/tokens';
 import { BalanceCacheManager } from '$lib/managers/BalanceCacheManager';
@@ -11,6 +11,7 @@ import { globalListenerManager } from '$lib/managers/GlobalListenerManager';
 import { uiListenerManager } from '$lib/common/listeners/ui/uiListeners';
 import { protectedContexts } from '$lib/common/globals';
 import { initializeGlobalErrorHandlers, cleanupGlobalErrorHandlers } from '$lib/common/globalErrorHandler';
+import { browser_ext } from '$lib/common/environment';
 
 // Helper function to check if context needs idle protection
 function contextNeedsIdleProtection(contextType: string): boolean {
@@ -20,7 +21,6 @@ function contextNeedsIdleProtection(contextType: string): boolean {
 // Store the browser reference globally for SvelleKit to use
 declare global {
 	interface Window {
-		browserPolyfill: Browser;
 		EXTENSION_INIT_STATE: {
 			initialized: boolean;
 			contextId: string;
@@ -71,48 +71,32 @@ if (isClient) {
 	}
 }
 
-let browser_ext: Browser | null = null;
+// let browser_ext: BrowserAPI | null = null;
 let initializationAttempted = false;
 
-function getBrowserExt(): Browser | null {
-	if (!isClient) return null;
+// function getBrowserExt(): BrowserAPI | null {
+// 	if (!isClient) return null;
 
-	// If already initialized, return the existing instance
-	if (browser_ext) return browser_ext;
+// 	// If already initialized, return the existing instance
+// 	if (browser_ext) return browser_ext;
 
-	// Only log once
-	if (!initializationAttempted) {
-		initializationAttempted = true;
-	}
+// 	// Only log once
+// 	if (!initializationAttempted) {
+// 		initializationAttempted = true;
+// 	}
 
-	// First try window.browser (set by polyfill script)
-	if (window.browser) {
-		browser_ext = window.browser;
-		window.browserPolyfill = browser_ext;
-		return browser_ext;
-	}
+// 	// Use the centralized browser detection 
+// 	// browser_ext = getBrowserExtFromWrapper();
 
-	// Then try window.browserPolyfill (may have been set manually)
-	if (window.browserPolyfill) {
-		browser_ext = window.browserPolyfill;
-		return browser_ext;
-	}
+// 	// Log only on first failed attempt
+// 	if (!browser_ext && initializationAttempted) {
+// 		log.warn(
+// 			'Browser extension API not available - ' + 'check if browser-polyfill.js is loading correctly'
+// 		);
+// 	}
 
-	// Finally try chrome with basic detection
-	if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
-		// You might want to initialize Chrome shim here
-		// For now, just return null
-	}
-
-	// Log only on first failed attempt
-	if (!browser_ext && initializationAttempted) {
-		log.warn(
-			'Browser extension API not available - ' + 'check if browser-polyfill.js is loading correctly'
-		);
-	}
-
-	return browser_ext;
-}
+// 	return browser_ext;
+// }
 
 const errorHandler = ErrorHandler.getInstance(); // Initialize error handlers
 
@@ -123,7 +107,10 @@ if (isClient) {
 
 		// Check if it's a connection error from extension messaging
 		if (error?.message?.includes('Could not establish connection') ||
-			error?.message?.includes('Receiving end does not exist')) {
+			error?.message?.includes('Receiving end does not exist') ||
+			error?.message?.includes('Extension context invalidated') ||
+			error?.message?.includes('Cannot access a chrome://') ||
+			error?.message?.includes('webextension-polyfill')) {
 			// Prevent the default error handling
 			event.preventDefault();
 
@@ -142,12 +129,15 @@ if (isClient) {
 		// Check if any argument contains the connection error messages
 		const errorString = args.map(arg => String(arg)).join(' ');
 		if (errorString.includes('Could not establish connection') ||
-		    errorString.includes('Receiving end does not exist')) {
+		    errorString.includes('Receiving end does not exist') ||
+		    errorString.includes('Extension context invalidated') ||
+		    errorString.includes('Cannot access a chrome://') ||
+		    errorString.includes('webextension-polyfill')) {
 			// Log as debug instead
 			log.debug('Suppressed console error:', false, ...args);
 			return;
 		}
-		
+
 		// Call the original console.error for other errors
 		originalConsoleError.apply(console, args);
 	};
@@ -158,16 +148,16 @@ if (isClient) {
  */
 async function loadCacheManagers(): Promise<void> {
 	if (!isClient) return;
-	
+
 	try {
 		// Initialize cache managers to load their data from storage
 		// These will load cached balance and token data that needs to be available immediately
 		BalanceCacheManager.getInstance();
 		AccountTokenCacheManager.getInstance();
-		
+
 		// Give them a moment to load from storage
 		await new Promise(resolve => setTimeout(resolve, 10));
-		
+
 		log.debug('Cache managers loaded successfully');
 	} catch (error) {
 		log.warn('Failed to load cache managers:', false, error);
@@ -239,7 +229,7 @@ export async function init() {
 		initializeGlobalErrorHandlers();
 
 		// First get the browser API
-		const browserApi = getBrowserExt();
+		// const browserApi = getBrowserExt();
 
 		// Register UI context with global listener manager if not already done
 		if (!globalListenerManager.hasContext('ui')) {
@@ -249,7 +239,7 @@ export async function init() {
 		// Initialize stores first (these need to be ready before any UI rendering)
 		await syncStorageToStore();
 		await loadTokens();
-		
+
 		// Load cache managers very early to ensure cached data is available
 		await loadCacheManagers();
 
@@ -355,21 +345,33 @@ async function setupUIListeners() {
 
 // Run init early, but only in browser context
 if (isClient) {
-	// Give a slight delay to ensure all globals are available
-	setTimeout(() => {
-		init().catch((err) => {
-			console.warn(`[${CONTEXT_ID}] Failed to initialize:`, err);
+	// Wait for DOM to be ready and browser API to be available
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', () => {
+			// Give browser API time to initialize after DOM is ready
+			setTimeout(() => {
+				init().catch((err) => {
+					console.warn(`[${CONTEXT_ID}] Failed to initialize:`, err);
+				});
+			}, 200);
 		});
-	}, 50);
+	} else {
+		// DOM is already loaded, still give browser API time to initialize
+		setTimeout(() => {
+			init().catch((err) => {
+				console.warn(`[${CONTEXT_ID}] Failed to initialize:`, err);
+			});
+		}, 200);
+	}
 }
 
 // Function to register with background script - moved to a function so we can call it at the right time
 async function registerWithBackgroundScript() {
-	if (!isClient || !getBrowserExt()) return;
-	
+	if (!isClient || !browser_ext) return;
+
 	try {
 		const contextType = getContextType();
-		const browserExt = getBrowserExt();
+		// const browserExt = getBrowserExt();
 
 		// Function to send initialization message with retry logic
 		const sendInitMessage = async (retries = 3, delay = 100) => {
@@ -377,7 +379,7 @@ async function registerWithBackgroundScript() {
 			await new Promise(resolve => setTimeout(resolve, 50));
 			for (let i = 0; i < retries; i++) {
 				try {
-					await browserExt?.runtime.sendMessage({
+					await browser_ext?.runtime.sendMessage({
 						type: 'ui_context_initialized',
 						contextId: CONTEXT_ID,
 						contextType: contextType,
@@ -407,7 +409,7 @@ async function registerWithBackgroundScript() {
 		// Only set up idle status listener for protected contexts
 		if (contextNeedsIdleProtection(contextType)) {
 			// Set up idle status listener
-			browserExt?.runtime.onMessage.addListener(
+			browser_ext?.runtime.onMessage.addListener(
 				(message: any, _sender: any, _sendResponse: any): any => {
 					if (message.type === 'IDLE_STATUS_CHANGED') {
 						// Check if message is targeted to this context type
@@ -437,7 +439,7 @@ async function registerWithBackgroundScript() {
 		}
 
 		window.addEventListener('beforeunload', () => {
-			browserExt?.runtime
+			browser_ext?.runtime
 				.sendMessage({
 					type: 'ui_context_closing',
 					contextId: CONTEXT_ID
@@ -450,4 +452,4 @@ async function registerWithBackgroundScript() {
 }
 
 // Export for external use if needed
-export { getBrowserExt };
+// export { getBrowserExt };

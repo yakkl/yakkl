@@ -48,3 +48,9 @@ export {
   isLoadingTx, 
   txError 
 } from './transaction.store';
+
+// Modal stores
+export {
+  modalStore,
+  isModalOpen
+} from './modal.store';

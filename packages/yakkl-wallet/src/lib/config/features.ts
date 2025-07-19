@@ -1,6 +1,8 @@
 // Feature flags for Basic vs Pro tier separation
-import { PlanType } from '../types';
-export { PlanType };
+// import { PlanType } from '../types';
+// export { PlanType };
+
+import { PlanType } from "$lib/common/types";
 
 // Define feature arrays first to avoid circular reference
 const BASIC_FEATURES = [
@@ -58,9 +60,9 @@ const PAYMENT_FEATURES = [
 ] as const;
 
 export const FEATURES = {
-  [PlanType.Basic]: BASIC_FEATURES,
-  [PlanType.Pro]: PRO_FEATURES,
-  [PlanType.Enterprise]: ENTERPRISE_FEATURES,
+  [PlanType.EXPLORER_MEMBER]: BASIC_FEATURES,
+  [PlanType.YAKKL_PRO]: PRO_FEATURES,
+  [PlanType.ENTERPRISE]: ENTERPRISE_FEATURES,
   PAYMENT: PAYMENT_FEATURES
 } as const;
 
@@ -72,9 +74,9 @@ export const PLAN_FEATURES = {
 } as const;
 
 // Type for feature keys
-export type FeatureKey = 
+export type FeatureKey =
   | typeof BASIC_FEATURES[number]
-  | typeof PRO_FEATURES[number] 
+  | typeof PRO_FEATURES[number]
   | typeof ENTERPRISE_FEATURES[number];
 
 // Helper function to check if a feature is available
@@ -85,7 +87,7 @@ export function hasFeature(userPlan: PlanType, feature: string): boolean {
 
 // Get all features for a plan
 export function getFeaturesForPlan(plan: PlanType): readonly string[] {
-  return FEATURES[plan as keyof typeof FEATURES] ?? FEATURES[PlanType.Basic];
+  return FEATURES[plan as keyof typeof FEATURES] ?? FEATURES[PlanType.EXPLORER_MEMBER];
 }
 
 // Check if user is on trial

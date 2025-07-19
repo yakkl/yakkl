@@ -1,6 +1,6 @@
 import { RPCBase, type RPCOptions } from '$managers/RPCBase';
 import { log } from '$lib/common/logger-wrapper';
-import type { BlockTag } from '$lib/common';
+import { ensureHexFormat, type BlockTag } from '$lib/common';
 import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
 
 export class RPCAlchemy extends RPCBase {
@@ -88,6 +88,7 @@ export class RPCAlchemy extends RPCBase {
 		}
 	}
 
+
 	async getBalance(address: string, blockTag: BlockTag = 'latest'): Promise<string> {
 		try {
 			log.info('[RPCAlchemy] Fetching balance', false, { address, blockTag });
@@ -102,7 +103,9 @@ export class RPCAlchemy extends RPCBase {
 					try {
 						const result = await this.makeRequestWithRetry('eth_getBalance', [address, blockTag]);
 						clearTimeout(timeoutId);
-						resolve(result);
+						// Ensure result is in hex format
+						const hexResult = ensureHexFormat(result);
+						resolve(hexResult);
 					} catch (error) {
 						clearTimeout(timeoutId);
 						log.warn('[RPCAlchemy] Balance request failed, returning 0', false, {

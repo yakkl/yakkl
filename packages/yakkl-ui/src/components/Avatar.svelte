@@ -1,12 +1,12 @@
 <script lang="ts">
   const props = $props<{
-    userName?: string;
+    username?: string;
     url?: string;
     className?: string;
     ariaLabel?: string;
   }>();
 
-  const initial = props.userName?.charAt(0)?.toUpperCase() ?? '?';
+  const initial = props.username?.charAt(0)?.toUpperCase() ?? '?';
 
   // Default styles (can be extended or overridden by props.className)
   const defaultClasses =

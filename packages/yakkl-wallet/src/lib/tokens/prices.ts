@@ -1,12 +1,16 @@
 // Base coingecko API
 // import { fetchJson } from "@ethersproject/web";
-import { get } from 'svelte/store';
+import { writable, get, type Writable } from 'svelte/store';
+import { yakklCombinedTokenStore } from '$lib/common/stores';
+import type { TokenData } from '$lib/common/interfaces';
+import { balanceCacheManager } from '$lib/managers/BalanceCacheManager';
+import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
+import { log } from '$lib/common/logger-wrapper';
 import { yakklPricingStore, yakklConnectionStore } from '$lib/common/stores';
 import { PriceManager } from '$lib/managers/PriceManager';
 import { KrakenPriceProvider } from '$lib/managers/providers/price/kraken/KrakenPriceProvider';
 import { CoingeckoPriceProvider } from '$lib/managers/providers/price/coingecko/CoingeckoPriceProvider';
 import { CoinbasePriceProvider } from '$lib/managers/providers/price/coinbase/CoinbasePriceProvider';
-import { log } from '$lib/managers/Logger';
 import { getTimerManager } from '$lib/managers/TimerManager';
 import { TIMER_CHECK_PRICE_INTERVAL_TIME } from '$lib/common';
 
@@ -38,16 +42,15 @@ export async function checkPricesCallback(symbol: string = 'ETH-USD') {
 				yakklPricingStore.set({
 					provider: result.provider,
 					id: 'checkPricesCallback',
-					price: result.price,
+					price: BigNumberishUtils.toNumber(result.price),
 					prevPrice: prevPrice
 				});
 
 				// Update all cached balances with new price
-				const { balanceCacheManager } = await import('$lib/managers/BalanceCacheManager');
-				if (result.price && result.price > 0) {
-					balanceCacheManager.updatePriceForAllEntries(result.price);
+				if (result.price && BigNumberishUtils.compare(result.price, 0) > 0) {
+					balanceCacheManager.updatePriceForAllEntries(BigNumberishUtils.toNumber(result.price));
 					log.debug('[checkPricesCallback] Updated all cached entries with new price:', false, {
-						newPrice: result.price
+						newPrice: BigNumberishUtils.toNumber(result.price)
 					});
 				}
 			}

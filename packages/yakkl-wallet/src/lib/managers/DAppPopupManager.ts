@@ -1,9 +1,7 @@
 import { log } from '$lib/common/logger-wrapper';
 import { sendNotificationMessage } from '$lib/common/notifications';
 import { showExtensionPopup } from '$contexts/background/extensions/chrome/ui';
-import browser from 'webextension-polyfill';
-
-const browser_ext = browser;
+import { browser_ext } from '$lib/common/environment';
 
 // See example usage below::
 
@@ -89,7 +87,7 @@ export class DAppPopupManager {
 
 		try {
 			if (!browser_ext) {
-				console.warn('Browser API not available, DAppPopupManager initialization delayed');
+				log.warn('Browser API not available, DAppPopupManager initialization delayed');
 				return;
 			}
 

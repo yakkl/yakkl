@@ -3,7 +3,8 @@
   import type { TokenDisplay } from '../types';
   import { currentChain } from '../stores/chain.store';
   import { get } from 'svelte/store';
-  import ProtectedValue from './v1/ProtectedValue.svelte';
+  import ProtectedValue from './ProtectedValue.svelte';
+  import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
 
   interface Props {
     show?: boolean;
@@ -13,6 +14,13 @@
   }
 
   let { show = false, token = null, onClose = () => {}, onSend = () => {} }: Props = $props();
+
+  // Check if token is native (ETH, MATIC, etc.)
+  const isNativeToken = $derived(
+    token?.address === '0x0000000000000000000000000000000000000000' ||
+    token?.address?.toLowerCase() === '0x0' ||
+    !token?.address
+  );
 
   function handleAddToWatchlist() {
     // TODO: Implement watchlist functionality
@@ -25,10 +33,14 @@
   }
 
   function handleViewOnExplorer() {
-    if (token?.address) {
-      const chain = get(currentChain);
-
-      if (chain?.explorerUrl) {
+    const chain = get(currentChain);
+    
+    if (chain?.explorerUrl) {
+      if (isNativeToken) {
+        // For native tokens, just open the explorer homepage or a specific page for the native token
+        window.open(chain.explorerUrl, '_blank');
+      } else if (token?.address) {
+        // For regular tokens, open the token page
         window.open(`${chain.explorerUrl}/token/${token.address}`, '_blank');
       }
     }
@@ -114,20 +126,20 @@
         <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
           <p class="text-xs text-gray-500 dark:text-gray-400">Price</p>
           <p class="text-sm font-medium text-gray-900 dark:text-white">
-            <ProtectedValue value={formatPrice(token.price)} placeholder="****" />
+            <ProtectedValue value={formatPrice(BigNumberishUtils.toNumber(token.price))} placeholder="****" />
           </p>
         </div>
 
         <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
           <p class="text-xs text-gray-500 dark:text-gray-400">24h Change</p>
-          <p class="text-sm font-medium {token.change24h && token.change24h >= 0 ? 'text-green-600' : 'text-red-600'}">
-            {token.change24h !== undefined ? `${token.change24h >= 0 ? '+' : ''}${token.change24h.toFixed(2)}%` : 'N/A'}
+          <p class="text-sm font-medium {token.change24h && BigNumberishUtils.compare(token.change24h, 0) >= 0 ? 'text-green-600' : 'text-red-600'}">
+            {token.change24h !== undefined ? `${BigNumberishUtils.compare(token.change24h, 0) >= 0 ? '+' : ''}${BigNumberishUtils.toNumber(token.change24h).toFixed(2)}%` : 'N/A'}
           </p>
         </div>
       </div>
 
       <!-- Token Info -->
-      {#if token.address}
+      {#if token.address && !isNativeToken}
         <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
           <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Contract Address</p>
           <p class="text-xs font-mono text-gray-700 dark:text-gray-300 break-all">
@@ -150,7 +162,6 @@
         <button
           onclick={handleViewOnExplorer}
           class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium"
-          disabled={!token.address}
         >
           View on Explorer
         </button>

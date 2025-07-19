@@ -3,9 +3,9 @@
   import { onMount } from 'svelte';
   import { yakklCurrentlySelectedStore } from '$lib/common/stores';
   import { get } from 'svelte/store';
-  import PincodeVerify from './v1/PincodeVerify.svelte';
+  import PincodeVerify from './PincodeVerify.svelte';
   import Modal from '$lib/components/Modal.svelte';
-  import Copy from './v1/Copy.svelte';
+  import Copy from './Copy.svelte';
   import { AlertTriangle, Key } from 'lucide-svelte';
   import { sendToBackground } from '$lib/services/message.service';
 

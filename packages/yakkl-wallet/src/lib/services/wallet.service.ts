@@ -1,6 +1,6 @@
 import { BaseService } from './base.service';
 import type { AccountDisplay, ChainDisplay, ServiceResponse } from '../types';
-import { PlanType } from '../types';
+import { PlanType } from '$lib/common/types';
 import type { YakklAccount, YakklCurrentlySelected } from '$lib/common/interfaces';
 import { AccountTypeCategory } from '$lib/common/types';
 import { get } from 'svelte/store';
@@ -8,17 +8,21 @@ import {
   yakklAccountsStore,
   yakklCurrentlySelectedStore,
   yakklSettingsStore,
-  setYakklAccountsStorage
+  setYakklAccountsStorage,
+  setYakklCurrentlySelectedStorage
 } from '$lib/common/stores';
 import { getSafeUUID } from '$lib/common/uuid';
 import { walletStore } from '$lib/managers/Wallet';
-import { browser } from '$app/environment';
+import { DEFAULT_CHAINS } from '$lib/config/chains';
+import { encryptData } from '$lib/common/encryption';
+import { browser_ext } from '$lib/common/environment';
+import { log } from '$lib/common/logger-wrapper';
 
 export class WalletService extends BaseService {
   private static instance: WalletService;
 
   private constructor() {
-    super();
+    super('WalletService');
   }
 
   static getInstance(): WalletService {
@@ -43,7 +47,7 @@ export class WalletService extends BaseService {
           avatar: acc.avatar || null,
           isActive: true,
           balance: acc.quantity?.toString() || '0',
-          plan: (settings?.plan?.type || PlanType.Basic) as PlanType,
+          plan: (settings?.plan?.type || PlanType.EXPLORER_MEMBER) as PlanType,
           // Additional properties for account management
           value: acc.quantity ? parseFloat(acc.quantity.toString()) : 0,
           createdAt: acc.createDate,
@@ -58,26 +62,8 @@ export class WalletService extends BaseService {
         return { success: true, data: displayAccounts };
       }
 
-      // If no accounts in store, request from background
-      const response = await this.sendMessage<string[]>({
-        method: 'eth_accounts'
-      });
-
-      if (response.success && response.data) {
-        const displayAccounts: AccountDisplay[] = response.data.map(address => ({
-          address,
-          ens: null as string | null,
-          username: '',
-          avatar: null as string | null,
-          isActive: false,
-          balance: '0',
-          plan: (settings?.plan?.type || PlanType.Basic) as PlanType
-        }));
-
-        return { success: true, data: displayAccounts };
-      }
-
-      return response as unknown as ServiceResponse<AccountDisplay[]>;
+      // No accounts found in store
+      return { success: true, data: [] };
     } catch (error) {
       return {
         success: false,
@@ -103,7 +89,7 @@ export class WalletService extends BaseService {
             avatar: account.avatar || null,
             isActive: true,
             balance: account.quantity?.toString() || '0',
-            plan: (settings?.plan?.type || PlanType.Basic) as PlanType,
+            plan: (settings?.plan?.type || PlanType.EXPLORER_MEMBER) as PlanType,
             // Additional properties for account management
             value: account.quantity ? parseFloat(account.quantity.toString()) : 0,
             createdAt: account.createDate,
@@ -136,13 +122,35 @@ export class WalletService extends BaseService {
 
   async getBalance(address: string): Promise<ServiceResponse<string>> {
     try {
-      const response = await this.sendMessage<string>({
-        method: 'eth_getBalance',
-        params: [address, 'latest']
+      console.log('[WalletService] Getting balance for address:', address);
+
+      // Import necessary functions
+      const { getInstances } = await import('$lib/common/wallet');
+      const { ethers } = await import('ethers-v6');
+
+      // Get provider instance
+      const instances = await getInstances();
+      if (!instances || !instances[1]) {
+        return {
+          success: false,
+          error: { hasError: true, message: 'Provider not initialized' }
+        };
+      }
+
+      const provider = instances[1];
+      
+      // Get balance directly from provider
+      const balance = await provider.getBalance(address);
+      const balanceFormatted = ethers.formatEther(balance);
+
+      console.log('[WalletService] Balance response:', {
+        success: true,
+        data: balanceFormatted
       });
 
-      return response;
+      return { success: true, data: balanceFormatted };
     } catch (error) {
+      console.error('[WalletService] Failed to get balance:', error);
       return {
         success: false,
         error: this.handleError(error)
@@ -156,13 +164,17 @@ export class WalletService extends BaseService {
       const currentlySelected = get(yakklCurrentlySelectedStore);
       if (currentlySelected) {
         // Update the address in shortcuts
-        yakklCurrentlySelectedStore.set({
+        const updated = {
           ...currentlySelected,
           shortcuts: {
             ...currentlySelected.shortcuts,
             address
           }
-        });
+        };
+        yakklCurrentlySelectedStore.set(updated);
+
+        // Persist to storage
+        await setYakklCurrentlySelectedStorage(updated);
       }
 
       return { success: true, data: true };
@@ -176,13 +188,7 @@ export class WalletService extends BaseService {
 
   async getChains(): Promise<ServiceResponse<ChainDisplay[]>> {
     try {
-      // Import chain configuration
-      const { DEFAULT_CHAINS } = await import('$lib/config/chains');
-
-      // Get current chain from store if available
-      const currentlySelected = get(yakklCurrentlySelectedStore);
-      const currentChainId = currentlySelected?.shortcuts?.chainId || 1;
-
+      // Return default chains
       return { success: true, data: DEFAULT_CHAINS };
     } catch (error) {
       return {
@@ -194,8 +200,6 @@ export class WalletService extends BaseService {
 
   async switchChain(chainId: number): Promise<ServiceResponse<boolean>> {
     try {
-      console.log('WalletService: switchChain called with chainId:', chainId);
-
       // For now, just update the store directly since we may not have a background handler yet
       const currentlySelected = get(yakklCurrentlySelectedStore);
       if (currentlySelected) {
@@ -207,14 +211,13 @@ export class WalletService extends BaseService {
           }
         };
         yakklCurrentlySelectedStore.set(updated);
-        console.log('WalletService: Updated yakklCurrentlySelectedStore with chainId:', chainId);
       }
 
       // For now, return success since we successfully updated the store
       // Background sync will be implemented when the handler is ready
       return { success: true, data: true };
     } catch (error) {
-      console.error('WalletService: switchChain error:', error);
+      log.warn('WalletService: switchChain error:', false,error);
       return {
         success: false,
         error: this.handleError(error)
@@ -246,7 +249,7 @@ export class WalletService extends BaseService {
 
       return { success: true, data: true };
     } catch (error) {
-      console.error('WalletService: removeAccount error:', error);
+      log.warn('WalletService: removeAccount error:', false, error);
       return {
         success: false,
         error: this.handleError(error)
@@ -256,6 +259,13 @@ export class WalletService extends BaseService {
 
   async importPrivateKey(privateKey: string, name?: string, alias?: string): Promise<ServiceResponse<AccountDisplay>> {
     try {
+      if (!browser_ext) {
+        return {
+          success: false,
+          error: { hasError: true, message: 'Browser extension not initialized' }
+        };
+      }
+
       // Import using Wallet manager
       const walletInstance = get(walletStore);
       if (!walletInstance) {
@@ -267,11 +277,11 @@ export class WalletService extends BaseService {
 
       // Remove 0x prefix if present
       const cleanKey = privateKey.startsWith('0x') ? privateKey.slice(2) : privateKey;
-      
+
       // Create account from private key
       const { ethers } = await import('ethers-v6');
       const ethersWallet = new ethers.Wallet(cleanKey);
-      
+
       // Create YakklAccount
       const newAccount: YakklAccount = {
         id: getSafeUUID(),
@@ -308,19 +318,14 @@ export class WalletService extends BaseService {
       await setYakklAccountsStorage(accounts);
 
       // Store encrypted private key
-      const { encryptData } = await import('$lib/common/encryption');
       // TODO: Get the actual wallet password from user session
       // For now, use a temporary approach - in production this should prompt for password
       const tempPassword = 'imported_' + newAccount.address.slice(0, 8);
       const encryptedData = await encryptData({ privateKey: cleanKey }, tempPassword);
       const storageKey = `yakkl_pk_${newAccount.address.toLowerCase()}`;
       // Store in local storage via extension API
-      if (browser) {
-        const { getBrowserExt } = await import('$lib/common/environment');
-        const browserExt = getBrowserExt();
-        if (browserExt) {
-          await browserExt.storage.local.set({ [storageKey]: encryptedData });
-        }
+      if (browser_ext) {
+        await browser_ext.storage.local.set({ [storageKey]: encryptedData });
       }
 
       // Return display account
@@ -331,7 +336,7 @@ export class WalletService extends BaseService {
         avatar: null,
         isActive: false,
         balance: '0',
-        plan: PlanType.Basic,
+        plan: PlanType.EXPLORER_MEMBER,
         accountType: AccountTypeCategory.IMPORTED,
         tags: ['imported'],
         createdAt: newAccount.createDate,

@@ -1,7 +1,8 @@
 // Client-side wrapper for messaging that uses the client API
-import { browser as isBrowser } from '$app/environment';
+// import { browser as isBrowser } from '$app/environment';
 import { log } from '$lib/common/logger-wrapper';
-import { backgroundAPI } from '$contexts/client/api';
+import { browser_ext, browserSvelte } from '$lib/common/environment';
+// import type { Runtime } from 'webextension-polyfill';
 import { protectedContexts } from './globals';
 import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 
@@ -64,7 +65,7 @@ class ExtensionMessaging {
 	 * Initialize the messaging system
 	 */
 	public initialize(): void {
-		if (!isBrowser || this.initialized) return;
+		if (!browserSvelte || this.initialized) return;
 
 		this.contextId = this.getContextId();
 		this.initialized = true;
@@ -74,11 +75,15 @@ class ExtensionMessaging {
 		this.processQueue();
 
 		// Set up message listener for responses
-		backgroundAPI.onMessage('message.response', (response) => {
-			if (response.data && response.data.responseId) {
-				this.handleIncomingMessage(response.data);
-			}
-		});
+		if (browserSvelte && browser_ext) {
+			browser_ext.runtime.onMessage.addListener((message: any, sender: any, sendResponse: (response?: any) => void) => {
+				if (message && message.responseId) {
+					this.handleIncomingMessage(message);
+				}
+				// Return true to indicate we will respond asynchronously
+				return true;
+			});
+		}
 
 		// Start cleanup interval using UnifiedTimerManager
 		this.timerManager.addInterval('messaging-cleanup', () => this.cleanup(), 60000);
@@ -129,7 +134,7 @@ class ExtensionMessaging {
 			waitForResponse?: boolean;
 		} = {}
 	): Promise<any> {
-		if (!isBrowser) {
+		if (!browserSvelte) {
 			return Promise.resolve(null);
 		}
 
@@ -176,7 +181,9 @@ class ExtensionMessaging {
 		// For fire-and-forget messages, just send and resolve immediately
 		if (!waitForResponse) {
 			try {
-				await backgroundAPI.sendMessage(type, message);
+				if (browserSvelte && browser_ext) {
+					await browser_ext.runtime.sendMessage(message);
+				}
 				return Promise.resolve({ success: true, noResponseRequired: true });
 			} catch (error) {
 				log.debug(
@@ -229,7 +236,7 @@ class ExtensionMessaging {
 	 * Process the message queue in priority order
 	 */
 	private async processQueue(): Promise<void> {
-		if (!isBrowser || this.isProcessing || !this.initialized) return;
+		if (!browserSvelte || this.isProcessing || !this.initialized) return;
 
 		this.isProcessing = true;
 
@@ -245,8 +252,10 @@ class ExtensionMessaging {
 					const item = queue.shift()!;
 
 					try {
-						// Send the message using client API
-						await backgroundAPI.sendMessage(item.message.type, item.message);
+						// Send the message using browser extension API
+						if (browserSvelte && browser_ext) {
+							await browser_ext.runtime.sendMessage(item.message);
+						}
 					} catch (error: any) {
 						// If we should retry and haven't exceeded the retry limit
 						if (item.retryOnFail && item.retryCount < this.MAX_RETRIES) {
@@ -315,7 +324,7 @@ class ExtensionMessaging {
 	 * Generate or retrieve a context ID for this UI instance
 	 */
 	private getContextId(): string {
-		if (!isBrowser) return 'server';
+		if (!browserSvelte) return 'server';
 
 		// Check for an existing context ID in window storage
 		if (typeof window !== 'undefined' &&
@@ -355,7 +364,7 @@ class ExtensionMessaging {
 	 * Send a UI context initialization message to the background script
 	 */
 	public async registerUiContext(contextType: string): Promise<void> {
-		if (!isBrowser || !this.initialized) return;
+		if (!browserSvelte || !this.initialized) return;
 
 		const contextId = this.contextId;
 
@@ -378,7 +387,12 @@ class ExtensionMessaging {
 			try {
 				window.addEventListener('beforeunload', () => {
 					// Send synchronously to ensure it gets through before page unloads
-					backgroundAPI.sendMessage('ui_context_closing', { contextId }).catch(() => {});
+					if (browserSvelte && browser_ext) {
+						browser_ext.runtime.sendMessage({
+							type: 'ui_context_closing',
+							contextId
+						}).catch(() => {});
+					}
 				});
 			} catch (error) {
 				console.warn(`[${contextId}] Failed to add unload handler:`, error);
@@ -394,7 +408,7 @@ class ExtensionMessaging {
 	 * Send user activity update to keep context active (only for protected contexts)
 	 */
 	public async sendActivityUpdate(): Promise<void> {
-		if (!isBrowser || !this.initialized) return;
+		if (!browserSvelte || !this.initialized) return;
 
 		const contextType = this.getContextType();
 
@@ -428,9 +442,9 @@ class ExtensionMessaging {
 	 * Notify the background script that login is verified or not
 	 */
 	public async setLoginVerified(verified: boolean, contextType?: string): Promise<void> {
-		if (!isBrowser || !this.initialized) {
+		if (!browserSvelte || !this.initialized) {
 			log.warn(`[Messaging - setLoginVerified] ❌ CANNOT SET LOGIN VERIFIED:`, false, {
-				isBrowser,
+				browserSvelte,
 				isInitialized: this.initialized,
 				verified,
 				contextType
@@ -502,7 +516,7 @@ class ExtensionMessaging {
 	 */
 	private getContextType(): string {
 		try {
-			if (!isBrowser || typeof window === 'undefined') return 'unknown';
+			if (!browserSvelte || typeof window === 'undefined') return 'unknown';
 
 			const pathname = window.location.pathname;
 			const href = window.location.href;
@@ -532,7 +546,7 @@ class ExtensionMessaging {
 	 * Set up activity tracking for this context (only for protected contexts)
 	 */
 	public setupActivityTracking(): void {
-		if (!isBrowser || typeof window === 'undefined') return;
+    if (!browserSvelte || typeof window === 'undefined') return;
 
 		const contextType = this.getContextType();
 
@@ -633,7 +647,7 @@ export const messagingService = ExtensionMessaging.getInstance();
  * Initialize the messaging service
  */
 export function initializeMessaging(): void {
-	if (!isBrowser) return;
+	if (!browserSvelte) return;
 	messagingService.initialize();
 }
 
@@ -641,7 +655,7 @@ export function initializeMessaging(): void {
  * Send client ready message to background script
  */
 export async function sendClientReady(): Promise<void> {
-	if (!isBrowser) return;
+	if (!browserSvelte) return;
 
 	await messagingService.sendMessage(
 		'clientReady',
@@ -689,7 +703,7 @@ function determineBestContextType(): string {
  * Initialize a UI context and start activity tracking
  */
 export async function initializeUiContext(contextType?: string): Promise<void> {
-	if (!isBrowser) return;
+	if (!browserSvelte) return;
 
 	// Initialize messaging service
 	messagingService.initialize();
@@ -715,7 +729,7 @@ export async function initializeUiContext(contextType?: string): Promise<void> {
  * Start activity tracking after successful login (only for protected contexts)
  */
 export async function startActivityTracking(contextType?: string): Promise<void> {
-	if (!isBrowser) return;
+	if (!browserSvelte) return;
 
 	const actualContextType = contextType || determineBestContextType();
 
@@ -724,7 +738,7 @@ export async function startActivityTracking(contextType?: string): Promise<void>
 		actualContextType,
 		isProtectedContext: contextNeedsIdleProtection(actualContextType),
 		expectedProtectedTypes: protectedContexts,
-		isBrowser: isBrowser,
+		browserSvelte: browserSvelte,
 		messagingServiceExists: !!messagingService
 	});
 
@@ -776,7 +790,7 @@ export async function startActivityTracking(contextType?: string): Promise<void>
  * Stop activity tracking (e.g., at logout) (only for protected contexts)
  */
 export async function stopActivityTracking(): Promise<void> {
-	if (!isBrowser) return;
+	if (!browserSvelte) return;
 
 	const contextType = determineBestContextType();
 

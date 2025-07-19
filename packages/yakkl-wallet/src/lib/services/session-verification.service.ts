@@ -21,7 +21,7 @@ export class SessionVerificationService extends BaseService {
   private static instance: SessionVerificationService;
 
   private constructor() {
-    super();
+    super('SessionVerificationService');
   }
 
   static getInstance(): SessionVerificationService {
@@ -41,7 +41,7 @@ export class SessionVerificationService extends BaseService {
 
     try {
       const response = await this.sendMessage<IdleStatusResponse>({
-        type: 'session.verifyLogin',
+        type: 'yakkl_session.verifyLogin',
         payload: { 
           verified,
           contextId: window.location.href // Use URL as context identifier
@@ -67,7 +67,7 @@ export class SessionVerificationService extends BaseService {
 
     try {
       const response = await this.sendMessage<any>({
-        type: 'session.getIdleStatus'
+        type: 'yakkl_session.getIdleStatus'
       });
 
       return response;

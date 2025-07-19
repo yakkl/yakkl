@@ -53,31 +53,40 @@
 	const timerManager = UnifiedTimerManager.getInstance();
 	const timerId = 'rss-feed-refresh';
 
-	// Subscribe to store changes
-	const unsubscribeStore = rssStore.subscribe(items => {
-		newsItems = items;
-		// Only set isFirstLoad to false if we have items
-		if (items.length > 0) {
-			isFirstLoad = false;
-		}
-	});
+	// Store unsubscribe functions
+	let unsubscribeStore: (() => void) | null = null;
+	let unsubscribeLoading: (() => void) | null = null;
+	let unsubscribeUpdating: (() => void) | null = null;
+	let unsubscribeLastUpdate: (() => void) | null = null;
 
-	const unsubscribeLoading = rssStore.isLoading.subscribe(loading => {
-		// Only show loading spinner on first load when we have no items
-		if (newsItems.length === 0) {
-			isLoading = loading;
-		}
-	});
-
-	const unsubscribeUpdating = rssStore.isUpdating.subscribe(updating => {
-		isUpdating = updating;
-	});
-
-	const unsubscribeLastUpdate = rssStore.lastUpdateTime.subscribe(time => {
-		lastUpdateTime = time;
-	});
+	// Store message listener reference for cleanup
+	let messageListener: ((message: any, sender: any, sendResponse: any) => boolean) | null = null;
 
 	onMount(async () => {
+		// Subscribe to store changes
+		unsubscribeStore = rssStore.subscribe(items => {
+			newsItems = items;
+			// Only set isFirstLoad to false if we have items
+			if (items.length > 0) {
+				isFirstLoad = false;
+			}
+		});
+
+		unsubscribeLoading = rssStore.isLoading.subscribe(loading => {
+			// Only show loading spinner on first load when we have no items
+			if (newsItems.length === 0) {
+				isLoading = loading;
+			}
+		});
+
+		unsubscribeUpdating = rssStore.isUpdating.subscribe(updating => {
+			isUpdating = updating;
+		});
+
+		unsubscribeLastUpdate = rssStore.lastUpdateTime.subscribe(time => {
+			lastUpdateTime = time;
+		});
+
 		// Initialize store if needed
 		await rssStore.init();
 		
@@ -97,7 +106,7 @@
 		timerManager.startInterval(timerId);
 
 		// Listen for updates from background script
-		const messageListener = (message: any, sender: any, sendResponse: any): boolean => {
+		messageListener = (message: any, sender: any, sendResponse: any): boolean => {
 			if (message.type === 'RSS_FEED_UPDATE') {
 				backgroundUpdate();
 				return true;
@@ -106,17 +115,19 @@
 		};
 
 		browser_ext.runtime.onMessage.addListener(messageListener as any);
+	});
 
-		// Return cleanup function
-		onDestroy(() => {
-			unsubscribeStore();
-			unsubscribeLoading();
-			unsubscribeUpdating();
-			unsubscribeLastUpdate();
-			timerManager.stopInterval(timerId);
-			timerManager.removeInterval(timerId);
+	// Clean up on component destroy
+	onDestroy(() => {
+		if (unsubscribeStore) unsubscribeStore();
+		if (unsubscribeLoading) unsubscribeLoading();
+		if (unsubscribeUpdating) unsubscribeUpdating();
+		if (unsubscribeLastUpdate) unsubscribeLastUpdate();
+		timerManager.stopInterval(timerId);
+		timerManager.removeInterval(timerId);
+		if (messageListener) {
 			browser_ext.runtime.onMessage.removeListener(messageListener as any);
-		});
+		}
 	});
 
 	// Fetch all feeds and update the store

@@ -1,40 +1,24 @@
 // $lib/shared/StorageService.ts
-import type { Browser } from 'webextension-polyfill';
-import { BrowserAccessor } from './BrowserAccessor';
 import { log } from '$lib/common/logger-wrapper';
+import { browser_ext } from '../environment';
+import { getObjectFromExtensionStorage, removeFromExtensionStorage, setObjectInExtensionStorage } from '../stores';
 
 /**
  * Service for cross-context storage operations
+ * This is a simple wrapper around the storage functions in stores.ts
  */
 export class StorageService {
-	private browserAccessor: BrowserAccessor;
 	private initialized = false;
-	private initPromise: Promise<void> | null = null;
 
 	constructor() {
-		this.browserAccessor = BrowserAccessor.getInstance();
+		this.initialized = true;
 	}
 
 	/**
-	 * Initialize the service
+	 * Initialize the service (kept for backward compatibility)
 	 */
 	public async initialize(): Promise<void> {
-		if (this.initialized) return;
-		if (this.initPromise) return this.initPromise;
-
-		this.initPromise = (async () => {
-			try {
-				// Ensure browser accessor is initialized
-				await this.browserAccessor.initialize();
-				this.initialized = true;
-			} catch (error) {
-				log.error('Failed to initialize StorageService:', false, error);
-			} finally {
-				this.initPromise = null;
-			}
-		})();
-
-		return this.initPromise;
+		this.initialized = true;
 	}
 
 	/**
@@ -46,98 +30,52 @@ export class StorageService {
 			await this.initialize();
 		}
 
-		return this.browserAccessor.performOperation(async (browser: Browser) => {
-			try {
-				// Get the data from storage
-				const result = await browser.storage.local.get(key);
-
-				// Check if the key exists
-				if (result[key] !== undefined) {
-					// Safely type cast and validate
-					return this.validateAndCast(result[key], defaultValue);
-				}
-			} catch (error) {
-				log.error(`Error getting data for key "${key}":`, false, error);
-			}
-
+		try {
+			const result = await getObjectFromExtensionStorage<T>(key);
+			return result ?? defaultValue;
+		} catch (error) {
+			log.error(`Error getting data for key "${key}":`, false, error);
 			return defaultValue;
-		}, defaultValue);
+		}
 	}
 
 	/**
 	 * Save data to storage
 	 */
-	public async saveData<T>(key: string, value: T): Promise<boolean> {
+	public async saveData<T>(key: string, value: T): Promise<void | boolean> {
 		// Ensure initialized
 		if (!this.initialized) {
 			await this.initialize();
 		}
 
-		return this.browserAccessor.performOperation(async (browser: Browser) => {
-			try {
-				await browser.storage.local.set({ [key]: value });
-				log.debug(`Data saved for key "${key}"`);
-				return true;
-			} catch (error) {
-				log.error(`Error saving data for key "${key}":`, false, error);
-				return false;
-			}
-		}, false);
-	}
-
-	/**
-	 * Validate and cast the value to the expected type
-	 */
-	private validateAndCast<T>(value: unknown, defaultValue: T): T {
 		try {
-			// For primitive types
-			if (typeof value === typeof defaultValue) {
-				return value as T;
-			}
-
-			// For arrays
-			if (Array.isArray(value) && Array.isArray(defaultValue)) {
-				return value as T;
-			}
-
-			// For objects (excluding null)
-			if (
-				typeof value === 'object' &&
-				value !== null &&
-				typeof defaultValue === 'object' &&
-				defaultValue !== null
-			) {
-				return value as T;
-			}
-
-			// If types don't match, log a warning and return default
-			log.warn(`Type mismatch in storage: expected ${typeof defaultValue}, got ${typeof value}`);
-			return defaultValue;
+			await setObjectInExtensionStorage(key, value);
+			log.debug(`Data saved for key "${key}"`);
+			return true;
 		} catch (error) {
-			log.error('Error validating storage data:', false, error);
-			return defaultValue;
+			log.error(`Error saving data for key "${key}":`, false, error);
+			return false;
 		}
 	}
+
 
 	/**
 	 * Remove data from storage
 	 */
-	public async removeData(key: string): Promise<boolean> {
+	public async removeData(key: string): Promise<void | boolean> {
 		// Ensure initialized
 		if (!this.initialized) {
 			await this.initialize();
 		}
 
-		return this.browserAccessor.performOperation(async (browser: Browser) => {
-			try {
-				await browser.storage.local.remove(key);
-				log.debug(`Data removed for key "${key}"`);
-				return true;
-			} catch (error) {
-				log.error(`Error removing data for key "${key}":`, false, error);
-				return false;
-			}
-		}, false);
+		try {
+			await removeFromExtensionStorage(key);
+			log.debug(`Data removed for key "${key}"`);
+			return true;
+		} catch (error) {
+			log.error(`Error removing data for key "${key}":`, false, error);
+			return false;
+		}
 	}
 
 	/**
@@ -149,16 +87,18 @@ export class StorageService {
 			await this.initialize();
 		}
 
-		return this.browserAccessor.performOperation(async (browser: Browser) => {
-			try {
-				await browser.storage.local.clear();
+		try {
+			// Note: clearAllExtensionStorage should be imported from stores.ts if needed
+			if (browser_ext?.storage?.local) {
+				await browser_ext.storage.local.clear();
 				log.debug('All storage data cleared');
 				return true;
-			} catch (error) {
-				log.error('Error clearing storage:', false, error);
-				return false;
 			}
-		}, false);
+			return false;
+		} catch (error) {
+			log.error('Error clearing storage:', false, error);
+			return false;
+		}
 	}
 }
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { TransactionDisplay } from '../types';
-  import ProtectedValue from './v1/ProtectedValue.svelte';
+  import ProtectedValue from './ProtectedValue.svelte';
   import Modal from './Modal.svelte';
   import { currentChain } from '../stores/chain.store';
   import { currentAccount } from '../stores/account.store';
@@ -8,6 +8,7 @@
   import TransactionTooltips from './TransactionTooltips.svelte';
   import TransactionStatusTooltip from './TransactionStatusTooltip.svelte';
   import TransactionHoverCard from './TransactionHoverCard.svelte';
+  import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
 
   interface Props {
     show: boolean;
@@ -20,13 +21,13 @@
   let chain = $derived($currentChain);
   let account = $derived($currentAccount);
   let tokens = $derived($displayTokens);
-  
+
   // Get native token price
   let nativeToken = $derived(
-    tokens.find(t => 
-      t.symbol === chain?.nativeCurrency?.symbol || 
-      t.symbol === 'ETH' || 
-      t.symbol === 'MATIC' || 
+    tokens.find(t =>
+      t.symbol === chain?.nativeCurrency?.symbol ||
+      t.symbol === 'ETH' ||
+      t.symbol === 'MATIC' ||
       t.symbol === 'BNB'
     )
   );
@@ -140,9 +141,9 @@
 
   let txType = $derived(transaction ? getTransactionType(transaction) : '');
   let isOutgoing = $derived(transaction && account ? transaction.from.toLowerCase() === account.address.toLowerCase() : false);
-  let gasEth = $derived(transaction ? formatGasUsed(transaction.gasUsed || '0', transaction.gasPrice || '0') : '0');
-  let gasFiat = $derived(formatFiatValue(gasEth, nativePrice));
-  let valueFiat = $derived(transaction ? formatFiatValue(transaction.value, nativePrice) : '$0.00');
+  let gasEth = $derived(transaction ? formatGasUsed(transaction.gasUsed || '0', BigNumberishUtils.toNumber(transaction.gasPrice || 0).toString()) : '0');
+  let gasFiat = $derived(formatFiatValue(gasEth, BigNumberishUtils.toNumber(nativePrice)));
+  let valueFiat = $derived(transaction ? formatFiatValue(BigNumberishUtils.toNumber(transaction.value).toString(), BigNumberishUtils.toNumber(nativePrice)) : '$0.00');
 </script>
 
 <Modal bind:show {onClose} title="Transaction Details" className="max-w-lg">
@@ -262,9 +263,9 @@
               <TransactionTooltips type="nativeToken" placement="auto" />
             </div>
             <div class="font-mono {isOutgoing ? 'text-red-500' : 'text-green-500'} font-bold text-lg">
-              <ProtectedValue 
-                value={`${isOutgoing ? '−' : '+'}${formatFullAmount(transaction.value)} ${chain?.nativeCurrency?.symbol || 'ETH'}`} 
-                placeholder="******* ***" 
+              <ProtectedValue
+                value={`${isOutgoing ? '−' : '+'}${formatFullAmount(transaction.value)} ${chain?.nativeCurrency?.symbol || 'ETH'}`}
+                placeholder="******* ***"
               />
             </div>
           </div>

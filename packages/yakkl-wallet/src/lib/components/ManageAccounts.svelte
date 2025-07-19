@@ -4,23 +4,25 @@
   import { goto } from '$app/navigation';
   import { displayTokens } from '$lib/stores/token.store';
   import Modal from './Modal.svelte';
-  import ProtectedValue from './v1/ProtectedValue.svelte';
-  import EditControls from './v1/EditControls.svelte';
+  import ProtectedValue from './ProtectedValue.svelte';
+  // import EditControls from './EditControls.svelte'; // TODO: Component missing, needs to be created
   import type { AccountDisplay } from '$lib/types';
-  
+  import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
+  import { DecimalMath } from '$lib/common/DecimalMath';
+
   interface Props {
     onClose: () => void;
   }
-  
+
   let { onClose }: Props = $props();
-  
+
   let allAccounts = $derived($accounts);
   let current = $derived($currentAccount);
   let tokens = $derived($displayTokens);
   let editingAccount = $state<any>(null);
   let showOptions = $state<Record<string, boolean>>({});
   let editingName = $state('');
-  
+
   async function selectAccount(account: any) {
     if (account.address === current?.address) {
       // If already selected, close modal and go to home
@@ -28,7 +30,7 @@
       await goto('/home');
       return;
     }
-    
+
     try {
       await accountStore.switchAccount(account.address);
       uiStore.showSuccess('Account Switched', `Now using ${account.ens || account.username || 'account'}`);
@@ -39,19 +41,19 @@
       uiStore.showError('Switch Failed', 'Unable to switch accounts');
     }
   }
-  
+
   function toggleOptions(address: string) {
     showOptions[address] = !showOptions[address];
   }
-  
+
   async function editAccount(account: any) {
     editingAccount = account;
     editingName = account.ens || account.username || '';
   }
-  
+
   async function saveAccountName() {
     if (!editingAccount || !editingName.trim()) return;
-    
+
     try {
       // Update account name
       await accountStore.updateAccountName(editingAccount.address, editingName.trim());
@@ -62,25 +64,25 @@
       uiStore.showError('Update Failed', 'Unable to update account name');
     }
   }
-  
+
   async function printAccount(account: any) {
     // Store account for emergency kit printing
     sessionStorage.setItem('print-account', account.address);
     window.open('/accounts/print-emergency-kit', '_blank');
   }
-  
+
   async function exportAccount(account: any) {
     sessionStorage.setItem('export-account', account.address);
     await goto('/accounts/export');
     onClose();
   }
-  
+
   async function deleteAccount(account: any) {
     if (allAccounts.length <= 1) {
       uiStore.showError('Cannot Delete', 'You must have at least one account');
       return;
     }
-    
+
     if (confirm(`Are you sure you want to delete ${account.ens || account.username || 'this account'}?`)) {
       try {
         await accountStore.deleteAccount(account.address);
@@ -91,7 +93,7 @@
       }
     }
   }
-  
+
   async function copyAddress(address: string) {
     try {
       await navigator.clipboard.writeText(address);
@@ -100,33 +102,45 @@
       console.error('Failed to copy:', error);
     }
   }
-  
+
   function shortAddr(addr: string) {
     if (!addr) return '';
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   }
-  
+
   // Calculate total value for account across all tokens
   function getAccountValue(address: string): number {
     if (!tokens || !Array.isArray(tokens)) return 0;
-    
+
     // In multi-chain view, tokens are already filtered by address
     // In single-chain view, we need to check if this is the current account
     if (address === current?.address) {
       return tokens.reduce((sum, token) => {
-        const value = typeof token.value === 'number' ? token.value : parseFloat(token.value || '0');
+        // Simple and consistent: always use BigNumberishUtils.toNumber for any value
+        const value = BigNumberishUtils.toNumber(token.value || 0);
         return sum + value;
       }, 0);
     }
-    
+
     // For other accounts, we don't have their balance data
     return 0;
   }
-  
+
   // Get total token count for account
   function getTokenCount(address: string): number {
     if (!tokens || !Array.isArray(tokens) || address !== current?.address) return 0;
-    return tokens.filter(token => (token.qty || 0) > 0).length;
+
+    return tokens.filter(token => {
+      // Simple approach: get the balance/qty value and check if > 0
+      // Handle both TokenDisplay (with qty) and TokenCache (with balance) types
+      let amount: any = 0;
+      if ('qty' in token) {
+        amount = token.qty;
+      } else if ('balance' in token) {
+        amount = token.balance;
+      }
+      return BigNumberishUtils.toNumber(amount) > 0;
+    }).length;
   }
 </script>
 
@@ -146,12 +160,12 @@
           <div class="relative group">
             <!-- Account Item -->
             <div
-              class="w-full flex items-center gap-3 p-4 rounded-lg transition-all duration-200 {isActive 
-                ? 'bg-indigo-50 dark:bg-indigo-900/20 border-2 border-indigo-500 shadow-md' 
+              class="w-full flex items-center gap-3 p-4 rounded-lg transition-all duration-200 {isActive
+                ? 'bg-indigo-50 dark:bg-indigo-900/20 border-2 border-indigo-500 shadow-md'
                 : 'bg-zinc-50 dark:bg-zinc-900/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:shadow-md'}">
-              
-              <!-- Edit Controls Overlay -->
-              <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+
+              <!-- Edit Controls Overlay - TODO: Implement EditControls component -->
+              <!-- <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                 <EditControls
                   controls={['copy', 'edit', 'delete']}
                   onCopy={() => copyAddress(account.address)}
@@ -159,8 +173,8 @@
                   onDelete={() => deleteAccount(account)}
                   hasBalance={getAccountValue(account.address) > 0}
                 />
-              </div>
-              
+              </div> -->
+
               <!-- Clickable area for account selection -->
               <button
                 onclick={() => selectAccount(account)}
@@ -171,7 +185,7 @@
                 <div class="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-md">
                   {account.ens?.[0]?.toUpperCase() || account.username?.[0]?.toUpperCase() || '?'}
                 </div>
-                
+
                 <!-- Account Info -->
                 <div class="flex-1">
                   <div class="flex items-center gap-2">
@@ -191,9 +205,9 @@
                     {#if isActive && value > 0}
                       <span class="flex items-center gap-1">
                         <span class="font-medium">Value:</span>
-                        <ProtectedValue 
-                          value={`$${value.toFixed(2)}`} 
-                          placeholder="$•••••" 
+                        <ProtectedValue
+                          value={`$${value.toFixed(2)}`}
+                          placeholder="$•••••"
                         />
                       </span>
                       <span>•</span>
@@ -205,7 +219,7 @@
                 </div>
               </button>
             </div>
-            
+
             <!-- Tooltip on hover -->
             <div class="absolute left-0 right-0 top-full mt-2 z-20 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200">
               <div class="bg-gray-900 text-white text-xs rounded-lg shadow-xl p-3 mx-4">
@@ -235,7 +249,7 @@
           </div>
         {/each}
       {/if}
-      
+
       <!-- Add Account Button -->
       <a
         href="/accounts/import"
@@ -247,7 +261,7 @@
         <span class="text-zinc-600 dark:text-zinc-400">Add New Account</span>
       </a>
     </div>
-    
+
     <!-- Quick Actions -->
     <div class="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-700">
       <div class="flex justify-center gap-3">
@@ -291,7 +305,7 @@
         class="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         placeholder="Enter account name"
       />
-      
+
       <div class="flex gap-3">
         <button
           onclick={() => editingAccount = null}

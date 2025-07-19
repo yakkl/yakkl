@@ -33,7 +33,7 @@ export async function checkTrialExpiration(): Promise<void> {
 		s.plan.trialEndDate &&
 		new Date(s.plan.trialEndDate).getTime() <= Date.now()
 	) {
-		s.plan.type = PlanType.BASIC_MEMBER;
+		s.plan.type = PlanType.EXPLORER_MEMBER;
 		s.plan.source = AccessSourceType.STANDARD;
 		await setSettings(s);
 		await safeLogout();

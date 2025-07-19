@@ -1,16 +1,18 @@
+// import browser from 'webextension-polyfill';
+import type { Runtime } from 'webextension-polyfill';
 import { VERSION } from '$lib/common/constants';
 import type { Preferences, Settings } from '$lib/common/interfaces';
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from '$lib/common/storage';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { upgrade } from '$lib/upgrades/upgrades';
+import UpgradeMigrationManager from '$lib/upgrades/UpgradeMigrationManager';
 import { detect } from 'detect-browser';
-import type { Runtime } from 'webextension-polyfill';
 
 type RuntimePlatformInfo = Runtime.PlatformInfo;
 
 export async function setLocalObjectStorage(
 	platform: RuntimePlatformInfo | null,
-	upgradeOption: boolean = false
+	shouldUpgrade: boolean = true  // Default to true for automatic upgrades
 ): Promise<void> {
 	try {
 		const yakklSettings = (await getObjectFromLocalStorage<Settings>(
@@ -18,8 +20,18 @@ export async function setLocalObjectStorage(
 		)) as Settings | null;
 		const prevVersion = yakklSettings?.version ?? VERSION;
 
-		if (upgradeOption) {
-			upgrade(prevVersion, VERSION);
+		// Always run upgrades unless explicitly disabled and version has changed
+		if (shouldUpgrade && prevVersion !== VERSION) {
+			log.info(`Version change detected: ${prevVersion} -> ${VERSION}, running upgrades`);
+			await upgrade(prevVersion, VERSION);
+		} else if (shouldUpgrade) {
+			// Even if versions match, check if individual storage items need upgrading
+			const migrationManager = UpgradeMigrationManager.getInstance();
+			const upgradeNeeded = await migrationManager.checkIfUpgradeNeeded(VERSION);
+			if (upgradeNeeded) {
+				log.info('Some storage items need upgrading, running migration');
+				await migrationManager.upgradeAllData(prevVersion, VERSION);
+			}
 		}
 
 		const yakklPreferences = (await getObjectFromLocalStorage<Preferences>(

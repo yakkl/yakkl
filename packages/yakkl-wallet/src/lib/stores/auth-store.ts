@@ -6,6 +6,9 @@ import type { Profile } from '$lib/common/interfaces';
 import { log } from '$lib/common/logger-wrapper';
 import { sessionManager, type SessionState } from '$lib/managers/SessionManager';
 import { jwtManager } from '$lib/utilities/jwt';
+import { auditAuthEvent, checkAuthRateLimit, clearAuthRateLimit, validateAuthentication } from '$lib/common/authValidation';
+import { SessionVerificationService } from '$lib/services/session-verification.service';
+import { setLocks } from '$lib/common/locks';
 
 interface AuthState {
 	isAuthenticated: boolean;
@@ -52,9 +55,8 @@ function createAuthStore() {
 			},
 			onExpired: async () => {
 				// Import audit function
-				const { auditAuthEvent } = await import('$lib/common/authValidation');
 				await auditAuthEvent('session_expired', { reason: 'session_manager_timeout' });
-				
+
 				update((state) => ({
 					...state,
 					isAuthenticated: false,
@@ -132,7 +134,6 @@ function createAuthStore() {
 				update((state) => ({ ...state, isInitializing: true }));
 
 				// Import validation module
-				const { validateAuthentication } = await import('$lib/common/authValidation');
 				const validation = await validateAuthentication();
 
 				const settings = await getSettings();
@@ -173,14 +174,14 @@ function createAuthStore() {
 						}));
 					}
 				}
-				
+
 				// Start session validation if authenticated
 				if (isAuthenticated) {
 					startSessionValidation();
 				}
 
-				log.debug('Auth store initialized', false, { 
-					isRegistered, 
+				log.debug('Auth store initialized', false, {
+					isRegistered,
 					isAuthenticated,
 					validationReason: validation.reason,
 					hasValidSession: validation.hasValidSession,
@@ -199,18 +200,15 @@ function createAuthStore() {
 
 		async login(username: string, password: string): Promise<Profile> {
 			try {
-				// Import rate limiting and audit functions
-				const { checkAuthRateLimit, clearAuthRateLimit, auditAuthEvent } = await import('$lib/common/authValidation');
-				
 				// Format the username properly (removing .nfs.id if already present, then adding it)
 				const normalizedUsername = username.toLowerCase().trim().replace('.nfs.id', '');
-				
+
 				// Check rate limiting
 				if (!checkAuthRateLimit(normalizedUsername)) {
 					await auditAuthEvent('validation_failed', { reason: 'rate_limit_exceeded', username: normalizedUsername });
 					throw new Error('Too many login attempts. Please try again later.');
 				}
-				
+
 				const loginString = normalizedUsername + '.nfs.id' + password;
 
 				// Call the existing verify function - this is the core authentication
@@ -229,27 +227,26 @@ function createAuthStore() {
 				}
 
 				// Perform post-login validation to ensure everything is properly set up
-				const { validateAuthentication } = await import('$lib/common/authValidation');
 				const validation = await validateAuthentication();
-				
+
 				if (!validation.isValid) {
-					await auditAuthEvent('validation_failed', { 
-						reason: 'post_login_validation_failed', 
+					await auditAuthEvent('validation_failed', {
+						reason: 'post_login_validation_failed',
 						validationReason: validation.reason,
-						username: normalizedUsername 
+						username: normalizedUsername
 					});
 					throw new Error('Authentication validation failed: ' + validation.reason);
 				}
 
 				// Get user's plan level for JWT
 				const settings = await getSettings();
-				const planLevel = settings?.plan?.type || 'basic';
+				const planLevel = settings?.plan?.type || 'explorer_member';
 
 				// Start session with JWT token generation
 				const jwtToken = await sessionManager.startSession(
-					profile.id || profile.userName,
-					profile.userName,
-					profile.id || profile.userName,
+					profile.id || profile.username,
+					profile.username,
+					profile.id || profile.username,
 					planLevel
 				);
 
@@ -266,10 +263,10 @@ function createAuthStore() {
 
 				// Clear rate limiting on successful login
 				clearAuthRateLimit(normalizedUsername);
-				
+
 				// Start periodic session validation
 				startSessionValidation();
-				
+
 				// Audit successful login
 				await auditAuthEvent('login', {
 					username: normalizedUsername,
@@ -279,13 +276,27 @@ function createAuthStore() {
 
 				// Notify background script about login to start idle detection
 				try {
-					const { SessionVerificationService } = await import('$lib/services/session-verification.service');
 					const sessionService = SessionVerificationService.getInstance();
 					await sessionService.verifyLogin(true);
 					log.debug('Idle detection started after login');
 				} catch (error) {
 					log.warn('Failed to start idle detection:', false, error);
 					// Don't fail login if idle detection fails
+				}
+
+				// Notify background script about successful login to start JWT validation
+				try {
+					if (typeof chrome !== 'undefined' && chrome.runtime) {
+						await chrome.runtime.sendMessage({
+							type: 'USER_LOGIN_SUCCESS',
+							sessionId: sessionState?.sessionId,
+							hasJWT: !!jwtToken
+						});
+						log.debug('Notified background script about successful login');
+					}
+				} catch (error) {
+					log.warn('Failed to notify background script about login:', false, error);
+					// Don't fail login if background notification fails
 				}
 
 				log.debug('User logged in successfully', false, {
@@ -301,26 +312,21 @@ function createAuthStore() {
 
 		async logout() {
 			try {
-				// Import audit function
-				const { auditAuthEvent } = await import('$lib/common/authValidation');
-				
 				// Get current state for audit
 				const currentState = get(authStore);
-				const username = currentState.profile?.userName;
-				
+				const username = currentState.profile?.username;
+
 				// Stop periodic session validation
 				stopSessionValidation();
-				
+
 				// End session
 				await sessionManager.endSession();
 
 				// Import setLocks to set isLocked flag
-				const { setLocks } = await import('$lib/common/locks');
 				await setLocks(true);
 
 				// Notify background script about logout to stop idle detection
 				try {
-					const { SessionVerificationService } = await import('$lib/services/session-verification.service');
 					const sessionService = SessionVerificationService.getInstance();
 					await sessionService.verifyLogin(false);
 					log.debug('Idle detection stopped after logout');
@@ -339,13 +345,13 @@ function createAuthStore() {
 					jwtToken: null,
 					showSessionWarning: false
 				}));
-				
+
 				// Audit logout event
 				await auditAuthEvent('logout', {
 					username,
 					initiatedBy: 'user'
 				});
-				
+
 				log.debug('User logged out', false);
 			} catch (error) {
 				log.error('Error during logout:', false, error);
@@ -365,29 +371,26 @@ function createAuthStore() {
 
 				// Check for inactivity timeout
 				if (now - state.lastActivity > timeoutMs) {
-					const { auditAuthEvent } = await import('$lib/common/authValidation');
-					await auditAuthEvent('session_expired', { 
+					await auditAuthEvent('session_expired', {
 						reason: 'inactivity_timeout',
 						lastActivity: state.lastActivity,
 						timeout: state.sessionTimeout
 					});
-					
+
 					log.warn('Session expired due to inactivity', false);
 					await this.logout();
 					return false;
 				}
 
 				// Perform comprehensive validation check
-				const { validateAuthentication } = await import('$lib/common/authValidation');
 				const validation = await validateAuthentication();
-				
+
 				if (!validation.isValid) {
-					const { auditAuthEvent } = await import('$lib/common/authValidation');
-					await auditAuthEvent('session_expired', { 
+					await auditAuthEvent('session_expired', {
 						reason: 'validation_failed',
 						validationReason: validation.reason
 					});
-					
+
 					log.warn('Session invalid due to failed validation', false, validation.reason);
 					await this.logout();
 					return false;
@@ -395,11 +398,10 @@ function createAuthStore() {
 
 				// Check JWT expiry if available
 				if (state.jwtToken && !get(hasValidJWT)) {
-					const { auditAuthEvent } = await import('$lib/common/authValidation');
-					await auditAuthEvent('session_expired', { 
+					await auditAuthEvent('session_expired', {
 						reason: 'jwt_expired'
 					});
-					
+
 					log.warn('Session expired due to JWT expiry', false);
 					await this.logout();
 					return false;

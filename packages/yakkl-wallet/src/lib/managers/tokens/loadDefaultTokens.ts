@@ -1,5 +1,5 @@
 import type { TokenData, MarketPriceData } from '$lib/common/interfaces'; // Assume the minimal TokenData interface is in a file
-import { setYakklTokenDataStorage } from '$lib/common/stores';
+import { setYakklTokenDataStorage, updateCombinedTokenStore } from '$lib/common/stores';
 import { log } from '$managers/Logger';
 import defaultTokens from '$managers/tokens/defaultTokens.json';
 
@@ -52,6 +52,9 @@ export async function loadDefaultTokens(): Promise<void> {
 
 		// Update the storage and store
 		await setYakklTokenDataStorage(tokens);
+
+		// Update the combined token store to include default tokens
+		updateCombinedTokenStore();
 
 		// Log success information
 		log.info(`Successfully loaded ${tokens.length} default tokens`, false, {

@@ -11,7 +11,7 @@
 	import { DEFAULT_TITLE, YAKKL_DAPP } from '$lib/common/constants';
 	import { onMount } from 'svelte';
 	import { log } from '$managers/Logger';
-	import type { Runtime } from 'webextension-polyfill';
+	// import type { Runtime } from '$lib/types/browser-types';
 	import type { JsonRpcResponse, SessionInfo } from '$lib/common/interfaces';
 	import type { BackgroundPendingRequest } from '$lib/extensions/chrome/background';
 	import Confirmation from '$lib/components/Confirmation.svelte';
@@ -25,6 +25,7 @@
 	import type { PortDuplexStream } from '$lib/managers/PortStreamManager';
 	import { sessionToken, verifySessionToken } from '$lib/common/auth/session';
 	import { safeLogout } from '$lib/common/safeNavigate';
+	import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 
 	// NOTE: This is not as large of security risk as the network form, but we should still be mindful of it.
 	// NOTE: We should also consider adding a warning to the user about the risks of signing messages.
@@ -32,7 +33,7 @@
 
 	// NOTE: We believe this is a possible security risk. We will not support this feature at this time.
 
-	type RuntimePort = Runtime.Port | undefined;
+	// type RuntimePort = Runtime.Port | undefined;
 
 	let currentlySelected: YakklCurrentlySelected;
 	let yakklMiscStore: string;
@@ -239,7 +240,6 @@
 				// Write to stream and add a small delay to ensure the write completes
 				stream.write(jsonRpcResponse);
 				await new Promise(async (resolve) => {
-					const { UnifiedTimerManager } = await import('$lib/managers/UnifiedTimerManager');
 					const timerManager = UnifiedTimerManager.getInstance();
 					timerManager.addTimeout('wallet-popup-delay', () => resolve(undefined), 100);
 					timerManager.startTimeout('wallet-popup-delay');

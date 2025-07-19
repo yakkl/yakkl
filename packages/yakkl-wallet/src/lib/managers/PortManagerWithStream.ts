@@ -1,7 +1,7 @@
 import { getDuplex } from '$lib/common/duplexShim';
 import { PortDuplexStream, type LightweightDuplex } from './PortStreamManager';
 import { log } from '$lib/common/logger-wrapper';
-import { browser_ext, isClient, getBrowserExt } from '$lib/common/environment';
+import { browser_ext, isClient } from '$lib/common/environment';
 import type { Runtime } from 'webextension-polyfill';
 import type { DuplexOptions } from 'stream';
 
@@ -18,14 +18,13 @@ export class PortManagerWithStream {
 	async createPort() {
 		if (this.port && this.stream) return true;
 
-		const ext = isClient ? getBrowserExt() : browser_ext;
-		if (!ext || !ext.runtime?.connect) {
+		if (!browser_ext || !browser_ext.runtime?.connect) {
 			log.error('Extension API not available for PortManagerWithStream');
 			return false;
 		}
 
 		try {
-			this.port = ext.runtime.connect({ name: this.name });
+			this.port = browser_ext.runtime.connect({ name: this.name });
 			const Duplex = await getDuplex();
 			class CustomDuplex extends Duplex implements LightweightDuplex {
 				constructor() {
@@ -78,6 +77,7 @@ export class PortManagerWithStream {
 
 	disconnect() {
 		try {
+			if (!browser_ext) return;
 			if (this.port && this.requestId) {
 				browser_ext.runtime.sendMessage({
 					type: 'UNREGISTER_SESSION_PORT',

@@ -4,7 +4,7 @@
 
 export const prerender = false;
 
-import { getObjectFromLocalStorage, setObjectInLocalStorage } from '$lib/common/storage';
+import { getObjectFromLocalStorage, setObjectInLocalStorage, removeObjectFromLocalStorage } from '$lib/common/storage';
 import { writable, get } from 'svelte/store';
 import {
 	yakklSettings,
@@ -16,7 +16,9 @@ import {
 	yakklAccounts,
 	yakklPreferences,
 	yakklChats,
-	yakklBlockedList
+	yakklBlockedList,
+  yakklWalletBlockchains,
+  yakklWalletProviders
 } from '$lib/models/dataModels';
 import {
 	STORAGE_YAKKL_REGISTERED_DATA,
@@ -72,11 +74,13 @@ import type { Blockchain } from '$lib/managers/Blockchain';
 import type { Provider } from '$lib/managers/Provider';
 import type { TokenService } from '$lib/managers/blockchains/evm/TokenService';
 import { tokens } from './stores/tokens';
+import { getYakklCurrentlySelected } from '../stores/account-utils';
 // import { timerManagerStore } from '$lib/managers/TimerManager';
-import { log } from '$lib/managers/Logger';
-import { AccountTypeCategory, NetworkType } from '$lib/common/types';
-import { browser_ext } from '$lib/common/environment';
+import { log } from '$lib/common/logger-wrapper';
+// import { AccountTypeCategory, NetworkType } from '$lib/common/types';
 import type { RSSItem } from '$lib/managers/ExtensionRSSFeedService';
+import { BigNumber, type BigNumberish } from '$lib/common/bignumber';
+import { browser_ext } from '$lib/common/environment';
 
 // Svelte writeable stores
 export const alert = writable({
@@ -185,6 +189,7 @@ export interface AddressTokenHolding {
   walletAddress: string;      // The wallet address that holds tokens
   chainId: number;           // Chain ID
   tokenAddress: string;      // Token contract address
+  isNative: boolean;
   symbol: string;            // Token symbol for quick reference
   quantity: number;          // Amount held
   lastUpdated: Date;         // When balance was last fetched
@@ -194,10 +199,11 @@ export interface TokenCacheEntry {
   walletAddress: string;
   chainId: number;
   tokenAddress: string;
+  isNative: boolean;
   symbol: string;            // For quick reference
-  quantity: number;
-  price: number;
-  value: number;
+  quantity: BigNumberish;
+  price: BigNumberish;       // Changed from number
+  value: BigNumberish;       // Changed from number
   lastPriceUpdate: Date;
   lastBalanceUpdate: Date;
   priceProvider: string;     // Changed from provider to priceProvider
@@ -249,13 +255,15 @@ export function resetStores() {
 		setYakklChatsStore(yakklChats);
 		setYakklAccountsStore(yakklAccounts);
 		setYakklPrimaryAccountsStore(yakklPrimaryAccounts);
+		setYakklWalletBlockchainsStore(yakklWalletBlockchains);
+		setYakklWalletProvidersStore(yakklWalletProviders);
 
+    // [] gets set from json data files (usually)
+    setYakklAddressTokenHoldingsStore([]);
 		setYakklTokenDataStore([]);
 		setYakklTokenDataCustomStore([]);
 		setYakklCombinedTokenStore([]);
-		setYakklWalletBlockchainsStore([]);
-		setYakklWalletProvidersStore([]);
-		setYakklConnectedDomainsStore([]);
+		setYakklConnectedDomainsStore([]); // Gets filled dynamically for dapps
 		yakklMiscStore.set(undefined);
 		yakklContextTypeStore.set(undefined);
 		yakklVeryStore.set(undefined);
@@ -265,10 +273,6 @@ export function resetStores() {
 		yakklGasTransStore.set(undefined);
 		yakklContactStore.set(undefined);
 		yakklAccountStore.set(undefined);
-		yakklWalletProvidersStore.set([]);
-		yakklWalletBlockchainsStore.set([]);
-		yakklTokenDataStore.set([]);
-		yakklTokenDataCustomStore.set([]);
 		yakklCombinedTokenStore.set([]);
 		yakklInstancesStore.set([null, null, null, null]);
 		yakklGPTRunningStore.set(false);
@@ -334,6 +338,27 @@ export function storageChange(changes: any) {
 		if (changes.yakklBlockedList) {
 			setYakklBlockedListStore(changes.yakklBlockedList.newValue);
 		}
+		if (changes.yakklWalletBlockchains) {
+			setYakklWalletBlockchainsStore(changes.yakklWalletBlockchains.newValue);
+		}
+		if (changes.yakklWalletProviders) {
+			setYakklWalletProvidersStore(changes.yakklWalletProviders.newValue);
+		}
+		if (changes.yakklTokenData) {
+			setYakklTokenDataStore(changes.yakklTokenData.newValue);
+		}
+		if (changes.yakklTokenDataCustom) {
+			setYakklTokenDataCustomStore(changes.yakklTokenDataCustom.newValue);
+		}
+		if (changes.yakklCombinedTokens) {
+			setYakklCombinedTokenStore(changes.yakklCombinedTokens.newValue);
+		}
+		if (changes.yakklAddressTokenHoldings) {
+			yakklAddressTokenHoldingsStore.set(changes.yakklAddressTokenHoldings.newValue);
+		}
+		if (changes.yakklTokenCache) {
+			yakklTokenCacheStore.set(changes.yakklTokenCache.newValue);
+		}
 	} catch (error) {
 		log.error(error);
 		throw error;
@@ -358,7 +383,9 @@ export async function syncStorageToStore() {
 			yakklCombinedTokens,
 			yakklConnectedDomains,
 			yakklAddressTokenHoldings,
-			yakklTokenCache
+			yakklTokenCache,
+      yakklWalletBlockchains,
+      yakklWalletProviders
 		] = await Promise.all([
 			getPreferences(),
 			getSettings(),
@@ -372,10 +399,12 @@ export async function syncStorageToStore() {
 			getYakklChats(),
 			getYakklTokenData(),
 			getYakklTokenDataCustom(),
-			getYakklCombinedToken(),
+			getYakklCombinedTokens(),
 			getYakklConnectedDomains(),
 			getYakklAddressTokenHoldings(),
-			getYakklTokenCache()
+			getYakklTokenCache(),
+			getYakklWalletBlockchains(),
+			getYakklWalletProviders()
 		]);
 
 		setPreferencesStore(preferences ?? yakklPreferences);
@@ -392,8 +421,10 @@ export async function syncStorageToStore() {
 		setYakklTokenDataCustomStore(yakklTokenDataCustom);
 		setYakklCombinedTokenStore(yakklCombinedTokens);
 		setYakklConnectedDomainsStore(yakklConnectedDomains);
-		yakklAddressTokenHoldingsStore.set(yakklAddressTokenHoldings);
+		setYakklAddressTokenHoldingsStore(yakklAddressTokenHoldings);
 		yakklTokenCacheStore.set(yakklTokenCache);
+		yakklWalletBlockchainsStore.set(yakklWalletBlockchains);
+		yakklWalletProvidersStore.set(yakklWalletProviders);
 	} catch (error) {
 		log.error('Error syncing stores:', false, error);
 		throw error; // Rethrow so that load() can catch it
@@ -454,6 +485,11 @@ export function getYakklPrimaryAccountsStore() {
 
 export function getYakklContactsStore() {
 	const store = get(yakklContactsStore);
+	return store;
+}
+
+export function getYakklAddressTokenHoldingsStore() {
+	const store = get(yakklAddressTokenHoldingsStore);
 	return store;
 }
 
@@ -606,6 +642,12 @@ export function setYakklBlockedListStore(values: YakklBlocked[]) {
 export function setYakklContactsStore(values: YakklContact[]) {
 	const store = get(yakklContactsStore);
 	yakklContactsStore.set(values);
+	return store;
+}
+
+export function setYakklAddressTokenHoldingsStore(values: AddressTokenHolding[]) {
+	const store = get(yakklAddressTokenHoldingsStore);
+	yakklAddressTokenHoldingsStore.set(values);
 	return store;
 }
 
@@ -835,7 +877,7 @@ export async function getYakklTokenDataCustom(id?: string, persona?: string): Pr
 	}
 }
 
-export async function getYakklCombinedToken(id?: string, persona?: string): Promise<TokenData[]> {
+export async function getYakklCombinedTokens(id?: string, persona?: string): Promise<TokenData[]> {
 	try {
 		const value = await getObjectFromLocalStorage<TokenData[]>(STORAGE_YAKKL_COMBINED_TOKENS);
 		if (typeof value === 'string') {
@@ -850,7 +892,7 @@ export async function getYakklCombinedToken(id?: string, persona?: string): Prom
 		if (value) setYakklCombinedTokenStore(value);
 		return value || []; // Return an empty array or provide a default value if necessary
 	} catch (error) {
-		log.error('Error in getYakklCombinedToken:', false, error);
+		log.error('Error in getYakklCombinedTokens:', false, error);
 		throw error;
 	}
 }
@@ -992,84 +1034,8 @@ export async function getProfile(id?: string, persona?: string): Promise<Profile
 	}
 }
 
-export async function getYakklCurrentlySelected(
-	id?: string,
-	persona?: string
-): Promise<YakklCurrentlySelected> {
-	try {
-		const value = await getObjectFromLocalStorage<YakklCurrentlySelected>(
-			STORAGE_YAKKL_CURRENTLY_SELECTED
-		);
-
-		if (id && persona) {
-			// TODO: Implement this later
-		}
-
-		// If no value or value is a string, return default values
-		if (!value || typeof value === 'string') {
-			log.warn('No currently selected Yakkl found, using defaults', false, value);
-			return {
-				id: '',
-				shortcuts: {
-					quantity: 0n,
-					accountType: AccountTypeCategory.PRIMARY,
-					accountName: 'YAKKL_ZERO_ACCOUNT',
-					smartContract: false,
-					address: '',
-					alias: '',
-					primary: null,
-					init: false,
-					legal: false,
-					isLocked: true,
-					showTestNetworks: false,
-					profile: {
-						userName: '',
-						name: null,
-						email: ''
-					},
-					gasLimit: 21000,
-					networks: [
-						{
-							blockchain: 'Ethereum',
-							name: 'Mainnet',
-							chainId: 1,
-							symbol: 'ETH',
-							type: NetworkType.MAINNET,
-							explorer: 'https://etherscan.io',
-							decimals: 18
-						}
-					],
-					network: {
-						blockchain: 'Ethereum',
-						name: 'Mainnet',
-						chainId: 1,
-						symbol: 'ETH',
-						type: NetworkType.MAINNET,
-						explorer: 'https://etherscan.io',
-						decimals: 18
-					},
-					blockchain: 'Ethereum',
-					type: NetworkType.MAINNET,
-					chainId: 1,
-					symbol: 'ETH',
-					explorer: 'https://etherscan.io'
-				},
-				preferences: {
-					locale: 'en_US',
-					currency: { code: 'USD', symbol: '$' }
-				},
-				data: {},
-				version: '1.0.0',
-				createDate: new Date().toISOString(),
-				updateDate: new Date().toISOString()
-			};
-		}
-		return value;
-	} catch (error) {
-		log.error('Error in getYakklCurrentlySelected:', false, error);
-		throw error;
-	}
-}
+// Re-export from the utility module to break circular dependency
+export { getYakklCurrentlySelected } from '../stores/account-utils';
 
 export async function getYakklWatchList(id?: string, persona?: string): Promise<YakklWatch[]> {
 	// eslint-disable-next-line no-useless-catch
@@ -1257,6 +1223,49 @@ export async function getYakklTokenCache(): Promise<TokenCacheEntry[]> {
 		if (typeof value === 'string') {
 			throw new Error('Unexpected string value received from local storage');
 		}
+
+		// Filter out suspicious hardcoded values and stale cache entries
+		if (value && Array.isArray(value)) {
+			// Check for suspiciously specific values that might be hardcoded
+			const SUSPICIOUS_VALUES = [912.81, 833.47, 2373.80, 2345.67];
+			const STALE_CACHE_HOURS = 24; // Consider cache stale after 24 hours
+			const now = new Date();
+
+			const filteredCache = value.filter(entry => {
+				// Check if entry has a timestamp and is too old
+				if (entry.lastPriceUpdate) {
+					const entryDate = new Date(entry.lastPriceUpdate);
+					const hoursSinceUpdate = (now.getTime() - entryDate.getTime()) / (1000 * 60 * 60);
+
+					if (hoursSinceUpdate > STALE_CACHE_HOURS) {
+						log.info('[Cache] Filtering out stale cache entry older than 24 hours:', false, {
+							symbol: entry.symbol,
+							hoursOld: Math.round(hoursSinceUpdate)
+						});
+						return false;
+					}
+				}
+
+				// Check if the value matches any suspicious values
+				if (SUSPICIOUS_VALUES.some(suspicious => {
+					const entryValue = BigNumber.toNumber(entry.value) || 0;
+					const entryPrice = BigNumber.toNumber(entry.price) || 0;
+					return Math.abs(entryValue - suspicious) < 0.01 ||
+						Math.abs(entryPrice - suspicious) < 0.01;
+				})) {
+					log.warn('[Cache] Filtering out suspicious hardcoded value:', false, {
+						symbol: entry.symbol,
+						value: entry.value,
+						price: entry.price
+					});
+					return false;
+				}
+				return true;
+			});
+
+			return filteredCache;
+		}
+
 		return value || [];
 	} catch (error) {
 		log.error('Error in getYakklTokenCache:', false, error);
@@ -1264,7 +1273,7 @@ export async function getYakklTokenCache(): Promise<TokenCacheEntry[]> {
 	}
 }
 
-export async function setYakklTokenCacheStorage(values: TokenCacheEntry[]) {
+export async function setYakklTokenCacheStorage(values: TokenCacheEntry[], forceUpdate = false) {
 	try {
 		// Check if user is a new user (first login after registration)
 		// Using Settings.init instead of ProfileData to avoid decryption in sidepanel
@@ -1276,36 +1285,64 @@ export async function setYakklTokenCacheStorage(values: TokenCacheEntry[]) {
 		} catch (error) {
 			log.debug('[Cache Validation] Could not check new user status:', false, error);
 		}
-		
+
 		// Get existing cache to preserve non-zero values
 		const existingCache = await getYakklTokenCache();
-		
+
 		// Validate and filter cache entries
 		const validatedValues = values.map(newEntry => {
 			// Skip validation for new users - they can have zero values
 			if (isNewUser) {
 				return newEntry;
 			}
-			
-			// For existing users, never cache zero values
-			if (newEntry.price === 0 || newEntry.value === 0) {
+
+			// For existing users, never cache zero values (unless force update)
+			if (!forceUpdate && (newEntry.price === 0 || newEntry.value === 0)) {
 				// Try to find existing non-zero entry
-				const existingEntry = existingCache.find(e => 
+				const existingEntry = existingCache.find(e =>
 					e.walletAddress === newEntry.walletAddress &&
 					e.tokenAddress === newEntry.tokenAddress &&
 					e.chainId === newEntry.chainId
 				);
-				
-				// If we have a valid existing entry, preserve it
-				if (existingEntry && existingEntry.price > 0 && existingEntry.value > 0) {
-					log.debug('[Cache Validation] Preserving non-zero cache entry for token:', false, {
+
+				// If we have a valid existing entry, check if it's not too old
+				if (existingEntry) {
+					const existingPrice = BigNumber.toNumber(existingEntry.price) || 0;
+					const existingValue = BigNumber.toNumber(existingEntry.value) || 0;
+
+					if (existingPrice > 0 && existingValue > 0) {
+						// Check if the existing entry is fresh enough (less than 5 minutes old)
+						const entryAge = new Date().getTime() - new Date(existingEntry.lastPriceUpdate).getTime();
+						const maxAge = 5 * 60 * 1000; // 5 minutes
+
+						if (entryAge > maxAge) {
+							log.info('[Cache Validation] Existing entry is too old, not preserving:', false, {
+								symbol: newEntry.symbol,
+								ageMinutes: Math.round(entryAge / 60000),
+								existingValue: existingEntry.value
+							});
+							return null; // Don't preserve old entries
+						}
+
+						log.debug('[Cache Validation] Preserving recent non-zero cache entry for token:', false, {
+							symbol: newEntry.symbol,
+							existingPrice: existingEntry.price,
+							existingValue: existingEntry.value,
+							ageMinutes: Math.round(entryAge / 60000)
+						});
+						return existingEntry;
+					}
+
+					// Otherwise, skip this entry (don't cache zero values)
+					log.warn('[Cache Validation] Skipping zero value cache entry:', false, {
 						symbol: newEntry.symbol,
-						existingPrice: existingEntry.price,
-						existingValue: existingEntry.value
+						address: newEntry.tokenAddress,
+						price: newEntry.price,
+						value: newEntry.value
 					});
-					return existingEntry;
+					return null;
 				}
-				
+
 				// Otherwise, skip this entry (don't cache zero values)
 				log.warn('[Cache Validation] Skipping zero value cache entry:', false, {
 					symbol: newEntry.symbol,
@@ -1315,11 +1352,11 @@ export async function setYakklTokenCacheStorage(values: TokenCacheEntry[]) {
 				});
 				return null;
 			}
-			
+
 			// Valid non-zero entry
 			return newEntry;
 		}).filter(entry => entry !== null) as TokenCacheEntry[];
-		
+
 		// Only update if we have valid entries
 		if (validatedValues.length > 0) {
 			yakklTokenCacheStore.set(validatedValues);
@@ -1414,42 +1451,8 @@ export async function setProfileStorage(values: Profile) {
 	}
 }
 
-export async function setYakklCurrentlySelectedStorage(values: YakklCurrentlySelected) {
-	try {
-		if (
-			values.shortcuts.address.trim().length === 0 ||
-			values.shortcuts.accountName.trim().length === 0
-		) {
-			throw new Error(
-				'Attempting to save yakklCurrentlySelected with no address or no account name. Select a default account and retry.'
-			);
-		}
-
-		// Get current store value
-		// const current = get(yakklCurrentlySelectedStore);
-
-		// Avoid unnecessary updates by checking for equality
-		// if (!isEqual(current, values)) {
-		// Update the store with the new value
-
-		// Verify encryption (ensures the value is encrypted correctly before storing)
-		const newValues = await verifyEncryption(values);
-		setYakklCurrentlySelectedStore(newValues as YakklCurrentlySelected);
-
-		// Update localStorage only if the encrypted data differs
-		// const currentEncrypted = await verifyEncryption(current); // Encrypt current for comparison
-		// if (!isEqual(currentEncrypted, newValues)) {
-		await setObjectInLocalStorage('yakklCurrentlySelected', newValues);
-		// }
-		// }
-		// setYakklCurrentlySelectedStore(values);
-		// const newValues = await verifyEncryption(values); // We put this after the store since data.<whatever> holds already encrypted data
-		// await setObjectInLocalStorage('yakklCurrentlySelected', newValues);
-	} catch (error) {
-		log.error('Error in setYakklCurrentlySelectedStorage:', false, error);
-		throw error;
-	}
-}
+// Re-export from the utility module to break circular dependency
+export { setYakklCurrentlySelectedStorage } from '../stores/account-utils';
 
 export async function setYakklWatchListStorage(values: YakklWatch[]) {
 	try {
@@ -1559,3 +1562,83 @@ export async function setYakklBookmarkedArticles(articles: RSSItem[]): Promise<v
 getYakklBookmarkedArticles().then((articles) => {
 	yakklBookmarkedArticlesStore.set(articles);
 });
+
+// Extension Storage Functions
+export async function setObjectInExtensionStorage(key: string, value: any): Promise<void | boolean> {
+	try {
+    if (typeof window === 'undefined') return null;
+		if (!browser_ext || !browser_ext.storage || !browser_ext.storage.local) {
+			// Fallback to localStorage
+			return setObjectInLocalStorage(key, value);
+		}
+
+		await browser_ext.storage.local.set({ [key]: value });
+		return true;
+	} catch (error) {
+		console.error('Error setting extension storage:', error);
+		// Fallback to localStorage
+		return setObjectInLocalStorage(key, value);
+	}
+}
+
+export async function getObjectFromExtensionStorage<T>(key: string): Promise<T | null> {
+	try {
+    if (!browser_ext) return null; // Return null instead of undefined
+
+		if (!browser_ext || !browser_ext.storage || !browser_ext.storage.local) {
+			// Fallback to localStorage
+			return getObjectFromLocalStorage<T>(key);
+		}
+
+		const result = await browser_ext.storage.local.get(key);
+		return (result[key] || null) as T;
+	} catch (error) {
+		// Only log actual errors, not initialization issues
+		if (error && typeof error === 'object' && 'message' in error &&
+		    !error.message.includes('Cannot access') &&
+		    !error.message.includes('before initialization')) {
+			console.error('Error getting extension storage:', error);
+		}
+		// Fallback to localStorage
+		return getObjectFromLocalStorage<T>(key);
+	}
+}
+
+export async function removeFromExtensionStorage(key: string): Promise<void | boolean> {
+	try {
+    if (!browser_ext) return null;
+
+		if (!browser_ext || !browser_ext.storage || !browser_ext.storage.local) {
+			// Fallback to localStorage
+			return removeObjectFromLocalStorage(key);
+		}
+
+		await browser_ext.storage.local.remove(key);
+		return true;
+	} catch (error) {
+		console.error('Error removing from extension storage:', error);
+		// Fallback to localStorage
+		return removeObjectFromLocalStorage(key);
+	}
+}
+
+export async function clearAllExtensionStorage(): Promise<void | boolean> {
+  // Disabled for now
+  // if (typeof window === 'undefined') return null;
+
+  // if (!browser || !browser.storage || !browser.storage.local) {
+  //   return false;
+  // }
+
+  // await browser.storage.local.clear();
+  return true;
+}
+
+// Note: extensionTokenCacheStore is now deprecated - use wallet-cache.store.ts instead
+// For migration purposes, we'll create a temporary shim
+export const extensionTokenCacheStore = {
+	getCache: () => null,
+	setCache: () => {},
+	updatePrices: () => {},
+	clearForFirstTimeSetup: async () => {}
+};

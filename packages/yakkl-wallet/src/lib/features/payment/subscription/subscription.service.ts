@@ -1,6 +1,6 @@
 import { BaseService } from '../../../services/base.service';
 import type { ServiceResponse } from '../../../types';
-import { PlanType } from '../../../config/features';
+import { PlanType } from '$lib/common/types';
 import { currentAccount } from '../../../stores/account.store';
 import { get } from 'svelte/store';
 
@@ -57,7 +57,7 @@ export class SubscriptionService extends BaseService {
   private static instance: SubscriptionService;
 
   private constructor() {
-    super();
+    super('SubscriptionService');
   }
 
   static getInstance(): SubscriptionService {
@@ -90,7 +90,7 @@ export class SubscriptionService extends BaseService {
   async getCurrentSubscription(): Promise<ServiceResponse<Subscription | null>> {
     try {
       const account = get(currentAccount);
-      
+
       if (!account) {
         return {
           success: false,
@@ -118,13 +118,13 @@ export class SubscriptionService extends BaseService {
   }
 
   async subscribeToPlan(
-    planId: string, 
-    paymentMethodId: string, 
+    planId: string,
+    paymentMethodId: string,
     couponCode?: string
   ): Promise<ServiceResponse<Subscription>> {
     try {
       const account = get(currentAccount);
-      
+
       if (!account) {
         return {
           success: false,
@@ -154,7 +154,7 @@ export class SubscriptionService extends BaseService {
   async cancelSubscription(immediate: boolean = false): Promise<ServiceResponse<Subscription>> {
     try {
       const account = get(currentAccount);
-      
+
       if (!account) {
         return {
           success: false,
@@ -182,7 +182,7 @@ export class SubscriptionService extends BaseService {
   async updatePaymentMethod(paymentMethodId: string): Promise<ServiceResponse<boolean>> {
     try {
       const account = get(currentAccount);
-      
+
       if (!account) {
         return {
           success: false,
@@ -210,7 +210,7 @@ export class SubscriptionService extends BaseService {
   async getPaymentMethods(): Promise<ServiceResponse<PaymentMethod[]>> {
     try {
       const account = get(currentAccount);
-      
+
       if (!account) {
         return {
           success: false,
@@ -242,7 +242,7 @@ export class SubscriptionService extends BaseService {
   ): Promise<ServiceResponse<PaymentMethod>> {
     try {
       const account = get(currentAccount);
-      
+
       if (!account) {
         return {
           success: false,
@@ -271,7 +271,7 @@ export class SubscriptionService extends BaseService {
   async getInvoices(limit: number = 10): Promise<ServiceResponse<Invoice[]>> {
     try {
       const account = get(currentAccount);
-      
+
       if (!account) {
         return {
           success: false,
@@ -300,7 +300,7 @@ export class SubscriptionService extends BaseService {
   async startTrial(planId: string): Promise<ServiceResponse<Subscription>> {
     try {
       const account = get(currentAccount);
-      
+
       if (!account) {
         return {
           success: false,
@@ -349,9 +349,9 @@ export class SubscriptionService extends BaseService {
   private async getDefaultPlans(): Promise<ServiceResponse<SubscriptionPlan[]>> {
     const plans: SubscriptionPlan[] = [
       {
-        id: 'basic',
-        name: 'Basic',
-        type: PlanType.Basic,
+        id: 'explorer_member',
+        name: 'Explorer',
+        type: PlanType.EXPLORER_MEMBER,
         price: 0,
         currency: 'USD',
         interval: 'month',
@@ -366,12 +366,12 @@ export class SubscriptionService extends BaseService {
       {
         id: 'pro-monthly',
         name: 'Pro',
-        type: PlanType.Pro,
-        price: 9.99,
+        type: PlanType.YAKKL_PRO,
+        price: 8.00,
         currency: 'USD',
         interval: 'month',
         features: [
-          'Everything in Basic',
+          'Everything in Explorer',
           'Token Swapping',
           'AI Assistant',
           'Advanced Analytics',
@@ -385,12 +385,12 @@ export class SubscriptionService extends BaseService {
       {
         id: 'pro-yearly',
         name: 'Pro',
-        type: PlanType.Pro,
-        price: 99.99,
+        type: PlanType.YAKKL_PRO,
+        price: 80.00,
         currency: 'USD',
         interval: 'year',
         features: [
-          'Everything in Basic',
+          'Everything in Explorer',
           'Token Swapping',
           'AI Assistant',
           'Advanced Analytics',
@@ -404,8 +404,8 @@ export class SubscriptionService extends BaseService {
       {
         id: 'enterprise',
         name: 'Enterprise',
-        type: PlanType.Enterprise,
-        price: 99.99,
+        type: PlanType.ENTERPRISE,
+        price: 999.99,
         currency: 'USD',
         interval: 'month',
         features: [

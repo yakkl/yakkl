@@ -6,7 +6,8 @@ import { Duplex } from 'readable-stream';
 import { WALLET_SECURITY_CONFIG, YAKKL_DAPP } from '$lib/common/constants';
 import type { SecurityLevel } from '$lib/permissions/types';
 import { SecurityLevel as SecurityLevelEnum } from '$lib/permissions/types';
-import browser, { type Runtime } from 'webextension-polyfill';
+import browser from 'webextension-polyfill';
+import type { Runtime } from 'webextension-polyfill';
 import { log } from '$lib/managers/Logger';
 import { isExtensionContextValid } from '$lib/common';
 import {

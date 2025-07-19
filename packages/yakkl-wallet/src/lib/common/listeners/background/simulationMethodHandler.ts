@@ -218,7 +218,7 @@ async function estimateGasViaRPC(txParams: any, chainId: number): Promise<string
 	const { getAlchemyProvider } = await import(
 		'$lib/managers/providers/network/ethereum_provider/alchemy'
 	);
-	const provider = await getAlchemyProvider();
+	const provider = getAlchemyProvider();
 
 	// Use your corrected estimateGas method that returns hex string
 	const result = await provider.estimateGas(txParams);
@@ -233,7 +233,7 @@ async function callViaRPC(callParams: any, blockNumber: string, chainId: number)
 	const { getAlchemyProvider } = await import(
 		'$lib/managers/providers/network/ethereum_provider/alchemy'
 	);
-	const provider = await getAlchemyProvider();
+	const provider = getAlchemyProvider();
 
 	const result = await provider.request({
 		method: 'eth_call',
@@ -250,7 +250,7 @@ async function createAccessListViaRPC(txParams: any, chainId: number): Promise<a
 	const { getAlchemyProvider } = await import(
 		'$lib/managers/providers/network/ethereum_provider/alchemy'
 	);
-	const provider = await getAlchemyProvider();
+	const provider = getAlchemyProvider();
 
 	const result = await provider.request({
 		method: 'eth_createAccessList',

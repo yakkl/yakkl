@@ -25,6 +25,7 @@ import type { Provider } from '../../../Provider';
 import { ethers as ethersv6 } from 'ethers-v6';
 import { Web3Provider } from '../../../AnalyticsBase';
 import { EthereumAnalytics } from '../../../blockchains/evm/ethereum/EthereumAnalytics';
+import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
 
 const DEFAULT_GAS_ESTIMATES = {
 	ERC20_APPROVE: 46000n,
@@ -482,7 +483,7 @@ export class EthereumGasProvider implements GasProvider {
 			const gasCostWei = totalGasUnits * BigInt(maxFeePerGas.toString());
 
 			// Convert to ETH
-			const gasCostEth = EthereumBigNumber.fromWei(gasCostWei.toString()).toEtherString();
+			const gasCostEth = EthereumBigNumber.fromWei(gasCostWei.toString());
 
 			// Get ETH price
 			const ethPrice = await this.getEthPrice();
@@ -693,7 +694,7 @@ export class EthereumGasProvider implements GasProvider {
 			log.debug('getEthPrice - priceProvider', false, this.priceProvider);
 
 			const marketPrice = this.priceProvider.getMarketPrice('ETH-USD');
-			return (await marketPrice).price;
+			return BigNumberishUtils.toNumber((await marketPrice).price);
 		} catch (error) {
 			log.error('Error fetching ETH price:', false, false, error);
 			return 0;

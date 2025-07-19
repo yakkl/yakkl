@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { LoggerError } from './Errors';
+// import { LoggerError } from './Errors';
 import { openDB } from 'idb'; // IndexedDB support
 import Dexie from 'dexie'; // Dexie.js for IndexedDB
 // import { browser_ext } from "$lib/common/environment";
 // import { initSQLite, saveToSQLite } from "./LoggerSQLite"; // SQLite integration
 
-const isBrowser = typeof window !== 'undefined';
+// const isBrowser = typeof window !== 'undefined';
 
 // Define log levels
 enum LogLevel {

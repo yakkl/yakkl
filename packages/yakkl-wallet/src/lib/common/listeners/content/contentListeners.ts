@@ -1,12 +1,10 @@
 // listeners/contentListeners.ts
 import { ListenerManager } from '$lib/managers/ListenerManager';
-import browser from 'webextension-polyfill';
+import { browser_ext } from '$lib/common/environment';
 import { globalListenerManager } from '$lib/managers/GlobalListenerManager';
 import { log } from '$lib/managers/Logger';
 
 // NOTE: Only for background
-
-const browser_ext = browser;
 
 export const contentListenerManager = new ListenerManager('content');
 

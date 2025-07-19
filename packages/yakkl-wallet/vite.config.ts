@@ -61,10 +61,9 @@ export default defineConfig(({ mode }) => {
 				$managers: path.resolve('./src/lib/managers'),
 				$plugins: path.resolve('./src/lib/plugins'),
 				$contexts: path.resolve('./src/contexts'),
-				// ...(process.env.YAKKL_PRO === 'true' && { $pro: path.resolve('./src/pro') }),
-				// ...(process.env.YAKKL_PRIVATE === 'true' && { $private: path.resolve('./src/private') }),
-				//// 'webextension-polyfill': path.resolve( __dirname, 'node_modules/webextension-polyfill/dist/browser-polyfill.js' ),
-				'webextension-polyfill': path.resolve(__dirname, 'src/lib/polyfill-mock.js'), // Use mock for SSR safety
+				// For build time, use the import wrapper to handle both SSR and client
+				'webextension-polyfill': path.resolve(__dirname, 'src/lib/browser-polyfill-wrapper.ts'),
+				// 'webextension-polyfill': path.resolve(__dirname, 'node_modules/webextension-polyfill/dist/browser-polyfill.js'),
 				stream: 'stream-browserify',
 				net: 'net-browserify',
 				fs: path.resolve(__dirname, 'empty.js'),
@@ -88,15 +87,18 @@ export default defineConfig(({ mode }) => {
 				NODE_ENV: JSON.stringify(process.env.NODE_ENV || 'development')
 			},
 			__version__: JSON.stringify(process.env.npm_package_version),
-			'process.env.DEV_MODE': process.env.DEV_MODE || false
+			'process.env.DEV_MODE': process.env.DEV_MODE || false,
+			'process.env.BROWSER': JSON.stringify(false)
 		},
 		optimizeDeps: {
-			include: ['dexie'],
+			include: ['dexie', 'webextension-polyfill'],
 			exclude: [
-				'webextension-polyfill',
 				'ethers',
 				'**/*.tmp/**/*', // Exclude .tmp directories - the .tmp items here do not seem to be working as expected. I will keep it and handle it another way.
-				'**/*.tmp' // Exclude .tmp files
+				'**/*.tmp', // Exclude .tmp files
+				'**/v1.tmp/**/*',
+				'**/v1.tmp',
+				'**v1**' // Exclude v1 files - remove this once we are done with v1
 			],
 			entries: [
 				'!**/*.tmp/**/*', // Exclude .tmp directories
@@ -111,6 +113,15 @@ export default defineConfig(({ mode }) => {
 		ssr: {
 			noExternal: ['@walletconnect/web3wallet', '@walletconnect/core'],
 			external: ['webextension-polyfill', 'crypto-browserify']
+		},
+		server: {
+			hmr: false, // Disable HMR completely
+			fs: {
+				allow: ['..'] // Allow serving files from parent directory
+			},
+			watch: {
+				usePolling: false
+			}
 		},
 		build: {
 			sourcemap: true,
@@ -132,15 +143,15 @@ export default defineConfig(({ mode }) => {
 				external: ['webextension-polyfill'],
 				plugins: [
 					// Prevent webextension-polyfill from being loaded during build
-					{
-						name: 'block-webextension-polyfill',
-						resolveId(id) {
-							if (id === 'webextension-polyfill' || id.includes('webextension-polyfill')) {
-								return false; // Don't resolve this import
-							}
-							return null;
-						}
-					},
+					// {
+					// 	name: 'block-webextension-polyfill',
+					// 	resolveId(id) {
+					// 		if (id === 'webextension-polyfill' || id.includes('webextension-polyfill')) {
+					// 			return false; // Don't resolve this import
+					// 		}
+					// 		return null;
+					// 	}
+					// },
 					{
 						name: 'ignore-node-stuff',
 						resolveId(source) {
@@ -170,14 +181,6 @@ export default defineConfig(({ mode }) => {
 			drop: isProd ? ['debugger'] : [],
 			// Mark certain functions as pure for tree-shaking
 			pure: isProd ? ['log.debug', 'log.info', 'log.debugStack', 'log.infoStack'] : []
-		},
-		server: {
-			// Disable HMR for browser extensions
-			hmr: false,
-			watch: {
-				// Don't trigger full page reloads
-				usePolling: false
-			}
 		}
 	};
 });

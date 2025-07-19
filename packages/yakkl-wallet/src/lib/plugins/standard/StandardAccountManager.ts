@@ -17,7 +17,7 @@ import { UpgradeRequiredError } from '../errors/UpgradeRequiredError';
  * Pro features throw UpgradeRequiredError
  */
 export class StandardAccountManager implements IAccountManager {
-	private planType: PlanType = PlanType.BASIC_MEMBER;
+	private planType: PlanType = PlanType.EXPLORER_MEMBER;
 	private initialized = false;
 	private accounts: Account[] = [];
 

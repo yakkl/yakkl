@@ -1,7 +1,7 @@
 <!-- File: src/routes/sidepanel/+page.svelte -->
 <script lang="ts">
 	import TokenComponentList from '$lib/components/TokenComponentList.svelte';
-	import RotatingBanner from '$lib/components/RotatingBanner.svelte';
+	// import RotatingBanner from '$lib/components/RotatingBanner.svelte';
 	import { browser_ext, browserSvelte } from '$lib/common/environment';
 	import WalletIcon from '$lib/components/icons/WalletIcon.svelte';
 	import TokenIcon from '$lib/components/icons/TokenIcon.svelte';
@@ -38,9 +38,14 @@
 	import { type Sponsor } from '$lib/components/Sponsorship.svelte';
 	import ScrollIndicator from '$lib/components/ScrollIndicator.svelte';
 	import SimpleTooltip from '$lib/components/SimpleTooltip.svelte';
+	import ChainSelector from '$lib/components/ChainSelector.svelte';
+	import { Network } from 'lucide-svelte';
 
 	let showUpgradeModal = $state(false);
 	let showEthConverter = $state(false);
+	let showChainSelector = $state(false);
+	let showResponsiveMessage = $state(true);
+	let showFooter = $state(true);
 	let showTokenFiatConverter = $state(false);
 	let init = $state(false);
 	let locked = $state(true);
@@ -48,16 +53,20 @@
 	let tokensLockedCount = $state(0); // Show all tokens for both Basic and Pro
 	let newsfeedsLockedCount = $state(6);
 	let maxVisibleTokens = $state(0); // Show all tokens initially
-	let showBanner = $state(true);
+	// let showBanner = $state(true);
 	let showNewsfeeds = $state(false);
 	let showDynamicNewsfeeds = $state(false);
 	let showLegalTerms = $state(false);
 	let isAgreed = $state(false);
-	let planType = $state('Pro (Trial)');
+	let planType = $state('yakkl_pro (Trial)');
 	let trialEnds = $state('2025-07-01');
 
 	// List of crypto news RSS feeds
 	const cryptoFeeds = [
+    'https://www.ft.com/cryptofinance?format=rss/?utm_source=yakkl&utm_medium=extension',
+    'https://seekingalpha.com/feeds/cryptocompare/cryptos/?utm_source=yakkl&utm_medium=extension',
+    'https://finbold.com/category/cryptocurrency-news/feed/?utm_source=yakkl&utm_medium=extension',
+    'https://blog.kraken.com/feed/?utm_source=yakkl&utm_medium=extension',
 		'https://cointelegraph.com/rss/?utm_source=yakkl&utm_medium=extension',
 		'https://cryptonews.com/news/feed/?utm_source=yakkl&utm_medium=extension',
 		'https://decrypt.co/feed/?utm_source=yakkl&utm_medium=extension',
@@ -70,11 +79,12 @@
 	];
 
 	// WebSocket URL for dynamic feed
-	const wsFeedUrl = 'wss://your-websocket-server.com/feed';
+	const wsFeedUrl = '';
 
 	function openWallet() {
 		if (browserSvelte) {
 			try {
+				// Use the popout message to open the wallet popup
 				browser_ext.runtime.sendMessage({ type: 'popout' })
 					.catch((error) => {
 						// Silently handle the error - this is expected when extension context is invalid
@@ -233,7 +243,7 @@
 				locked = (await isProLevel()) ? false : true;
 				tokensLockedCount = 0; // Show all tokens for both Basic and Pro
 				newsfeedsLockedCount = (await isProLevel()) ? 10 : 4;
-				planType = (await isProLevel()) ? 'Pro' : 'Basic';
+				planType = (await isProLevel()) ? 'yakkl_pro' : 'explorer_member';
 				trialEnds = settings.plan.trialEndDate || null;
 			}
 
@@ -285,7 +295,7 @@
 				locked = (await isProLevel()) ? false : true;
 				tokensLockedCount = 0; // Show all tokens for both Basic and Pro
 				newsfeedsLockedCount = (await isProLevel()) ? 10 : 4;
-				planType = (await isProLevel()) ? 'Pro' : 'Basic';
+				planType = (await isProLevel()) ? 'yakkl_pro' : 'explorer_member';
 				trialEnds = settings.plan.trialEndDate || null;
 
 				// Load default tokens and update stores
@@ -383,7 +393,9 @@
 	>
 		<div class="flex items-center gap-3">
 			<img src="/images/logoBullFav128x128.png" alt="YAKKL" class="w-8 h-8" />
-			<h1 class="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">YAKKL Insights</h1>
+			<h1 class="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+        YAKKL Insights
+      </h1>
 		</div>
 		<!-- Wallet Integration -->
 		<SimpleTooltip content="Click here to unlock your wallet" position="bottom">
@@ -403,12 +415,12 @@
 		{/if}
 	</header>
 
-	<RotatingBanner
+	<!-- <RotatingBanner
 		bind:show={showBanner}
 		items={bannerItems}
 		autoRotate={false}
 		showControls={false}
-	/>
+	/> -->
 
 	<div class="flex justify-end px-4 py-2">
 		<PlanBadge planType={planType} trialEnds={trialEnds} />
@@ -517,7 +529,25 @@
 						</SimpleTooltip>
 						<EthUnitConverter bind:show={showEthConverter} />
 
-						<!-- Placeholder for more utilities -->
+						<!-- Chain Selector -->
+						<SimpleTooltip content="Chain Selector">
+							<button
+								class="yakkl-btn-secondary p-3 flex flex-col items-center gap-2 aspect-square text-xs"
+								aria-label="Open Conversion Calculator"
+								onclick={() => {
+									showChainSelector = true;
+									showResponsiveMessage = false;
+								}}
+							>
+								<Network class="w-6 h-6" />
+								<span>Chain Selector</span>
+							</button>
+						</SimpleTooltip>
+						<ChainSelector bind:show={showChainSelector} onClose={() => {
+							showResponsiveMessage = true;
+						}} />
+
+            <!-- Placeholder for more utilities -->
 						<div class="yakkl-btn-secondary p-3 flex flex-col items-center gap-2 aspect-square text-xs opacity-50 cursor-not-allowed">
 							<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -558,13 +588,16 @@
 	</ScrollIndicator>
 
 	<!-- Responsive message for narrow viewports -->
+   {#if showResponsiveMessage}
 	<div class="md:hidden yakkl-card relative z-10 mx-5 mt-2 mb-4 text-center">
 		<div class="text-sm text-zinc-600 dark:text-zinc-400">
 			👈 💡 Drag the edge of this panel to make it wider and discover more features!
 		</div>
 	</div>
+	{/if}
 
-	<footer
+  {#if showFooter}
+  <footer
 		class="yakkl-footer fixed-bottom h-[6rem] backdrop-blur-sm text-xs text-center flex flex-col items-center justify-center gap-1 relative z-10"
 	>
 		<div class="inline-flex items-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-3 py-1 rounded-full text-xs font-medium shadow-md">
@@ -575,5 +608,6 @@
 		</div>
 		<Copyright />
 	</footer>
+	{/if}
 </div>
 {/if}
