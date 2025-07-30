@@ -12,6 +12,7 @@ import type { Runtime } from 'webextension-polyfill';
 import type { YakklResponse } from '$lib/common/interfaces';
 import { VERSION } from '$lib/common/constants';
 import { BlockchainExplorer } from '$lib/managers/providers/explorer/BlockchainExplorer';
+import { getAlchemyProvider } from '$lib/managers/providers/network/ethereum_provider/alchemy';
 
 /**
  * Handles read-only RPC methods that don't require user approval
@@ -139,9 +140,6 @@ async function handleGetAccounts(request: any): Promise<string[]> {
 async function callRPCProvider(method: string, params: any[], chainId: number): Promise<any> {
 	try {
 		// Import your RPC provider
-		const { getAlchemyProvider } = await import(
-			'$lib/managers/providers/network/ethereum_provider/alchemy'
-		);
 		const provider = getAlchemyProvider();
 
 		// Make the RPC call

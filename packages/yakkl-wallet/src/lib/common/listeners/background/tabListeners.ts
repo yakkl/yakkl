@@ -1,9 +1,8 @@
-// import { browserSvelte, browser_ext } from "$lib/common/environment";
 import browser from 'webextension-polyfill';
+import type { Tabs } from 'webextension-polyfill';
 import { isBlacklisted } from '$contexts/background/extensions/chrome/database';
 import { portsExternal } from '$contexts/background/extensions/chrome/ports';
 import { log } from '$lib/managers/Logger';
-import type { Tabs } from 'webextension-polyfill';
 import { activeTabBackgroundStore, activeTabUIStore } from '$lib/common/stores';
 import { get } from 'svelte/store';
 import { setObjectInLocalStorage } from '$lib/common/storage';
@@ -11,12 +10,9 @@ import { backgroundManager } from '$lib/managers/BackgroundManager';
 import { MessageType } from '$lib/common/types';
 import type { WindowFocusData } from '$lib/common/types';
 
-// This should be backend only
-const browser_ext = browser;
-
 export async function onTabActivatedListener(activeInfo: Tabs.OnActivatedActiveInfoType) {
 	try {
-		if (!browser_ext) return;
+		if (!browser) return;
 		const activeTab = {
 			tabId: activeInfo.tabId,
 			windowId: activeInfo.windowId,
@@ -26,13 +22,13 @@ export async function onTabActivatedListener(activeInfo: Tabs.OnActivatedActiveI
 			favIconUrl: '',
 			dateTime: new Date().toISOString()
 		};
-		const tab = await browser_ext.tabs.get(activeInfo.tabId);
+		const tab = await browser.tabs.get(activeInfo.tabId);
 		if (tab) {
 			// Can add more properties here if needed
 			activeTab.url = tab?.url ?? '';
 			activeTab.title = tab?.title ?? '';
 			activeTab.favIconUrl = tab?.favIconUrl ?? '';
-			const window = await browser_ext.windows.get(activeInfo.windowId);
+			const window = await browser.windows.get(activeInfo.windowId);
 			if (window) {
 				activeTab.windowType = window.type;
 			}
@@ -56,7 +52,7 @@ export async function onTabActivatedListener(activeInfo: Tabs.OnActivatedActiveI
 // Handles tabs.onUpdated
 export async function onTabUpdatedListener(tabId: number, changeInfo: any, tabTab: any) {
 	try {
-		if (!browser_ext) return;
+		if (!browser) return;
 
 		const activeTab = {
 			tabId: tabId,
@@ -67,7 +63,7 @@ export async function onTabUpdatedListener(tabId: number, changeInfo: any, tabTa
 			favIconUrl: '',
 			dateTime: new Date().toISOString()
 		};
-		const tab = await browser_ext.tabs.get(tabId);
+		const tab = await browser.tabs.get(tabId);
 		if (tab) {
 			// Can add more properties here if needed
 			activeTab.windowId = tab?.windowId ?? 0;
@@ -75,7 +71,7 @@ export async function onTabUpdatedListener(tabId: number, changeInfo: any, tabTa
 			activeTab.title = tab?.title ?? '';
 			activeTab.favIconUrl = tab?.favIconUrl ?? '';
 			if (activeTab.windowId > 0) {
-				const window = await browser_ext.windows.get(activeTab.windowId);
+				const window = await browser.windows.get(activeTab.windowId);
 				if (window) {
 					activeTab.windowType = window.type;
 				}
@@ -105,10 +101,10 @@ export async function onTabUpdatedListener(tabId: number, changeInfo: any, tabTa
 							'Attempting to navigate to a known or potential phishing site.',
 							changeInfo.url
 						);
-						const url = browser_ext.runtime.getURL(
+						const url = browser.runtime.getURL(
 							'/phishing.html?flaggedSite=' + changeInfo.url + '&yid=' + tab.id
 						);
-						browser_ext.tabs.update(tabId, { url: url });
+						browser.tabs.update(tabId, { url: url });
 					}
 				}
 			}
@@ -146,9 +142,9 @@ export async function onTabRemovedListener(
 
 export async function onWindowsFocusChangedListener(windowId: number) {
 	try {
-		if (!browser_ext) return;
-		if (windowId !== browser_ext.windows.WINDOW_ID_NONE) {
-			const window = await browser_ext.windows.get(windowId);
+		if (!browser) return;
+		if (windowId !== browser.windows.WINDOW_ID_NONE) {
+			const window = await browser.windows.get(windowId);
 			const data: WindowFocusData = {
 				windowId,
 				type: window.type
@@ -164,7 +160,7 @@ export async function onWindowsFocusChangedListener(windowId: number) {
 					favIconUrl: '',
 					dateTime: new Date().toISOString()
 				};
-				const tabs = await browser_ext.tabs.query({ active: true, windowId: windowId });
+				const tabs = await browser.tabs.query({ active: true, windowId: windowId });
 				if (tabs.length > 0) {
 					activeTab.tabId = tabs[0].id ?? 0;
 					activeTab.url = tabs[0].url ?? '';

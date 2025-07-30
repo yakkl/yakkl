@@ -1,7 +1,7 @@
 // IMPORTANT NOTE: Edit 'constants.mustache' since it is the template for 'constants.ts'
 
 // Global shared constants. Network specifics are in the network/<whatever>/contants.js file
-export const VERSION = "2.0.0";
+export const VERSION = "2.0.1";
 
 export const YEAR = "2025"; // Instead of computing year since user can change date on system - use a constant
 
@@ -19,12 +19,14 @@ export const PRO_ELIGIBLE_PROMO_TYPES = [
   'press'
 ];
 
-export const FOUNDING_MEMBER_DEADLINE = '2025-08-15T04:00:00.000Z'; // UTC time with 4 hour difference for est
+// Start of YAKKL Pro pricing - 2025-08-01 (founding members)
+export const FOUNDING_MEMBER_DEADLINE = '2025-09-30T04:00:00.000Z'; // UTC time with 4 hour difference for est
 export const EARLY_ADOPTER_DEADLINES = [
-  { date: '2025-10-01T04:00:00.000Z', price: 120 },
-  { date: '2025-11-15T04:00:00.000Z', price: 132 },
-  { date: '2026-01-01T04:00:00.000Z', price: 144 }
+  { date: '2025-10-01T04:00:00.000Z', price: 122 },
+  { date: '2026-12-31T04:00:00.000Z', price: 144, level: 'Pro' } // Match to correct label used
 ];
+
+// TODO: Change the structure of the pricing to be a single array of objects with date and price and level
 
 export const YAKKL_PRO_ANNUAL_FEE = 144;
 
@@ -240,7 +242,7 @@ export const PLATFORM_TYPES = {
 };
 
 export const TOKEN_IMAGES = {
-    ETH_URL: './images/eth_logo.svg',
+    ETH_URL: './images/eth.svg',
     BNB_URL: './images/bnb.png',
     MATIC_URL: './images/matic-token.png',
 };

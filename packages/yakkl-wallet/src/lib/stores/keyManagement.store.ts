@@ -33,40 +33,40 @@ export const keyManagementStore = writable<KeyManagementData>(initialState);
 // Derived store for keys by category
 export const keysByCategory = derived(keyManagementStore, ($store) => {
   const categories: Record<string, APIKey[]> = {};
-  
+
   $store.keys.forEach(key => {
     if (!categories[key.category]) {
       categories[key.category] = [];
     }
     categories[key.category].push(key);
   });
-  
+
   return categories;
 });
 
 // Load keys from storage
 export async function loadKeyManagement(): Promise<void> {
   if (!browser) return;
-  
+
   try {
     const profile = await getProfile();
     if (!profile?.id) {
       log.warn('No profile ID available for loading key management');
       return;
     }
-    
+
     const encryptedData = await getObjectFromLocalStorage<EncryptedData>(`yakklKeyManagement_${profile.id}`);
     if (encryptedData) {
       // Decrypt the data
       const decryptedData = await decryptData<string>(encryptedData, profile.id);
       const data = JSON.parse(decryptedData) as KeyManagementData;
-      
+
       // Convert date strings back to Date objects
       data.keys = data.keys.map(key => ({
         ...key,
         lastUpdated: key.lastUpdated ? new Date(key.lastUpdated) : undefined
       }));
-      
+
       keyManagementStore.set(data);
     }
   } catch (error) {
@@ -77,19 +77,19 @@ export async function loadKeyManagement(): Promise<void> {
 // Save keys to storage
 export async function saveKeyManagement(): Promise<void> {
   if (!browser) return;
-  
+
   try {
     const profile = await getProfile();
     if (!profile?.id) {
       log.warn('No profile ID available for saving key management');
       return;
     }
-    
+
     const data = get(keyManagementStore);
-    
+
     // Encrypt the data
     const encryptedData = await encryptData(data, profile.id);
-    
+
     await setObjectInLocalStorage(`yakklKeyManagement_${profile.id}`, encryptedData);
     log.info('Key management data saved successfully');
   } catch (error) {
@@ -107,7 +107,7 @@ export async function setAPIKey(
 ): Promise<void> {
   keyManagementStore.update(store => {
     const existingIndex = store.keys.findIndex(k => k.name === name);
-    
+
     const newKey: APIKey = {
       name,
       key,
@@ -116,16 +116,16 @@ export async function setAPIKey(
       lastUpdated: new Date(),
       isActive: true
     };
-    
+
     if (existingIndex >= 0) {
       store.keys[existingIndex] = newKey;
     } else {
       store.keys.push(newKey);
     }
-    
+
     return store;
   });
-  
+
   await saveKeyManagement();
 }
 
@@ -135,7 +135,7 @@ export async function removeAPIKey(name: string): Promise<void> {
     store.keys = store.keys.filter(k => k.name !== name);
     return store;
   });
-  
+
   await saveKeyManagement();
 }
 
@@ -149,7 +149,7 @@ export async function toggleAPIKeyStatus(name: string): Promise<void> {
     }
     return store;
   });
-  
+
   await saveKeyManagement();
 }
 
@@ -162,7 +162,7 @@ export function getAPIKey(name: string): APIKey | undefined {
 // Clear all keys
 export async function clearAllKeys(): Promise<void> {
   keyManagementStore.set(initialState);
-  
+
   const profile = await getProfile();
   if (profile?.id) {
     await removeObjectFromLocalStorage(`yakklKeyManagement_${profile.id}`);
@@ -187,6 +187,7 @@ export const API_KEY_CATEGORIES = {
     keys: [
       { name: 'Alchemy', description: 'Alchemy blockchain development platform' },
       { name: 'Infura', description: 'Infura Ethereum API provider' },
+      { name: 'Cloudflare', description: 'Cloudflare blockchain data services' },
       { name: 'Chainstack', description: 'Chainstack managed blockchain services' },
       { name: 'ANKR', description: 'ANKR decentralized infrastructure' },
       { name: 'BlockNative', description: 'BlockNative real-time blockchain events' }

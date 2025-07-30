@@ -4,6 +4,7 @@ import { yakklPricingStore } from '$lib/common/stores';
 import { get } from 'svelte/store';
 import { balanceCacheManager } from '$lib/managers/BalanceCacheManager';
 import { log } from '$lib/managers/Logger';
+import type { BigNumberish } from '$lib/common/bignumber';
 
 export interface AccountData {
 	id?: string;
@@ -11,7 +12,7 @@ export interface AccountData {
 	account: YakklAccount;
 	quantity: bigint;
 	quantityFormatted: string;
-	totalValue: number;
+	totalValue: BigNumberish;
 	totalValueFormatted: string;
 	// Enhanced loading states
 	isLoading: boolean;
@@ -25,7 +26,7 @@ export interface CachedBalanceData {
 	address: string;
 	balance: bigint;
 	timestamp: number;
-	price: number;
+	price: BigNumberish;
 }
 
 // Helper function to determine if an error should be shown to the user
@@ -272,7 +273,7 @@ export function createAccountDataWithRestrictions(
 	restrictedAccounts: YakklAccount[];
 	isRestricted: boolean;
 } {
-	const isBasicMember = membershipLevel === 'basic_member';
+	const isBasicMember = membershipLevel === 'explorer_member';
 
 	if (!isBasicMember || accounts.length <= maxAccountsForBasic) {
 		return {

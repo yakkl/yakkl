@@ -1,13 +1,7 @@
 import { log } from '$lib/managers/Logger';
 import { getSigningManager } from './signingManager';
 import type { Runtime } from 'webextension-polyfill';
-
-export type SigningRequest = {
-	type: string; //'personal_sign' | 'eth_signTypedData_v4';
-	params: any[];
-	requestId: string;
-	token: string;
-};
+import type { SigningRequest } from '$lib/common/types/signing';
 
 // Handle signing requests from UI context
 export async function onSigningRequestListener(

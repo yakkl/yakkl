@@ -4,6 +4,7 @@
  */
 declare const importScripts: (...args: string[]) => void; // avoid lint/TS error
 
+// TODO: Review this
 export function isBackgroundContext(): boolean {
 	// SSR guard
 	if (typeof window === 'undefined') return false;

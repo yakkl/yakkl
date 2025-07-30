@@ -2,7 +2,7 @@
 <script lang="ts">
 	import { createForm } from 'svelte-forms-lib';
 	import * as yup from 'yup';
-	import Modal from './v1/Modal.svelte';
+	import Modal from './Modal.svelte';
 	import { getSettings, setSettings, getProfile, setProfileStorage } from '$lib/common/stores';
 	import { log } from '$lib/managers/Logger';
 	import type { Settings, Profile } from '$lib/common/interfaces';
@@ -299,7 +299,7 @@
 
 	function getPlanLabel(planType: PlanType): string {
 		switch (planType) {
-			case PlanType.BASIC_MEMBER:
+			case PlanType.EXPLORER_MEMBER:
 				return 'Basic Member';
 			case PlanType.FOUNDING_MEMBER:
 				return 'Founding Member';

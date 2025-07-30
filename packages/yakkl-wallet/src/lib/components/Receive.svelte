@@ -1,11 +1,11 @@
 <!-- Receive.svelte -->
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import QR from './v1/QR.svelte';
+	import QR from './QR.svelte';
 	import { YAKKL_ZERO_ADDRESS } from '$lib/common/constants';
 	import { yakklCurrentlySelectedStore } from '$lib/common/stores';
-	import Modal from './v1/Modal.svelte';
-	import Copy from './v1/Copy.svelte';
+	import Modal from './Modal.svelte';
+	import Copy from './Copy.svelte';
 
 	interface Props {
 		show?: boolean;
@@ -68,7 +68,7 @@
 					</div>
 					<div class="ml-3">
 						<p class="text-sm text-blue-800">
-							<span class="font-medium">Scan the QR code</span> with your mobile wallet or 
+							<span class="font-medium">Scan the QR code</span> with your mobile wallet or
 							<span class="font-medium">copy the address</span> to receive payments
 						</p>
 					</div>

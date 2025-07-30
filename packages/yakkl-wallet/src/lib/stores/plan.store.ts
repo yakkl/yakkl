@@ -1,9 +1,11 @@
 import { writable, derived } from 'svelte/store';
 import type { UserPlan } from '../types';
-import { PlanType } from '../types';
+import { PlanType } from '../common';
 import { hasFeature, getFeaturesForPlan, isTrialUser } from '../config/features';
-import { getSettings } from '$lib/common/stores';
+import { getMiscStore, getProfile, getSettings, setProfileStorage, setSettingsStorage } from '$lib/common/stores';
 import { setUserPlan } from '../utils/features';
+import { decryptData, encryptData, isEncryptedData, type ProfileData } from '$lib/common';
+import { log } from '$lib/common/logger-wrapper';
 
 interface PlanState {
   plan: UserPlan;
@@ -13,31 +15,31 @@ interface PlanState {
 function createPlanStore() {
   const { subscribe, set, update } = writable<PlanState>({
     plan: {
-      type: PlanType.Basic,
-      features: getFeaturesForPlan(PlanType.Basic) as string[]
+      type: PlanType.EXPLORER_MEMBER,
+      features: getFeaturesForPlan(PlanType.EXPLORER_MEMBER) as string[]
     },
     loading: false
   });
 
   return {
     subscribe,
-    
+
     async loadPlan() {
       update(state => ({ ...state, loading: true }));
-      
+
       try {
         // Get plan from settings
         const settings = await getSettings();
-        const planType = settings?.plan?.type || PlanType.Basic;
+        const planType = settings?.plan?.type || PlanType.EXPLORER_MEMBER;
         const trialEndsAt = (settings as any)?.plan?.trialEndsAt as string | undefined;
-        
+
         // Check if user is on trial
         const onTrial = isTrialUser(trialEndsAt);
-        const effectivePlan = onTrial ? PlanType.Pro : planType;
-        
+        const effectivePlan = onTrial ? PlanType.YAKKL_PRO : planType;
+
         // Update the feature manager with the current plan
         setUserPlan(effectivePlan as PlanType);
-        
+
         set({
           plan: {
             type: effectivePlan as PlanType,
@@ -51,8 +53,8 @@ function createPlanStore() {
         // Default to basic plan on error
         set({
           plan: {
-            type: PlanType.Basic,
-            features: getFeaturesForPlan(PlanType.Basic) as string[]
+            type: PlanType.EXPLORER_MEMBER,
+            features: getFeaturesForPlan(PlanType.EXPLORER_MEMBER) as string[]
           },
           loading: false
         });
@@ -60,45 +62,63 @@ function createPlanStore() {
     },
 
     canUseFeature(feature: string): boolean {
-      let planState: PlanState = { 
-        plan: { type: PlanType.Basic, features: [] }, 
-        loading: false 
+      let planState: PlanState = {
+        plan: { type: PlanType.EXPLORER_MEMBER, features: [] },
+        loading: false
       };
-      
+
       subscribe(state => { planState = state; })();
-      
+
       return hasFeature(planState.plan.type, feature);
     },
 
     async upgradeTo(newPlan: PlanType) {
-      update(state => ({ ...state, loading: true }));
-      
       try {
+        if (!newPlan) throw new Error('No plan type provided');
+
+	  		update((state) => ({ ...state, loading: true }));
+
+
+
+
         // In production, this would make an API call to process the upgrade
         await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-        
+
+
+
+        const profile = await getProfile();
+        if (profile) {
+          let profileData: ProfileData;
+          if (isEncryptedData(profile.data)) {
+            const miscStore = getMiscStore();
+            profileData = await decryptData(profile.data, miscStore) as ProfileData;
+            if (profileData) {
+              profileData.planType = newPlan as PlanType;
+
+              const encryptedProfileData = await encryptData(profileData, miscStore);
+              if (encryptedProfileData) {
+                profile.data = encryptedProfileData;
+                await setProfileStorage(profile);
+              } else {
+                throw new Error('Failed to encrypt profile data');
+              }
+            } else {
+              throw new Error('Profile data is not valid');
+            }
+          } else {
+            throw new Error('Profile data is not encrypted');
+          }
+        }
+
         // Update local storage for persistence
         const settings = await getSettings();
         if (settings) {
-          const updatedSettings = {
-            ...settings,
-            plan: {
-              ...settings.plan,
-              type: newPlan,
-              trialEndsAt: null as string | null, // Clear trial when upgrading
-              subscriptionId: `sub_${Date.now()}`, // Mock subscription ID
-              updatedAt: new Date().toISOString()
-            }
-          };
-          
-          // In a real app, you'd save this to secure storage
-          localStorage.setItem('yakkl:plan', JSON.stringify({
-            type: newPlan,
-            subscriptionId: updatedSettings.plan.subscriptionId,
-            upgradedAt: updatedSettings.plan.updatedAt
-          }));
+          settings.plan.type = newPlan as PlanType;
+          settings.plan.trialEndDate = null as string | null; // Clear trial when upgrading
+          settings.plan.upgradeDate = new Date().toISOString();
+          await setSettingsStorage(settings);
         }
-        
+
         // Update the store
         update(state => ({
           ...state,
@@ -110,9 +130,9 @@ function createPlanStore() {
           },
           loading: false
         }));
-        
-        console.log(`✅ Successfully upgraded to ${newPlan}`);
-        
+
+        log.info(`✅ Successfully upgraded to ${newPlan}`);
+
       } catch (error) {
         console.error('Upgrade failed:', error);
         update(state => ({ ...state, loading: false }));
@@ -123,10 +143,10 @@ function createPlanStore() {
     async downgradeTo(newPlan: PlanType) {
       // Similar to upgrade but for downgrades
       update(state => ({ ...state, loading: true }));
-      
+
       try {
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
+
         update(state => ({
           ...state,
           plan: {
@@ -137,7 +157,7 @@ function createPlanStore() {
           },
           loading: false
         }));
-        
+
       } catch (error) {
         console.error('Downgrade failed:', error);
         update(state => ({ ...state, loading: false }));
@@ -147,24 +167,24 @@ function createPlanStore() {
 
     async startTrial(trialDays = 14) {
       update(state => ({ ...state, loading: true }));
-      
+
       try {
         const trialEndsAt = new Date();
         trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
-        
+
         update(state => ({
           ...state,
           plan: {
-            type: PlanType.Pro, // Trial gives Pro features
-            features: getFeaturesForPlan(PlanType.Pro) as string[],
+            type: PlanType.YAKKL_PRO, // Trial gives Pro features
+            features: getFeaturesForPlan(PlanType.YAKKL_PRO) as string[],
             trialEndsAt: trialEndsAt.toISOString(),
             subscriptionId: null
           },
           loading: false
         }));
-        
+
         console.log(`✅ Started ${trialDays}-day trial`);
-        
+
       } catch (error) {
         console.error('Failed to start trial:', error);
         update(state => ({ ...state, loading: false }));
@@ -173,27 +193,27 @@ function createPlanStore() {
     },
 
     getUpgradeOptions(currentPlan: PlanType) {
-      const plans = [PlanType.Basic, PlanType.Pro, PlanType.Enterprise];
+      const plans = [PlanType.EXPLORER_MEMBER, PlanType.YAKKL_PRO, PlanType.ENTERPRISE];
       const currentIndex = plans.indexOf(currentPlan);
       return plans.slice(currentIndex + 1);
     },
 
     getPlanStatus() {
-      let planState: PlanState = { 
-        plan: { type: PlanType.Basic, features: [] }, 
-        loading: false 
+      let planState: PlanState = {
+        plan: { type: PlanType.EXPLORER_MEMBER, features: [] },
+        loading: false
       };
-      
+
       subscribe(state => { planState = state; })();
-      
+
       const trialActive = isTrialUser(planState.plan.trialEndsAt);
       const hasSubscription = !!planState.plan.subscriptionId;
-      
+
       return {
         current: planState.plan.type,
         onTrial: trialActive,
         hasSubscription,
-        canUpgrade: planState.plan.type !== PlanType.Enterprise,
+        canUpgrade: planState.plan.type !== PlanType.ENTERPRISE,
         trialEndsAt: planState.plan.trialEndsAt
       };
     },
@@ -202,8 +222,8 @@ function createPlanStore() {
       // Reset to default state
       set({
         plan: {
-          type: PlanType.Basic,
-          features: getFeaturesForPlan(PlanType.Basic) as string[]
+            type: PlanType.EXPLORER_MEMBER,
+          features: getFeaturesForPlan(PlanType.EXPLORER_MEMBER) as string[]
         },
         loading: false
       });
@@ -221,7 +241,7 @@ export const currentPlan = derived(
 
 export const isProUser = derived(
   planStore,
-  $store => $store.plan.type === PlanType.Pro || $store.plan.type === PlanType.Enterprise
+  $store => $store.plan.type === PlanType.YAKKL_PRO || $store.plan.type === PlanType.ENTERPRISE
 );
 
 export const isOnTrial = derived(

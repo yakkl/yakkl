@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "pre-write": ".claude/hooks/pre-write-checkpoint.sh",
+    "post-edit": ".claude/hooks/post-edit-checkpoint.sh",
+    "pre-multi-edit": ".claude/hooks/pre-multi-edit-checkpoint.sh",
+    "user-prompt-submit": ".claude/hooks/analyze-risk-checkpoint.sh"
+  },
+  "description": "🔴 Automatic checkpoint system for YAKKL development",
+  "enabled": true
+}

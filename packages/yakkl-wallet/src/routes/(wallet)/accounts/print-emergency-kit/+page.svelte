@@ -49,7 +49,7 @@
     try {
       // Load primary accounts which contain mnemonics
       primaryAccounts = await getYakklPrimaryAccounts() || [];
-      
+
       // Load private keys for all accounts
       for (const acc of allAccounts) {
         try {
@@ -92,10 +92,10 @@
     }
 
     showConfirmation = false;
-    
+
     // Load sensitive data
     await loadSensitiveData();
-    
+
     // Mark as ready for print
     printReady = true;
 
@@ -327,7 +327,7 @@
               class="mt-1 w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
             />
             <span class="text-sm text-gray-700">
-              I understand the security risks and confirm that I am in a secure, private location. 
+              I understand the security risks and confirm that I am in a secure, private location.
               I will store this document safely and will never share it with anyone.
             </span>
           </label>
@@ -400,7 +400,7 @@
           <tbody>
             <tr class="border-b">
               <td class="py-2 font-medium">Username:</td>
-              <td class="py-2">{profile?.userName || 'Not set'}</td>
+              <td class="py-2">{profile?.username || 'Not set'}</td>
             </tr>
           <tr class="border-b">
             <td class="py-2 font-medium">Plan Type:</td>
@@ -439,7 +439,7 @@
           <div class="mb-8">
             <h3 class="font-bold mb-4">Primary Account {accIndex + 1}</h3>
             <p class="text-xs text-gray-600 mb-4">Address: {primaryAcc.address}</p>
-            
+
             <!-- Recovery Phrase Grid -->
             <div class="grid grid-cols-4 gap-2 mb-4">
               {#each recoveryPhrases.get(primaryAcc.address) || [] as word, i}
@@ -533,7 +533,7 @@
           <div class="border-2 border-gray-300 p-4">
             <h4 class="font-bold mb-2">Account {index + 1}</h4>
             <p class="text-xs text-gray-600 mb-2">Address: {acc.address}</p>
-            
+
             {#if privateKeys.has(acc.address)}
               <div class="bg-gray-50 p-4 rounded border border-gray-200">
                 <p class="text-xs text-gray-600 mb-1">Private Key:</p>

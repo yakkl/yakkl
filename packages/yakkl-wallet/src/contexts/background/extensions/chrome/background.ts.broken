@@ -1,0 +1,3 @@
+// background.ts - Complete implementation with unified port handling and message deduplication
+import { ensureProcessPolyfill } from '$lib/common/process';
+ensureProcessPolyfill();

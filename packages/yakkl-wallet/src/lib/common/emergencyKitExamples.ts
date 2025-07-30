@@ -10,7 +10,7 @@
    id: id,
     registered: registered,
     email: email,
-    userName: userName,
+    username: username,
     blockchain: blockchain,
     portfolioAddress: address,
     portfolioName: primaryAccountName,
@@ -21,11 +21,11 @@
     createDate: createDate,
     updateDate: updateDate,
     version: VERSION,
-    hash: '', 
+    hash: '',
   };
   */
 
-/** 
+/**
   const passwordOrSaltedKey = "your-secure-password"; // Or your derived SaltedKey object
 
   const emergencyKit = await EmergencyKitManager.createEmergencyKit([ekAccountData], true, passwordOrSaltedKey);
@@ -39,7 +39,7 @@
 //     id: id,
 //     registered: registered,
 //     email: email,
-//     userName: userName,
+//     username: username,
 //     blockchain: blockchain,
 //     portfolioAddress: address,
 //     portfolioName: primaryAccountName,

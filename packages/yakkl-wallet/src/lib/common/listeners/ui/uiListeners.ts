@@ -11,6 +11,7 @@ import { addWindowListeners, removeWindowListeners } from './windowListeners';
 import { safeLogout } from '$lib/common/safeNavigate';
 import { protectedContexts } from '$lib/common/globals';
 import { playBeep } from '$lib/common/sound';
+import { hideSecurityWarning, showSecurityWarning } from '$lib/common/stores/securityWarning';
 
 export const uiListenerManager = new ListenerManager('ui');
 
@@ -184,7 +185,6 @@ async function _performCleanup(source: string): Promise<void> {
 		// 4. Clear in-app security warning
 		if (typeof window !== 'undefined') {
 			try {
-				const { hideSecurityWarning } = await import('$lib/common/stores/securityWarning');
 				hideSecurityWarning();
 				log.info('[uiListeners] In-app security warning cleared');
 			} catch (e) {
@@ -478,7 +478,6 @@ export async function handleOnMessageForExtension(
 
 					// 2. Show enhanced in-app security warning
 					if (typeof window !== 'undefined') {
-						const { showSecurityWarning } = await import('$lib/common/stores/securityWarning');
 						showSecurityWarning(message.delaySeconds || Math.ceil(message.delayMs / 1000), () => {
 							log.info('[uiListeners] Enhanced security warning completed');
 						});

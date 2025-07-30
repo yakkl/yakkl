@@ -4,7 +4,7 @@
  * Browser extension context-aware implementation
  */
 
-import { getBrowserExt, browserSvelte } from '$lib/common/environment';
+import { browserSvelte, browser_ext } from '$lib/common/environment';
 import { log } from '$lib/common/logger-wrapper';
 import { jwtManager, type JWTPayload } from '$lib/utilities/jwt';
 
@@ -68,9 +68,11 @@ export class SessionManager {
 		userId: string,
 		username: string,
 		profileId: string,
-		planLevel: string = 'basic'
+		planLevel: string = 'explorer_member'
 	): Promise<string> {
 		try {
+      if (!browser_ext) return '';
+
 			// Generate JWT token
 			const jwtToken = await jwtManager.generateToken(
 				userId,
@@ -108,12 +110,31 @@ export class SessionManager {
 			});
 
 			// Notify background script if in extension
-			const browserExt = getBrowserExt();
-			if (browserSvelte && browserExt) {
+			if (browserSvelte && browser_ext) {
 				this.notifyBackgroundScript('SESSION_STARTED', {
 					sessionId,
 					expiresAt: this.sessionState.expiresAt
 				});
+
+							// Also notify about login success to start JWT validation
+			try {
+				if (typeof chrome !== 'undefined' && chrome.runtime) {
+					// Send the JWT token to background for storage and validation
+					chrome.runtime.sendMessage({
+						type: 'USER_LOGIN_SUCCESS',
+						sessionId,
+						hasJWT: !!jwtToken,
+						jwtToken: jwtToken, // Include the actual JWT token
+						userId,
+						username,
+						profileId,
+						planLevel
+					});
+					log.debug('SessionManager: Notified background about login success with JWT token');
+				}
+			} catch (error) {
+				log.warn('SessionManager: Failed to notify background about login:', false, error);
+			}
 			}
 
 			return jwtToken;
@@ -132,6 +153,8 @@ export class SessionManager {
 		}
 
 		try {
+      if (!browser_ext) return;
+
 			const now = Date.now();
 			const newExpiresAt = now + additionalMinutes * 60 * 1000;
 
@@ -167,8 +190,7 @@ export class SessionManager {
 			}
 
 			// Notify background script
-			const browserExt = getBrowserExt();
-			if (browserSvelte && browserExt) {
+			if (browserSvelte && browser_ext) {
 				this.notifyBackgroundScript('SESSION_EXTENDED', {
 					sessionId: this.sessionState.sessionId,
 					expiresAt: newExpiresAt
@@ -190,8 +212,7 @@ export class SessionManager {
 			});
 
 			// Notify background script before clearing state
-			const browserExt = getBrowserExt();
-			if (browserSvelte && browserExt) {
+			if (browserSvelte && browser_ext) {
 				this.notifyBackgroundScript('SESSION_ENDED', {
 					sessionId: this.sessionState.sessionId
 				});
@@ -302,7 +323,34 @@ export class SessionManager {
 				if (now < stored.expiresAt) {
 					this.sessionState = stored;
 					this.startActivityTracking();
-					this.scheduleWarning();
+					
+					// Check if the restored session is about to expire
+					const timeRemaining = stored.expiresAt - now;
+					const warningThreshold = this.config.warningMinutes * 60 * 1000;
+					
+					if (timeRemaining <= warningThreshold) {
+						// Session is about to expire - auto-extend it instead of showing warning immediately
+						log.debug('Restored session near expiry, auto-extending', false, {
+							sessionId: stored.sessionId,
+							timeRemaining: Math.round(timeRemaining / 1000)
+						});
+						
+						// Clear the warningShown flag to allow extension
+						this.sessionState.warningShown = false;
+						
+						// Auto-extend the session
+						try {
+							await this.extendSession(this.config.timeoutMinutes);
+							log.info('Auto-extended restored session that was near expiry');
+						} catch (error) {
+							log.error('Failed to auto-extend restored session:', false, error);
+							// If extension fails, schedule the warning as normal
+							this.scheduleWarning();
+						}
+					} else {
+						// Session has enough time remaining, schedule warning normally
+						this.scheduleWarning();
+					}
 
 					log.debug('Session restored from storage', false, {
 						sessionId: stored.sessionId,
@@ -423,12 +471,11 @@ export class SessionManager {
 	 * Save session state to storage
 	 */
 	private async saveSessionState(): Promise<void> {
-		if (!browserSvelte || !this.sessionState) return;
+		if (!browserSvelte || !this.sessionState || !browser_ext) return;
 
 		try {
-			const browserExt = getBrowserExt();
-			if (browserExt) {
-				await browserExt.storage.local.set({
+			if (browser_ext) {
+				await browser_ext.storage.local.set({
 					yakklSession: this.sessionState
 				});
 			} else {
@@ -443,12 +490,11 @@ export class SessionManager {
 	 * Load session state from storage
 	 */
 	private async loadSessionState(): Promise<SessionState | null> {
-		if (!browserSvelte) return null;
+		if (!browserSvelte || !browser_ext) return null;
 
 		try {
-			const browserExt = getBrowserExt();
-			if (browserExt) {
-				const result = await browserExt.storage.local.get(['yakklSession']);
+			if (browser_ext) {
+				const result = await browser_ext.storage.local.get(['yakklSession']);
 				return (result.yakklSession as SessionState) || null;
 			} else {
 				const stored = localStorage.getItem('yakklSession');
@@ -464,12 +510,11 @@ export class SessionManager {
 	 * Clear session storage
 	 */
 	private async clearSessionStorage(): Promise<void> {
-		if (!browserSvelte) return;
+		if (!browserSvelte || !browser_ext) return;
 
 		try {
-			const browserExt = getBrowserExt();
-			if (browserExt) {
-				await browserExt.storage.local.remove(['yakklSession']);
+			if (browser_ext) {
+				await browser_ext.storage.local.remove(['yakklSession']);
 			} else {
 				localStorage.removeItem('yakklSession');
 			}
@@ -482,13 +527,12 @@ export class SessionManager {
 	 * Notify background script of session events
 	 */
 	private notifyBackgroundScript(type: string, data: any): void {
-		if (!browserSvelte) return;
+		if (!browserSvelte || !browser_ext) return;
 
 		try {
-			const browserExt = getBrowserExt();
-			if (!browserExt) return;
-			
-			browserExt.runtime.sendMessage({
+			if (!browser_ext) return;
+
+			browser_ext.runtime.sendMessage({
 				type: `SESSION_${type}`,
 				data
 			}).catch(error => {

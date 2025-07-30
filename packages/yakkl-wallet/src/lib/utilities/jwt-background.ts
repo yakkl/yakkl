@@ -2,6 +2,18 @@
  * Background Context JWT Manager
  * Works in all browser extension contexts (background, content scripts, service workers)
  * Does NOT use Svelte stores - uses browser storage APIs directly
+ * 
+ * Security Features:
+ * - Token blacklisting: Invalidated tokens are stored in a blacklist to prevent reuse
+ * - Automatic cleanup: Blacklisted tokens expire after 24 hours
+ * - Hash-based storage: Only token hashes are stored in the blacklist, not full tokens
+ * - Lock integration: Tokens are automatically invalidated when the wallet is locked
+ * 
+ * Usage:
+ * - invalidateJWT(token?) - Invalidate a specific token or the current token
+ * - clearJWTBlacklist() - Clear all blacklisted tokens (use with caution)
+ * - validateToken() now checks blacklist before validating
+ * - hasValidToken() also checks if token is blacklisted
  */
 
 // No imports needed - this is for background context only
@@ -27,8 +39,10 @@ interface StoredJWTData {
 class BackgroundJWTManager {
 	private static instance: BackgroundJWTManager | null = null;
 	private readonly STORAGE_KEY = 'yakkl_jwt_token';
+	private readonly BLACKLIST_KEY = 'yakkl_jwt_blacklist';
 	private readonly ISSUER = 'yakkl-wallet';
 	private readonly AUDIENCE = 'yakkl-api';
+	private readonly BLACKLIST_EXPIRY_HOURS = 24; // Keep blacklisted tokens for 24 hours
 
 	private constructor() {}
 
@@ -46,7 +60,7 @@ class BackgroundJWTManager {
 		userId: string,
 		username: string,
 		profileId: string,
-		planLevel: string = 'basic',
+		planLevel: string = 'explorer_member',
 		sessionId?: string,
 		expirationMinutes: number = 60
 	): Promise<string> {
@@ -122,6 +136,12 @@ class BackgroundJWTManager {
 	 */
 	async validateToken(token: string): Promise<boolean> {
 		try {
+			// First check if token is blacklisted
+			if (await this.isTokenBlacklisted(token)) {
+				console.debug('Token is blacklisted');
+				return false;
+			}
+
 			const parts = token.split('.');
 			if (parts.length !== 3) return false;
 
@@ -158,6 +178,31 @@ class BackgroundJWTManager {
 	}
 
 	/**
+	 * Invalidate a specific token or the current token
+	 * Adds token to blacklist to prevent further use
+	 */
+	async invalidateToken(tokenToInvalidate?: string): Promise<void> {
+		try {
+			// Get the token to invalidate
+			const token = tokenToInvalidate || await this.getCurrentToken();
+			if (!token) return;
+
+			// Add to blacklist
+			await this.addToBlacklist(token);
+
+			// If it's the current token, clear it
+			const currentToken = await this.getCurrentToken();
+			if (currentToken === token) {
+				await this.clearToken();
+			}
+
+			console.debug('Token invalidated successfully');
+		} catch (error) {
+			console.error('Failed to invalidate token:', error);
+		}
+	}
+
+	/**
 	 * Clear stored token
 	 */
 	async clearToken(): Promise<void> {
@@ -177,11 +222,73 @@ class BackgroundJWTManager {
 	}
 
 	/**
+	 * Get current session information
+	 */
+	async getSessionInfo(): Promise<{
+		hasActiveSession: boolean;
+		sessionExpiresAt: number | null;
+		sessionId: string | null;
+		payload: JWTPayload | null;
+	}> {
+		try {
+			const stored = await this.getStoredToken();
+
+			if (!stored) {
+				return {
+					hasActiveSession: false,
+					sessionExpiresAt: null,
+					sessionId: null,
+					payload: null
+				};
+			}
+
+			const hasActiveSession = Date.now() < stored.expiresAt;
+
+			return {
+				hasActiveSession,
+				sessionExpiresAt: stored.expiresAt,
+				sessionId: stored.payload?.sessionId || null,
+				payload: stored.payload
+			};
+		} catch (error) {
+			console.error('Failed to get session info:', error);
+			return {
+				hasActiveSession: false,
+				sessionExpiresAt: null,
+				sessionId: null,
+				payload: null
+			};
+		}
+	}
+
+	/**
 	 * Check if token exists and is valid
 	 */
 	async hasValidToken(): Promise<boolean> {
 		const token = await this.getCurrentToken();
-		return token !== null;
+		if (!token) return false;
+		
+		// Also check if it's not blacklisted
+		return !(await this.isTokenBlacklisted(token));
+	}
+
+	/**
+	 * Clear all blacklisted tokens
+	 */
+	async clearBlacklist(): Promise<void> {
+		try {
+			if (this.isExtensionContext()) {
+				return new Promise((resolve) => {
+					chrome.storage.local.remove([this.BLACKLIST_KEY], () => {
+						resolve();
+					});
+				});
+			} else if (typeof localStorage !== 'undefined') {
+				localStorage.removeItem(this.BLACKLIST_KEY);
+			}
+		} catch (error) {
+			console.error('Failed to clear blacklist:', error);
+		}
 	}
 
 	// Private helper methods
@@ -242,7 +349,7 @@ class BackgroundJWTManager {
 	}
 
 	private generateSessionId(): string {
-		return 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+		return 'sess_' + Date.now() + '_' + Math.random().toString(36).substring(2, 11);
 	}
 
 	private async storeToken(token: string, payload: JWTPayload, expiresAt: number): Promise<void> {
@@ -285,6 +392,100 @@ class BackgroundJWTManager {
 	private isExtensionContext(): boolean {
 		return typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local !== undefined;
 	}
+
+	/**
+	 * Add token to blacklist
+	 */
+	private async addToBlacklist(token: string): Promise<void> {
+		try {
+			const blacklist = await this.getBlacklist();
+			const now = Date.now();
+			const expiryTime = now + (this.BLACKLIST_EXPIRY_HOURS * 60 * 60 * 1000);
+			
+			// Create a hash of the token for storage (don't store full tokens)
+			const tokenHash = await this.hashToken(token);
+			blacklist[tokenHash] = expiryTime;
+
+			// Clean up expired entries
+			const cleanedBlacklist: Record<string, number> = {};
+			for (const [hash, expiry] of Object.entries(blacklist)) {
+				if (expiry > now) {
+					cleanedBlacklist[hash] = expiry;
+				}
+			}
+
+			// Store updated blacklist
+			if (this.isExtensionContext()) {
+				return new Promise((resolve) => {
+					chrome.storage.local.set({ [this.BLACKLIST_KEY]: cleanedBlacklist }, () => {
+						resolve();
+					});
+				});
+			} else if (typeof localStorage !== 'undefined') {
+				localStorage.setItem(this.BLACKLIST_KEY, JSON.stringify(cleanedBlacklist));
+			}
+		} catch (error) {
+			console.error('Failed to add token to blacklist:', error);
+		}
+	}
+
+	/**
+	 * Check if token is blacklisted
+	 */
+	private async isTokenBlacklisted(token: string): Promise<boolean> {
+		try {
+			const blacklist = await this.getBlacklist();
+			const tokenHash = await this.hashToken(token);
+			const expiryTime = blacklist[tokenHash];
+			
+			if (!expiryTime) return false;
+			
+			// Check if still valid
+			return Date.now() < expiryTime;
+		} catch (error) {
+			console.error('Failed to check blacklist:', error);
+			return false;
+		}
+	}
+
+	/**
+	 * Get blacklist from storage
+	 */
+	private async getBlacklist(): Promise<Record<string, number>> {
+		try {
+			if (this.isExtensionContext()) {
+				return new Promise((resolve) => {
+					chrome.storage.local.get([this.BLACKLIST_KEY], (result) => {
+						resolve(result[this.BLACKLIST_KEY] || {});
+					});
+				});
+			} else if (typeof localStorage !== 'undefined') {
+				const stored = localStorage.getItem(this.BLACKLIST_KEY);
+				return stored ? JSON.parse(stored) : {};
+			}
+			return {};
+		} catch (error) {
+			console.error('Failed to get blacklist:', error);
+			return {};
+		}
+	}
+
+	/**
+	 * Create a hash of the token for blacklist storage
+	 */
+	private async hashToken(token: string): Promise<string> {
+		try {
+			const encoder = new TextEncoder();
+			const data = encoder.encode(token);
+			const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+			const hashArray = Array.from(new Uint8Array(hashBuffer));
+			return hashArray.slice(0, 16).map(b => b.toString(16).padStart(2, '0')).join('');
+		} catch (error) {
+			console.error('Failed to hash token:', error);
+			// Fallback to simple hash
+			return token.split('.')[2]?.substring(0, 32) || 'invalid';
+		}
+	}
 }
 
 // Export singleton instance
@@ -302,7 +503,7 @@ export async function createJWTForUser(
 	userId: string,
 	username: string,
 	profileId: string,
-	planLevel: string = 'basic',
+	planLevel: string = 'explorer_member',
 	sessionId?: string
 ): Promise<string> {
 	return await backgroundJWTManager.generateToken(
@@ -312,4 +513,12 @@ export async function createJWTForUser(
 		planLevel,
 		sessionId
 	);
+}
+
+export async function invalidateJWT(token?: string): Promise<void> {
+	return await backgroundJWTManager.invalidateToken(token);
+}
+
+export async function clearJWTBlacklist(): Promise<void> {
+	return await backgroundJWTManager.clearBlacklist();
 }

@@ -5,10 +5,11 @@
   import Settings from '$lib/components/Settings.svelte';
   import Profile from '$lib/components/Profile.svelte';
   import ConfirmLogout from '$lib/components/ConfirmLogout.svelte';
-  import { accountStore, currentAccount } from '$lib/stores/account.store';
-  import { chainStore, currentChain, visibleChains } from '$lib/stores/chain.store';
-  import { planStore } from '$lib/stores/plan.store';
-  import { isModalOpen } from '$lib/stores/modal.store';
+  import { accountStore, currentAccount } from '$lib/stores';
+  import { chainStore, currentChain, visibleChains } from '$lib/stores';
+  import { planStore } from '$lib/stores';
+  import { isModalOpen } from '$lib/stores';
+	import { getSettings, syncStorageToStore } from '$lib/common/stores';
 
   interface Props {
     children?: import('svelte').Snippet;
@@ -43,29 +44,39 @@
         // Add a small delay to ensure background script is ready
         // This helps prevent "Receiving end does not exist" errors during extension reload
         await new Promise(resolve => setTimeout(resolve, 100));
-      // First check if user is authenticated
-      const { getSettings, syncStorageToStore } = await import('$lib/common/stores');
-      const settings = await getSettings();
+        // First check if user is authenticated
+        const settings = await getSettings();
 
-      if (settings && !settings.isLocked && settings.init) {
-        // User is authenticated, sync all stores from persistent storage
-        console.log('Layout: Syncing stores from persistent storage...');
-        await syncStorageToStore();
-        console.log('Layout: Stores synchronized');
-      }
+        if (settings && !settings.isLocked && settings.init) {
+          // User is authenticated, sync all stores from persistent storage
+          console.log('Layout: Syncing stores from persistent storage...');
+          await syncStorageToStore();
+          console.log('Layout: Stores synchronized');
+        } else {
+          console.log('Layout: No settings found, skipping store sync');
+        }
 
-      // Load wallet data in parallel
-        // Load with timeout to prevent hanging
-        await Promise.race([
-          Promise.all([
-            accountStore.loadAccounts(),
-            chainStore.loadChains(),
-            planStore.loadPlan()
-          ]),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Store loading timeout')), 3000)
-          )
-        ]);
+        // Load wallet data in parallel
+        // Only load stores if we're in a browser context with extension APIs available
+        if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
+          try {
+            await Promise.race([
+              Promise.all([
+                accountStore.loadAccounts(),
+                chainStore.loadChains(),
+                planStore.loadPlan()
+              ]),
+              new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Store loading timeout')), 3000)
+              )
+            ]);
+          } catch (error) {
+            console.warn('Layout: Store loading failed or timed out:', error);
+            // Don't fail - stores will be populated when needed
+          }
+        } else {
+          console.log('Layout: Skipping store loading - extension context not ready');
+        }
       } catch (error) {
         console.error('Layout: Error initializing stores:', error);
       } finally {
@@ -172,8 +183,8 @@
 
       console.log('V2: Logout completed successfully');
 
-      // Navigate to login page using SvelteKit navigation
-      await goto('/login');
+      // Navigate to logout page using SvelteKit navigation
+      await goto('/logout');
 
     } catch (error) {
       console.error('V2: Logout failed:', error);

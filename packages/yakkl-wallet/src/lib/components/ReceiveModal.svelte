@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ReceiveService } from '../features/basic/receive/receive.service';
+  import { ReceiveService } from '../features/explorer/receive/receive.service';
   import { currentAccount } from '../stores/account.store';
   import { currentChain } from '../stores/chain.store';
 

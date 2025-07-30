@@ -46,7 +46,7 @@ export class TransactionMonitorService extends BaseService {
   };
 
   private constructor() {
-    super();
+    super('TransactionMonitorService');
     this.cacheManager = TransactionCacheManager.getInstance();
     this.explorer = BlockchainExplorer.getInstance();
     this.initialize();

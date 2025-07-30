@@ -1,11 +1,10 @@
 import { log } from '$lib/managers/Logger';
-import browser from 'webextension-polyfill';
-import { subtle } from 'crypto';
-import { detectExecutionContext } from '$lib/common/utils';
+// import { subtle } from 'crypto';
+// import { detectExecutionContext } from '$lib/common/utils';
 import type { Manifest } from 'webextension-polyfill';
-import keyConfig from '../config/keys.json';
+// import keyConfig from '../config/keys.json';
 import { initializeStorageDefaults } from '$lib/common/backgroundUtils';
-import { isBackgroundContext } from '$lib/common/contextCheck';
+// import { isBackgroundContext } from '$lib/common/contextCheck';
 
 // Extend the WebExtension manifest type to include environment
 interface ExtendedManifest extends Manifest.WebExtensionManifest {
@@ -23,7 +22,7 @@ declare const chrome: {
 export type KeyCategory = 'blockchain' | 'ai' | 'security';
 
 // Constants for encryption
-const INSTALLATION_SALT_PREFIX = 'yakkl_v2_';
+const INSTALLATION_SALT_PREFIX = 'yakkl_';
 const KEY_DERIVATION_ITERATIONS = 600000; // Industry standard minimum for PBKDF2
 const MAX_DECRYPTION_ATTEMPTS = 5;
 const DECRYPTION_COOLDOWN_MS = 30000; // 30 seconds
@@ -81,10 +80,10 @@ export class KeyManager {
 
 	private constructor() {
 		// Initialize with empty key map
-		if (!isBackgroundContext()) {
-			log.error('KeyManager attempted to run outside background context');
-			throw new Error('KeyManager is restricted to background context only');
-		}
+		// if (!isBackgroundContext()) {
+		// 	log.error('KeyManager attempted to run outside background context');
+		// 	throw new Error('KeyManager is restricted to background context only');
+		// }
 	}
 
 	/**

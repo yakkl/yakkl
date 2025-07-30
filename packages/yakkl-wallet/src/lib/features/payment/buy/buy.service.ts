@@ -56,7 +56,7 @@ export class BuyService extends BaseService {
   private static instance: BuyService;
 
   private constructor() {
-    super();
+    super('BuyService');
   }
 
   static getInstance(): BuyService {

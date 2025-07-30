@@ -1,4 +1,5 @@
 import type { PlanType } from '$lib/common';
+import type { BigNumberish } from '$lib/common/bignumber';
 
 /**
  * Account data interfaces
@@ -19,10 +20,10 @@ export interface Account {
 export interface AccountToken {
 	symbol: string;
 	address: string;
-	balance: string;
-	decimals: number;
-	price: number;
-	value: number;
+	balance: string;                // Keep as string for consistency
+	decimals: number;               // Stay number (decimal places count)
+	price: BigNumberish;            // Changed from number - CRITICAL
+	value: BigNumberish;            // Changed from number - CRITICAL
 	logo?: string;
 }
 

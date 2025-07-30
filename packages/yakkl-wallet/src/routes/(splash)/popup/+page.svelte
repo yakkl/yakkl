@@ -5,7 +5,7 @@
   import { YAKKL_SPLASH, NUM_OF_SPLASH_IMAGES } from '$lib/common/constants';
   import { wait } from '$lib/common/utils';
   import { log } from '$lib/common/logger-wrapper';
-  import type { Runtime } from 'webextension-polyfill';
+  import type { Runtime } from '$lib/types/browser-types';
 
   type RuntimePort = Runtime.Port;
 
@@ -144,9 +144,9 @@
 	import { log } from '$lib/common/logger-wrapper';
 	import type { Runtime } from 'webextension-polyfill';
 
-	type RuntimePort = Runtime.Port;
+	// type RuntimePort = Runtime.Port;
 
-	let port: RuntimePort;
+	let port: Runtime.Port;
 	let isPortDisconnected = false;
 
 	onMount(async () => {
@@ -231,7 +231,7 @@
 
   // Splash size should be maximum default browser extension size.
   // Note: May want to look into providing a communications window for the user to see what is going on if we need to provide them with an important message.
-  import type { Runtime } from 'webextension-polyfill';
+  import type { Runtime } from '$lib/types/browser-types';
 
   type RuntimePort = Runtime.Port;
 

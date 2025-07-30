@@ -1,4 +1,5 @@
-import { requestManager } from '$lib/extensions/chrome/requestManager';
+// Note: requestManager is only available in background context
+// This file contains UI-safe functions that use storage APIs
 import { log } from '$lib/managers/Logger';
 // import { getYakklConnectedDomains } from "$lib/common/stores";
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from '$lib/common/storage';
@@ -11,7 +12,7 @@ interface YakklConnectedDomain {
 	addresses?: string[];
 }
 
-// NOTE: This only works for requests that are in the background context.
+// UI-safe version that works with storage directly
 export async function verifyDomainConnected(
 	domain: string | null,
 	method?: string
@@ -70,22 +71,8 @@ export async function verifyDomainConnected(
 	}
 }
 
-export async function verifyDomainConnectedBackground(requestId: string) {
-	try {
-		const request = await requestManager.getRequest(requestId);
-		if (!request) {
-			return false;
-		}
-		const domain = request.data.metaData.metaData.domain;
-		if (!domain) {
-			return false;
-		}
-		return verifyDomainConnected(domain);
-	} catch (error) {
-		log.error(error);
-		return false;
-	}
-}
+// This function should only be used in background context
+// Moved to contexts/background/extensions/chrome/verifyDomainConnectedBackground.ts
 
 export async function revokeDomainConnection(domain: string) {
 	try {
@@ -138,10 +125,5 @@ export async function getAddressesForDomain(domain: string) {
 	return [];
 }
 
-export async function getDomainForRequestId(requestId: string) {
-	const request = await requestManager.getRequest(requestId);
-	if (!request) {
-		return null;
-	}
-	return request.data.metaData.metaData.domain;
-}
+// This function should only be used in background context
+// Moved to contexts/background/extensions/chrome/verifyDomainConnectedBackground.ts

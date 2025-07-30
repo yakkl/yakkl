@@ -56,7 +56,7 @@ export class CryptoPaymentService extends BaseService {
   private static instance: CryptoPaymentService;
 
   private constructor() {
-    super();
+    super('CryptoPaymentService');
   }
 
   static getInstance(): CryptoPaymentService {

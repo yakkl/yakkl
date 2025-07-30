@@ -9,8 +9,9 @@ import type {
 import { startLockIconTimer, stopLockIconTimer } from '$contexts/background/extensions/chrome/iconTimer';
 import { browser_ext } from './environment';
 import { log } from '$lib/common/logger-wrapper';
-import type { Notifications } from 'webextension-polyfill';
+import type { Notifications } from '$lib/types/browser-types';
 import { setBadgeText } from '$lib/utilities';
+import { hideSecurityWarning } from './stores/securityWarning';
 
 const DEFAULT_ICON = '/images/logoBullLock48x48.png';
 
@@ -20,9 +21,17 @@ const activeNotifications = new Set<string>();
 
 // Flexible notification service class
 export class NotificationService {
+	private static instance: NotificationService;
 	private static readonly DEFAULT_ID = 'yakkl-notification';
 	private static readonly DEFAULT_ICON = '/images/logoBullLock48x48.png';
 	private static clearTimeout: number | null = null;
+
+	static getInstance(): NotificationService {
+		if (!NotificationService.instance) {
+			NotificationService.instance = new NotificationService();
+		}
+		return NotificationService.instance;
+	}
 
 	// Enhanced features tracking
 	private static _badgeCountdownInterval: ReturnType<typeof setInterval> | null = null;
@@ -383,7 +392,7 @@ export class NotificationService {
 			if (!browser_ext?.windows) return false;
 
 			// Get all windows
-			const windows = await browser_ext.windows.getAll({ windowTypes: ['popup'] });
+			const windows = await browser_ext.windows.getAll();
 
 			// Find our extension popup window
 			const extensionWindow = windows.find(
@@ -395,8 +404,7 @@ export class NotificationService {
 			if (extensionWindow?.id) {
 				// Bring window to front and focus it
 				await browser_ext.windows.update(extensionWindow.id, {
-					focused: true,
-					drawAttention: true
+					focused: true
 				});
 
 				log.info('[NotificationService] Popup window focused and attention drawn');
@@ -910,7 +918,6 @@ export class NotificationService {
 
 				// Clear in-app security warning
 				try {
-					const { hideSecurityWarning } = await import('$lib/common/stores/securityWarning');
 					hideSecurityWarning();
 				} catch (e) {
 					log.debug('Error hiding security warning:', false, e);
@@ -990,6 +997,32 @@ export class NotificationService {
 		} catch (error) {
 			log.warn('[NotificationService] Enhanced features test failed:', false, error);
 		}
+	}
+
+	/**
+	 * Show a notification (instance method wrapper for sendBasic)
+	 */
+	async showNotification(options: {
+		title: string;
+		message: string;
+		priority?: 0 | 1 | 2;
+		requireInteraction?: boolean;
+	}) {
+		return NotificationService.sendBasic(
+			options.title,
+			options.message,
+			{
+				priority: options.priority,
+				requireInteraction: options.requireInteraction
+			}
+		);
+	}
+
+	/**
+	 * Play notification sound (instance method wrapper)
+	 */
+	async playNotificationSound(soundType: 'warning' | 'lockdown' | 'alert' = 'alert') {
+		return NotificationService.playUrgentSoundEnhanced();
 	}
 }
 

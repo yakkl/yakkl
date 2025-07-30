@@ -298,7 +298,7 @@
 			//   return;
 			// }
 
-			// const profile = await verify(userName.toLowerCase().trim().replace('.nfs.id', '') + '.nfs.id' + password);
+			// const profile = await verify(username.toLowerCase().trim().replace('.nfs.id', '') + '.nfs.id' + password);
 			// if (!profile) {
 			//   await handleReject("Invalid credentials.");
 			//   return;

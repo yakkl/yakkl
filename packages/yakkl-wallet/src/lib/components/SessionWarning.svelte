@@ -8,7 +8,6 @@
   import { getSettings } from '$lib/common/stores';
   import type { Settings } from '$lib/common/interfaces';
   import { safeLogout } from '$lib/common/safeNavigate';
-  import { messagingService } from '$lib/common/messaging';
 
   let showWarning = false;
   let timeRemaining = 0;
@@ -128,11 +127,11 @@
   async function handleLogout() {
     try {
       log.info('Session expired - performing logout');
-      
+
       // Clear warning and countdown first
       showWarning = false;
       clearCountdown();
-      
+
       // Clear any browser notifications
       if (browser_ext?.notifications) {
         try {
@@ -141,22 +140,30 @@
           log.debug('Could not clear notification', false, error);
         }
       }
-      
+
       // End the session
       try {
         await sessionManager.endSession();
       } catch (error) {
         log.error('Failed to end session', false, error);
       }
-      
-      // Send logout message to background script
+
+      // Send logout message to background script first
       try {
-        await messagingService.sendMessage({ type: 'logout', reason: 'session-expired' });
+        if (browser_ext) {
+          await browser_ext.runtime.sendMessage({
+            type: 'logout',
+            payload: 'session-expired'
+          });
+        }
       } catch (error) {
         log.error('Failed to send logout message', false, error);
       }
-      
-      // Navigate to logout page
+
+      // Give the background script time to process the logout
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Then navigate to logout page which will close the window
       await safeLogout();
     } catch (error) {
       log.error('Failed to logout after session expiry', false, error);
@@ -198,7 +205,7 @@
       log.error('Failed to show browser notification', false, error);
     }
   }
-  
+
   async function focusWindow() {
     try {
       // If we're in an extension popup or sidepanel
@@ -213,7 +220,7 @@
           });
         }
       }
-      
+
       // Also try standard window.focus() for web contexts
       if (typeof window !== 'undefined' && window.focus) {
         window.focus();
@@ -241,7 +248,7 @@
 
             // Show browser notification
             await showBrowserNotification(seconds);
-            
+
             // Focus the window to bring it to user's attention
             await focusWindow();
 

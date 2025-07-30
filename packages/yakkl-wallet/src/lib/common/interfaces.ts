@@ -13,7 +13,8 @@ import type {
 } from '$lib/common/types';
 import type { BigNumberish } from '$lib/common/bignumber';
 import type { Token } from '$lib/managers/Token';
-import type { Runtime } from 'webextension-polyfill';
+// import type { Runtime } from 'webextension-polyfill';
+import type { EthereumBigNumber } from './bignumber-ethereum';
 
 // Session Info is used to check if the session is valid and if the port is open - mainly used for the dapp popups
 export interface SessionInfo {
@@ -162,7 +163,7 @@ export interface EmergencyKitAccountData {
 	persona?: string; // The persona that is associated with the account
 	registered: YakklRegisteredData;
 	email: string;
-	userName: string;
+	username: string;
 	blockchain: string;
 	portfolioAddress: string;
 	portfolioName: string;
@@ -239,24 +240,24 @@ export interface MetaDataParams {
 }
 
 export interface PoolInfo {
-	fee: number;
+	fee: BigNumberish;           // Changed from number
 	liquidity: string;
 	// quoteAmount: number;
-	price: number;
+	price: BigNumberish;         // Changed from number
 	tokenInAmount?: string; // Converted from bigint to string
 	tokenOutAmount: string; // Converted from bigint to string
 	tokenInReserve: string;
 	tokenOutReserve: string;
-	tokenInPrice: number;
-	tokenOutPrice: number;
-	tvl: number;
+	tokenInPrice: BigNumberish;  // Changed from number
+	tokenOutPrice: BigNumberish; // Changed from number
+	tvl: BigNumberish;           // Changed from number
 }
 
 export interface PriceData {
 	provider: string;
-	price: number;
+	price: BigNumberish;         // Changed from number - CRITICAL
 	lastUpdated: Date;
-	contractFeePool?: number; // May be phased out. This is the fee pool for the contract found in PoolInfo as 'fee'
+	contractFeePool?: BigNumberish; // Changed from number
 	isNative?: boolean;
 	status?: number;
 	message?: string;
@@ -533,8 +534,8 @@ export interface SwapToken {
 export interface TokenData extends SwapToken {
 	change?: TokenChange[] | null; // getTokenChange(timeline)
 	price?: MarketPriceData | null; // Current price of the token. Price is in PriceData but is for the provider's price
-	value?: number; // Since this would be the user's value in the token
-	quantity?: number; // User's holdings
+	value?: BigNumberish; // Changed from number - CRITICAL for financial calculations
+	quantity?: EthereumBigNumber; // User's holdings
 	formattedValue?: string; // Formatted value for display
 	alias?: string; // Alias for the token
 	customDefault?: 'custom' | 'default'; // If 'custom' then it's a custom token and if 'default' then it's a default token
@@ -563,8 +564,8 @@ export interface TokenData extends SwapToken {
 		discord?: string;
 		totalSupply?: string;
 		maxSupply?: string;
-		marketCap?: number;
-		fdv?: number; // Fully diluted valuation
+		marketCap?: BigNumberish; // Changed from number
+		fdv?: BigNumberish; // Changed from number - Fully diluted valuation
 		lastUpdated?: string;
 	};
 }
@@ -572,7 +573,7 @@ export interface TokenData extends SwapToken {
 // Currently only used for the token list and not as a stand alone data store
 export interface TokenChange {
 	timeline?: string;
-	percentChange?: number;
+	percentChange?: BigNumberish; // Changed from number for precision
 }
 
 // export interface SwapTokenListTag {
@@ -809,6 +810,8 @@ export interface ProfileData {
 	id?: string;
 	persona?: string; // The persona that is associated with the account
 	name: Name;
+  username?: string;
+  planType?: PlanType;
 	email: string;
 	bio?: string;
 	website?: string;
@@ -829,7 +832,7 @@ export interface ProfileData {
 export interface Profile {
 	id: string; // Must be unique - used where there is an 'id'
 	persona?: string; // The persona that is associated with the account
-	userName: string; // Must be unique - not encrypted
+	username: string; // Must be unique - not encrypted
 	preferences: Preferences;
 	data: EncryptedData | ProfileData | Promise<ProfileData>; // Properties that are encrypted when stored
 	version: string; // Travels with the data for upgrades
@@ -870,7 +873,7 @@ export interface Settings {
 	legal: Legal;
 	platform: Platform;
 	plan: {
-		type: PlanType;
+		type: PlanType; // This is the public plan type of the user but is verified against the profileData.planType which is encrypted
 		source?: AccessSourceType;
 		promo?: PromoClassificationType;
 		trialEndDate?: string;
@@ -915,7 +918,7 @@ export interface PreferencesShort {
 export interface ProfileShort {
 	id?: string;
 	persona?: string; // The persona that is associated with the account
-	userName: string;
+	username: string;
 	name: Name | null;
 	email?: string;
 }
@@ -1174,22 +1177,22 @@ export interface SwapPriceData extends BasePriceData {
 	amountOut: BigNumberish; // Amount of buy token
 	exchangeRate: BigNumberish; // Amount of buy token per sell token
 
-	// MarketPrice
-	marketPriceIn: number; // Fiat price of tokenIn which updates in interval. It is here so that we can show the price of the tokenIn in the UI
-	marketPriceOut: number; // Fiat price of tokenOut which updates in interval. It is here so that we can show the price of the tokenOut in the UI. This is only used if priceIn is not available
-	marketPriceGas: number; // Gas market price
+	// MarketPrice - Updated to BigNumberish for precision
+	marketPriceIn: BigNumberish; // Changed from number
+	marketPriceOut: BigNumberish; // Changed from number
+	marketPriceGas: BigNumberish; // Changed from number
 
-	priceImpactRatio: number; // Price impact ratio percentage
+	priceImpactRatio: BigNumberish; // Changed from number - critical for DeFi calculations
 	path: string[]; // Path of tokens for the swap
-	fee?: number; // Pool fee if used by the provider
-	feeBasisPoints: number; // Fee in basis points - constant - YAKKL_FEE_BASIS_POINTS
-	feeAmountPrice: number; // Fee in price
+	fee?: BigNumberish; // Changed from number
+	feeBasisPoints: number; // Fee in basis points - constant - can stay number
+	feeAmountPrice: BigNumberish; // Changed from number
 	feeAmountInUSD?: string; // Fee in USD formatted
 	gasEstimate: BigNumberish; // Gas estimate for the swap
 	gasEstimateInUSD?: string; // Gas estimate in USD formatted
 	tokenOutPriceInUSD?: string; // Token out price in USD formatted
 
-	slippageTolerance?: number; // Slippage percentage
+	slippageTolerance?: BigNumberish; // Changed from number for precision
 	deadline?: number; // Deadline for the swap
 
 	sqrtPriceX96After?: BigNumberish; // Uniswap specific - sqrtPriceX96 after the swap
@@ -1208,12 +1211,12 @@ export interface SwapPriceData extends BasePriceData {
 // }
 
 export interface MarketPriceData extends BasePriceData {
-	price: number;
+	price: BigNumberish; // Changed from number - CRITICAL
 	pair?: string;
 }
 
 export interface PoolInfoData extends BasePriceData {
-	fee?: number;
+	fee?: BigNumberish; // Changed from number
 	liquidity: string;
 	sqrtPriceX96: string;
 	tick: number;
@@ -1242,13 +1245,13 @@ export interface SwapCalculation {
 }
 
 export interface PoolPriceData {
-	price: number;
-	token0Price: number;
-	token1Price: number;
+	price: BigNumberish; // Changed from number
+	token0Price: BigNumberish; // Changed from number
+	token1Price: BigNumberish; // Changed from number
 	token0Reserve: string;
 	token1Reserve: string;
-	liquidityUSD: number;
-	priceImpact: number;
+	liquidityUSD: BigNumberish; // Changed from number
+	priceImpact: BigNumberish; // Changed from number
 }
 
 // interfaces.ts (add this)

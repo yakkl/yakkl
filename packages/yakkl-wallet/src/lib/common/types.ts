@@ -27,7 +27,7 @@ export interface NotificationBase {
 	message: string;
 	requireInteraction?: boolean;
 	silent?: boolean;
-	priority?: -2 | -1 | 0 | 1 | 2;
+	priority?: 0 | 1 | 2;
 	contextMessage?: string;
 	buttons?: Array<{ title: string; iconUrl?: string }>;
 	eventTime?: number;
@@ -142,7 +142,7 @@ export enum AccountTypeStatus {
 }
 
 export enum RegisteredType {
-	BASIC_MEMBER = 'basic_member',
+	EXPLORER_MEMBER = 'explorer_member',
 	FOUNDING_MEMBER = 'founding_member',
 	EARLY_ADOPTER = 'early_adopter',
 	YAKKL_PRO = 'yakkl_pro',
@@ -153,7 +153,7 @@ export enum RegisteredType {
 
 export enum PlanType {
 	TRIAL = 'trial',
-	BASIC_MEMBER = 'basic_member',
+	EXPLORER_MEMBER = 'explorer_member',
 	FOUNDING_MEMBER = 'founding_member',
 	EARLY_ADOPTER = 'early_adopter',
 	YAKKL_PRO = 'yakkl_pro',

@@ -2,6 +2,8 @@ import { writable } from 'svelte/store';
 import type { TokenData } from './interfaces';
 import type { PriceManager } from '$lib/managers/PriceManager';
 import { log } from '$lib/managers/Logger';
+import { BigNumberishUtils } from './BigNumberishUtils';
+import { DecimalMath } from './DecimalMath';
 
 // Utility for debouncing
 function debounce(func: (...args: any[]) => void, delay: number) {
@@ -50,13 +52,13 @@ export function createPriceUpdater(priceManager: PriceManager) {
 			const price = marketPrice?.price ?? 0;
 
 			// Balance is already in human-readable format (e.g., "1.5" ETH)
-			// Don't divide by decimals again
+			// Use DecimalMath for precise value calculation
 			const balance = Number(token.balance || 0);
-			const value = balance * price;
+			const value = DecimalMath.of(balance).mul(BigNumberishUtils.toNumber(price)).toNumber();
 
 			// Keep existing change data from token
 			const change = token.change || [];
-			
+
 			return {
 				...token,
 				price: {
@@ -80,9 +82,9 @@ export function createPriceUpdater(priceManager: PriceManager) {
 			log.error(`fetchTokenData - Failed to fetch price for ${token.symbol}`, false, error);
 			return {
 				...token,
-				price: { 
-					price: 0, 
-					provider: '', 
+				price: {
+					price: 0,
+					provider: '',
 					lastUpdated: new Date(),
 					isNative: token.isNative || false,
 					chainId: token.chainId,

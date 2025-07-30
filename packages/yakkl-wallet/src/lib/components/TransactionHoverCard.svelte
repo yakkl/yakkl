@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { TransactionDisplay } from '../types';
-  import ProtectedValue from './v1/ProtectedValue.svelte';
+  import ProtectedValue from './ProtectedValue.svelte';
   import SimpleHoverCard from './SimpleHoverCard.svelte';
   import { currentChain } from '../stores/chain.store';
 

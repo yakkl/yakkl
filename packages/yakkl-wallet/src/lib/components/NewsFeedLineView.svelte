@@ -16,9 +16,10 @@
 		};
 		className?: string;
 		locked?: boolean;
+		showDate?: boolean;
 	}
 
-	let { newsItem, className = '', locked = true }: Props = $props();
+	let { newsItem, className = '', locked = true, showDate = false }: Props = $props();
 
 	// Check if the news item has all required properties
 	const isValidNewsItem =
@@ -54,7 +55,11 @@
 					<div class="flex items-center gap-1 text-[10px] text-gray-500 dark:text-gray-400 mt-1">
 						<span>{newsItem.source}</span>
 						<span>•</span>
-						<span>{newsItem.date}</span>
+						{#if showDate}
+							<span>{new Date(newsItem.publishedAt || newsItem.date || '').toLocaleString()}</span>
+						{:else}
+							<span>{newsItem.date}</span>
+						{/if}
 					</div>
 					<p class="text-xs text-gray-600 dark:text-gray-300 mt-1 line-clamp-2">
 						{newsItem.description}

@@ -1,15 +1,15 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import ExportPrivateKey from '$lib/components/v1/ExportPrivateKey.svelte';
+  import ExportPrivateKey from '$lib/components/ExportPrivateKey.svelte';
   import { ChevronLeft, Key, Download, AlertTriangle } from 'lucide-svelte';
   import { sessionManager } from '$lib/managers/SessionManager';
   import { currentAccount } from '$lib/stores/account.store';
-  
+
   let pageReady = $state(false);
   let showExportModal = $state(false);
   let account = $derived($currentAccount);
-  
+
   // Check authentication on mount
   onMount(async () => {
     // Check if user is authenticated
@@ -21,21 +21,21 @@
     }
     pageReady = true;
   });
-  
+
   function handleBack() {
     // Go back to accounts page
     goto('/accounts');
   }
-  
+
   function handleExportPrivateKey() {
     showExportModal = true;
   }
-  
+
   function handleExportSeedPhrase() {
     // TODO: Implement seed phrase export
     alert('Seed phrase export coming soon. Only account owners can export the master seed phrase.');
   }
-  
+
   function handleExportSuccess() {
     // Return to accounts page after successful export
     goto('/accounts');
@@ -52,9 +52,9 @@
       <ChevronLeft class="w-5 h-5" />
       Back
     </button>
-    
+
     <h1 class="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100">Export Account</h1>
-    
+
     {#if account}
       <div class="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
         <div class="text-sm text-gray-600 dark:text-gray-400">Current Account</div>
@@ -64,7 +64,7 @@
         </div>
       </div>
     {/if}
-    
+
     <div class="space-y-4">
       <button
         onclick={handleExportPrivateKey}
@@ -78,7 +78,7 @@
           <p class="text-sm text-gray-600 dark:text-gray-400">Export the private key for this account</p>
         </div>
       </button>
-      
+
       <button
         onclick={handleExportSeedPhrase}
         class="w-full p-4 bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-all flex items-center gap-4 text-left group opacity-50 cursor-not-allowed"
@@ -93,13 +93,13 @@
         </div>
       </button>
     </div>
-    
+
     <div class="mt-8 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
       <div class="flex gap-3">
         <AlertTriangle class="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
         <div class="text-sm text-red-800 dark:text-red-200">
-          <strong>Security Warning:</strong> Never share your private key or seed phrase with anyone. 
-          Anyone with access to these can steal all your funds. Only export if you need to import 
+          <strong>Security Warning:</strong> Never share your private key or seed phrase with anyone.
+          Anyone with access to these can steal all your funds. Only export if you need to import
           your account into another wallet. Store exports in a secure location.
         </div>
       </div>
@@ -110,7 +110,7 @@
 
 <!-- Export Modal -->
 {#if showExportModal}
-  <ExportPrivateKey 
+  <ExportPrivateKey
     bind:show={showExportModal}
     onVerify={() => {
       // Modal handles its own success

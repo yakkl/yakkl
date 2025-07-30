@@ -7,7 +7,7 @@
 
 // NOTE: 'id' should be unique value for the given group of data. Crypto uuidv4 can be used so that if we move to a central DB then it will be unique.
 
-export const prerender = false;
+// export const prerender = false;
 
 import { dateString } from '$lib/common/datetime';
 import type {
@@ -84,12 +84,12 @@ import {
 // over VPN with our systems. Would can then work with the institutions security team on protecting all assets
 
 // Default non-ecrypted data which is safe to be in memory (same as currentlySelected data)
-// NOTE: id and userName are unique and part of each storage (stores are only in memory for a given session). All sensitive data is encrypted!
+// NOTE: id and username are unique and part of each storage (stores are only in memory for a given session). All sensitive data is encrypted!
 
 // NOTE: Update these two as needed!!
 // WIP - May need to add a dataModel for providers and the blockchains they support. Review interfaces! This could be used for the wallet provider and blockchain combo for the future.
-export let yakklWalletBlockchains = ['Ethereum', 'Base'];
-export let yakklWalletProviders = ['Alchemy', 'Infura'];
+export let yakklWalletBlockchains = ['Ethereum', 'Base', 'Polygon'];
+export let yakklWalletProviders = ['Alchemy', 'Infura', 'Cloudflare'];
 // WIP - Already have stores and storage defined
 
 // Preferences - User specified and defaults
@@ -152,11 +152,11 @@ export let yakklSettings: Settings = {
 	version: VERSION, // Uses semversion format but puts 'default' as a placeholder
 	previousVersion: '',
 	plan: {
-		type: PlanType.BASIC_MEMBER,
+		type: PlanType.EXPLORER_MEMBER,
 		source: AccessSourceType.STANDARD,
 		promo: null,
 		trialEndDate: null,
-		upgradeDate: null
+		upgradeDate: ''
 	},
 	trialCountdownPinned: false,
 	legal: {
@@ -246,7 +246,7 @@ export let yakklRegisteredData: YakklRegisteredData = {
 	persona: DEFAULT_PERSONA,
 	key: '',
 	plan: {
-		type: PlanType.BASIC_MEMBER,
+		type: PlanType.EXPLORER_MEMBER,
 		source: AccessSourceType.STANDARD,
 		promo: PromoClassificationType.NONE,
 		trialEndDate: '',
@@ -260,7 +260,7 @@ export let yakklRegisteredData: YakklRegisteredData = {
 export let profile: Profile = {
 	id: '', // Must be unique - used where there is an 'id'
 	persona: DEFAULT_PERSONA,
-	userName: '', // Must be unique - not encrypted
+	username: '', // Must be unique - not encrypted
 	preferences: yakklPreferences,
 	data: {} as ProfileData,
 	version: VERSION, // Travels with the data for upgrades
@@ -295,7 +295,7 @@ export let yakklCurrentlySelected: YakklCurrentlySelected = {
 		isLocked: true,
 		showTestNetworks: false,
 		profile: {
-			userName: '',
+			username: '',
 			name: null,
 			email: ''
 		},
@@ -928,7 +928,7 @@ export const yakklStoredObjects = [
 // Encrypted
 // export let profile: Profile = {  // ALL 'data' properties are encrypted. The others are not
 //   id: 0, // Must be unique - used where there is an 'id'
-//   userName: '',  // Must be unique - not encrypted
+//   username: '',  // Must be unique - not encrypted
 //   preferences: yakklPreferences,
 //   data: {
 //     name: {  // TBD - May want to change for institutional version

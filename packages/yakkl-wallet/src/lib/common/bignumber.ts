@@ -54,9 +54,9 @@ export class BigNumber implements IBigNumber {
 		this._value = newValue;
 	}
 
-	compare(other: BigNumberish): number {
-		const a = this.toBigInt();
-		const b = BigNumber.from(other).toBigInt();
+	compare(other: BigNumberish, decimals: number = 18): number {
+		const a = this.toBigInt(decimals);
+		const b = BigNumber.from(other).toBigInt(decimals);
 		if (a === null || b === null) {
 			throw new Error('Cannot compare null values');
 		}
@@ -101,17 +101,32 @@ export class BigNumber implements IBigNumber {
 	}
 
 	// Method to convert the value to a bigint
-	toBigInt(): bigint | null {
+	toBigInt(decimals: number = 18): bigint | null {
 		if (this._value === null) {
 			return null;
 		}
 
 		if (typeof this._value === 'string') {
-			return BigInt(this._value);
+			// Handle cases where the string value may contain decimals
+			if (this._value.includes('.')) {
+				const [integerPart, fractionalPart = ''] = this._value.split('.');
+				const factor = BigInt('1' + '0'.repeat(decimals));
+				const scaledValue =
+					BigInt(integerPart) * factor +
+					BigInt((fractionalPart + '0'.repeat(decimals)).slice(0, decimals));
+				return scaledValue;
+			} else {
+				return BigInt(this._value);
+			}
 		}
 
 		if (typeof this._value === 'number') {
-			return BigInt(this._value);
+			if (!Number.isInteger(this._value)) {
+				const factor = Math.pow(10, decimals);
+				return BigInt(Math.round(this._value * factor));
+			} else {
+				return BigInt(this._value);
+			}
 		}
 
 		if (typeof this._value === 'bigint') {
@@ -119,7 +134,7 @@ export class BigNumber implements IBigNumber {
 		}
 
 		if (BigNumber.isBigNumber(this._value)) {
-			return this._value.toBigInt();
+			return this._value.toBigInt(decimals);
 		}
 
 		if (BigNumber.isHexObject(this._value)) {
@@ -176,6 +191,12 @@ export class BigNumber implements IBigNumber {
 
 	// Instance method to convert the value to a string
 	toString(): string {
+		// For strings, return them as-is to preserve decimal formatting
+		if (typeof this._value === 'string') {
+			return this._value;
+		}
+
+		// For other types, convert to bigint first
 		const bigintValue = this.toBigInt();
 		if (bigintValue === null) {
 			return '';
@@ -410,6 +431,64 @@ export class BigNumber implements IBigNumber {
 			currency: currencyCode
 		});
 		return formatter.format(fiatValue);
+	}
+
+	// Helper method to multiply a value (in ETH or token units) by price to get USD value
+	// This handles decimal string values properly
+	mulByPrice(price: number | string, decimals: number = 18): BigNumber {
+		// Convert price to BigNumber-compatible format
+		const priceBN = BigNumber.from(price);
+
+		// If the current value is a decimal string (like "0.017191425943385866"),
+		// we need to convert it to wei/smallest unit first
+		const valueInSmallestUnit = this.toBigInt(decimals);
+		if (valueInSmallestUnit === null) {
+			throw new Error('Cannot convert value to bigint');
+		}
+
+		// Convert price to smallest unit (multiply by 10^decimals)
+		const priceInSmallestUnit = priceBN.toBigInt(decimals);
+		if (priceInSmallestUnit === null) {
+			throw new Error('Cannot convert price to bigint');
+		}
+
+		// Multiply the two values
+		const result = valueInSmallestUnit * priceInSmallestUnit;
+
+		// The result is now in (smallest unit)^2, so we need to divide by 10^decimals
+		// to get back to the correct scale
+		const divisor = BigInt('1' + '0'.repeat(decimals));
+		const scaledResult = result / divisor;
+
+		return new BigNumber(scaledResult);
+	}
+
+	// Convert from smallest unit (wei) to decimal string (ETH)
+	static fromWei(weiValue: BigNumberish, decimals: number = 18): string {
+		const wei = BigNumber.toBigInt(weiValue, 0); // Already in smallest unit
+		if (wei === null) return '0';
+
+		const divisor = BigInt('1' + '0'.repeat(decimals));
+		const wholePart = wei / divisor;
+		const fractionalPart = wei % divisor;
+
+		// Format fractional part with leading zeros
+		const fractionalStr = fractionalPart.toString().padStart(decimals, '0');
+		// Remove trailing zeros
+		const trimmedFractional = fractionalStr.replace(/0+$/, '');
+
+		if (trimmedFractional === '') {
+			return wholePart.toString();
+		} else {
+			return `${wholePart}.${trimmedFractional}`;
+		}
+	}
+
+	// Convert current value from smallest unit to decimal string
+	toDecimalString(decimals: number = 18): string {
+		const bigintValue = this.toBigInt(0); // Assume already in smallest unit
+		if (bigintValue === null) return '0';
+		return BigNumber.fromWei(bigintValue, decimals);
 	}
 }
 

@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const SECURITY_PACKAGE_PATH = path.resolve(__dirname, '../../../yakkl-security');
+const SECURITY_PACKAGE_PATH = path.resolve(__dirname, '../../yakkl-security');
 const WALLET_PACKAGE_PATH = path.resolve(__dirname, '..');
 
 // Define files to copy from yakkl-security to yakkl-wallet
@@ -31,7 +31,16 @@ const FILES_TO_COPY = [
 function copySecurityFiles() {
   console.log('Copying security files from yakkl-security...');
   
+  // Skip EmergencyKitManager if it already exists and has been modified
+  const emergencyKitPath = path.join(WALLET_PACKAGE_PATH, 'src/lib/managers/EmergencyKitManager.ts');
+  const hasEmergencyKit = fs.existsSync(emergencyKitPath);
+  
   FILES_TO_COPY.forEach(({ source, destination }) => {
+    // Skip EmergencyKitManager if it already exists
+    if (destination === 'src/lib/managers/EmergencyKitManager.ts' && hasEmergencyKit) {
+      console.log(`✓ Skipped ${destination} (already exists)`);
+      return;
+    }
     const sourcePath = path.join(SECURITY_PACKAGE_PATH, source);
     const destPath = path.join(WALLET_PACKAGE_PATH, destination);
     

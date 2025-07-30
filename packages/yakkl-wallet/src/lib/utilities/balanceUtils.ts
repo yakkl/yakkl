@@ -4,6 +4,9 @@ import type { SwapToken } from '$lib/common/interfaces';
 import type { Provider } from '$managers/Provider';
 import type { TokenService } from '$lib/managers/blockchains/evm/TokenService';
 import { log } from '$lib/managers/Logger';
+import { get } from 'svelte/store';
+import { yakklPricingStore } from '$lib/common/stores';
+import { balanceCacheManager } from '$lib/managers/BalanceCacheManager';
 
 // Helper function to determine if an error should be shown to the user
 function shouldShowErrorToUser(error: any): boolean {
@@ -55,9 +58,6 @@ export async function getTokenBalance(
 			token.balance = retBal;
 
 			// Update cache with native token balance
-			const { balanceCacheManager } = await import('$lib/managers/BalanceCacheManager');
-			const { yakklPricingStore } = await import('$lib/common/stores');
-			const { get } = await import('svelte/store');
 			const currentPrice = get(yakklPricingStore)?.price;
 			if (currentPrice) {
 				balanceCacheManager.setCachedBalance(address, retBal, currentPrice);

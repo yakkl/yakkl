@@ -9,24 +9,28 @@ interface ModalState {
   isOpen: boolean;
   modalType?: string;
   modalId?: string;
+  data?: any;
 }
 
 function createModalStore() {
   const { subscribe, set, update } = writable<ModalState>({
     isOpen: false,
     modalType: undefined,
-    modalId: undefined
+    modalId: undefined,
+    data: undefined
   });
 
   return {
     subscribe,
     
-    openModal(type: string, id?: string) {
+    openModal(type: string, idOrData?: string | any) {
+      const isString = typeof idOrData === 'string';
       update(state => ({
         ...state,
         isOpen: true,
         modalType: type,
-        modalId: id
+        modalId: isString ? idOrData : undefined,
+        data: !isString ? idOrData : undefined
       }));
     },
     
@@ -34,7 +38,8 @@ function createModalStore() {
       set({
         isOpen: false,
         modalType: undefined,
-        modalId: undefined
+        modalId: undefined,
+        data: undefined
       });
     },
     

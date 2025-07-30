@@ -11,13 +11,13 @@ import {
 import type { YakklCurrentlySelected } from '$lib/common/interfaces';
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from '$lib/common/storage';
 import { setIconUnlock } from '$lib/utilities/utilities';
+import browser from 'webextension-polyfill';
 import type { Runtime } from 'webextension-polyfill';
 import { showPopup } from '$contexts/background/extensions/chrome/ui';
 import { estimateGas, getBlock } from '$contexts/background/extensions/chrome/legacy';
 import { supportedChainId } from '$lib/common/utils';
 import { onPortInternalListener } from '$lib/common/listeners/ui/portListeners';
 import { onEthereumListener } from '$lib/common/listeners/background/backgroundListeners';
-import browser from 'webextension-polyfill';
 import { log } from '$lib/managers/Logger';
 import { addDAppActivity } from '../../activities/dapp-activity';
 import type { DAppActivity } from '../../activities/dapp-activity';
@@ -26,9 +26,8 @@ import { onUnifiedMessageHandler } from '$contexts/background/extensions/chrome/
 import { sessionPortManager } from '$lib/managers/SessionPortManager';
 import { showPopupForMethod } from '$lib/managers/DAppPopupManager';
 import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
-
-// Browser extension reference
-const browser_ext = browser;
+import { BackgroundJWTValidatorService } from '$lib/services/background-jwt-validator.service';
+import { showEIP6963Popup } from '$contexts/background/extensions/chrome/eip-6963';
 
 // Initialize timer manager
 const timerManager = UnifiedTimerManager.getInstance();
@@ -145,6 +144,26 @@ export async function onPortConnectListener(port: Runtime.Port) {
 				if (!port.onMessage.hasListener(onPortInternalListener)) {
 					port.onMessage.addListener(onPortInternalListener);
 				}
+				registerInternalPort(connectionId, port, connectionInfo);
+				break;
+
+						case 'jwt-validator':
+				// Handle JWT validator port connections
+				log.info('[PortListener] JWT validator port connected', false, {
+					connectionId,
+					tabId: connectionInfo.tabId,
+					url: connectionInfo.url
+				});
+
+				// Register the port with the JWT validator service
+				try {
+					const jwtValidator = BackgroundJWTValidatorService.getInstance();
+					jwtValidator.registerJWTValidatorPort(port);
+				} catch (error) {
+					log.error('[PortListener] Failed to register JWT validator port', false, error);
+				}
+
+				// Also register it internally for tracking
 				registerInternalPort(connectionId, port, connectionInfo);
 				break;
 
@@ -481,8 +500,7 @@ export async function onPortExternalListener(message: any, port: Runtime.Port): 
 			case 'eth_requestAccounts':
 			case 'wallet_requestPermissions':
 				try {
-					const { showEIP6963Popup } = await import('../../../extensions/chrome/eip-6963');
-					await showEIP6963Popup(event.method, event.params || [], port, event.id);
+					await showEIP6963Popup(event.method, event.params || []);
 				} catch (error) {
 					log.error('Error using EIP-6963 implementation for eth_requestAccounts:', false, error);
 					await showPopupForMethod(event.method, event.id);
@@ -491,8 +509,7 @@ export async function onPortExternalListener(message: any, port: Runtime.Port): 
 
 			case 'eth_sendTransaction':
 				try {
-					const { showEIP6963Popup } = await import('../../../extensions/chrome/eip-6963');
-					await showEIP6963Popup(event.method, event.params || [], port, event.id);
+					await showEIP6963Popup(event.method, event.params || []);
 				} catch (error) {
 					log.error('Error using EIP-6963 implementation for eth_sendTransaction:', false, error);
 					await showPopupForMethod(event.method, event.id);
@@ -502,8 +519,7 @@ export async function onPortExternalListener(message: any, port: Runtime.Port): 
 			case 'eth_signTypedData_v4':
 			case 'personal_sign':
 				try {
-					const { showEIP6963Popup } = await import('../../../extensions/chrome/eip-6963');
-					await showEIP6963Popup(event.method, event.params || [], port, event.id);
+					await showEIP6963Popup(event.method, event.params || []);
 				} catch (error) {
 					log.error(
 						'Error using EIP-6963 implementation for eth_signTypedData_v4, personal_sign:',
@@ -712,7 +728,7 @@ export async function onPortExternalListener(message: any, port: Runtime.Port): 
 // This can be refactored for specific popup types instead of the original use of a splash screen
 export async function onPopupLaunchListener(message: unknown, port: Runtime.Port): Promise<void> {
 	try {
-		if (!browser_ext) return;
+		if (!browser) return;
 
 		// Type guard to check if message has the expected shape
 		const m = message as { popup?: string };
@@ -722,7 +738,7 @@ export async function onPopupLaunchListener(message: unknown, port: Runtime.Port
 		}
 
 		// Now we can use the port directly instead of the custom type
-		const result = await browser_ext.storage.session.get('windowId');
+		const result = await browser.storage.session.get('windowId');
 		let windowId: number | undefined = undefined;
 
 		if (result) {
@@ -731,15 +747,17 @@ export async function onPopupLaunchListener(message: unknown, port: Runtime.Port
 
 		if (windowId) {
 			try {
-				await browser_ext.windows.get(windowId);
-				await browser_ext.windows.update(windowId, { focused: true });
+				await browser.windows.get(windowId);
+				await browser.windows.update(windowId, { focused: true });
 				port.postMessage({ popup: 'YAKKL: Launched' });
 			} catch {
-				await showPopup('');
+				// Mark as internal since this is a session management popup
+				await showPopup('', '0', 'internal');
 				port.postMessage({ popup: 'YAKKL: Launched' });
 			}
 		} else {
-			await showPopup('');
+			// Mark as internal since this is a session management popup
+			await showPopup('', '0', 'internal');
 			port.postMessage({ popup: 'YAKKL: Launched' });
 		}
 	} catch (error) {

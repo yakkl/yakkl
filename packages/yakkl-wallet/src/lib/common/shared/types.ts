@@ -1,5 +1,4 @@
 // $lib/shared/types.ts
-import type { Browser } from 'webextension-polyfill';
 
 // Define storage item types
 export interface StorageSchema {

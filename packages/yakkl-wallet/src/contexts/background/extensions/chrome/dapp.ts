@@ -2,6 +2,7 @@
 import { requestManager } from './eip-6963';
 import { log } from '$lib/managers/Logger';
 import { verifyDomainConnected } from './verifyDomainConnectedBackground';
+// import browser from 'webextension-polyfill';
 import type { Runtime } from 'webextension-polyfill';
 import { portManager } from '$lib/managers/PortManager';
 import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
@@ -109,7 +110,15 @@ async function handleGetParams(event: any, port: Runtime.Port): Promise<void> {
 
 		if (request) {
 			// Verify domain connection status
-			const isConnected = await verifyDomainConnected(request.data.metaData.metaData.domain);
+      log.info('Dapp - get_params - request:', false, request);
+      let isConnected = false;
+      if (request.data && request.data.metaData && request.data.metaData.metaData && request.data.metaData.metaData.domain) {
+        isConnected = await verifyDomainConnected(request.data.metaData.metaData.domain);
+      } else {
+        log.error('Dapp - get_params - request.data.metaData.metaData is not present.');
+        sendErrorResponse(port, event.id, new Error('Request data is missing metaData - domain information'));
+        return;
+      }
 
 			log.info('Dapp - get_params - isConnected:', false, {
 				isConnected,

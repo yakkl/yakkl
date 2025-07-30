@@ -1,8 +1,8 @@
-import type { Alarms } from 'webextension-polyfill';
+// import type { Alarms } from 'webextension-polyfill';
 import { browser_ext } from './environment';
 import { log } from '$lib/managers/Logger';
 
-type AlarmsAlarm = Alarms.Alarm;
+// type AlarmsAlarm = Alarms.Alarm;
 
 export async function clearAlarm(alarmName: string): Promise<void> {
 	if (!alarmName) {

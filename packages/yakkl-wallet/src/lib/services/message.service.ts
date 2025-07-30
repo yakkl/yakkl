@@ -5,7 +5,7 @@ class MessageService extends BaseService {
   private static instance: MessageService;
 
   private constructor() {
-    super();
+    super('MessageService');
   }
 
   static getInstance(): MessageService {

@@ -1,15 +1,17 @@
 import { log } from '$lib/managers/Logger';
 import type { CachedBalanceData } from '$lib/utilities/accountData';
+import { getObjectFromExtensionStorage, setObjectInExtensionStorage, removeFromExtensionStorage } from '$lib/common/stores';
 
 export class BalanceCacheManager {
-	private static instance: BalanceCacheManager | null = null;
-	private readonly CACHE_KEY = 'yakkl_balance_cache';
-	private readonly CACHE_DURATION = 15 * 60 * 1000; // 15 minutes (increased from 5 to reduce API calls)
-	private readonly STALE_DURATION = 10 * 60 * 1000; // 10 minutes (increased from 2 to reduce background refreshes)
+	private static instance: BalanceCacheManager;
+	private readonly CACHE_KEY = 'yakklBalanceCache';
+	private readonly CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
+	private readonly STALE_DURATION = 2 * 60 * 1000; // 2 minutes
 	private cache: Map<string, CachedBalanceData> = new Map();
 
 	private constructor() {
-		this.loadFromStorage();
+		// Start loading asynchronously, but don't block constructor
+		this.initializeAsync();
 	}
 
 	public static getInstance(): BalanceCacheManager {
@@ -17,6 +19,16 @@ export class BalanceCacheManager {
 			BalanceCacheManager.instance = new BalanceCacheManager();
 		}
 		return BalanceCacheManager.instance;
+	}
+
+	/**
+	 * Initialize asynchronously without blocking constructor
+	 */
+	private initializeAsync(): void {
+		this.loadFromStorage().catch(error => {
+			// Log error but don't fail - cache will just start empty
+			console.warn('BalanceCacheManager: Failed to load from storage, starting with empty cache:', error);
+		});
 	}
 
 	/**
@@ -28,9 +40,11 @@ export class BalanceCacheManager {
 
 		// Check if cache is expired
 		const age = Date.now() - cached.timestamp;
-		if (age > this.CACHE_DURATION) {
+		if (age > this.CACHE_EXPIRY) {
 			this.cache.delete(address.toLowerCase());
-			this.saveToStorage();
+			this.saveToStorage().catch(error => {
+				console.warn('BalanceCacheManager: Failed to save cache after expiry cleanup:', error);
+			});
 			return null;
 		}
 
@@ -55,26 +69,27 @@ export class BalanceCacheManager {
 		const cacheData: CachedBalanceData = {
 			address: address.toLowerCase(),
 			balance,
-			timestamp: Date.now(),
-			price
+			price,
+			timestamp: Date.now()
 		};
 
 		this.cache.set(address.toLowerCase(), cacheData);
-		this.saveToStorage();
-
-		log.debug('[BalanceCacheManager] Cached balance for address:', false, {
-			address: address.toLowerCase(),
-			balance: balance.toString(),
-			price
+		this.saveToStorage().catch(error => {
+			console.warn('BalanceCacheManager: Failed to save cache after setting balance:', error);
 		});
 	}
 
 	/**
 	 * Clear all cached data
 	 */
-	public clearCache(): void {
+	public async clearCache(): Promise<void> {
 		this.cache.clear();
-		localStorage.removeItem(this.CACHE_KEY);
+		try {
+			await removeFromExtensionStorage(this.CACHE_KEY);
+		} catch (error) {
+			// Fallback to localStorage
+			localStorage.removeItem(this.CACHE_KEY);
+		}
 		log.info('[BalanceCacheManager] Cache cleared');
 	}
 
@@ -83,7 +98,9 @@ export class BalanceCacheManager {
 	 */
 	public clearCachedBalance(address: string): void {
 		this.cache.delete(address.toLowerCase());
-		this.saveToStorage();
+		this.saveToStorage().catch(error => {
+			console.warn('BalanceCacheManager: Failed to save cache after clearing balance:', error);
+		});
 	}
 
 	/**
@@ -92,21 +109,17 @@ export class BalanceCacheManager {
 	public updatePriceForAllEntries(newPrice: number): void {
 		let updated = 0;
 
-		for (const [address, data] of this.cache.entries()) {
-			// Only update if price actually changed
+		for (const [, data] of this.cache.entries()) {
 			if (data.price !== newPrice) {
-				this.cache.set(address, {
-					...data,
-					price: newPrice,
-					timestamp: Date.now() // Refresh timestamp since value changed
-				});
+				data.price = newPrice;
 				updated++;
 			}
 		}
 
 		if (updated > 0) {
-			this.saveToStorage();
-			log.info(`[BalanceCacheManager] Updated price for ${updated} cached entries to ${newPrice}`);
+			this.saveToStorage().catch(error => {
+				console.warn('BalanceCacheManager: Failed to save cache after price update:', error);
+			});
 		}
 	}
 
@@ -125,15 +138,16 @@ export class BalanceCacheManager {
 		let cleaned = 0;
 
 		for (const [address, data] of this.cache.entries()) {
-			if (now - data.timestamp > this.CACHE_DURATION) {
+			if (now - data.timestamp > this.CACHE_EXPIRY) {
 				this.cache.delete(address);
 				cleaned++;
 			}
 		}
 
 		if (cleaned > 0) {
-			this.saveToStorage();
-			log.info(`[BalanceCacheManager] Cleaned up ${cleaned} expired entries`);
+			this.saveToStorage().catch(error => {
+				console.warn('BalanceCacheManager: Failed to save cache after cleanup:', error);
+			});
 		}
 	}
 
@@ -150,18 +164,15 @@ export class BalanceCacheManager {
 			}
 		}
 
-		log.debug(
-			`[BalanceCacheManager] Preloaded ${preloaded.size}/${addresses.length} balances from cache`
-		);
 		return preloaded;
 	}
 
 	/**
 	 * Load cache from localStorage
 	 */
-	private loadFromStorage(): void {
+	private async loadFromStorage(): Promise<void> {
 		try {
-			const stored = localStorage.getItem(this.CACHE_KEY);
+			const stored = await getObjectFromExtensionStorage<string>(this.CACHE_KEY);
 			if (stored) {
 				const parsed = JSON.parse(stored);
 				this.cache = new Map(
@@ -188,7 +199,7 @@ export class BalanceCacheManager {
 	/**
 	 * Save cache to localStorage
 	 */
-	private saveToStorage(): void {
+	private async saveToStorage(): Promise<void> {
 		try {
 			const serializable = Object.fromEntries(
 				Array.from(this.cache.entries()).map(([address, data]) => [
@@ -200,7 +211,7 @@ export class BalanceCacheManager {
 				])
 			);
 
-			localStorage.setItem(this.CACHE_KEY, JSON.stringify(serializable));
+			await setObjectInExtensionStorage(this.CACHE_KEY, JSON.stringify(serializable));
 		} catch (error) {
 			log.warn('[BalanceCacheManager] Failed to save cache to storage:', false, error);
 		}
@@ -222,7 +233,7 @@ export class BalanceCacheManager {
 
 		for (const data of this.cache.values()) {
 			const age = now - data.timestamp;
-			if (age > this.CACHE_DURATION) {
+			if (age > this.CACHE_EXPIRY) {
 				expired++;
 			} else if (age > this.STALE_DURATION) {
 				stale++;
@@ -240,5 +251,19 @@ export class BalanceCacheManager {
 	}
 }
 
-// Export singleton instance
-export const balanceCacheManager = BalanceCacheManager.getInstance();
+// Export singleton getter - lazy initialization to avoid browser API access at module load time
+export function getBalanceCacheManager(): BalanceCacheManager {
+	return BalanceCacheManager.getInstance();
+}
+
+// For backward compatibility, create a proxy that lazily initializes
+export const balanceCacheManager = new Proxy({} as BalanceCacheManager, {
+	get(_, prop) {
+		const instance = BalanceCacheManager.getInstance();
+		return Reflect.get(instance, prop, instance);
+	},
+	set(_, prop, value) {
+		const instance = BalanceCacheManager.getInstance();
+		return Reflect.set(instance, prop, value, instance);
+	}
+});

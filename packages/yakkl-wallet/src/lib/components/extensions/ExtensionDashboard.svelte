@@ -7,6 +7,20 @@
   import { extensions, discoveredExtensions, isCoreAvailable, discoverExtensions, loadExtension } from '../../core/integration';
   import ExtensionRenderer from './ExtensionRenderer.svelte';
 
+  interface ExtensionManifest {
+    id: string;
+    name: string;
+    description: string;
+    version: string;
+    category: string;
+    tier: string;
+  }
+
+  interface Extension {
+    manifest?: ExtensionManifest;
+    id?: string;
+  }
+
   let { className = '' } = $props();
 
   let loading = $state(false);
@@ -14,8 +28,8 @@
   let selectedCategory = $state('all');
 
   // Reactive stores
-  let loadedExtensions = $derived($extensions);
-  let discovered = $derived($discoveredExtensions);
+  let loadedExtensions = $derived($extensions as Extension[]);
+  let discovered = $derived($discoveredExtensions as Extension[]);
 
   // Categories for filtering
   const categories = [
@@ -33,7 +47,7 @@
     if (selectedCategory === 'all') {
       return loadedExtensions;
     }
-    return loadedExtensions.filter(v => v.manifest.category === selectedCategory);
+    return loadedExtensions.filter(v => v.manifest?.category === selectedCategory);
   });
 
   onMount(async () => {
@@ -195,26 +209,26 @@
             <div class="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl p-4 hover:shadow-md transition-shadow">
               <div class="flex items-start gap-3 mb-3">
                 <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center text-white text-sm font-bold">
-                  {getCategoryIcon(extension.manifest.category)}
+                  {getCategoryIcon(extension.manifest?.category || 'utility')}
                 </div>
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2 mb-1">
                     <h3 class="font-medium text-zinc-900 dark:text-white truncate">
-                      {extension.manifest.name}
+                      {extension.manifest?.name || 'Unknown Extension'}
                     </h3>
-                    <span class={`px-2 py-0.5 text-xs font-medium rounded-full ${getTierColor(extension.manifest.tier)}`}>
-                      {extension.manifest.tier}
+                    <span class={`px-2 py-0.5 text-xs font-medium rounded-full ${getTierColor(extension.manifest?.tier || 'community')}`}>
+                      {extension.manifest?.tier || 'community'}
                     </span>
                   </div>
                   <p class="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2">
-                    {extension.manifest.description}
+                    {extension.manifest?.description || 'No description available'}
                   </p>
                 </div>
               </div>
 
               <div class="flex items-center justify-between">
                 <div class="text-xs text-zinc-500 dark:text-zinc-500">
-                  v{extension.manifest.version}
+                  v{extension.manifest?.version || '1.0.0'}
                 </div>
                 <div class="flex gap-2">
                   <span class="inline-flex items-center px-2 py-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 text-xs rounded-full">

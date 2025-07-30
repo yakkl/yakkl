@@ -1,6 +1,10 @@
 import { writable, derived, get } from 'svelte/store';
 import type { AccountDisplay, LoadingState, ErrorState } from '../types';
 import { WalletService } from '../services/wallet.service';
+// Import directly from the specific function to avoid circular dependency
+import { getYakklCurrentlySelected, setYakklCurrentlySelectedStorage } from './account-utils';
+import { walletCacheStore } from './wallet-cache.store';
+import { tokenStore } from './token.store';
 
 interface AccountState {
   accounts: AccountDisplay[];
@@ -11,7 +15,7 @@ interface AccountState {
 
 function createAccountStore() {
   const walletService = WalletService.getInstance();
-  
+
   const { subscribe, set, update } = writable<AccountState>({
     accounts: [],
     currentAccount: null,
@@ -21,7 +25,7 @@ function createAccountStore() {
 
   return {
     subscribe,
-    
+
     async loadAccounts() {
       update(state => ({
         ...state,
@@ -29,7 +33,7 @@ function createAccountStore() {
       }));
 
       const response = await walletService.getAccounts();
-      
+
       if (response.success && response.data) {
         // Update accounts but don't fetch balances here - let token store handle that
         update(state => ({
@@ -38,19 +42,34 @@ function createAccountStore() {
           loading: { isLoading: false },
           error: { hasError: false }
         }));
-        
+
         // Load current account if not set
         const currentResponse = await walletService.getCurrentAccount();
         if (currentResponse.success && currentResponse.data) {
           // Fetch real balance for current account
+          console.log('[AccountStore] Fetching balance for:', currentResponse.data.address);
           const balanceResponse = await walletService.getBalance(currentResponse.data.address);
+          console.log('[AccountStore] Balance response:', balanceResponse);
           if (balanceResponse.success && balanceResponse.data) {
-            // Convert from Wei to ETH
-            const { ethers } = await import('ethers-v6');
-            const balanceInEth = ethers.formatEther(balanceResponse.data);
+            // Balance might already be in ETH format (decimal string) or Wei (bigint/string)
+            let balanceInEth: string;
+            
+            // Check if the balance is already a decimal string (ETH format)
+            if (typeof balanceResponse.data === 'string' && balanceResponse.data.includes('.')) {
+              // Already in ETH format
+              balanceInEth = balanceResponse.data;
+            } else {
+              // Convert from Wei to ETH
+              const { ethers } = await import('ethers-v6');
+              balanceInEth = ethers.formatEther(balanceResponse.data);
+            }
+            
             currentResponse.data.balance = balanceInEth;
+            console.log('[AccountStore] Set balance:', balanceInEth, 'ETH for', currentResponse.data.address);
+          } else {
+            console.error('[AccountStore] Failed to fetch balance:', balanceResponse ? balanceResponse?.error ?? 'No balance response' : 'No balance response');
           }
-          
+
           update(state => ({
             ...state,
             currentAccount: currentResponse.data!
@@ -67,52 +86,73 @@ function createAccountStore() {
 
     async switchAccount(address: string) {
       const response = await walletService.switchAccount(address);
-      
+
       if (response.success) {
         // Find the account first
         const currentState = get({ subscribe });
         const account = currentState.accounts.find(acc => acc.address === address);
-        
+
         if (account) {
           // Fetch fresh balance for the new account
+          console.log('[AccountStore] Switching account - fetching balance for:', address);
           const balanceResponse = await walletService.getBalance(address);
+          console.log('[AccountStore] Switch account balance response:', balanceResponse);
           if (balanceResponse.success && balanceResponse.data) {
-            const { ethers } = await import('ethers-v6');
-            const balanceInEth = ethers.formatEther(balanceResponse.data);
+            // Balance might already be in ETH format (decimal string) or Wei (bigint/string)
+            let balanceInEth: string;
+            
+            // Check if the balance is already a decimal string (ETH format)
+            if (typeof balanceResponse.data === 'string' && balanceResponse.data.includes('.')) {
+              // Already in ETH format
+              balanceInEth = balanceResponse.data;
+            } else {
+              // Convert from Wei to ETH
+              const { ethers } = await import('ethers-v6');
+              balanceInEth = ethers.formatEther(balanceResponse.data);
+            }
+            
             account.balance = balanceInEth;
+            console.log('[AccountStore] Switch account - set balance:', balanceInEth, 'ETH');
+          } else {
+            console.error('[AccountStore] Switch account - failed to fetch balance:', balanceResponse.error);
           }
         }
-        
+
         // Update the current account
         update(state => ({
           ...state,
           currentAccount: account || null
         }));
-        
-        // Persist the selection
+
+        // Persist the selection - walletService.switchAccount already does this
+        // but let's ensure it's done correctly
         try {
-          const { setYakklCurrentlySelectedStorage } = await import('$lib/common/stores');
-          const { getYakklCurrentlySelected } = await import('$lib/common/stores');
-          
           // Get current selection data
           const currentlySelected = await getYakklCurrentlySelected();
-          if (currentlySelected && currentlySelected.data && typeof currentlySelected.data === 'object' && 'account' in currentlySelected.data && currentlySelected.data.account) {
-            // Update the account address in the nested structure
-            currentlySelected.data.account.address = address;
-            await setYakklCurrentlySelectedStorage(currentlySelected);
+          if (currentlySelected) {
+            // Update the account address in shortcuts (the correct path)
+            if (currentlySelected.shortcuts) {
+              currentlySelected.shortcuts.address = address;
+              await setYakklCurrentlySelectedStorage(currentlySelected);
+              console.log('[AccountStore] Persisted account switch to:', address);
+            } else {
+              console.warn('[AccountStore] No shortcuts object in currentlySelected, cannot persist account switch');
+            }
           }
         } catch (error) {
           console.error('[AccountStore] Failed to persist account switch:', error);
         }
-        
+
+        // Update wallet cache store with the new active account
+        walletCacheStore.switchAccount(address);
+
         // Notify token store to refresh immediately by importing and calling refresh
         // This ensures immediate update rather than waiting for subscription
-        const { tokenStore } = await import('./token.store');
         tokenStore.refresh(true);
-        
+
         return true;
       }
-      
+
       return false;
     },
 
@@ -149,7 +189,7 @@ function createAccountStore() {
       }));
 
       const response = await walletService.removeAccount(address);
-      
+
       if (response.success) {
         // Remove from local state
         update(s => ({
@@ -179,8 +219,8 @@ function createAccountStore() {
         // Update in local state
         update(state => ({
           ...state,
-          accounts: state.accounts.map(acc => 
-            acc.address === address 
+          accounts: state.accounts.map(acc =>
+            acc.address === address
               ? { ...acc, username: name, ens: name }
               : acc
           ),
@@ -193,7 +233,7 @@ function createAccountStore() {
 
         // TODO: Persist to storage
         // await walletService.updateAccountName(address, name);
-        
+
         return true;
       } catch (error) {
         update(state => ({
@@ -217,17 +257,17 @@ function createAccountStore() {
       }));
 
       const response = await walletService.importPrivateKey(privateKey, name, alias);
-      
+
       if (response.success && response.data) {
         // Reload accounts to get the new one
         await accountStore.loadAccounts();
-        
+
         update(state => ({
           ...state,
           loading: { isLoading: false },
           error: { hasError: false }
         }));
-        
+
         return response.data;
       } else {
         update(state => ({

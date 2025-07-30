@@ -1,3 +1,6 @@
+import type { PlanType } from '$lib/common/types';
+import type { BigNumberish } from '$lib/common/bignumber';
+
 // Re-export existing types from main lib
 export type {
   YakklAccount,
@@ -18,14 +21,14 @@ export interface AccountDisplay {
   username?: string;
   avatar?: string | null;
   isActive: boolean;
-  balance?: string;
+  balance?: string;               // Keep as string for display
   plan?: PlanType;
   // Additional properties for account management
   connectedDomains?: string[];
-  value?: number;
+  value?: BigNumberish;           // Changed from number - CRITICAL
   createdAt?: string;
   createDate?: string;
-  chainIds?: number[];
+  chainIds?: number[];            // Stay number (chain IDs are integers)
   accountType?: string;
   tags?: string[];
   isPrimary?: boolean;
@@ -46,25 +49,26 @@ export interface ChainDisplay {
     name: string;
     symbol: string;
     decimals: number;
-    price?: number;
+    price?: BigNumberish;         // Changed from number
   };
 }
 
 export interface TokenDisplay {
-  chainId?: number;
+  chainId?: number;               // Stay number (chain ID is integer)
   address?: string;
+  isNative?: boolean;
   symbol: string;
   name: string;
-  decimals: number;
+  decimals: number;               // Stay number (decimal places count)
   logo?: string;
-  quantity?: string;
-  balance?: string | number;
-  value?: string | number;
-  price?: number;
+  quantity?: string;              // Keep as string - good for display
+  balance?: string | BigNumberish; // Accept both for compatibility, prefer BigNumberish
+  value?: string | BigNumberish;   // Accept both for compatibility, prefer BigNumberish
+  price?: BigNumberish;           // Changed from number - CRITICAL
   chainName?: string;
   icon?: string;
-  qty?: number;
-  change24h?: number;
+  qty?: BigNumberish;             // Changed from number - CRITICAL
+  change24h?: BigNumberish;       // Changed from number for precision
   color?: string;
 }
 
@@ -94,14 +98,7 @@ export interface TransactionDisplay {
   functionName?: string;
   methodId?: string;
   txreceipt_status?: string;
-}
-
-export enum PlanType {
-  Basic = 'basic_member',
-  FoundingMember = 'founding_member',
-  EarlyAdopter = 'early_adopter',
-  Pro = 'yakkl_pro',
-  Enterprise = 'enterprise'
+  chainId?: number; // Added for multi-chain support
 }
 
 export interface UserPlan {
