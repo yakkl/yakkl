@@ -1,7 +1,5 @@
 // listeners/backgroundListeners.ts
 import { ListenerManager } from '$lib/managers/ListenerManager';
-import browser from 'webextension-polyfill';
-import type { Runtime } from 'webextension-polyfill';
 import { initializeBlacklistDatabase } from '$contexts/background/extensions/chrome/database';
 import { yakklStoredObjects } from '$lib/models/dataModels';
 import { setObjectInLocalStorage } from '$lib/common/storage';
@@ -20,7 +18,8 @@ import { log } from '$lib/managers/Logger';
 import { openWindows } from '$contexts/background/extensions/chrome/ui';
 import { onUnifiedMessageListener } from './unifiedMessageListener';
 import { isYakklPage } from '$lib/common/isYakklPage';
-import { browser_ext } from '$lib/common/environment';
+import type { Runtime } from 'webextension-polyfill';
+import browser from 'webextension-polyfill';
 
 type RuntimePlatformInfo = Runtime.PlatformInfo;
 
@@ -77,18 +76,18 @@ export async function onInstalledUpdatedListener(
 
 			await browser.runtime.setUninstallURL(
 				encodeURI(
-					'https://yakkl.com?userName=&utm_source=yakkl&utm_medium=extension&utm_campaign=uninstall&utm_content=' +
+					'https://yakkl.com?username=&utm_source=yakkl&utm_medium=extension&utm_campaign=uninstall&utm_content=' +
 						`${VERSION}` +
 						'&utm_term=extension'
 				)
 			);
-			await setLocalObjectStorage(platform, false);
+			await setLocalObjectStorage(platform, true); // Enable upgrades on install
 		}
 
 		if (details && details.reason === 'update') {
 			if (details.previousVersion !== browser.runtime.getManifest().version) {
 				await initializeBlacklistDatabase(true); // This will clear the db and then import again
-				await setLocalObjectStorage(platform, false); // After 1.0.0, upgrades will be handled.
+				await setLocalObjectStorage(platform, true); // Enable upgrades on update
 			}
 		}
 	} catch (e) {
@@ -154,18 +153,18 @@ export async function onYakklPageListener(
 
 			case 'CLEAR_ALL_ENHANCED_ALERTS': {
 				// Clear all notifications at once
-				if (browser_ext?.notifications) {
-					await browser_ext.notifications.getAll().then((notifications: Record<string, any>) => {
+				if (browser?.notifications) {
+					await browser.notifications.getAll().then((notifications: Record<string, any>) => {
 						Object.keys(notifications).forEach((id) => {
-							browser_ext.notifications.clear(id);
+							browser.notifications.clear(id);
 						});
 					});
 				}
 
 				// Clear badge and icon
-				if (browser_ext?.action) {
-					await browser_ext.action.setBadgeText({ text: '' });
-					await browser_ext.action.setIcon({
+				if (browser?.action) {
+					await browser.action.setBadgeText({ text: '' });
+					await browser.action.setIcon({
 						path: {
 							16: '/images/logoBullFav16x16.png',
 							32: '/images/logoBullFav32x32.png',

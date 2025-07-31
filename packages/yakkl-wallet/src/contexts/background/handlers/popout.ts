@@ -12,10 +12,11 @@ export const popoutHandlers = new Map<string, MessageHandlerFunc>([
   ['popout_with_auth', async (payload): Promise<MessageResponse> => {
     try {
       log.info('popout_with_auth handler called', false, payload);
-      
+
       // Use the showPopup function that handles authentication checks
-      await showPopup('', '0');
-      
+      // Mark as external since this is a user-initiated popup request
+      await showPopup('', '0', 'external');
+
       log.info('popout_with_auth handler completed successfully');
       return { success: true };
     } catch (error) {
@@ -31,7 +32,8 @@ export const popoutHandlers = new Map<string, MessageHandlerFunc>([
  */
 export async function handlePopoutWithAuth(): Promise<void> {
   try {
-    await showPopup('', '0');
+    // Mark as external since this is a user-initiated popup request
+    await showPopup('', '0', 'external');
   } catch (error) {
     log.error('handlePopoutWithAuth failed:', false, error);
     throw error;

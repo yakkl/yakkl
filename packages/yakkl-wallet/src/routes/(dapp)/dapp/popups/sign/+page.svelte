@@ -22,7 +22,7 @@
 	} from '$lib/common/constants';
 	import { onMount } from 'svelte';
 	import { log } from '$lib/common/logger-wrapper';
-	import type { Runtime } from 'webextension-polyfill';
+	// import type { Runtime } from 'webextension-polyfill';
 	import type { JsonRpcResponse, SessionInfo } from '$lib/common/interfaces';
 	import type { BackgroundPendingRequest } from '$lib/extensions/chrome/background';
 	import Confirmation from '$lib/components/Confirmation.svelte';
@@ -43,7 +43,7 @@
 	import type { Wallet } from '$lib/managers/Wallet';
 	import { formatEther } from '$lib/utilities/utilities';
 
-	type RuntimePort = Runtime.Port | undefined;
+	// type RuntimePort = Runtime.Port | undefined;
 
 	let currentlySelected: YakklCurrentlySelected;
 	let yakklMiscStore: string;

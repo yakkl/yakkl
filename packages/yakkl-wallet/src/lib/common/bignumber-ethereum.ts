@@ -1,5 +1,13 @@
 // EthereumBigNumber.ts
 import { BigNumber, CurrencyCode, type BigNumberish } from './bignumber';
+import Decimal from 'decimal.js';
+
+export interface FiatFormatOptions {
+	locale?: string;
+	decimalPlaces?: number;
+	currencyStyle?: 'symbol' | 'code' | 'name'; // Choose how to display currency
+	smallThreshold?: number; // Below this, display "< $0.01"
+}
 
 export class EthereumBigNumber extends BigNumber {
 	// Instance methods
@@ -67,7 +75,7 @@ export class EthereumBigNumber extends BigNumber {
 		return new EthereumBigNumber(BigNumber.toBigInt(value));
 	}
 
-	static fromWei(value: BigNumberish): EthereumBigNumber {
+	static fromWeiToEth(value: BigNumberish): EthereumBigNumber {
 		const weiValue = EthereumBigNumber.from(value);
 		const ethValue = weiValue.div(BigInt('1000000000000000000'));
 		return new EthereumBigNumber(ethValue.toString());
@@ -160,6 +168,11 @@ export class EthereumBigNumber extends BigNumber {
 		return new EthereumBigNumber(weiValue / BigInt('1000000000000000000'));
 	}
 
+	static toDecimalEther(value: BigNumberish): Decimal {
+		const wei = EthereumBigNumber.toBigInt(value) ?? BigInt(0);
+		return new Decimal(wei.toString()).div('1e18');
+	}
+
 	static toEtherString(value: BigNumberish): string {
 		const weiValue = EthereumBigNumber.from(value).toBigInt() ?? BigInt(0);
 		const etherValue = weiValue / BigInt('1000000000000000000');
@@ -173,26 +186,95 @@ export class EthereumBigNumber extends BigNumber {
 		return etherString;
 	}
 
-	static toFiat(value: BigNumberish, price: number): number {
-		const etherValue = parseFloat(EthereumBigNumber.toEtherString(value));
-		if (isNaN(etherValue)) {
-			throw new Error('Invalid BigNumberish value');
-		}
-		return etherValue * price;
+	// static toFiat(value: BigNumberish, price: number): number {
+	// 	const etherValue = parseFloat(EthereumBigNumber.toEtherString(value));
+	// 	if (isNaN(etherValue)) {
+	// 		throw new Error('Invalid BigNumberish value');
+	// 	}
+	// 	return etherValue * price;
+	// }
+
+	static toFiat(value: BigNumberish, price: number | string | BigNumberish): number {
+		const ether = this.toDecimalEther(value);
+		const fiat = ether.times(new Decimal(price.toString()));
+		return fiat.toNumber();
+	}
+
+	static toFiatString(value: BigNumberish, price: number, decimals = 2): string {
+		const fiat = EthereumBigNumber.toFiat(value, price);
+		return fiat.toFixed(decimals);
 	}
 
 	static toFormattedFiat(
 		value: BigNumberish,
-		price: number,
+		price: BigNumberish,
 		currencyCode: CurrencyCode,
-		locale: string = ''
+		locale: string = 'en-US',
+		decimalPlaces: number = 2
 	): string {
-		const fiatValue = EthereumBigNumber.toFiat(value, price);
-		const formatter = new Intl.NumberFormat(locale || undefined, {
+		const wei = EthereumBigNumber.toBigInt(value);
+		if (wei === null) {
+			throw new Error('Invalid BigNumberish token value');
+		}
+
+		const ether = new Decimal(wei.toString()).div('1e18');
+		const decimalPrice = new Decimal(price.toString());
+		const fiatValue = ether.times(decimalPrice);
+
+		const formatter = new Intl.NumberFormat(locale, {
 			style: 'currency',
-			currency: currencyCode
+			currency: currencyCode,
+			minimumFractionDigits: decimalPlaces,
+			maximumFractionDigits: decimalPlaces
 		});
-		return formatter.format(fiatValue);
+
+		return formatter.format(fiatValue.toNumber());
+	}
+
+	static toFormattedFiat2(
+		value: BigNumberish,
+		price: BigNumberish,
+		currencyCode: CurrencyCode,
+		options: FiatFormatOptions = {}
+	): string {
+		const {
+			locale = 'en-US',
+			decimalPlaces = 2,
+			currencyStyle = 'symbol',
+			smallThreshold = 0.01
+		} = options;
+
+		const wei = EthereumBigNumber.toBigInt(value);
+		if (wei === null) {
+			throw new Error('Invalid BigNumberish token value');
+		}
+
+		const ether = new Decimal(wei.toString()).div('1e18');
+		const decimalPrice = new Decimal(price.toString());
+		const fiatValue = ether.times(decimalPrice);
+
+		// Handle small values
+		if (fiatValue.lessThan(smallThreshold)) {
+			const smallFormatted = new Intl.NumberFormat(locale, {
+				style: 'currency',
+				currency: currencyCode,
+				currencyDisplay: currencyStyle,
+				minimumFractionDigits: decimalPlaces,
+				maximumFractionDigits: decimalPlaces
+			}).format(smallThreshold);
+
+			return `< ${smallFormatted}`;
+		}
+
+		const formatter = new Intl.NumberFormat(locale, {
+			style: 'currency',
+			currency: currencyCode,
+			currencyDisplay: currencyStyle,
+			minimumFractionDigits: decimalPlaces,
+			maximumFractionDigits: decimalPlaces
+		});
+
+		return formatter.format(fiatValue.toNumber());
 	}
 
 	static toHex(value: BigNumberish): string {

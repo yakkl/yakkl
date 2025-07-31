@@ -1,6 +1,7 @@
 import type { MessageHandlerFunc, MessageResponse } from './MessageHandler';
 import browser from 'webextension-polyfill';
-import { SingletonWindowManager } from '$lib/managers/SingletonWindowManager';
+// import { SingletonWindowManager } from '$lib/managers/SingletonWindowManager';
+import { log } from '$lib/common/logger-wrapper'
 // Added: Import helper function to handle popout with authentication checks
 import { handlePopoutWithAuth } from './popout';
 
@@ -70,14 +71,14 @@ export const windowsHandlers = new Map<string, MessageHandlerFunc>([
       // This fixes the issue where popup window wouldn't reopen after closing
       // The helper uses showPopup from ui.ts instead of calling SingletonWindowManager directly
       await handlePopoutWithAuth();
-      
+
       // Original code preserved below (commented out):
       // const windowManager = SingletonWindowManager.getInstance();
       // await windowManager.showPopup('', '0');
-      
+
       return { success: true };
     } catch (error) {
-      console.error('Failed to open popup window:', error);
+      log.error('Failed to open popup window:', false, error);
       return { success: false, error: (error as Error).message };
     }
   }]

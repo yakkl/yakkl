@@ -1,17 +1,17 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import ImportOption from '$lib/components/v1/ImportOption.svelte';
-  import ImportPrivateKey from '$lib/components/v1/ImportPrivateKey.svelte';
-  import ImportPhrase from '$lib/components/v1/ImportPhrase.svelte';
-  import ImportWatchAccount from '$lib/components/v1/ImportWatchAccount.svelte';
+  import ImportOption from '$lib/components/ImportOption.svelte';
+  import ImportPrivateKey from '$lib/components/ImportPrivateKey.svelte';
+  import ImportPhrase from '$lib/components/ImportPhrase.svelte';
+  import ImportWatchAccount from '$lib/components/ImportWatchAccount.svelte';
   import { ChevronLeft, Key, FileText, Eye } from 'lucide-svelte';
   import { sessionManager } from '$lib/managers/SessionManager';
-  
+
   let importType = $state<'private-key' | 'seed-phrase' | 'watch' | null>(null);
   let showModal = $state(false);
   let pageReady = $state(false);
-  
+
   // Check authentication on mount
   onMount(async () => {
     // Check if user is authenticated
@@ -23,7 +23,7 @@
     }
     pageReady = true;
   });
-  
+
   function handleBack() {
     if (importType) {
       importType = null;
@@ -32,7 +32,7 @@
       goto('/accounts');
     }
   }
-  
+
   function handleImportSuccess() {
     // Go to accounts page to see the new account
     goto('/accounts');
@@ -49,10 +49,10 @@
       <ChevronLeft class="w-5 h-5" />
       Back
     </button>
-    
+
     {#if !importType}
       <h1 class="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100">Import Account</h1>
-      
+
       <div class="space-y-4">
         <button
           onclick={() => {
@@ -69,7 +69,7 @@
             <p class="text-sm text-gray-600 dark:text-gray-400">Use your 12 or 24 word recovery phrase</p>
           </div>
         </button>
-        
+
         <button
           onclick={() => {
             importType = 'private-key';
@@ -85,7 +85,7 @@
             <p class="text-sm text-gray-600 dark:text-gray-400">Import an account using its private key</p>
           </div>
         </button>
-        
+
         <button
           onclick={() => {
             importType = 'watch';
@@ -102,7 +102,7 @@
           </div>
         </button>
       </div>
-      
+
       <div class="mt-8 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
         <p class="text-sm text-yellow-800 dark:text-yellow-200">
           <strong>Security Note:</strong> Never share your seed phrase or private key with anyone. YAKKL will never ask for them outside of this import process.
@@ -115,7 +115,7 @@
 
 <!-- Import Modals - Rendered outside main content -->
 {#if importType === 'seed-phrase' && showModal}
-  <ImportPhrase 
+  <ImportPhrase
     bind:show={showModal}
     onComplete={handleImportSuccess}
     onCancel={() => {
@@ -126,7 +126,7 @@
 {/if}
 
 {#if importType === 'private-key' && showModal}
-  <ImportPrivateKey 
+  <ImportPrivateKey
     bind:show={showModal}
     onComplete={handleImportSuccess}
     onCancel={() => {
@@ -137,7 +137,7 @@
 {/if}
 
 {#if importType === 'watch' && showModal}
-  <ImportWatchAccount 
+  <ImportWatchAccount
     bind:show={showModal}
     onComplete={handleImportSuccess}
     onCancel={() => {

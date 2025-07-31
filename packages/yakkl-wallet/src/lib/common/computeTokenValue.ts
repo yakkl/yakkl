@@ -1,16 +1,21 @@
 import type { TokenData } from './interfaces';
+import { EthereumBigNumber } from './bignumber-ethereum';
+import type { BigNumberish } from './bignumber';
 
 /**
- * Computes the balance and value of a token.
+ * Computes the balance and value of a token using BigNumber precision.
  * @param token The token data object
- * @returns { balance: number, value: number }
+ * @returns { balance: BigNumberish, value: BigNumberish }
  */
+export function computeTokenValue(token: TokenData): { balance: BigNumberish; value: BigNumberish } {
+	// Use EthereumBigNumber for precise calculations
+	const balance = token?.balance ? EthereumBigNumber.from(token.balance) : EthereumBigNumber.from(0);
 
-export function computeTokenValue(token: TokenData): { balance: number; value: number } {
-	let balance = token?.balance ? Number(token.balance) : 0; // Direct conversion
+	const price = token?.price?.price ? EthereumBigNumber.from(token.price.price) : EthereumBigNumber.from(0);
+	const value = balance.mul(price);
 
-	const price = token?.price?.price ?? 0;
-	const value = balance * price;
-
-	return { balance, value };
+	return {
+		balance: balance.toBigInt(),
+		value: value.toBigInt()
+	};
 }

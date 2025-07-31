@@ -1,4 +1,4 @@
-import { getBrowserExt } from '$lib/common/environment';
+import { browser_ext } from '$lib/common/environment';
 import { log } from '$lib/common/logger-wrapper';
 import { checkExtensionConnection, ConnectionState } from '$lib/common/extensionConnection';
 
@@ -9,8 +9,8 @@ import { checkExtensionConnection, ConnectionState } from '$lib/common/extension
 // });
 
 export async function safeClientSendMessage<T = any>(
-	message: any, 
-	timeoutMs = 3000, 
+	message: any,
+	timeoutMs = 3000,
 	retries = 3,
 	retryDelay = 100
 ): Promise<T> {
@@ -18,12 +18,12 @@ export async function safeClientSendMessage<T = any>(
 
 	// Check connection state before attempting to send
 	const connectionState = await checkExtensionConnection();
-	
+
 	if (connectionState === ConnectionState.INVALID_CONTEXT) {
 		log.debug('Extension context is invalid, skipping message send', false, { message });
 		return null as any;
 	}
-	
+
 	if (connectionState === ConnectionState.DISCONNECTED) {
 		log.debug('Extension is disconnected, will attempt with retries', false, { message });
 	}
@@ -47,12 +47,9 @@ export async function safeClientSendMessage<T = any>(
 				}, timeoutMs);
 
 				try {
-					const browserExt = getBrowserExt();
-					if (!browserExt) {
-						throw new Error('Browser extension API not available');
-					}
-					
-					browserExt.runtime
+          if (!browser_ext) return null;
+
+					browser_ext.runtime
 						.sendMessage(message)
 						.then((response) => {
 							if (!isSettled) {
@@ -77,35 +74,35 @@ export async function safeClientSendMessage<T = any>(
 			});
 		} catch (err: any) {
 			lastError = err;
-			
+
 			// Check if it's a connection error
-			if (err?.message?.includes('Could not establish connection') || 
+			if (err?.message?.includes('Could not establish connection') ||
 				err?.message?.includes('Receiving end does not exist') ||
 				err?.message?.includes('Extension context invalidated')) {
 				// Log as debug instead of error for expected connection issues
 				log.debug('Connection error encountered', false, { error: err?.message, attempt: attempt + 1 });
-				
+
 				// If this isn't the last attempt, wait before retrying
 				if (attempt < retries - 1) {
-					await new Promise(resolve => 
+					await new Promise(resolve =>
 						setTimeout(resolve, retryDelay * Math.pow(2, attempt)) // Exponential backoff
 					);
 					continue;
 				}
 			}
-			
+
 			// For other errors, don't retry
 			throw err;
 		}
 	}
 
 	// If we've exhausted all retries, log and return null for connection errors
-	if (lastError?.message?.includes('Could not establish connection') || 
+	if (lastError?.message?.includes('Could not establish connection') ||
 		lastError?.message?.includes('Receiving end does not exist')) {
 		log.debug('Message send failed after all retries due to connection error', false, { message, error: lastError?.message });
 		return null as any;
 	}
-	
+
 	// For other errors, throw the last error
 	throw lastError;
 }

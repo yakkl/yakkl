@@ -32,7 +32,7 @@ import type { Provider } from './Provider';
 import type { AbstractContract } from './Contract';
 import { CoinbasePriceProvider } from './providers/price/coinbase/CoinbasePriceProvider';
 import type { ethers as ethersv6 } from 'ethers-v6';
-import { log } from './Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { GasProviderFactory } from './GasProviderFactory';
 
 export interface ContractInterface {

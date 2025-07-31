@@ -27,7 +27,7 @@
 
 	onMount(async () => {
 		settings = await getSettings();
-		isProUser = shouldShowProFeatures(settings?.plan?.type || PlanType.BASIC_MEMBER);
+		isProUser = shouldShowProFeatures(settings?.plan?.type || PlanType.EXPLORER_MEMBER);
 	});
 
 	function handleRestore() {

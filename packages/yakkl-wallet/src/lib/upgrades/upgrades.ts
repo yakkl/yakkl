@@ -1,169 +1,78 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-debugger */
-// Upgrades for the app...
-import {
-	getObjectFromLocalStorage,
-	removeObjectFromLocalStorage,
-	setObjectInLocalStorage
-} from '$lib/common/storage';
-import { AccessSourceType, PromoClassificationType, type Settings } from '$lib/common';
-import { log } from '$lib/managers/Logger';
+// Upgrades for the app - now using UpgradeMigrationManager for systematic upgrades
 
-// This list gets updated with each new version
-const yakklUpdateStorage = [
-	'preferences',
-	'profile',
-	'settings',
-	'yakklAccounts',
-	'yakklBookmarkedArticles',
-	'yakklChats',
-	'yakklConnectedDomains',
-	'yakklContacts',
-	'yakklCombinedTokens',
-	'yakklCurrentlySelected',
-	'yakklPrimaryAccounts',
-	'yakklRegisteredData',
-	'yakklSecurity',
-	'yakklTokenData',
-	'yakklTokenDataCustom',
-	'yakklWalletBlockchains',
-	'yakklWalletProviders',
-	'yakklWatchList'
+import { log } from '$lib/common/logger-wrapper';
+import UpgradeMigrationManager from './UpgradeMigrationManager';
 
-	// NOTE: Add new storage areas here
-];
+// This list gets updated with each new version - moved to UpgradeMigrationManager
+// NOTE: Add new storage areas in UpgradeMigrationManager.ts
 
-// NOTE: This file changes with each version upgrade!!
-
-export function upgrade(fromVersion: string, toVersion: string) {
+/**
+ * Main upgrade function - now uses the systematic UpgradeMigrationManager
+ */
+export async function upgrade(fromVersion: string, toVersion: string): Promise<void> {
 	try {
-		// This should cycle through all the versions and upgrade each one or return if already upgraded
-		// if (checkVersion(toVersion)) {
-		//   console.log(`Already upgraded to ${toVersion}`);
-		//   return
-		// }
+		log.info(`Starting upgrade from ${fromVersion} to ${toVersion}`);
 
-		latest(toVersion);
-		log.info(`Upgraded from ${fromVersion} to ${toVersion}`);
-	} catch (e) {
-		log.warn(e);
+		const migrationManager = UpgradeMigrationManager.getInstance();
+		await migrationManager.upgradeAllData(fromVersion, toVersion);
+
+		log.info(`Successfully upgraded from ${fromVersion} to ${toVersion}`);
+	} catch (error) {
+		log.error('Upgrade failed:', false, error);
+		throw error;
 	}
 }
 
-// This function will be archived on the next upgrade and new one will be created!!!
-async function latest(toVersion: string) {
-	// Upgrade latest
-	// We need to change networks from integer to hex values
-	// yakklAccount - change chainId to number
-	// yakklCurrentlySelected - change all chainId values to number
-	// yakklConnectedDomains - change the addresses array to hold objects with chainId, network, and address
-
-	// const yakklPreferences: Preferences = await getObjectFromLocalStorage('preferences') as Preferences;
-	// Create backup!
-	// setObjectInLocalStorage('preferencesBackup', yakklPreferences );
-
-	// const yakklUpdatedPreferences = yakklPreferences;
-
-	// Update if needed
-	// if (yakklPreferences.wallet !== undefined) {
-	//   yakklUpdatedPreferences.wallet = yakklPreferences.wallet;
-	//   yakklUpdatedPreferences.wallet.title = DEFAULT_TITLE;
-	//   // delete yakklUpdatedPreferences.wallet;
-	//   setObjectInLocalStorage('preferences', yakklUpdatedPreferences );
-	// }
-
-	console.log('upgrading settings');
-	console.log('toVersion', toVersion);
-
-	const yakklSettings: Settings = (await getObjectFromLocalStorage('settings')) as Settings;
-	setObjectInLocalStorage('settingsBackup', yakklSettings); // Create backup
-
-	if (yakklSettings) {
-		if (yakklSettings.plan.source === undefined) {
-			yakklSettings.plan.source = AccessSourceType.STANDARD;
-		}
-		if (yakklSettings.plan.promo === undefined) {
-			yakklSettings.plan.promo = PromoClassificationType.NONE;
-		}
-		if (yakklSettings.plan.trialEndDate === undefined) {
-			yakklSettings.plan.trialEndDate = '';
-		}
-		if (yakklSettings.trialCountdownPinned === undefined) {
-			yakklSettings.trialCountdownPinned = false;
-		}
-		yakklSettings.previousVersion = yakklSettings.version;
-		yakklSettings.version = toVersion;
-		setObjectInLocalStorage('settings', yakklSettings);
-	}
-
-	console.log('settings upgraded');
-	console.log('yakklSettings', yakklSettings);
-	console.log('toVersion', toVersion);
-
-	// Now remove the backups
-	removeBackups();
-
-	updateVersion(toVersion);
-}
-
-// All have to be true to not be upgraded
-export async function checkVersion(toVersion: string) {
+/**
+ * Check if upgrade is needed
+ */
+export async function checkVersion(toVersion: string): Promise<boolean> {
 	try {
-		for (let index = 0; index < yakklUpdateStorage.length; index++) {
-			const dataFile = yakklUpdateStorage[index];
-			const data = await getObjectFromLocalStorage(dataFile);
-			// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-			//@ts-ignore
-			if (data?.version && data.version !== toVersion) {
-				return false;
-			}
-		}
-		return true;
-	} catch (e) {
-		log.warn(e);
+		const migrationManager = UpgradeMigrationManager.getInstance();
+		const upgradeNeeded = await migrationManager.checkIfUpgradeNeeded(toVersion);
+		return !upgradeNeeded; // Return true if NO upgrade needed (opposite of checkIfUpgradeNeeded)
+	} catch (error) {
+		log.warn('Error checking version:', false, error);
+		return false; // Assume upgrade needed if we can't check
 	}
 }
 
-export async function updateVersion(toVersion: string) {
+/**
+ * @deprecated - Use UpgradeMigrationManager.updateAllVersions() instead
+ * This function is kept for backward compatibility
+ */
+export async function updateVersion(toVersion: string): Promise<void> {
 	try {
-		if (!toVersion) return;
-
-		for (let index = 0; index < yakklUpdateStorage.length; index++) {
-			const dataFile = yakklUpdateStorage[index].toString();
-			let data: any = await getObjectFromLocalStorage(dataFile);
-
-			if (data) {
-				if (Array.isArray(data)) {
-					data = data.map((item) => {
-						return {
-							...item,
-							version: toVersion
-						};
-					});
-				} else {
-					data.version = toVersion; // Created issue #YB-64 due to upgrade from 0.29.5 to 0.30.5 see for more details
-				}
-
-				await setObjectInLocalStorage(dataFile, data);
-			} else {
-				log.info(`No data found for ${dataFile}. May not have been initialized yet.`);
-			}
-		}
-	} catch (e) {
-		log.warn(e);
+		const migrationManager = UpgradeMigrationManager.getInstance();
+		await migrationManager.updateAllVersions(toVersion);
+	} catch (error) {
+		log.warn('Error updating version:', false, error);
 	}
 }
 
-// Can optimize this by using a loop later
-export async function removeBackups() {
+/**
+ * @deprecated - Use UpgradeMigrationManager.cleanupBackups() instead
+ * This function is kept for backward compatibility
+ */
+export async function removeBackups(): Promise<void> {
 	try {
-		removeObjectFromLocalStorage('settingsBackup');
-		// removeObjectFromLocalStorage('yakklNetworksBackup');
-		// removeObjectFromLocalStorage('yakklCurrentlySelectedBackup');
-		// removeObjectFromLocalStorage('yakklAccountsBackup');
-		// removeObjectFromLocalStorage('yakklProvidersBackup');
-		// removeObjectFromLocalStorage('yakklConnectedDomainsBackup');
-	} catch (e) {
-		log.warn(e);
+		const migrationManager = UpgradeMigrationManager.getInstance();
+		await migrationManager.cleanupBackups();
+	} catch (error) {
+		log.warn('Error removing backups:', false, error);
 	}
+}
+
+/**
+ * @deprecated - This function is replaced by the migration system
+ * All upgrade logic should now be added as migrations in UpgradeMigrationManager
+ */
+async function latest(toVersion: string): Promise<void> {
+	log.warn('latest() function is deprecated - upgrade logic moved to UpgradeMigrationManager');
+
+	// For safety, still run the new migration system
+	const migrationManager = UpgradeMigrationManager.getInstance();
+	await migrationManager.upgradeAllData('0.0.0', toVersion); // Run all migrations
 }

@@ -6,9 +6,9 @@
 	import { log } from '$lib/common/logger-wrapper';
 	import type { Runtime } from 'webextension-polyfill';
 
-	type RuntimePort = Runtime.Port;
+	// type RuntimePort = Runtime.Port;
 
-	let port: RuntimePort;
+	let port: Runtime.Port;
 	let isPortDisconnected = false;
 
 	onMount(async () => {

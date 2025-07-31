@@ -21,7 +21,7 @@ import { browser_ext } from './environment';
 import { ethers as ethersv6 } from 'ethers-v6';
 import { get } from 'svelte/store';
 import { log } from '$lib/managers/Logger';
-import type { Runtime } from 'webextension-polyfill';
+// import type { Runtime } from 'webextension-polyfill';
 
 // Global flag to track extension context validity
 let extensionContextValid = true;
@@ -109,7 +109,7 @@ export async function isProLevel(): Promise<boolean> {
 
 export async function isStandard(): Promise<boolean> {
 	const settings = await getSettings();
-	return settings?.plan.type === PlanType.BASIC_MEMBER;
+	return settings?.plan.type === PlanType.EXPLORER_MEMBER;
 }
 
 export async function setRegisteredType(type: PlanType): Promise<void> {
@@ -184,7 +184,7 @@ export function normalizeUserPlan(settings: Settings): Settings {
 			...settings,
 			plan: {
 				...settings.plan,
-				type: PlanType.BASIC_MEMBER,
+				type: PlanType.EXPLORER_MEMBER,
 				source: AccessSourceType.STANDARD,
 				trialEndDate: null,
 				promo: null,
@@ -245,12 +245,11 @@ export function safeRuntimeCall<T>(callback: () => T, fallback?: T): T | undefin
 }
 
 export async function safeSendMessage<T>(
-	message: any,
-	options?: Runtime.SendMessageOptionsType
+	message: any
 ): Promise<T | null> {
 	return safeRuntimeCall(async () => {
 		try {
-			return browser_ext.runtime.sendMessage(message, options);
+			return browser_ext.runtime.sendMessage(message);
 		} catch (error: any) {
 			if (error.message?.includes('receiving end does not exist')) {
 				console.warn('Message receiver not available');

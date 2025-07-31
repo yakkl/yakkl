@@ -1,12 +1,13 @@
 /**
  * Shamir's Secret Sharing Manager
- * 
+ *
  * This is a PUBLIC implementation placeholder.
  * The real implementation with cryptographic functions exists in yakkl-security package.
  * This file will be overlaid during build by the security copy script.
  */
 
 import { log } from '$lib/common/logger-wrapper';
+import { VERSION } from '$lib/common/constants';
 
 export interface ShamirShard {
   index: number;
@@ -35,8 +36,8 @@ export interface ShamirResult {
  * Public placeholder - real implementation in yakkl-security
  */
 export class ShamirSecretManager {
-  private static readonly VERSION = '1.0.0';
-  
+  // private static readonly VERSION = '1.0.0';
+
   /**
    * Split a secret into shards using Shamir's Secret Sharing
    * @param secret The secret to split (Emergency Kit data)

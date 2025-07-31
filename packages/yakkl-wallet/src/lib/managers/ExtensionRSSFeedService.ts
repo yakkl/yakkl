@@ -90,13 +90,14 @@ export class ExtensionRSSFeedService {
 	// Method to clear specific cached feeds
 	async clearCachedFeed(feedUrl: string): Promise<void> {
 		try {
+      if (!browser_ext) return;
 			// Clear from memory cache
 			this.feedCache.delete(feedUrl);
-			
+
 			// Clear from extension storage
 			const key = `rss_feed_${btoa(feedUrl)}`;
 			await browser_ext.storage.local.remove(key);
-			
+
 			console.log(`Cleared cached feed for ${feedUrl}`);
 		} catch (error) {
 			console.error('Failed to clear cached feed:', error);
@@ -106,19 +107,20 @@ export class ExtensionRSSFeedService {
 	// Method to clear all RSS feed caches
 	async clearAllCachedFeeds(): Promise<void> {
 		try {
+      if (!browser_ext) return;
 			// Clear memory cache
 			this.feedCache.clear();
-			
+
 			// Get all storage keys
 			const allData = await browser_ext.storage.local.get(null);
 			const rssKeys = Object.keys(allData).filter(key => key.startsWith('rss_feed_'));
-			
+
 			// Remove all RSS feed keys
 			if (rssKeys.length > 0) {
 				await browser_ext.storage.local.remove(rssKeys);
 				console.log(`Cleared ${rssKeys.length} cached RSS feeds`);
 			}
-			
+
 			// Also clear the article cache
 			await browser_ext.storage.local.remove(this.ARTICLE_CACHE_KEY);
 		} catch (error) {
@@ -129,6 +131,7 @@ export class ExtensionRSSFeedService {
 	// Get all cached articles from central store
 	async getCachedArticles(): Promise<RSSItem[]> {
 		try {
+      if (!browser_ext) return;
 			const stored = await browser_ext.storage.local.get(this.ARTICLE_CACHE_KEY);
 			if (stored[this.ARTICLE_CACHE_KEY]) {
 				const cacheData = stored[this.ARTICLE_CACHE_KEY] as { articles: RSSItem[]; lastUpdated: string };
@@ -142,6 +145,7 @@ export class ExtensionRSSFeedService {
 
 	private async storeFeedInExtensionStorage(feedUrl: string, feed: RSSFeed) {
 		try {
+      if (!browser_ext) return;
 			const key = `rss_feed_${btoa(feedUrl)}`;
 			await browser_ext.storage.local.set({ [key]: feed });
 		} catch (error) {
@@ -151,6 +155,7 @@ export class ExtensionRSSFeedService {
 
 	private async loadFeedFromExtensionStorage(feedUrl: string): Promise<RSSFeed | null> {
 		try {
+      if (!browser_ext) return null;
 			const key = `rss_feed_${btoa(feedUrl)}`;
 			const result = await browser_ext.storage.local.get(key);
 			return result[key] as RSSFeed | null;
@@ -192,7 +197,7 @@ export class ExtensionRSSFeedService {
 		html = html.replace(/<link[^>]*rel=["']?preload["']?[^>]*>/gi, '');
 		// Remove prefetch and dns-prefetch as well
 		html = html.replace(/<link[^>]*rel=["']?(prefetch|dns-prefetch)["']?[^>]*>/gi, '');
-		
+
 		const parser = new DOMParser();
 		const doc = parser.parseFromString(html, 'text/html');
 

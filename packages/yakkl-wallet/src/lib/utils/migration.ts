@@ -1,6 +1,6 @@
 import type { YakklAccount, TokenData as Token } from '$lib/common/interfaces';
 import type { AccountDisplay, TokenDisplay, ChainDisplay } from '../types';
-import { PlanType } from '../config/features';
+import { PlanType } from '$lib/common/types';
 
 /**
  * Migration utilities to convert between old and new data formats
@@ -18,7 +18,7 @@ export class MigrationUtils {
       avatar: yakklAccount.avatar || null,
       isActive: true,
       balance: yakklAccount.quantity?.toString() || '0',
-      plan: PlanType.Basic // Default plan for existing users
+      plan: PlanType.EXPLORER_MEMBER // Default plan for existing users
     };
   }
 
@@ -124,7 +124,7 @@ export class MigrationUtils {
 
     return {
       success,
-      summary: success 
+      summary: success
         ? `Successfully migrated ${accountCount} accounts, ${tokenCount} tokens, and ${transactionCount} transactions.`
         : `Migration completed with ${errors.length} errors. Please review the details below.`,
       details: {
@@ -174,7 +174,7 @@ export class MigrationUtils {
       const originalValue = parseFloat(originalData.totalValue);
       const migratedValue = parseFloat(migratedData.totalValue);
       const difference = Math.abs(originalValue - migratedValue);
-      
+
       if (difference > originalValue * 0.01) { // 1% tolerance
         warnings.push('Significant portfolio value difference detected');
       }
@@ -276,12 +276,12 @@ export class MigrationUtils {
    */
   private static determinePlanType(legacySettings: any): PlanType {
     if (legacySettings.isProLevel || legacySettings.plan === 'pro') {
-      return PlanType.Pro;
+      return PlanType.YAKKL_PRO;
     }
     if (legacySettings.plan === 'enterprise') {
-      return PlanType.Enterprise;
+      return PlanType.ENTERPRISE;
     }
-    return PlanType.Basic;
+    return PlanType.EXPLORER_MEMBER;
   }
 
   /**
@@ -323,13 +323,13 @@ export class MigrationUtils {
   private static generateChecksum(data: any): string {
     const dataString = JSON.stringify(data);
     let hash = 0;
-    
+
     for (let i = 0; i < dataString.length; i++) {
       const char = dataString.charCodeAt(i);
       hash = ((hash << 5) - hash) + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
-    
+
     return hash.toString(36);
   }
 }

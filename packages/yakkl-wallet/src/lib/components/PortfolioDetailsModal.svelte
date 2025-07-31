@@ -5,10 +5,11 @@
   import { currentChain, chainStore } from '$lib/stores/chain.store';
   import type { TokenDisplay } from '$lib/types';
   import { get } from 'svelte/store';
-  
+  import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
+
   function formatCurrency(value: number): string {
     if (value === 0) return '$0.00';
-    
+
     const absValue = Math.abs(value);
     if (absValue >= 1e12) {
       return `$${(value / 1e12).toFixed(1)}T+`;
@@ -19,7 +20,7 @@
     } else if (absValue >= 1e3) {
       return `$${(value / 1e3).toFixed(1)}K+`;
     }
-    
+
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
@@ -27,7 +28,7 @@
       maximumFractionDigits: 2
     }).format(value);
   }
-  
+
   function formatCurrencyFull(value: number): string {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -36,10 +37,10 @@
       maximumFractionDigits: 2
     }).format(value);
   }
-  
+
   function formatBalance(balance: number): string {
     if (balance === 0) return '0';
-    
+
     const absBalance = Math.abs(balance);
     if (absBalance >= 1e12) {
       return `${(balance / 1e12).toFixed(1)}T+`;
@@ -56,27 +57,27 @@
     } else if (absBalance < 1000) {
       return balance.toFixed(4);
     }
-    
+
     return balance.toLocaleString('en-US', { maximumFractionDigits: 2 });
   }
-  
+
   function formatBalanceFull(balance: number): string {
     if (balance === 0) return '0';
     if (balance < 0.0001) return balance.toExponential(4);
     if (balance < 1) return balance.toFixed(6);
     return balance.toLocaleString('en-US', { maximumFractionDigits: 6 });
   }
-  
+
   interface Props {
     show?: boolean;
     onClose?: () => void;
   }
-  
-  let { 
+
+  let {
     show = $bindable(false),
     onClose = () => { show = false; }
   }: Props = $props();
-  
+
   interface NetworkBreakdown {
     chainId: number;
     chainName: string;
@@ -86,34 +87,34 @@
     tokens: TokenDisplay[];
     isTestnet: boolean;
   }
-  
+
   let isMultiChain = $derived($isMultiChainView);
   let tokens = $derived($displayTokens);
   let currentChainData = $derived($currentChain);
-  
+
   // Group tokens by network
   let networkBreakdowns = $derived.by(() => {
     const groups = new Map<number, NetworkBreakdown>();
-    
+
     // Ensure tokens is an array
     const tokenArray = Array.isArray(tokens) ? tokens : [];
-    
+
     // Get chain information
     const chains = get(chainStore).chains;
     const chainMap = new Map(chains.map(c => [c.chainId, c]));
-    
+
     for (const token of tokenArray) {
       if (!token.chainId) continue;
-      
+
       // Skip tokens with 0 value unless specifically requested
       if (!token.value || token.value === 0) continue;
-      
+
       let group = groups.get(token.chainId);
       if (!group) {
         const chainInfo = chainMap.get(token.chainId);
         const chainName = chainInfo ? chainInfo.name : 'Unknown';
         const network = chainInfo ? chainInfo.network : `Network ${token.chainId}`;
-        
+
         group = {
           chainId: token.chainId,
           chainName: chainName,
@@ -125,22 +126,22 @@
         };
         groups.set(token.chainId, group);
       }
-      
-      group.totalValue += typeof token.value === 'number' ? token.value : parseFloat(token.value || '0');
+
+      group.totalValue += typeof token.value === 'number' ? token.value : BigNumberishUtils.toNumber(token.value || 0);
       group.tokenCount++;
       group.tokens.push(token);
     }
-    
+
     // Sort by total value descending
     return Array.from(groups.values()).sort((a, b) => b.totalValue - a.totalValue);
   });
-  
+
   let totalValue = $derived(
     Array.isArray(networkBreakdowns) ? networkBreakdowns.reduce((sum, network) => sum + network.totalValue, 0) : 0
   );
-  
+
   let expandedChains = $state(new Set<number>());
-  
+
   function toggleNetwork(chainId: number) {
     if (expandedChains.has(chainId)) {
       expandedChains.delete(chainId);
@@ -165,11 +166,11 @@
           </span>
         </div>
         <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          Across {networkBreakdowns.length} network{networkBreakdowns.length !== 1 ? 's' : ''} • 
+          Across {networkBreakdowns.length} network{networkBreakdowns.length !== 1 ? 's' : ''} •
           {networkBreakdowns.reduce((sum, network) => sum + network.tokenCount, 0)} token{networkBreakdowns.reduce((sum, network) => sum + network.tokenCount, 0) !== 1 ? 's' : ''}
         </div>
       </div>
-      
+
       <!-- Network Breakdowns -->
       <div class="space-y-2">
         {#each networkBreakdowns as network}
@@ -198,18 +199,18 @@
                 <span class="font-semibold text-gray-900 dark:text-gray-100">
                   <ProtectedValue value={formatCurrency(network.totalValue)} placeholder="******" />
                 </span>
-                <svg 
+                <svg
                   class="w-4 h-4 text-gray-400 transition-transform duration-200"
                   class:rotate-180={expandedChains.has(network.chainId)}
-                  fill="none" 
-                  stroke="currentColor" 
+                  fill="none"
+                  stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
             </button>
-            
+
             <!-- Token List -->
             {#if expandedChains.has(network.chainId)}
               <div class="border-t border-gray-200 dark:border-gray-700">
@@ -237,12 +238,12 @@
                               {@const isImagePath = token.icon && (token.icon.startsWith('/') || token.icon.startsWith('http') || token.icon.includes('.svg') || token.icon.includes('.png') || token.icon.includes('.jpg') || token.icon.includes('.jpeg') || token.icon.includes('.gif') || token.icon.includes('.webp'))}
                               {#if isImagePath}
                                 <!-- Image files (local or remote) -->
-                                <img src={token.icon} alt={token.symbol} class="w-6 h-6 rounded-full" 
-                                     onerror={(e) => { 
+                                <img src={token.icon} alt={token.symbol} class="w-6 h-6 rounded-full"
+                                     onerror={(e) => {
                                        const target = e.currentTarget as HTMLImageElement;
-                                       target.style.display='none'; 
+                                       target.style.display='none';
                                        const nextElement = target.nextElementSibling as HTMLElement;
-                                       if (nextElement) nextElement.style.display='flex'; 
+                                       if (nextElement) nextElement.style.display='flex';
                                      }} />
                                 <div class="w-6 h-6 rounded-full items-center justify-center bg-gray-400 text-white font-bold text-xs" style="display:none;">
                                   {token.symbol?.[0] || '?'}
@@ -269,17 +270,17 @@
                           </div>
                         </td>
                         <td class="px-3 py-3 text-right text-sm text-gray-900 dark:text-gray-100">
-                          <div class="cursor-help" title={`${formatBalanceFull(token.qty || 0)} ${token.symbol}`}>
-                            <ProtectedValue 
-                              value={formatBalance(token.qty || 0)} 
-                              placeholder="****" 
+                          <div class="cursor-help" title={`${formatBalanceFull(BigNumberishUtils.toNumber(token.qty || 0))} ${token.symbol}`}>
+                            <ProtectedValue
+                              value={formatBalance(BigNumberishUtils.toNumber(token.qty || 0))}
+                              placeholder="****"
                             />
                           </div>
                         </td>
                         <td class="px-3 py-3 text-right text-sm text-gray-900 dark:text-gray-100">
                           {#if token.price}
-                            <div class="cursor-help" title={formatCurrencyFull(token.price)}>
-                              <ProtectedValue value={formatCurrency(token.price)} placeholder="****" />
+                            <div class="cursor-help" title={formatCurrencyFull(BigNumberishUtils.toNumber(token.price))}>
+                              <ProtectedValue value={formatCurrency(BigNumberishUtils.toNumber(token.price))} placeholder="****" />
                             </div>
                           {:else}
                             <span class="text-gray-400">--</span>
@@ -287,8 +288,8 @@
                         </td>
                         <td class="px-3 py-3 text-right font-medium text-gray-900 dark:text-gray-100">
                           {#if token.value}
-                            <div class="cursor-help" title={formatCurrencyFull(token.value)}>
-                              <ProtectedValue value={formatCurrency(token.value)} placeholder="*****" />
+                            <div class="cursor-help" title={formatCurrencyFull(BigNumberishUtils.toNumber(token.value))}>
+                              <ProtectedValue value={formatCurrency(BigNumberishUtils.toNumber(token.value))} placeholder="*****" />
                             </div>
                           {:else}
                             <span class="text-gray-400">$0.00</span>
@@ -303,7 +304,7 @@
           </div>
         {/each}
       </div>
-      
+
       {#if networkBreakdowns.length === 0}
         <div class="text-center py-8 text-gray-500 dark:text-gray-400">
           <svg class="w-12 h-12 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -315,7 +316,7 @@
       {/if}
     </div>
   {/snippet}
-  
+
   {#snippet footer()}
     <div class="flex justify-between items-center">
       <div class="text-xs text-gray-500 dark:text-gray-400">

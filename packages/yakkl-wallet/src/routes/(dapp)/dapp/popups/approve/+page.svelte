@@ -13,14 +13,14 @@
 	import Copyright from '$lib/components/Copyright.svelte';
 	import Failed from '$lib/components/Failed.svelte';
 	import { log } from '$lib/common/logger-wrapper';
-	import type { Runtime } from 'webextension-polyfill';
+	// import type { Runtime } from 'webextension-polyfill';
 	import Warning from '$lib/components/Warning.svelte';
 	import Confirmation from '$lib/components/Confirmation.svelte';
 	import { createPortManagerWithStream } from '$lib/managers/PortManagerWithStream';
 	import { safeNavigate, safeLogout } from '$lib/common/safeNavigate';
 	import { safeClientSendMessage } from '$lib/common/safeClientSendMessage';
 
-	type RuntimePort = Runtime.Port | undefined;
+	// type RuntimePort = Runtime.Port | undefined;
 	// let port: RuntimePort;
 
 	let showConfirm = $state(false);

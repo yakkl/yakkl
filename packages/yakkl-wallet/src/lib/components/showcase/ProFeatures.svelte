@@ -4,10 +4,10 @@
 
 <script lang="ts">
   import { canUseFeature, currentPlan, isOnTrial } from '../../stores/plan.store';
-  import { PlanType } from '../../types';
+  import { PlanType } from '$lib/common/types';
   import Upgrade from '../Upgrade.svelte';
 
-  let { 
+  let {
     className = '',
     variant = 'card' // 'card', 'banner', 'modal'
   } = $props();
@@ -73,7 +73,7 @@
 
   function getFeatureStatus(feature: string) {
     if (canUseFeature(feature)) return 'available';
-    if (plan === PlanType.Basic) return 'locked';
+    if (plan === PlanType.EXPLORER_MEMBER) return 'locked';
     return 'upgrade'; // Pro user looking at higher tier features
   }
 </script>
@@ -95,7 +95,7 @@
         </button>
       </div>
     </div>
-  
+
   {:else if variant === 'card'}
     <!-- Card Style -->
     <div class="yakkl-card p-6">
@@ -107,7 +107,7 @@
         <p class="text-gray-600 dark:text-gray-400">
           {#if trial}
             You're currently on a trial. Upgrade to keep these features!
-          {:else if plan === PlanType.Basic}
+          {:else if plan === PlanType.EXPLORER_MEMBER}
             Unlock advanced features with YAKKL Pro
           {:else}
             You have access to all Pro features!
@@ -149,7 +149,7 @@
       </div>
 
       <!-- Action Buttons -->
-      {#if plan === PlanType.Basic || trial}
+      {#if plan === PlanType.EXPLORER_MEMBER || trial}
         <div class="text-center">
           <button
             onclick={handleUpgrade}
@@ -175,14 +175,9 @@
 </div>
 
 <!-- Upgrade Modal -->
-<Upgrade 
+<Upgrade
   bind:show={showUpgradeModal}
   onComplete={() => showUpgradeModal = false}
   onCancel={() => showUpgradeModal = false}
 />
 
-<style>
-  .pro-features-showcase {
-    /* Base styling for the showcase component */
-  }
-</style>

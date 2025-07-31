@@ -1,4 +1,4 @@
 // Feature modules organized by tier
-export * from './basic';
+export * from './explorer';
 export * from './pro';
 export * from './payment';

@@ -4,7 +4,8 @@ import type { Duplex } from 'readable-stream';
 import { getWindowOrigin, safePostMessage, getTargetOrigin } from '$lib/common/origin';
 import { log } from '$lib/managers/Logger';
 import { EIP1193_ERRORS } from './eip-types';
-import { getCurrentlySelectedAccounts } from '$lib/extensions/chrome/eip-6963';
+import { getCurrentlySelectedAccounts } from '$lib/common/shortcuts';
+import { handleRequestAccounts } from '$contexts/background/extensions/chrome/eip-6963';
 
 export class EIP1193Provider extends EventEmitter {
 	private _isConnected: boolean = false;
@@ -105,11 +106,6 @@ export class EIP1193Provider extends EventEmitter {
 				// For eth_requestAccounts, use the EIP-6963 implementation
 				if (method === 'eth_requestAccounts') {
 					try {
-						// Import the handleRequestAccounts function from eip-6963.ts
-						const { handleRequestAccounts } = await import(
-							'../../../../ext/v1/chrome/eip-6963'
-						);
-
 						// Use the EIP-6963 implementation to handle the request
 						finalResult = await handleRequestAccounts(null, id.toString());
 
@@ -127,7 +123,7 @@ export class EIP1193Provider extends EventEmitter {
 					}
 				} else {
 					// For eth_accounts, use cached accounts if available
-					finalResult = this.cachedAccounts = await getCurrentlySelectedAccounts(id.toString());
+					finalResult = this.cachedAccounts = await getCurrentlySelectedAccounts();
 				}
 			} else if (method === 'net_version') {
 				this.networkVersion = finalResult;

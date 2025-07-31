@@ -1,6 +1,6 @@
 // // File: src/background/secureListener.ts
 // import { log } from '$lib/common/logger-wrapper';
-// import browser, { type Runtime } from 'webextension-polyfill';
+// import browser, { type Runtime } from '$lib/types/browser-types';
 // import type { SessionToken } from '$lib/common/interfaces';
 // import { decryptData } from '$lib/common/encryption';
 // import { isEncryptedData } from '$lib/common/misc';

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getYakklCombinedToken, yakklCombinedTokenStore, getSettings } from '$lib/common/stores';
+	import { getYakklCombinedTokens, yakklCombinedTokenStore, getSettings } from '$lib/common/stores';
 	import type { Settings, TokenData } from '$lib/common';
 	import { onMount } from 'svelte';
 	import { log } from '$lib/managers/Logger';
@@ -40,7 +40,7 @@
 			tokens = [];
 			updateTokenDisplay();
 		} else {
-			getYakklCombinedToken().then((initialTokens) => {
+			getYakklCombinedTokens().then((initialTokens) => {
 				console.log('TokenComponentList: combined tokens loaded', initialTokens.length);
 
 				// If no tokens are loaded, try to trigger loading them
@@ -51,7 +51,7 @@
 					import('$lib/managers/tokens/loadDefaultTokens').then(({ loadDefaultTokens }) => {
 						loadDefaultTokens().then(() => {
 							// After loading defaults, attempt to get combined tokens again
-							getYakklCombinedToken().then((reloadedTokens) => {
+							getYakklCombinedTokens().then((reloadedTokens) => {
 								console.log('TokenComponentList: tokens after reload', reloadedTokens.length);
 								const effectiveMaxTokens = locked ? maxTokens : maxTokens > 0 ? maxTokens : 0;
 								tokens =
@@ -59,7 +59,7 @@
 										? reloadedTokens.slice(0, effectiveMaxTokens)
 										: reloadedTokens;
 								updateTokenDisplay();
-								
+
 								// Trigger price update after tokens are loaded
 								import('$lib/common/tokenPriceManager').then(({ updateTokenPrices }) => {
 									updateTokenPrices();
@@ -78,14 +78,15 @@
 
 		if (browser_ext) {
 			browser_ext.runtime.onMessage.addListener(handleOnMessageForPricing);
-			browser_ext.runtime.sendMessage({ action: 'getTokenData' }).catch(err => {
+			// Use internal message format - never use eth_* or dapp-style messages
+			browser_ext.runtime.sendMessage({ type: 'INTERNAL_TOKEN_REQUEST', action: 'getTokenData' }).catch(err => {
 				// Expected during startup - token data will be loaded when background is ready
-				console.debug('Background not ready for getTokenData:', err);
+				console.debug('Background not ready for internal token data request:', err);
 			});
 
 			// Start pricing checks for ETH-USD
 			startPricingChecks();
-			
+
 			// Import and start token price updates dynamically to avoid SSR issues
 			import('$lib/common/tokenPriceManager').then(({ updateTokenPrices }) => {
 				// Initial price update after a short delay

@@ -219,7 +219,7 @@
         registered: {
           key: '',
           plan: {
-            type: 'basic_member' as any, // Default plan type
+            type: 'explorer_member' as any, // Default plan type
             source: 'web' as any,
             promo: 'none' as any,
             trialEndDate: '',
@@ -242,7 +242,7 @@
       // Create profile
       const profile: Profile = {
         id: profileData.id!,
-        userName: fullUsername,
+        username: fullUsername,
         preferences: {} as Preferences, // Will be set separately
         data: encryptedData,
         version: '2.0.0',

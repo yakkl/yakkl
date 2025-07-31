@@ -82,7 +82,6 @@
 		sortDirection.update((d) => (d === 'asc' ? 'desc' : 'asc'));
 	}
 
-
 	// Only show locked footer if not pro
 	let showLockedFooter = $state(false);
 
@@ -134,7 +133,7 @@
 					<div
 						class="group-hover:bg-gray-50 dark:group-hover:bg-zinc-800/50 transition-colors duration-200 relative"
 					>
-						<NewsFeedLineView newsItem={article} />
+						<NewsFeedLineView newsItem={article} showDate={true} />
 						<ArticleControls
 							{article}
 							bookmarkEnabled={true}

@@ -21,6 +21,7 @@ import { ethers as ethersv6 } from 'ethers-v6';
 import { browserSvelte, browser_ext } from '$lib/common/environment';
 import { log } from '$lib/managers/Logger';
 import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
+import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
 
 export function getTokenChange(changeArray: TokenChange[], timeline: string): number | null {
 	if (!changeArray) {
@@ -32,7 +33,7 @@ export function getTokenChange(changeArray: TokenChange[], timeline: string): nu
 	}
 
 	const foundChange = changeArray.find((change) => change.timeline === timeline);
-	return foundChange ? foundChange.percentChange : null;
+	return foundChange && foundChange.percentChange ? BigNumberishUtils.toNumber(foundChange.percentChange) : null;
 }
 
 export function calculateFeeAmount(tokenAmount: bigint, feeBasisPoints: number): bigint {

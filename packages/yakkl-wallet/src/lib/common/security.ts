@@ -28,53 +28,67 @@ export async function verify(id: string): Promise<Profile | undefined> {
 			log.warn('Verify called with empty id', false);
 			return undefined;
 		}
-		
+
 		const profile = await getProfile();
 		const digest = await digestMessage(id);
-		
+
 		if (!profile || !digest) {
 			log.warn('Profile or digest missing during verification', false, { hasProfile: !!profile, hasDigest: !!digest });
 			return undefined; // Don't set the store to anything here
 		}
-		
+
 		// Validate profile structure before attempting decryption
-		if (!profile.data || !profile.userName) {
-			log.error('Invalid profile structure', false, { hasData: !!profile.data, hasUserName: !!profile.userName });
+		if (!profile.data || !profile.username) {
+			log.error('Invalid profile structure', false, { hasData: !!profile.data, hasUserName: !!profile.username });
 			throw 'Invalid profile structure';
 		}
-		
+
 		if (isEncryptedData(profile.data)) {
 			let profileData: ProfileData;
-			
+
 			try {
 				profileData = (await decryptData(profile.data, digest)) as ProfileData;
 			} catch (decryptError) {
 				log.error('Failed to decrypt profile data', false, decryptError);
 				throw 'Invalid credentials - decryption failed';
 			}
-			
+
 			if (profileData) {
 				// Validate decrypted profile data
 				if (!profileData.name || !profileData.email) {
 					log.error('Decrypted profile data is incomplete', false, profileData);
 					throw 'Invalid profile data after decryption';
 				}
-				
+
 				// Additional validation: ensure username from Profile matches
-				// Note: userName is stored at the Profile level, not ProfileData level
+				// Note: username is stored at the Profile level, not ProfileData level
 				// This validation ensures the profile data belongs to the correct user
-				
+
 				setMiscStore(digest); // Works for client side
+
+				console.log('[VERIFY] About to call storeEncryptedHash with digest:', {
+					digestLength: digest?.length,
+					digestSample: digest?.substring(0, 10) + '...'
+				});
 
 				const sessionToken: SessionToken = await storeEncryptedHash(digest); // Works for background context
 
+				console.log('[VERIFY] storeEncryptedHash returned:', {
+					sessionToken,
+					hasToken: !!sessionToken?.token,
+					expiresAt: sessionToken?.expiresAt
+				});
+
 				if (sessionToken) {
 					storeSessionToken(sessionToken.token, sessionToken.expiresAt);
+					console.log('[VERIFY] Stored session token in store');
+				} else {
+					console.error('[VERIFY] No session token returned from storeEncryptedHash');
 				}
-				
-				log.info('Verification successful', false, { 
-					username: profile.userName,
-					hasSessionToken: !!sessionToken 
+
+				log.info('Verification successful', false, {
+					username: profile.username,
+					hasSessionToken: !!sessionToken
 				});
 			} else {
 				throw 'Verification failed - no profile data after decryption';
@@ -83,7 +97,7 @@ export async function verify(id: string): Promise<Profile | undefined> {
 			log.warn('Profile data is not encrypted', false);
 			throw 'Profile data must be encrypted';
 		}
-		
+
 		return profile;
 	} catch (e) {
 		log.error('Verification failed!', false, e);

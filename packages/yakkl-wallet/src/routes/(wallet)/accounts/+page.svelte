@@ -1,9 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { accounts as accountsStore, currentAccount, accountStore } from '$lib/stores/account.store';
+  import { accounts as accountsStore, currentAccount, accountStore } from '$lib/stores';
   import { Copy, Plus, Download, Upload, MoreVertical } from 'lucide-svelte';
   import { get } from 'svelte/store';
+  import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
 
   let accountsList = $derived($accountsStore);
   let selectedAccount = $derived($currentAccount);
@@ -56,7 +57,7 @@
   function getAccountColor(account: any): string {
     // Ensure tags is an array before using includes
     const tags = Array.isArray(account.tags) ? account.tags : [];
-    
+
     // Color coding based on account type
     if (account.accountType === 'imported' || tags.includes('imported')) {
       return 'from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200 dark:border-green-800';
@@ -72,7 +73,7 @@
   function getAccountTypeLabel(account: any): string {
     // Ensure tags is an array before using includes
     const tags = Array.isArray(account.tags) ? account.tags : [];
-    
+
     if (account.accountType === 'imported' || tags.includes('imported')) {
       return 'Imported';
     } else if (account.accountType === 'primary' || tags.includes('primary') || account.isPrimary) {
@@ -86,7 +87,7 @@
   function getAccountIcon(account: any): string {
     // Ensure tags is an array before using includes
     const tags = Array.isArray(account.tags) ? account.tags : [];
-    
+
     if (account.accountType === 'imported' || tags.includes('imported')) {
       return '📥';
     } else if (account.accountType === 'primary' || tags.includes('primary') || account.isPrimary) {
@@ -109,7 +110,7 @@
 
   async function handleRemove(account: any) {
     showMenu = null;
-    
+
     // Don't allow removing the current account
     if (account.address === selectedAccount?.address) {
       alert('Cannot remove the current account. Please switch to another account first.');
@@ -198,7 +199,7 @@
                       </div>
                       {#if account.balance || account.value}
                         <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          Balance: ${account.value?.toFixed(2) || '0.00'}
+                          Balance: ${account.value ? BigNumberishUtils.toNumber(account.value).toFixed(2) : '0.00'}
                         </div>
                       {/if}
                     </div>

@@ -4,6 +4,17 @@
 # Node modules
 node_modules/
 
+# Ignore all Markdown files
+*.md
+
+# But don't ignore any .md files in /docs/
+!docs/**/*.md
+!docs/*.md
+
+# Also keep any README.md anywhere
+!README.md
+!**/README.md
+
 # Closed-source packages (completely ignored)
 packages/yakkl-ai-private/
 packages/yakkl-security/
@@ -11,6 +22,11 @@ packages/yakkl-backend/
 packages/yakkl-wallet-private/
 packages/yakkl-wallet-pro/
 # packages/yakkl-sdk/
+
+# Ignore all v1 files
+packages/yakkl-wallet/**/*v1*
+packages/yakkl-wallet/**/v1*
+packages/yakkl-wallet/**/*v1
 
 # This is temporary
 packages/yakkl-contracts/ 

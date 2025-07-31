@@ -1,5 +1,5 @@
 // $lib/common/logger-wrapper.ts
-import { log as LoggerInstance, LogLevel } from '$managers/Logger';
+import { log as LoggerInstance } from '$managers/Logger';
 
 // Production-safe logger that tree-shakes debug and info calls
 export const log = {

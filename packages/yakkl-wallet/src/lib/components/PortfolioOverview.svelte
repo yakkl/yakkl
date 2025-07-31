@@ -1,12 +1,22 @@
 <script lang="ts">
   import { derived } from 'svelte/store';
-  import { currentAccount } from '$lib/stores/account.store';
+  import { currentAccount, accountStore } from '$lib/stores/account.store';
   import { currentChain, chainStore } from '$lib/stores/chain.store';
-  import { yakklTokenCacheStore } from '$lib/common/stores';
-  import { isMultiChainView, tokenStore, grandTotalPortfolioValue, totalPortfolioValue } from '$lib/stores/token.store';
+  import { 
+    walletCacheStore,
+    currentPortfolioValue,
+    multiChainPortfolioValue,
+    portfolioByNetwork,
+    isInitializing,
+    hasEverLoaded
+  } from '$lib/stores/wallet-cache.store';
+  import { isMultiChainView, tokenStore } from '$lib/stores/token.store';
   import ProtectedValue from './ProtectedValue.svelte';
   import { canUseFeature, getPlanBadgeText, getPlanBadgeColor } from '$lib/utils/features';
   import { modalStore } from '$lib/stores/modal.store';
+  
+  // Define view modes - same as RecentActivity
+  type ViewMode = 'current_account' | 'single_network' | 'all_networks';
   
   interface NetworkValue {
     chainId: number;
@@ -34,106 +44,143 @@
   let isExpanded = $state(false);
   let isMultiChain = $state(false);
   let chain = $state(null as any);
+  let viewMode = $state<ViewMode>('current_account');
+  let accounts = $state<any[]>([]);
+  let isFirstLoad = $state(false);
+  let everLoaded = $state(false);
   
   // Update reactive values from stores
   $effect(() => {
     isMultiChain = $isMultiChainView;
     chain = $currentChain;
-  });
-  
-  // Debug portfolio values
-  $effect(() => {
-    console.log('[PortfolioOverview] Debug values:', {
-      isMultiChain,
-      portfolioTotal: $portfolioTotal,
-      networkValues: $networkValues,
-      chain: chain?.name,
-      chainId: chain?.chainId
-    });
+    accounts = $accountStore?.accounts || [];
+    isFirstLoad = $isInitializing;
+    everLoaded = $hasEverLoaded;
+    
+    // Sync view mode with multi-chain state
+    if (isMultiChain) {
+      viewMode = 'all_networks';
+    } else {
+      // Default to current_account for single chain view
+      viewMode = 'current_account';
+    }
   });
   
   // Check if user has Pro access
   const hasProAccess = canUseFeature('advanced_analytics');
   
-  // Get total portfolio value based on view mode
+  // Get total portfolio value based on view mode using the new architecture
   const portfolioTotal = derived(
-    [grandTotalPortfolioValue, totalPortfolioValue, isMultiChainView, yakklTokenCacheStore, currentAccount, currentChain, chainStore],
-    ([$grand, $single, $isMulti, $cache, $account, $chain, $chainStore]) => {
-      if (!$cache || !$account) return 0;
+    [walletCacheStore, currentAccount, currentChain, chainStore, accountStore],
+    ([$cache, $account, $chain, $chainStore, $accountStore]) => {
+      if (!$account || !$chain) return 0;
       
       const chains = $chainStore?.chains || [];
+      const allAccounts = $accountStore?.accounts || [];
       const isCurrentChainTestnet = $chain?.isTestnet || false;
       
-      if ($isMulti) {
-        // Multi-chain: only include mainnets if current chain is mainnet, only testnets if testnet
-        // AND only for the current account
-        const filteredTotal = $cache
-          .filter(entry => {
-            // Must be for current account
-            if (entry.walletAddress.toLowerCase() !== $account.address.toLowerCase()) return false;
+      let filteredTotal = 0;
+      
+      switch (viewMode) {
+        case 'current_account':
+          // Only current account on current chain
+          const accountCache = $cache.chainAccountCache[$chain.chainId]?.[$account.address.toLowerCase()];
+          filteredTotal = accountCache?.portfolio.totalValue || 0;
+          break;
+          
+        case 'single_network':
+          // All accounts on current chain
+          const chainCache = $cache.chainAccountCache[$chain.chainId];
+          if (chainCache) {
+            Object.entries(chainCache).forEach(([address, cache]) => {
+              // Check if this address belongs to one of our accounts
+              if (allAccounts.some(a => a.address.toLowerCase() === address)) {
+                filteredTotal += cache.portfolio.totalValue;
+              }
+            });
+          }
+          break;
+          
+        case 'all_networks':
+          // All accounts across all networks (filtered by mainnet/testnet)
+          Object.entries($cache.chainAccountCache).forEach(([chainId, chainData]) => {
+            const chainConfig = chains.find(c => c.chainId === Number(chainId));
+            const isChainTestnet = chainConfig?.isTestnet || false;
             
-            const entryChain = chains.find(c => c.chainId === entry.chainId);
-            const isEntryTestnet = entryChain?.isTestnet || false;
-            // Only include chains of the same type (mainnet with mainnet, testnet with testnet)
-            return isCurrentChainTestnet === isEntryTestnet;
-          })
-          .reduce((sum, entry) => sum + (entry.value || 0), 0);
-        
-        return filteredTotal;
-      } else {
-        // Single chain: calculate total for current account and current chain
-        const singleChainTotal = $cache
-          .filter(entry => 
-            entry.walletAddress.toLowerCase() === $account.address.toLowerCase() &&
-            entry.chainId === $chain.chainId
-          )
-          .reduce((sum, entry) => sum + (entry.value || 0), 0);
-        
-        return singleChainTotal || $single;
+            // Only include chains of the same type
+            if (isCurrentChainTestnet === isChainTestnet) {
+              Object.entries(chainData).forEach(([address, cache]) => {
+                // Check if this address belongs to one of our accounts
+                if (allAccounts.some(a => a.address.toLowerCase() === address)) {
+                  filteredTotal += cache.portfolio.totalValue;
+                }
+              });
+            }
+          });
+          break;
       }
+      
+      return filteredTotal;
     }
   );
   
-  // Calculate network values from cache
+  // Calculate network values from the new cache architecture
   const networkValues = derived(
-    [yakklTokenCacheStore, chainStore, currentAccount, currentChain],
-    ([$cache, $chainStore, $account, $currentChain]) => {
-      if (!$cache || !$chainStore || !$account) return [];
+    [walletCacheStore, chainStore, currentAccount, currentChain, accountStore],
+    ([$cache, $chainStore, $account, $currentChain, $accountStore]) => {
+      if (!$chainStore || !$account || !$currentChain) return [];
       
-      // Get all chains
       const chains = $chainStore.chains;
+      const allAccounts = $accountStore?.accounts || [];
       const chainMap = new Map(chains.map(c => [c.chainId, c]));
       const isCurrentChainTestnet = $currentChain?.isTestnet || false;
       
-      // Group cache entries by chain and sum values
+      // Group by chain and sum values
       const networkTotals = new Map<number, number>();
       let grandTotal = 0;
       
-      // Filter entries based on view mode and mainnet/testnet separation
-      $cache
-        .filter(entry => {
-          const entryChain = chainMap.get(entry.chainId);
-          const isEntryTestnet = entryChain?.isTestnet || false;
+      Object.entries($cache.chainAccountCache).forEach(([chainId, chainData]) => {
+        const chainIdNum = Number(chainId);
+        const chainConfig = chainMap.get(chainIdNum);
+        const isChainTestnet = chainConfig?.isTestnet || false;
+        
+        // Only show chains of the same type
+        if (isCurrentChainTestnet !== isChainTestnet) return;
+        
+        let chainTotal = 0;
+        
+        Object.entries(chainData).forEach(([address, cache]) => {
+          // Filter based on view mode
+          let includeAccount = false;
           
-          // Only show chains of the same type (mainnet with mainnet, testnet with testnet)
-          if (isCurrentChainTestnet !== isEntryTestnet) return false;
-          
-          // Must be for current account
-          if (entry.walletAddress.toLowerCase() !== $account.address.toLowerCase()) return false;
-          
-          if (isMultiChain) {
-            // Multi-chain: show all networks of the same type
-            return true;
-          } else {
-            // Single chain: only current chain
-            return entry.chainId === $currentChain?.chainId;
+          switch (viewMode) {
+            case 'current_account':
+              // Only current account on current chain
+              includeAccount = address === $account.address.toLowerCase() && chainIdNum === $currentChain.chainId;
+              break;
+              
+            case 'single_network':
+              // All accounts on current chain
+              includeAccount = allAccounts.some(a => a.address.toLowerCase() === address) && 
+                             chainIdNum === $currentChain.chainId;
+              break;
+              
+            case 'all_networks':
+              // All accounts across all networks
+              includeAccount = allAccounts.some(a => a.address.toLowerCase() === address);
+              break;
           }
-        })
-        .forEach(entry => {
-          const current = networkTotals.get(entry.chainId) || 0;
-          networkTotals.set(entry.chainId, current + (entry.value || 0));
-          grandTotal += entry.value || 0;
+          
+          if (includeAccount) {
+            chainTotal += cache.portfolio.totalValue;
+          }
         });
+        
+        if (chainTotal > 0) {
+          networkTotals.set(chainIdNum, chainTotal);
+          grandTotal += chainTotal;
+        }
+      });
       
       // Convert to array with metadata
       const values: NetworkValue[] = Array.from(networkTotals.entries())
@@ -154,6 +201,18 @@
       return values;
     }
   );
+  
+  // Debug output
+  $effect(() => {
+    console.log('[PortfolioOverview] View state:', {
+      viewMode,
+      isMultiChain,
+      portfolioTotal: $portfolioTotal,
+      networkValues: $networkValues,
+      chain: chain?.name,
+      currentAccount: $currentAccount?.address
+    });
+  });
   
   // Format currency helper
   function formatCurrency(value: number): string {
@@ -192,10 +251,17 @@
     return colors[chainId] || defaultColors[chainId % defaultColors.length];
   }
   
-  function formatTime(date: Date | null): string {
+  function formatTime(date: Date | string | null): string {
     if (!date) return 'Never';
+    
+    // Convert to Date object if it's a string
+    const dateObj = date instanceof Date ? date : new Date(date);
+    
+    // Check if date is valid
+    if (isNaN(dateObj.getTime())) return 'Never';
+    
     const now = new Date();
-    const diff = now.getTime() - date.getTime();
+    const diff = now.getTime() - dateObj.getTime();
     const minutes = Math.floor(diff / 60000);
     if (minutes < 1) return 'Just now';
     if (minutes < 60) return `${minutes}m ago`;
@@ -209,8 +275,52 @@
     chainStore.switchChain(chainId);
   }
   
-  function toggleMultiChain() {
-    tokenStore.toggleMultiChainView();
+  function cycleViewMode() {
+    switch (viewMode) {
+      case 'current_account':
+        viewMode = 'single_network';
+        // Update wallet cache to reflect new view
+        if ($currentChain) {
+          walletCacheStore.switchChain($currentChain.chainId);
+        }
+        break;
+      case 'single_network':
+        viewMode = 'all_networks';
+        // Enable multi-chain view
+        if (!isMultiChain) {
+          tokenStore.toggleMultiChainView();
+        }
+        break;
+      case 'all_networks':
+        viewMode = 'current_account';
+        // Disable multi-chain view
+        if (isMultiChain) {
+          tokenStore.toggleMultiChainView();
+        }
+        break;
+    }
+  }
+  
+  function getViewModeLabel(): string {
+    switch (viewMode) {
+      case 'current_account':
+        return 'Current Account';
+      case 'single_network':
+        return 'Single Network';
+      case 'all_networks':
+        return 'All Networks';
+    }
+  }
+  
+  function getViewModeDescription(): string {
+    switch (viewMode) {
+      case 'current_account':
+        return chain ? `on ${chain.name}` : '';
+      case 'single_network':
+        return chain ? `All accounts on ${chain.name}` : '';
+      case 'all_networks':
+        return `All accounts across ${$networkValues.length} networks`;
+    }
   }
   
   function showUpgrade() {
@@ -224,15 +334,20 @@
     <div class="space-y-3">
       <!-- Header with badge -->
       <div class="flex items-start justify-between gap-2">
-        <h3 class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
-          <span class="truncate max-w-[200px]" title="{isMultiChain ? 'Total Portfolio (All Networks)' : `${chain?.name || 'Current Network'} Portfolio`}">
-            {isMultiChain ? 'Total Portfolio' : `${chain?.name || 'Network'} Portfolio`}
-          </span>
-          <span 
-            class="px-2 py-0.5 text-white text-[10px] font-bold rounded-full whitespace-nowrap" 
-            style="background-color: {getPlanBadgeColor()}"
-          >
-            {getPlanBadgeText()}
+        <h3 class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          <div class="flex items-center gap-2">
+            <span class="truncate max-w-[200px]">
+              Portfolio View
+            </span>
+            <span 
+              class="px-2 py-0.5 text-white text-[10px] font-bold rounded-full whitespace-nowrap" 
+              style="background-color: {getPlanBadgeColor()}"
+            >
+              {getPlanBadgeText()}
+            </span>
+          </div>
+          <span class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 block">
+            {getViewModeDescription()}
           </span>
         </h3>
         
@@ -254,8 +369,15 @@
         {@const isLargeValue = true}
         <!-- Large value layout - value on its own line -->
         <div class="space-y-3">
-          {#if loading}
-            <div class="animate-pulse h-10 w-48 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+          {#if loading || isFirstLoad}
+            <div class="space-y-2">
+              <div class="animate-pulse h-10 w-48 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+              {#if !everLoaded}
+                <div class="text-xs text-gray-500 dark:text-gray-400 animate-pulse">
+                  🔄 First time loading your portfolio data...
+                </div>
+              {/if}
+            </div>
           {:else}
             <div class="text-3xl font-bold text-gray-900 dark:text-white">
               <ProtectedValue value={formatCurrency($portfolioTotal)} placeholder="*******" />
@@ -264,34 +386,39 @@
           
           <div class="flex justify-end">
             <button
-              onclick={toggleMultiChain}
-              class="px-3 py-1.5 text-xs font-medium rounded-full border transition-all duration-200 min-w-[100px] text-center {isMultiChain 
-                ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700' 
-                : 'bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-zinc-700'}"
+              onclick={cycleViewMode}
+              class="px-3 py-1.5 text-xs font-medium rounded-full border transition-all duration-200 min-w-[120px] text-center bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-zinc-700"
+              title="Click to cycle through view modes"
             >
-              {isMultiChain ? 'All Networks' : 'Single Network'}
+              {getViewModeLabel()}
             </button>
           </div>
         </div>
       {:else}
         <!-- Normal value layout - everything on same line -->
         <div class="flex justify-between items-end">
-          {#if loading}
-            <div class="animate-pulse h-10 w-48 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+          {#if loading || isFirstLoad}
+            <div class="space-y-2">
+              <div class="animate-pulse h-10 w-48 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+              {#if !everLoaded}
+                <div class="text-xs text-gray-500 dark:text-gray-400 animate-pulse">
+                  🔄 First time loading your portfolio data...
+                </div>
+              {/if}
+            </div>
           {:else}
             <div class="text-3xl font-bold text-gray-900 dark:text-white">
               <ProtectedValue value={formatCurrency($portfolioTotal)} placeholder="*******" />
             </div>
           {/if}
           
-          <!-- Network Toggle -->
+          <!-- View Mode Toggle -->
           <button
-            onclick={toggleMultiChain}
-            class="px-3 py-1.5 text-xs font-medium rounded-full border transition-all duration-200 min-w-[100px] text-center {isMultiChain 
-              ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700' 
-              : 'bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-zinc-700'}"
+            onclick={cycleViewMode}
+            class="px-3 py-1.5 text-xs font-medium rounded-full border transition-all duration-200 min-w-[120px] text-center bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-zinc-700"
+            title="Click to cycle through view modes"
           >
-            {isMultiChain ? 'All Networks' : 'Single Network'}
+            {getViewModeLabel()}
           </button>
         </div>
       {/if}
@@ -325,15 +452,20 @@
       <div class="space-y-3 mb-4">
         <!-- Title and Pro Badge -->
         <div class="flex items-start justify-between gap-2">
-          <h3 class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2 flex-wrap">
-            <span class="truncate max-w-[200px]" title="{isMultiChain ? 'Total Portfolio (All Networks)' : `${chain?.name || 'Current Network'} Portfolio`}">
-              {isMultiChain ? 'Total Portfolio' : `${chain?.name || 'Network'} Portfolio`}
-            </span>
-            <span 
-              class="px-2 py-0.5 text-white text-[10px] font-bold rounded-full whitespace-nowrap" 
-              style="background-color: {getPlanBadgeColor()}"
-            >
-              {getPlanBadgeText()}
+          <h3 class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+            <div class="flex items-center gap-2">
+              <span class="truncate max-w-[200px]">
+                Portfolio View
+              </span>
+              <span 
+                class="px-2 py-0.5 text-white text-[10px] font-bold rounded-full whitespace-nowrap" 
+                style="background-color: {getPlanBadgeColor()}"
+              >
+                {getPlanBadgeText()}
+              </span>
+            </div>
+            <span class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 block">
+              {getViewModeDescription()}
             </span>
           </h3>
           
@@ -356,8 +488,15 @@
           {@const isLargeValue = true}
           <!-- Large value layout - value on its own line -->
           <div class="space-y-3">
-            {#if loading}
-              <div class="animate-pulse h-10 w-48 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+            {#if loading || isFirstLoad}
+              <div class="space-y-2">
+                <div class="animate-pulse h-10 w-48 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+                {#if !everLoaded}
+                  <div class="text-xs text-gray-500 dark:text-gray-400 animate-pulse">
+                    🔄 First time loading your portfolio data...
+                  </div>
+                {/if}
+              </div>
             {:else}
               <div class="text-4xl font-bold text-gray-900 dark:text-white">
                 <ProtectedValue value={formatCurrency($portfolioTotal)} placeholder="*******" />
@@ -367,12 +506,11 @@
             <!-- Network Toggle and Expand -->
             <div class="flex justify-end gap-2">
               <button
-                onclick={toggleMultiChain}
-                class="px-3 py-1.5 text-xs font-medium rounded-full border transition-all duration-200 min-w-[100px] text-center {isMultiChain 
-                  ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700' 
-                  : 'bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-zinc-700'}"
+                onclick={cycleViewMode}
+                class="px-3 py-1.5 text-xs font-medium rounded-full border transition-all duration-200 min-w-[120px] text-center bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700"
+                title="Click to cycle through view modes"
               >
-                {isMultiChain ? 'All Networks' : 'Single Network'}
+                {getViewModeLabel()}
               </button>
               
               <button
@@ -390,8 +528,15 @@
         {:else}
           <!-- Normal value layout - everything on same line -->
           <div class="flex justify-between items-end">
-            {#if loading}
-              <div class="animate-pulse h-10 w-48 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+            {#if loading || isFirstLoad}
+              <div class="space-y-2">
+                <div class="animate-pulse h-10 w-48 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+                {#if !everLoaded}
+                  <div class="text-xs text-gray-500 dark:text-gray-400 animate-pulse">
+                    🔄 First time loading your portfolio data...
+                  </div>
+                {/if}
+              </div>
             {:else}
               <div class="text-4xl font-bold text-gray-900 dark:text-white">
                 <ProtectedValue value={formatCurrency($portfolioTotal)} placeholder="*******" />
@@ -401,12 +546,11 @@
             <!-- Network Toggle and Expand -->
             <div class="flex items-center gap-2">
               <button
-                onclick={toggleMultiChain}
-                class="px-3 py-1.5 text-xs font-medium rounded-full border transition-all duration-200 min-w-[100px] text-center {isMultiChain 
-                  ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700' 
-                  : 'bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-zinc-700'}"
+                onclick={cycleViewMode}
+                class="px-3 py-1.5 text-xs font-medium rounded-full border transition-all duration-200 min-w-[120px] text-center bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700"
+                title="Click to cycle through view modes"
               >
-                {isMultiChain ? 'All Networks' : 'Single Network'}
+                {getViewModeLabel()}
               </button>
               
               <button
@@ -428,7 +572,7 @@
       {#if $networkValues.length > 0 && !loading}
         <div class="mb-4">
           <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Network Distribution</p>
-          <div class="h-8 rounded-full overflow-hidden flex bg-gray-100 dark:bg-zinc-800 shadow-inner">
+          <div class="h-8 rounded-full overflow-hidden flex bg-gray-100 dark:bg-zinc-800 shadow-inner relative">
             {#each $networkValues as network}
               <div
                 class="relative group hover:opacity-90 transition-all duration-200 cursor-pointer"
@@ -438,6 +582,14 @@
                 <span class="sr-only">{network.chainName}</span>
               </div>
             {/each}
+            {#if $networkValues.length === 1}
+              <!-- Show network name and percentage when only one network -->
+              <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <span class="text-xs font-medium text-white drop-shadow-md">
+                  {$networkValues[0].chainName} 100%
+                </span>
+              </div>
+            {/if}
           </div>
         </div>
       {/if}
@@ -511,7 +663,7 @@
           {$networkValues.length} active {$networkValues.length === 1 ? 'network' : 'networks'}
         </span>
         <span class="text-xs text-gray-500 dark:text-gray-400">
-          Updated {formatTime(lastUpdate)}
+          {getViewModeDescription()} • Updated {formatTime(lastUpdate)}
         </span>
       </div>
     </div>

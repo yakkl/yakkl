@@ -1,7 +1,7 @@
+// import browser from 'webextension-polyfill';
 import type { Settings, YakklCurrentlySelected } from '$lib/common/interfaces';
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from '$lib/common/storage';
 import { setIconLock, setIconUnlock } from '$lib/utilities';
-import { browser_ext } from '$lib/common/environment';
 import {
 	STORAGE_YAKKL_CURRENTLY_SELECTED,
 	STORAGE_YAKKL_SETTINGS,

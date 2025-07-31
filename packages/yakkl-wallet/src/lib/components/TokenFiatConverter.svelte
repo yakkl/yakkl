@@ -7,6 +7,7 @@
 	import { CoinbasePriceProvider } from '$lib/managers/providers/price/coinbase/CoinbasePriceProvider';
 	import { CoingeckoPriceProvider } from '$lib/managers/providers/price/coingecko/CoingeckoPriceProvider';
 	import { KrakenPriceProvider } from '$lib/managers/providers/price/kraken/KrakenPriceProvider';
+	import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
 
 	let {
 		show = $bindable(false),
@@ -51,7 +52,7 @@
 			isLoading = true;
 			try {
 				const result = await priceManager.getMarketPrice(fromToken.symbol);
-				price = result && typeof result === 'object' && 'price' in result ? result.price : 0;
+				price = result && typeof result === 'object' && 'price' in result ? BigNumberishUtils.toNumber(result.price) : 0;
 			} catch (error) {
 				console.error('Failed to fetch price:', error);
 				price = 0;

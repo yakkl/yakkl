@@ -4,7 +4,7 @@ import { log } from '$lib/managers/Logger';
 import { uiListenerManager } from './uiListeners';
 
 export function handleOnRemoveWindow(windowId: number) {
-	if (browserSvelte) {
+	if (browserSvelte && browser_ext) {
 		if (windowId === browser_ext.windows.WINDOW_ID_CURRENT) {
 			handleLockDown();
 		}
@@ -28,7 +28,9 @@ export function addWindowListeners() {
 		}
 
 		// Add window-specific browser extension listeners
-		uiListenerManager.add(browser_ext.windows.onRemoved, handleOnRemoveWindow);
+		if (browser_ext) {
+			uiListenerManager.add(browser_ext.windows.onRemoved, handleOnRemoveWindow);
+		}
 	} catch (e) {
 		log.warn('Error adding window listeners:', false, e);
 	}
@@ -44,7 +46,9 @@ export function removeWindowListeners() {
 		}
 
 		// Remove window-specific browser extension listeners
-		uiListenerManager.remove(browser_ext.windows.onRemoved, handleOnRemoveWindow);
+		if (browser_ext) {
+			uiListenerManager.remove(browser_ext.windows.onRemoved, handleOnRemoveWindow);
+		}
 	} catch (e) {
 		log.warn('Error removing window listeners:', false, e);
 	}

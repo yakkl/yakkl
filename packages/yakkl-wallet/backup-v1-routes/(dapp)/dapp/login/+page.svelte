@@ -66,7 +66,7 @@
 		try {
 			if (!browserSvelte) return;
 			// Set the username in the global store
-			$yakklUserNameStore = profile.userName || '';
+			$yakklUserNameStore = profile.username || '';
 			// Set the global request ID
 			$yakklDappConnectRequestStore = requestId;
 			// For dapp context, we just need the minimal sync

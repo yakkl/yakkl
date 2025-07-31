@@ -1,12 +1,12 @@
 // unified-message-router.ts
 // A router that uses ALL your existing handlers without changing them
 
-import { onEIP6963PortListener } from './eip-6963';
+import browser from 'webextension-polyfill';
+import type { Runtime } from 'webextension-polyfill';
+import { onEIP6963Listener } from './eip-6963';
 import { onDappListener } from './dapp';
 import { onPortInternalListener } from '$lib/common/listeners/ui/portListeners';
 import { log } from '$lib/managers/Logger';
-import type { Runtime } from 'webextension-polyfill';
-import browser from 'webextension-polyfill';
 import { YAKKL_DAPP } from '$lib/common/constants';
 
 // This is the single handler that routes to your existing handlers
@@ -26,7 +26,7 @@ export async function onUnifiedMessageHandler(message: any, port: Runtime.Port):
 		switch (handler) {
 			case 'web3':
 				// Use your existing EIP6963 handler for Web3 methods
-				return onEIP6963PortListener(message, port);
+				return onEIP6963Listener(message, port);
 
 			case 'internal':
 				// Use your existing internal handler
@@ -150,7 +150,7 @@ export function createUnifiedPortConnection(preferredPort?: string): string {
 
 // Compatibility layer for existing code
 export {
-	onUnifiedMessageHandler as onEIP6963PortListener_New, // Alias for migration
+	onUnifiedMessageHandler as onEIP6963Listener_New, // Alias for migration
 	onUnifiedMessageHandler as onDappListener_New // Alias for migration
 };
 

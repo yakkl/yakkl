@@ -4,10 +4,10 @@
 
 <script lang="ts">
   import { canUseFeature, currentPlan, isProUser } from '../../stores/plan.store';
-  import { PlanType } from '../../types';
+  import { PlanType } from '$lib/common/types';
   import Upgrade from '../Upgrade.svelte';
 
-  let { 
+  let {
     className = '',
     variant = 'card' // 'card', 'banner', 'modal'
   } = $props();
@@ -73,7 +73,7 @@
 
   function getFeatureStatus(feature: string) {
     if (canUseFeature(feature)) return 'available';
-    if (plan === PlanType.Private) return 'available';
+    if (plan === PlanType.ENTERPRISE) return 'available';
     return 'locked';
   }
 </script>
@@ -95,7 +95,7 @@
         </button>
       </div>
     </div>
-  
+
   {:else if variant === 'card'}
     <!-- Card Style -->
     <div class="yakkl-card p-6 border-2 border-red-200 dark:border-red-800">
@@ -105,7 +105,7 @@
         </div>
         <h2 class="text-xl font-bold mb-2">YAKKL Private</h2>
         <p class="text-gray-600 dark:text-gray-400">
-          {#if plan === PlanType.Private}
+          {#if plan === PlanType.ENTERPRISE}
             You have access to all Private security features!
           {:else if isProOrHigher}
             Upgrade to Private for maximum security and privacy
@@ -161,7 +161,7 @@
       </div>
 
       <!-- Action Buttons -->
-      {#if plan !== PlanType.Private}
+      {#if plan !== PlanType.ENTERPRISE}
         <div class="text-center">
           <button
             onclick={handleUpgrade}
@@ -187,14 +187,9 @@
 </div>
 
 <!-- Upgrade Modal -->
-<Upgrade 
+<Upgrade
   bind:show={showUpgradeModal}
   onComplete={() => showUpgradeModal = false}
   onCancel={() => showUpgradeModal = false}
 />
 
-<style>
-  .private-features-showcase {
-    /* Base styling for the showcase component */
-  }
-</style>

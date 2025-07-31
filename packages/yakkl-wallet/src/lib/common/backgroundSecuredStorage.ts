@@ -1,10 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { log } from '$lib/managers/Logger';
-import browser from 'webextension-polyfill';
 import { decryptData, deriveKeyFromPassword, digestMessage, encryptData } from './encryption';
-import type { EncryptedData } from './interfaces';
-import type { SaltedKey } from './evm';
-import { CURRENT_STORAGE_VERSION } from './constants';
+import type { EncryptedData } from '$lib/common/interfaces';
+import type { SaltedKey } from '$lib/common/evm';
+import { CURRENT_STORAGE_VERSION } from '$lib/common/constants';
+import browser from 'webextension-polyfill';
+
+// NOTE: This can only be used in the background context
 
 export interface SecureWrapper<T> {
 	encrypted: EncryptedData; // AES-GCM encrypted JSON of T (includes public)

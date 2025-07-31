@@ -1,0 +1,19 @@
+# Improve dependency resolution for workspace packages
+hoist-pattern[]=*
+hoist-pattern[]=@uniswap/*
+hoist-pattern[]=ethers*
+
+# Reduce strict peer dependency issues
+strict-peer-dependencies=false
+
+# Enable better workspace linking
+prefer-workspace-packages=true
+
+# Auto install peer dependencies
+auto-install-peers=true
+
+# Reduce duplicate dependencies
+dedupe-peer-dependents=true
+
+# Better error messages
+use-node-version=18.20.4 

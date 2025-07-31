@@ -1,11 +1,13 @@
 import { writable, get } from 'svelte/store';
-import { yakklCombinedTokenStore, setYakklCombinedTokenStorage } from '$lib/common/stores';
+import { yakklCombinedTokenStore, setYakklCombinedTokenStorage, getYakklTokenCache, setYakklTokenCacheStorage } from '$lib/common/stores';
 import { log } from '$lib/managers/Logger';
 import { PriceManager } from '$lib/managers/PriceManager';
 import { createPriceUpdater } from './createPriceUpdater';
 import { TimerManager } from '$lib/managers/TimerManager';
 import type { TokenData } from '$lib/common/interfaces';
 import { TIMER_TOKEN_PRICE_CYCLE_TIME } from './constants';
+import { balanceCacheManager } from '$lib/managers/BalanceCacheManager';
+import { EthereumBigNumber } from './bignumber-ethereum';
 
 let priceManager: PriceManager | null = null;
 let priceUpdater: any | null = null;
@@ -36,45 +38,63 @@ export async function updateTokenPrices() {
 
 		// Persist to localStorage
 		await setYakklCombinedTokenStorage(updatedTokens);
-		
-		// Update token cache with new prices
+
+		// Update token cache with new prices using precise BigNumber arithmetic
 		try {
-			const { getYakklTokenCache, setYakklTokenCacheStorage } = await import('$lib/common/stores');
 			const cache = await getYakklTokenCache();
-			
-			// Update prices in cache
+
+			// Update prices in cache using EthereumBigNumber for precision
 			const updatedCache = cache.map(entry => {
-				const updatedToken = updatedTokens.find(t => 
-					t.address === entry.tokenAddress && 
+				const updatedToken = updatedTokens.find(t =>
+					t.address === entry.tokenAddress &&
 					t.chainId === entry.chainId
 				);
-				
+
 				if (updatedToken && updatedToken.price?.price) {
+					// Use EthereumBigNumber for precise calculations
+					const quantityBN = EthereumBigNumber.from(entry.quantity);
+					const priceBN = EthereumBigNumber.from(updatedToken.price.price);
+
+					// Calculate value = quantity * price with full precision
+					const valueBN = quantityBN.mul(priceBN);
+
 					return {
 						...entry,
 						price: updatedToken.price.price,
-						value: entry.quantity * updatedToken.price.price,
+						value: valueBN.toBigInt(),
 						lastPriceUpdate: new Date(),
 						priceProvider: updatedToken.price.provider || 'unknown'
 					};
 				}
 				return entry;
 			});
-			
-			await setYakklTokenCacheStorage(updatedCache);
-			log.debug('[tokenPriceManager] Updated token cache with new prices');
+
+			// Force update to ensure new prices override old cached values
+			await setYakklTokenCacheStorage(updatedCache, true);
+			log.info('[tokenPriceManager] Force updated token cache with new prices, entries:', false, updatedCache.length);
 		} catch (error) {
 			log.error('[tokenPriceManager] Failed to update token cache:', false, error);
 		}
 
-		// Update cached balances with new token prices
-		const { balanceCacheManager } = await import('$lib/managers/BalanceCacheManager');
+		// Update cached balances with new token prices using BigNumber comparison
 		const ethToken = updatedTokens.find((token) => token.isNative && token.symbol === 'ETH');
-		if (ethToken && ethToken.value && ethToken.value > 0) {
-			balanceCacheManager.updatePriceForAllEntries(ethToken.value);
-			log.debug('[updateTokenPrices] Updated cached entries with ETH price:', false, {
-				newPrice: ethToken.value
-			});
+		if (ethToken && ethToken.price?.price) {
+			// Use BigNumber for precise price comparison
+			const ethPriceBN = EthereumBigNumber.from(ethToken.price.price);
+			const zeroBN = EthereumBigNumber.from(0);
+
+			if (ethPriceBN.compare(zeroBN) > 0) {
+				// Convert price to number for legacy balanceCacheManager (until we update it)
+				const ethPriceNumber = ethPriceBN.toNumber();
+				if (ethPriceNumber && ethPriceNumber > 0) {
+					balanceCacheManager.updatePriceForAllEntries(ethPriceNumber);
+					log.debug('[updateTokenPrices] Updated cached entries with ETH price:', false, {
+						newPrice: ethPriceNumber,
+						newPriceBN: ethPriceBN.toString(),
+						ethTokenValue: ethToken.value?.toString()
+					});
+				}
+			}
 		}
 
 		log.info('updateTokenPrices: Successfully updated and persisted token prices');

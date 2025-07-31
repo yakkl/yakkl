@@ -1,6 +1,8 @@
 // token-analytics.ts - Basic vs Pro token data interfaces and utilities
 
 import type { TokenData } from './interfaces';
+import { BigNumberishUtils } from './BigNumberishUtils';
+import { DecimalMath } from './DecimalMath';
 
 export interface BasicTokenAnalytics {
 	symbol: string;
@@ -134,7 +136,7 @@ export function toBasicAnalytics(token: TokenData): BasicTokenAnalytics {
 	return {
 		symbol: token.symbol,
 		balance: token.balance.toString() || '0',
-		currentPrice: token.price?.price || 0,
+		currentPrice: BigNumberishUtils.toNumber(token.price?.price || 0),
 		value: calculateTokenValue(token),
 		name: token.name,
 		address: token.address,
@@ -184,14 +186,14 @@ export function calculateTokenValue(token: TokenData): number {
 		balanceNum = Number(token.balance);
 	}
 
-	return balanceNum * token.price.price;
+	return DecimalMath.of(balanceNum).mul(BigNumberishUtils.toNumber(token.price.price)).toNumber();
 }
 
 /**
  * Determines if a user should see Pro features
  */
 export function shouldShowProFeatures(userPlan: string): boolean {
-	return userPlan !== 'basic_member';
+	return userPlan !== 'explorer_member';
 }
 
 // Mock data generators for demo purposes

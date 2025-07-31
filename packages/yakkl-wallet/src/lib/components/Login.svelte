@@ -50,30 +50,29 @@
 
 	// Form setup with svelte-forms-lib
 	const { form, errors, handleSubmit } = createForm({
-		initialValues: { userName: '', password: '' },
+		initialValues: { username: '', password: '' },
 		onSubmit: async (data) => {
 			isLoggingIn = true;
 			try {
-				await verifyUser(data.userName, data.password);
+				await verifyUser(data.username, data.password);
 			} finally {
 				// Clear form data for security regardless of outcome
-				$form.userName = '';
+				$form.username = '';
 				$form.password = '';
 				isLoggingIn = false;
 			}
 		}
 	});
 
-	async function verifyUser(userName: string, password: string) {
+	async function verifyUser(username: string, password: string) {
 		try {
 			let jwtToken: string | undefined;
 
 			// If useAuthStore is enabled, use the auth store login method
 			if (props.useAuthStore) {
-				const profile = await authStore.login(userName, password);
+				const profile = await authStore.login(username, password);
 				const digest = getMiscStore();
 
-				log.info('Login.svelte: useAuthStore: digest =', false, digest);
 				if (!digest) {
 					throw 'Authentication succeeded but failed to retrieve security digest';
 				}
@@ -83,11 +82,13 @@
 
 				props.onSuccess(profile, digest, minimumAuth, jwtToken);
 				return;
-			}
+			} else {
+        log.warn('Login.svelte: useAuthStore is disabled, using verify', false, props);
+      }
 
 			// Original verification method
 			// Format the username properly (removing .nfs.id if already present, then adding it)
-			const normalizedUsername = userName.toLowerCase().trim().replace('.nfs.id', '');
+			const normalizedUsername = username.toLowerCase().trim().replace('.nfs.id', '');
 			const loginString = normalizedUsername + '.nfs.id' + password;
 
 			// Call the existing verify function - this is your core authentication
@@ -116,22 +117,22 @@
 					log.info('Login.svelte: settings.plan =', false, settings?.plan);
 					log.info('Login.svelte: settings.plan.type =', false, settings?.plan?.type);
 
-					const planLevel = settings?.plan?.type || 'basic';
+					const planLevel = settings?.plan?.type || 'explorer_member';
 
 					// Generate JWT token
 					jwtToken = await jwtManager.generateToken(
-						profile.id || profile.userName,
-						profile.userName,
-						profile.id || profile.userName,
+						profile.id || profile.username,
+						profile.username,
+						profile.id || profile.username,
 						planLevel
 					);
 
 					// Also start session management if not using auth store
 					if (!props.useAuthStore) {
 						await sessionManager.startSession(
-							profile.id || profile.userName,
-							profile.userName,
-							profile.id || profile.userName,
+							profile.id || profile.username,
+							profile.username,
+							profile.id || profile.username,
 							planLevel
 						);
 					}
@@ -202,7 +203,7 @@
 			showError = false;
 			errorMessage = '';
 			// Re-enable form and try again with current form values
-			await verifyUser($form.userName, $form.password);
+			await verifyUser($form.username, $form.password);
 		}
 	}
 
@@ -238,12 +239,12 @@
 			<div class="form-control w-[22rem]">
 				<div class="join">
 					<input
-						id="userName"
+						id="username"
 						type="text"
 						class="input input-bordered input-primary w-full join-item {inputTextClass} {inputBgClass}"
 						placeholder="Username"
 						autocomplete="off"
-						bind:value={$form.userName}
+						bind:value={$form.username}
 						required
 					/>
 					<span class="label-text bg-slate-900 join-item w-[60px]">

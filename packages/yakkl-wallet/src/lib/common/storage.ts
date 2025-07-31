@@ -1,25 +1,26 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { log } from '$lib/managers/Logger';
-import { browser_ext } from './environment';
+import { getBrowserExtFromGlobal } from './environment';
+import type { Browser } from 'webextension-polyfill';
 
 // Try to get browser API directly for service worker context
-let browserApi: any = browser_ext;
+let browserApi: Browser | null = await getBrowserExtFromGlobal();
 
 // Check if we're in a service worker or extension context
-declare const browser: any;
-declare const chrome: any;
+// declare const browser: any;
+// declare const chrome: any;
 
-try {
-	if (typeof browser !== 'undefined' && browser?.storage) {
-		// In service worker or extension context, browser is available globally
-		browserApi = browser;
-	} else if (typeof chrome !== 'undefined' && chrome?.storage) {
-		// Fallback to chrome API if available
-		browserApi = chrome;
-	}
-} catch (e) {
-	// Keep using browser_ext
-}
+// try {
+// 	if (typeof browser !== 'undefined' && browser?.storage) {
+// 		// In service worker or extension context, browser is available globally
+// 		browserApi = browser;
+// 	} else if (typeof chrome !== 'undefined' && chrome?.storage) {
+// 		// Fallback to chrome API if available
+// 		browserApi = chrome;
+// 	}
+// } catch (e) {
+// 	// Keep using browser_ext
+// }
 
 export const clearObjectsFromLocalStorage = async (): Promise<void> => {
 	if (!browserApi) return;
@@ -53,7 +54,7 @@ export const getObjectFromLocalStorage = async <T>(
 ): Promise<T | null> => {
 	try {
 		if (!browserApi) {
-			return null;
+      return null;
 		}
 
 		const storagePromise = browserApi.storage.local.get(key);

@@ -100,8 +100,8 @@
 		});
 
 		if (!response.success) {
-			const errorMessage = typeof response.error === 'object' && response.error?.message 
-				? response.error.message 
+			const errorMessage = typeof response.error === 'object' && response.error?.message
+				? response.error.message
 				: 'Failed to import recovery phrase';
 			throw new Error(errorMessage);
 		}
@@ -126,7 +126,11 @@
 
 		// Show success notification
 		const notificationModule = await import('$lib/services/notification.service');
-		notificationModule.notificationService.showSuccess('Success', 'Recovery phrase imported successfully');
+		notificationModule.notificationService.show({
+			title: 'Success',
+			message: 'Recovery phrase imported successfully',
+			type: 'success'
+		});
 	}
 
 	function resetForm() {
@@ -149,8 +153,9 @@
 	<PincodeVerify
 		bind:show={showPincodeModal}
 		onVerified={handlePincodeVerified}
-		onCancel={() => {
+		onRejected={() => {
 			showPincodeModal = false;
+			error = 'PIN verification cancelled';
 		}}
 	/>
 {/if}
@@ -166,10 +171,10 @@
 			</div>
 
 			<form onsubmit={handleSubmit} class="space-y-4">
-				<div>
-					<label class="block text-sm font-medium mb-2">
+				<fieldset>
+					<legend class="block text-sm font-medium mb-2">
 						Phrase Length
-					</label>
+					</legend>
 					<div class="flex gap-4">
 						<label class="flex items-center">
 							<input
@@ -190,7 +195,7 @@
 							24 words
 						</label>
 					</div>
-				</div>
+				</fieldset>
 
 				<div>
 					<label for="accountName" class="block text-sm font-medium mb-1">

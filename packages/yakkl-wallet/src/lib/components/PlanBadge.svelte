@@ -1,12 +1,12 @@
 <script lang="ts">
-  let { planType = 'Pro (Trial)', trialEnds = null, className = '' } = $props();
+  let { planType = 'yakkl_pro (Trial)', trialEnds = null, className = '' } = $props();
 
   let label = $state(planType);
   let showTrial = $state(trialEnds ? new Date(trialEnds) > new Date() : false);
   let trialText = $derived(showTrial ? `Trial ends: ${trialEnds}` : '');
 
   let badgeClass = $state(`inline-flex items-center px-2 py-0.5 rounded-full shadow text-[10px] font-semibold opacity-80 ${className} `);
-  if (planType.includes('pro')) {
+  if (planType.includes('yakkl_pro')) {
     badgeClass += 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-200';
   } else if (planType.includes('founding')) {
     badgeClass += 'bg-yellow-50 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-200';

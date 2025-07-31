@@ -11,6 +11,7 @@
   import { Coins, AlertCircle, Info } from 'lucide-svelte';
   import type { TokenData } from '$lib/common/interfaces';
   import { VERSION } from '$lib/common/constants';
+  import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
 
   interface Props {
     show?: boolean;
@@ -121,7 +122,7 @@
         decimals: values.decimals,
         chainId: values.chainId,
         balance: 0n,
-        quantity: 0,
+        quantity: new EthereumBigNumber(0),
         price: {
           price: 0,
           isNative: false,

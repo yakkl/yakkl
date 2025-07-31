@@ -27,7 +27,7 @@ export const PlanMetadata: Record<
 		priority: 3,
 		description: 'Early adopter plan which includes the YAKKL PRO plan'
 	},
-	basic_member: {
+	explorer_member: {
 		label: 'Basic Member',
 		color: 'red',
 		priority: 4,

@@ -6,13 +6,13 @@
   import { log } from '$lib/common/logger-wrapper';
   import { getMiscStore } from '$lib/common/stores';
   import EmergencyKitShamir from './EmergencyKitShamir.svelte';
-  
+
   let { onClose } = $props();
-  
+
   let account = $derived($currentAccount);
   let chain = $derived($currentChain);
   let allAccounts = $derived($accounts);
-  
+
   let showPrivateKey = $state(false);
   let showSeedPhrase = $state(false);
   let copied = $state(false);
@@ -22,24 +22,24 @@
   let metadata = $state<any>(null);
   let showShamirModal = $state(false);
   let emergencyKitData = $state<any>(null);
-  
+
   function handlePrint() {
     // Navigate to the dedicated print page
     window.open('/accounts/print-emergency-kit', '_blank');
   }
-  
+
   async function handleExport() {
     loading = true;
     try {
       // Get all the necessary data
-      const { 
+      const {
         getPreferences, getSettings, getProfile, getYakklCurrentlySelected,
         getYakklContacts, getYakklChats, getYakklAccounts, getYakklPrimaryAccounts,
         getYakklWatchList, getYakklBlockedList, getYakklConnectedDomains,
-        getYakklTokenData, getYakklTokenDataCustom, getYakklCombinedToken,
+        	getYakklTokenData, getYakklTokenDataCustom, getYakklCombinedTokens,
         getYakklWalletProviders, getYakklWalletBlockchains
       } = await import('$lib/common/stores');
-      
+
       const preferences = await getPreferences();
       const settings = await getSettings();
       const profile = await getProfile();
@@ -54,7 +54,7 @@
       const passwordOrSaltedKey = getMiscStore();
       const tokenData = await getYakklTokenData();
       const tokenDataCustom = await getYakklTokenDataCustom();
-      const combinedTokenStore = await getYakklCombinedToken();
+      		const combinedTokenStore = await getYakklCombinedTokens();
       const walletProviders = await getYakklWalletProviders();
       const walletBlockchains = await getYakklWalletBlockchains();
 
@@ -86,12 +86,12 @@
       emergencyKitData = bulkEmergencyKit;
 
       const fileName = await EmergencyKitManager.downloadBulkEmergencyKit(bulkEmergencyKit);
-      
+
       await notificationService.show({
         message: `Emergency kit exported successfully as ${fileName}`,
         type: 'success'
       });
-      
+
       // Don't close yet - user might want to create Shamir shards
     } catch (err) {
       log.error('Failed to export emergency kit', false, err);
@@ -103,7 +103,7 @@
       loading = false;
     }
   }
-  
+
   async function handleFileSelect(event: Event) {
     const target = event.target as HTMLInputElement;
     if (target.files && target.files.length > 0) {
@@ -115,7 +115,7 @@
       }
     }
   }
-  
+
   async function handleImport() {
     if (!file) {
       await notificationService.show({
@@ -124,7 +124,7 @@
       });
       return;
     }
-    
+
     loading = true;
     try {
       const passwordOrSaltedKey = getMiscStore();
@@ -138,13 +138,13 @@
         message: 'Emergency kit imported successfully. Logging out...',
         type: 'success'
       });
-      
+
       // Logout after import
       const { safeLogout } = await import('$lib/common/safeNavigate');
       setTimeout(() => {
         safeLogout();
       }, 2000);
-      
+
     } catch (err) {
       log.error('Failed to import emergency kit', false, err);
       await notificationService.show({
@@ -173,7 +173,7 @@
           </svg>
         </button>
       </div>
-      
+
       <!-- Mode Tabs -->
       <div class="flex gap-1 mt-4 bg-zinc-100 dark:bg-zinc-900 rounded-lg p-1">
         <button
@@ -190,7 +190,7 @@
         </button>
       </div>
     </div>
-    
+
     <!-- Warning Banner -->
     <div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 m-6">
       <div class="flex items-start gap-3">
@@ -200,13 +200,13 @@
         <div>
           <h3 class="font-semibold text-red-800 dark:text-red-200">Critical Security Information</h3>
           <p class="text-sm text-red-700 dark:text-red-300 mt-1">
-            This kit contains sensitive information that provides complete access to your wallet. 
+            This kit contains sensitive information that provides complete access to your wallet.
             Store it securely and never share it with anyone.
           </p>
         </div>
       </div>
     </div>
-    
+
     <!-- Content -->
     <div class="p-6 space-y-6">
       {#if mode === 'export'}
@@ -225,7 +225,7 @@
               </p>
             </div>
           </div>
-          
+
           <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
             <h4 class="font-medium text-amber-800 dark:text-amber-200 mb-2">What's Included:</h4>
             <ul class="space-y-1 text-sm text-amber-700 dark:text-amber-300">
@@ -252,7 +252,7 @@
               </p>
             </div>
           </div>
-          
+
           <div class="space-y-4">
             <div>
               <label for="importFile" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
@@ -266,7 +266,7 @@
                 class="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-indigo-900/30 dark:file:text-indigo-400"
               />
             </div>
-            
+
             {#if metadata}
               <div class="bg-zinc-50 dark:bg-zinc-900/50 rounded-lg p-4 space-y-2">
                 <h4 class="font-medium text-zinc-900 dark:text-white">Kit Details:</h4>
@@ -277,7 +277,7 @@
                   <p>Type: {metadata.type}</p>
                 </div>
               </div>
-              
+
               <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
                 <p class="text-sm text-red-700 dark:text-red-300">
                   <strong>Important:</strong> YAKKL will automatically log out after import. You'll need to log in again with your password.
@@ -288,7 +288,7 @@
         </div>
       {/if}
     </div>
-    
+
     <!-- Actions -->
     <div class="p-6 border-t border-zinc-200 dark:border-zinc-700 flex flex-wrap gap-3">
       {#if mode === 'export'}
@@ -307,7 +307,7 @@
             Export Emergency Kit
           {/if}
         </button>
-        
+
         {#if emergencyKitData}
           <button
             onclick={() => showShamirModal = true}
@@ -337,7 +337,7 @@
           {/if}
         </button>
       {/if}
-      
+
       <button
         onclick={onClose}
         class="yakkl-btn-secondary ml-auto"
@@ -349,7 +349,7 @@
 </div>
 
 <!-- Shamir's Secret Sharing Modal -->
-<EmergencyKitShamir 
+<EmergencyKitShamir
   bind:show={showShamirModal}
   {emergencyKitData}
   onComplete={() => {
@@ -364,11 +364,11 @@
       position: static;
       background: white;
     }
-    
+
     button {
       display: none;
     }
-    
+
     .max-h-\[90vh\] {
       max-height: none;
     }

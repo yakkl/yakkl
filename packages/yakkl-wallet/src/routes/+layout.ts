@@ -3,16 +3,16 @@ export const prerender = true; // Must be here to create files. Do NOT use ssr =
 
 import { YAKKL_INTERNAL } from '$lib/common/constants';
 import { isServerSide, wait } from '$lib/common/utils';
-// Removed: import type { Runtime } from 'webextension-polyfill';
+// Removed: import type { Runtime } from '$lib/types/browser-types';
 // Added: Use local type to avoid module resolution error in browser context
 import { handleLockDown } from '$lib/common/handlers';
 import { log } from '$lib/common/logger-wrapper';
-import { initializeBrowserAPI } from '$lib/browser-polyfill-wrapper';
 // Import but don't use at module level
 import { browser_ext } from '$lib/common/environment';
-import type { RuntimePort } from '$contexts/background/extensions/chrome/background';
+// Use the local browser types instead of webextension-polyfill to avoid import errors
+import type { Runtime } from '$lib/types/browser-types';
 
-let port: RuntimePort | undefined;
+let port: Runtime.Port | undefined;
 
 // Function to connect port - will only run in browser context during load
 async function connectPort(): Promise<boolean> {
@@ -38,17 +38,23 @@ async function connectPort(): Promise<boolean> {
 
 	try {
 		// Added: Cast to RuntimePort to use our local type
-		port = browser_ext.runtime.connect({ name: YAKKL_INTERNAL }) as RuntimePort;
+		port = browser_ext.runtime.connect({ name: YAKKL_INTERNAL }) as Runtime.Port;
 
 		// Restore console.error
 		console.error = originalConsoleError;
 
 		if (port) {
-			port.onDisconnect.addListener(async (event) => {
+			port.onDisconnect.addListener(async () => {
 				handleLockDown();
+				const disconnectPort = port; // Capture current port before clearing
 				port = undefined;
-				if (event?.error) {
-					log.error('Port disconnect:', false, event.error?.message);
+				
+				// Check if port has error information (Chrome specific)
+				if (disconnectPort && 'error' in disconnectPort) {
+					const error = (disconnectPort as any).error;
+					if (error) {
+						log.error('Port disconnect:', false, error.message || error);
+					}
 				}
 			});
 			return true;
@@ -71,6 +77,10 @@ async function connectPort(): Promise<boolean> {
 // This function will only be called during load, not during SSR
 async function initializeExtension() {
 	try {
+    if (!browser_ext) {
+      return;
+    }
+
 		// Add initial delay to ensure background script is ready
 		// This helps prevent the "Receiving end does not exist" error
 		await wait(200);
@@ -89,15 +99,14 @@ async function initializeExtension() {
 // Move the initialization to the load function to prevent SSR issues
 export const load = async () => {
 	// Skip extension initialization during SSR
-	if (isServerSide()) {
+	if (!browser_ext) {
 		return {};
 	}
 
 	try {
 		// Initialize the browser API
-		const browser = initializeBrowserAPI();
 		// Only proceed with extension initialization if we have a browser API
-		if (browser) {
+		if (browser_ext) {
 			await initializeExtension();
 		}
 	} catch (error) {

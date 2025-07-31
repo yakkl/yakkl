@@ -6,12 +6,14 @@
   import { get } from 'svelte/store';
   import GasFeeSelector from './GasFeeSelector.svelte';
   import PincodeVerify from './PincodeVerify.svelte';
-  import Contacts from './v1/Contacts.svelte';
+  import Contacts from './Contacts.svelte';
   import Modal from './Modal.svelte';
   import { uiStore } from '../stores/ui.store';
   import { notificationService } from '../services/notification.service';
   import { messagingService } from '$lib/common/messaging';
   import type { TokenDisplay } from '../types';
+  import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
+  import { BigNumber } from '$lib/common/bignumber';
 
   let {
     show = $bindable(false),
@@ -25,7 +27,7 @@
 
   // Tab state
   let activeTab = $state<'amount' | 'fees' | 'activity'>('amount');
-  
+
   // Form state
   let recipient = $state('');
   let recipientENS = $state(''); // Resolved ENS name
@@ -34,7 +36,7 @@
   let selectedToken = $state(preSelectedToken || tokens[0] || { symbol: 'ETH', icon: '/images/eth.svg' });
   let valueType = $state<'crypto' | 'fiat'>('crypto');
   let fiatAmount = $state('');
-  
+
   // Gas state
   let gasEstimate = $state('21000');
   let estimatingGas = $state(false);
@@ -47,7 +49,7 @@
   let customGasPrice = $state('');
   let customGasLimit = $state('');
   let gasTrend = $state<'up' | 'down' | 'flat'>('flat');
-  
+
   // UI state
   let validationError = $state('');
   let showContacts = $state(false);
@@ -56,13 +58,13 @@
   let showZeroValueWarning = $state(false);
   let transactionHistory = $state<any[]>([]);
   let loadingHistory = $state(false);
-  
+
   // Reactive values
   let sending = $derived($isLoadingTx);
   let error = $derived($txError);
   let account = $derived($currentAccount);
   let currentNetwork = $derived($currentChain);
-  
+
   // Calculate total cost
   let totalCost = $derived.by(() => {
     if (!amount || !gasEstimate || !gasPrice.standard) return '0';
@@ -135,19 +137,19 @@
       validationError = 'Please enter a valid amount';
       return false;
     }
-    
+
     const balance = parseFloat(selectedToken.balance || '0');
     if (parseFloat(amount) > balance) {
       validationError = 'Insufficient balance';
       return false;
     }
-    
+
     // Check for zero value transaction
     if (parseFloat(amount) === 0 && !showZeroValueWarning) {
       showZeroValueWarning = true;
       return false;
     }
-    
+
     return true;
   }
 
@@ -157,7 +159,7 @@
     try {
       const isETH = selectedToken.symbol === 'ETH';
       const to = recipientENS || recipient;
-      
+
       const response = await transactionStore.estimateGas(
         account?.address || '',
         to,
@@ -165,7 +167,7 @@
         isETH ? undefined : selectedToken.address,
         hexData || undefined
       );
-      
+
       if (response.success && response.data) {
         gasEstimate = response.data.gasLimit;
         // Update gas prices if available
@@ -204,7 +206,7 @@
     try {
       const to = recipientENS || recipient;
       const value = amount;
-      
+
       // Prepare transaction
       const tx = {
         to,
@@ -214,7 +216,7 @@
         maxFeePerGas: customGasPrice ? ethers.parseUnits(customGasPrice, 'gwei') : undefined,
         maxPriorityFeePerGas: gasPrice[gasSpeed] ? ethers.parseUnits(gasPrice[gasSpeed], 'gwei') : undefined
       };
-      
+
       // For ERC20 tokens
       if (selectedToken.symbol !== 'ETH' && selectedToken.address) {
         // Create transfer data
@@ -222,30 +224,30 @@
           ethers.concat([
             '0xa9059cbb', // transfer(address,uint256) method ID
             ethers.zeroPadValue(to, 32),
-            ethers.zeroPadValue(ethers.parseUnits(value, selectedToken.decimals || 18), 32)
+            ethers.zeroPadValue(ethers.toBeHex(ethers.parseUnits(value, selectedToken.decimals || 18), 32), 32)
           ])
         );
-        
+
         tx.to = selectedToken.address;
         tx.value = 0n;
         tx.data = transferData;
       }
-      
+
       // Send transaction
       const response = await transactionStore.sendTransaction(tx);
-      
+
       if (response.success && response.data) {
         // Show success notification
         notificationService.success('Transaction Sent', `Transaction hash: ${response.data.hash}`);
-        
+
         // Call parent handler
         if (onSend) {
           onSend(response.data);
         }
-        
+
         // Close modal
         show = false;
-        
+
         // Reset form
         resetForm();
       } else {
@@ -260,18 +262,18 @@
   // Form submission
   async function handleSubmit() {
     validationError = '';
-    
+
     // Validate recipient
     if (!validateAddress(recipient)) {
       validationError = 'Please enter a valid address';
       return;
     }
-    
+
     // Validate amount
     if (!validateAmount()) {
       return;
     }
-    
+
     // Show PIN verification
     showPincode = true;
   }
@@ -302,7 +304,10 @@
     // Convert between crypto and fiat
     if (valueType === 'fiat' && amount) {
       const price = selectedToken.price || 0;
-      fiatAmount = (parseFloat(amount) * price).toFixed(2);
+      // Use BigNumber for precise calculation
+      const amountBN = new BigNumber(amount);
+      const valueBN = amountBN.mulByPrice(price, selectedToken.decimals || 18);
+      fiatAmount = BigNumber.fromWei(valueBN.toBigInt(0), 18);
     } else if (valueType === 'crypto' && fiatAmount) {
       const price = selectedToken.price || 1;
       amount = (parseFloat(fiatAmount) / price).toFixed(6);
@@ -324,7 +329,7 @@
       const debounceTimer = setTimeout(() => {
         estimateGas();
       }, 500);
-      
+
       return () => clearTimeout(debounceTimer);
     }
   });
@@ -416,7 +421,8 @@
             type="number"
             value={valueType === 'crypto' ? amount : fiatAmount}
             oninput={(e) => {
-              const value = e.target.value;
+              const target = e.target as HTMLInputElement;
+              const value = target.value;
               if (valueType === 'crypto') {
                 amount = value;
               } else {
@@ -434,7 +440,10 @@
                 const balance = selectedToken.balance || '0';
                 amount = balance;
                 if (valueType === 'fiat') {
-                  fiatAmount = (parseFloat(balance) * (selectedToken.price || 0)).toFixed(2);
+                  // Use BigNumber for precise calculation
+                  const balanceBN = new BigNumber(balance);
+                  const valueBN = balanceBN.mulByPrice(selectedToken.price || 0, selectedToken.decimals || 18);
+                  fiatAmount = BigNumber.fromWei(valueBN.toBigInt(0), 18);
                 }
               }}
             >
@@ -449,9 +458,9 @@
           </div>
         </div>
         {#if valueType === 'crypto' && amount && selectedToken.price}
-          <p class="mt-1 text-sm text-gray-500">≈ {formatCurrency(parseFloat(amount) * selectedToken.price)}</p>
+          <p class="mt-1 text-sm text-gray-500">≈ {formatCurrency(new BigNumber(amount).mulByPrice(selectedToken.price, selectedToken.decimals || 18).toNumber())}</p>
         {:else if valueType === 'fiat' && fiatAmount && selectedToken.price}
-          <p class="mt-1 text-sm text-gray-500">≈ {(parseFloat(fiatAmount) / selectedToken.price).toFixed(6)} {selectedToken.symbol}</p>
+          <p class="mt-1 text-sm text-gray-500">≈ {(new BigNumber(fiatAmount).toNumber() / selectedToken.price).toFixed(6)} {selectedToken.symbol}</p>
         {/if}
       </div>
 
@@ -481,7 +490,7 @@
       {#if showZeroValueWarning}
         <div class="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
           <p class="text-sm text-yellow-800 dark:text-yellow-200">
-            ⚠️ You're about to send a 0 value transaction. This is valid but will still cost gas fees. 
+            ⚠️ You're about to send a 0 value transaction. This is valid but will still cost gas fees.
             This is often used to cancel pending transactions.
           </p>
           <div class="mt-2 flex gap-2">
@@ -515,7 +524,7 @@
         {estimatingGas}
         onUpdate={estimateGas}
       />
-      
+
       <!-- Gas Trend Indicator -->
       <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
         <span class="text-sm font-medium">Gas Trend</span>
@@ -538,7 +547,7 @@
           {/if}
         </div>
       </div>
-      
+
       <!-- Total Cost Summary -->
       <div class="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
         <h4 class="font-medium mb-2">Transaction Summary</h4>
@@ -657,11 +666,11 @@
   details summary::-webkit-details-marker {
     display: none;
   }
-  
+
   details[open] summary::after {
     transform: rotate(180deg);
   }
-  
+
   details summary::after {
     content: '▼';
     display: inline-block;

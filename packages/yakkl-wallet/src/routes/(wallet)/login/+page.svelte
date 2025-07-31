@@ -12,16 +12,17 @@
   import { onMount } from 'svelte';
   import { protectedContexts } from '$lib/common/globals';
   // Added: Import navigation debug helper to diagnose home page navigation issue
-  import { debugGoto, fallbackNavigate } from '$lib/utils/navigationDebug';
+	import { get } from 'svelte/store';
+	import { sessionToken, sessionExpiresAt } from '$lib/common/auth/session';
+	import { browserAPI } from '$lib/services/browser-api.service';
 	import { goto } from '$app/navigation';
-	import { BalanceCacheManager } from '$lib/managers/BalanceCacheManager';
-	import { AccountTokenCacheManager } from '$lib/managers/AccountTokenCacheManager';
 
   // State
   let showError = $state(false);
   let errorValue = $state('');
-  let planType = $state(PlanType.BASIC_MEMBER);
+  let planType = $state(PlanType.EXPLORER_MEMBER);
   let yakklSettings: Settings | null = $state(null);
+
 
   // Format plan type for display (remove underscores and capitalize)
   function formatPlanType(plan: string): string {
@@ -36,39 +37,143 @@
   onMount(async () => {
     yakklSettings = await getNormalizedSettings();
     await setSettingsStorage(yakklSettings);
-    planType = yakklSettings?.plan.type ?? PlanType.BASIC_MEMBER;
-    
+    planType = yakklSettings?.plan.type ?? PlanType.EXPLORER_MEMBER;
+
     // Load cache managers early to ensure cached data is available
-    try {
-      BalanceCacheManager.getInstance();
-      AccountTokenCacheManager.getInstance();
-    } catch (error) {
-      log.warn('Failed to load cache managers in login:', false, error);
-    }
+    // try {
+    //   BalanceCacheManager.getInstance();
+    //   AccountTokenCacheManager.getInstance();
+    // } catch (error) {
+    //   log.warn('Failed to load cache managers in login:', false, error);
+    // }
   });
 
+  /**
+   * Pre-load token cache during login as requested by user
+   * This implements the user's specific request to have cache updated with current info
+   * before getting to the home page, so home page doesn't need complex logic
+   */
+  // async function preloadTokenCache() {
+  //   try {
+  //     log.info('[Login] Starting token cache preload...', false);
+
+  //     // Get currently selected account data as user requested
+  //     const currentlySelected = await getYakklCurrentlySelected();
+  //     if (currentlySelected?.shortcuts) {
+  //       const currentAddress = currentlySelected.shortcuts.address;
+  //       const currentChainId = currentlySelected.shortcuts.chainId;
+
+  //       if (currentAddress) {
+  //         log.info('[Login] Preloading tokens for address:', false, { address: currentAddress, chainId: currentChainId });
+
+  //         // Get the address token holdings for the current address
+  //         const addressTokenHoldings = await getYakklAddressTokenHoldings();
+
+  //         // Verify if tokens and address are in the yakklWalletCache
+  //         const cacheState = get(walletCacheStore);
+  //         const accountCache = cacheState.chainAccountCache[currentChainId]?.[currentAddress.toLowerCase()];
+
+  //         if (!accountCache || accountCache.tokens.length === 0) {
+  //           log.info('[Login] No cache found for address, loading default tokens...', false);
+
+  //           // Get combined tokens (default + custom)
+  //           const combinedTokens = await getYakklCombinedTokens();
+
+  //           // Filter tokens for current chain
+  //           const chainTokens = combinedTokens.filter(token =>
+  //             token.chainId === currentChainId || (!token.chainId && currentChainId === 1)
+  //           );
+
+  //           // Update wallet cache with token data
+  //           const tokenCacheData = chainTokens.map(token => ({
+  //             address: token.address,
+  //             symbol: token.symbol,
+  //             name: token.name,
+  //             decimals: token.decimals || 18,
+  //             balance: token.balance?.toString() || '0',
+  //             balanceLastUpdated: new Date(),
+  //             price: parseFloat(token.price?.toString() || '0'),
+  //             priceLastUpdated: new Date(),
+  //             value: parseFloat(token.balance?.toString() || '0') * parseFloat(token.price?.toString() || '0'),
+  //             icon: token.logoURI || token.icon || undefined,
+  //             isNative: token.isNative || false,
+  //             chainId: currentChainId
+  //           }));
+
+  //           walletCacheStore.updateTokens(currentChainId, currentAddress, tokenCacheData);
+
+  //           log.info('[Login] Added tokens to cache:', false, chainTokens.length);
+  //         } else {
+  //           log.info('[Login] Existing cache found, refreshing prices only...', false);
+  //         }
+
+  //         // Get prices for each token, including native token (ETH)
+  //         // This should include zero_address with isNative = true as user mentioned
+  //         try {
+  //           await updateTokenPrices();
+  //           log.info('[Login] Token prices updated during cache preload', false);
+  //         } catch (error) {
+  //           log.warn('Failed to update token prices during preload:', false, error);
+  //         }
+
+  //         log.info('[Login] Token cache preload completed successfully', false);
+  //       } else {
+  //         log.warn('[Login] No current address found for token cache preload', false);
+  //       }
+  //     } else {
+  //       log.warn('[Login] No currently selected shortcuts found for token cache preload', false);
+  //     }
+  //   } catch (error) {
+  //     log.error('Error during token cache preload:', false, error);
+  //     // Don't fail login if cache preload fails
+  //   }
+  // }
+
   // Handle successful login
+
   async function onSuccess(profile: Profile, digest: string, isMinimal: boolean) {
+    console.log('[LOGIN onSuccess] Called with:', {
+      profile,
+      hasDigest: !!digest,
+      digestLength: digest?.length,
+      isMinimal
+    });
+
     try {
       // Set the username in the global store
-      $yakklUserNameStore = profile.userName || '';
+      $yakklUserNameStore = profile.username || '';
 
       // Full wallet initialization
       setIconUnlock();
 
       // KEY: Sync all storage to stores - this loads all persistent data
       await syncStorageToStore();
-      
+
+      // Only clear cache for first-time users, not on every login
+      // try {
+      //   await extensionTokenCacheStore.clearForFirstTimeSetup();
+      //   log.info('[Login] Checked and cleared cache if first-time user');
+      // } catch (error) {
+      //   log.warn('Failed to check first-time user cache:', false, error);
+      // }
+
       // Ensure cache managers are loaded after login
-      try {
-        BalanceCacheManager.getInstance();
-        AccountTokenCacheManager.getInstance();
-      } catch (error) {
-        log.warn('Failed to load cache managers after login:', false, error);
-      }
+      // try {
+        // BalanceCacheManager.getInstance();
+        // const accountTokenCache = AccountTokenCacheManager.getInstance();
+
+        // Clear any stale portfolio value cache to force fresh calculation
+        // Get the current account from the stores after sync
+        // const account = get(currentAccount);
+
+        // No need to clear account cache on every login - cache persists between sessions
+        log.info('[Login] Account token cache persists between sessions');
+      // } catch (error) {
+      //   log.warn('Failed to load cache managers after login:', false, error);
+      // }
 
       // Unlock the wallet using setLocks function - this updates both storage and stores
-      await setLocks(false, yakklSettings?.plan.type || PlanType.BASIC_MEMBER);
+      await setLocks(false, yakklSettings?.plan.type || PlanType.EXPLORER_MEMBER);
 
       // Start activity tracking
       const contextType = 'popup-wallet';
@@ -77,31 +182,23 @@
         startActivityTracking(contextType);
       }
 
-      // Small delay to ensure all stores are synchronized before redirect
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // NEW: Pre-load token cache during login as user requested
+      // This ensures the cache is populated before reaching the home page
+      // await preloadTokenCache();
 
-      log.info('V2: All stores synchronized after login');
+      // Small delay to ensure all stores are synchronized before redirect
+      // await new Promise(resolve => setTimeout(resolve, 200));
 
       // Mark session as authenticated
       sessionStorage.setItem('wallet-authenticated', 'true');
 
-      // Check if we're in an extension popup context
-      // We can detect this by checking if we're running in an extension URL
-      let isPopupContext = false;
-      if (typeof window !== 'undefined' && window.location.href.includes('chrome-extension://')) {
-        isPopupContext = true;
-        log.info('Login in extension popup context');
-      }
-
-      // Added: Use debug navigation to diagnose why home page doesn't appear
-      // Original: await goto('/home', { replaceState: true });
       try {
-        // await debugGoto('/home', { replaceState: true });
         await goto('/home', { replaceState: true });
-      } catch (navError) {
-        // If SvelteKit navigation fails, try fallback method
-        log.warn('SvelteKit navigation failed, trying fallback', false, navError);
-        fallbackNavigate('/home');
+      } catch (error) {
+        log.error('[LOGIN] Navigation failed:', false, error);
+        // Fallback to login page on navigation error
+        errorValue = 'Failed to navigate to home page';
+        showError = true;
       }
 
     } catch (e: any) {

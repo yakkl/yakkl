@@ -1,16 +1,17 @@
 <script lang="ts">
   import { type TokenDisplay } from '$lib/types';
-  import ProtectedValue from './v1/ProtectedValue.svelte';
-  
+  import ProtectedValue from './ProtectedValue.svelte';
+  import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
+
   interface Props {
     token: TokenDisplay | undefined;
     format?: 'price' | 'value' | 'full';
     showChange?: boolean;
     className?: string;
   }
-  
+
   let { token, format = 'price', showChange = false, className = '' }: Props = $props();
-  
+
   function formatPrice(price: number | undefined): string {
     if (!price) return '$0.00';
     if (price < 0.01) {
@@ -23,7 +24,7 @@
       maximumFractionDigits: price < 1 ? 6 : 2
     }).format(price);
   }
-  
+
   function formatValue(val: number | undefined): string {
     if (!val) return '$0.00';
     return new Intl.NumberFormat('en-US', {
@@ -33,7 +34,7 @@
       maximumFractionDigits: 2
     }).format(val);
   }
-  
+
   function formatFullPrice(price: number | undefined): string {
     if (!price) return '$0.00000000';
     if (price < 0.00000001) {
@@ -46,23 +47,23 @@
       maximumFractionDigits: 10
     }).format(price);
   }
-  
+
   let displayValue = $derived.by(() => {
     if (!token) return '$0.00';
-    
+
     switch (format) {
       case 'value':
-        return formatValue(token.value);
+        return formatValue(Number(token.value));
       case 'full':
-        return formatFullPrice(token.price);
+        return formatFullPrice(BigNumberishUtils.toNumber(token.price));
       default:
-        return formatPrice(token.price);
+        return formatPrice(BigNumberishUtils.toNumber(token.price));
     }
   });
-  
+
   let changeClass = $derived(
     token?.change24h !== undefined
-      ? token.change24h >= 0 ? 'text-green-500' : 'text-red-500'
+      ? BigNumberishUtils.compare(token.change24h, 0) >= 0 ? 'text-green-500' : 'text-red-500'
       : ''
   );
 </script>
@@ -71,7 +72,7 @@
   <ProtectedValue value={displayValue} placeholder="*****" />
   {#if showChange && token?.change24h !== undefined}
     <span class="text-xs ml-1 {changeClass}">
-      {token.change24h >= 0 ? '+' : ''}{token.change24h.toFixed(2)}%
+      {BigNumberishUtils.compare(token.change24h, 0) >= 0 ? '+' : ''}{BigNumberishUtils.toNumber(token.change24h).toFixed(2)}%
     </span>
   {/if}
 </div>

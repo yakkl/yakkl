@@ -66,7 +66,7 @@ export async function validateBackgroundRequest(
     // Check if method requires authentication
     const requiresAuth = PROTECTED_METHODS.has(method);
     const isPopupMethod = POPUP_METHODS.has(method);
-    
+
     if (!requiresAuth && PUBLIC_METHODS.has(method)) {
       // Public methods don't require authentication
       return {
@@ -75,13 +75,13 @@ export async function validateBackgroundRequest(
         hasRequiredPermissions: true
       };
     }
-    
+
     // For popup methods, allow them to proceed even if wallet is locked
     // The popup will handle authentication
     if (isPopupMethod) {
       // Check if wallet is at least initialized
       const settings = await getObjectFromLocalStorage<Settings>(STORAGE_YAKKL_SETTINGS);
-      
+
       if (!settings || !settings.legal?.termsAgreed) {
         return {
           isValid: false,
@@ -90,7 +90,7 @@ export async function validateBackgroundRequest(
           hasRequiredPermissions: false
         };
       }
-      
+
       // Allow popup methods to proceed even if locked
       return {
         isValid: true,
@@ -98,12 +98,12 @@ export async function validateBackgroundRequest(
         hasRequiredPermissions: true
       };
     }
-    
+
     // For protected methods, check authentication
     if (requiresAuth) {
       // Check wallet settings
       const settings = await getObjectFromLocalStorage<Settings>(STORAGE_YAKKL_SETTINGS);
-      
+
       if (!settings) {
         return {
           isValid: false,
@@ -112,7 +112,7 @@ export async function validateBackgroundRequest(
           hasRequiredPermissions: false
         };
       }
-      
+
       if (!settings.init) {
         return {
           isValid: false,
@@ -121,7 +121,7 @@ export async function validateBackgroundRequest(
           hasRequiredPermissions: false
         };
       }
-      
+
       if (!settings.legal?.termsAgreed) {
         return {
           isValid: false,
@@ -130,7 +130,7 @@ export async function validateBackgroundRequest(
           hasRequiredPermissions: false
         };
       }
-      
+
       if (settings.isLocked !== false) {
         return {
           isValid: false,
@@ -139,10 +139,10 @@ export async function validateBackgroundRequest(
           hasRequiredPermissions: false
         };
       }
-      
+
       // Check if profile exists (additional validation)
       const profile = await getObjectFromLocalStorage<Profile>(STORAGE_YAKKL_PROFILE);
-      
+
       if (!profile || !profile.data) {
         return {
           isValid: false,
@@ -151,10 +151,10 @@ export async function validateBackgroundRequest(
           hasRequiredPermissions: false
         };
       }
-      
+
       // Check origin permissions
       const hasPermission = await checkOriginPermission(origin, method);
-      
+
       if (!hasPermission) {
         log.warn('Origin lacks permission for method', false, { origin, method });
         return {
@@ -164,7 +164,7 @@ export async function validateBackgroundRequest(
           hasRequiredPermissions: false
         };
       }
-      
+
       // All checks passed for protected method
       return {
         isValid: true,
@@ -172,7 +172,7 @@ export async function validateBackgroundRequest(
         hasRequiredPermissions: true
       };
     }
-    
+
     // Unknown method
     return {
       isValid: false,
@@ -180,7 +180,7 @@ export async function validateBackgroundRequest(
       isAuthenticated: false,
       hasRequiredPermissions: false
     };
-    
+
   } catch (error) {
     log.error('Error validating background request', false, error);
     return {
@@ -199,21 +199,21 @@ async function checkOriginPermission(origin: string, method: string): Promise<bo
   try {
     // Extract domain from origin
     const domain = extractDomain(origin);
-    
+
     // Get permissions for domain
     const permissions = await getPermission(domain);
-    
+
     if (!permissions) {
       return false;
     }
-    
+
     // Check if permissions exist and haven't expired
     // For now, we'll allow access if permissions exist
     // In the future, we may want to check specific method permissions
     if (method.startsWith('eth_') || method.startsWith('personal_') || method.startsWith('wallet_')) {
       return permissions.accounts && permissions.accounts.length > 0;
     }
-    
+
     return false;
   } catch (error) {
     log.error('Error checking origin permission', false, error);
@@ -247,14 +247,14 @@ export function validateMethodParams(method: string, params: any[]): { valid: bo
         return { valid: false, error: 'Transaction must have from and to addresses' };
       }
       break;
-      
+
     case 'personal_sign':
     case 'eth_sign':
       if (!params || params.length < 2) {
         return { valid: false, error: 'Message and address required' };
       }
       break;
-      
+
     case 'eth_signTypedData':
     case 'eth_signTypedData_v3':
     case 'eth_signTypedData_v4':
@@ -263,7 +263,7 @@ export function validateMethodParams(method: string, params: any[]): { valid: bo
       }
       break;
   }
-  
+
   return { valid: true };
 }
 
@@ -281,19 +281,19 @@ export async function logSecurityEvent(
       event,
       details
     };
-    
+
     // Store security log using browser storage (service workers don't have localStorage)
     const result = await browser.storage.local.get('securityLog');
     const securityLog: any[] = Array.isArray(result.securityLog) ? result.securityLog : [];
     securityLog.push(logEntry);
-    
+
     // Keep only last 500 entries
     if (securityLog.length > 500) {
       securityLog.splice(0, securityLog.length - 500);
     }
-    
+
     await browser.storage.local.set({ securityLog });
-    
+
     log.warn('Security event', false, logEntry);
   } catch (error) {
     log.error('Failed to log security event', false, error);

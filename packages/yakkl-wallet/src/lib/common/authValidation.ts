@@ -1,13 +1,15 @@
 // authValidation.ts - Centralized authentication validation
 import { log } from '$lib/common/logger-wrapper';
-import { getMiscStore, yakklMiscStore } from '$lib/common/stores';
-import { getObjectFromLocalStorage } from '$lib/common/storage';
+import { getMiscStore, resetStores, setMiscStore, yakklMiscStore } from '$lib/common/stores';
+import { getObjectFromLocalStorage, setObjectInLocalStorage } from '$lib/common/storage';
 import { STORAGE_YAKKL_SETTINGS } from '$lib/common/constants';
 import { sessionManager } from '$lib/managers/SessionManager';
 import { jwtManager } from '$lib/utilities/jwt';
 import { getProfile } from '$lib/common/stores';
 import type { Profile, ProfileData, Settings } from '$lib/common/interfaces';
 import { get } from 'svelte/store';
+import { decryptData } from './encryption';
+import { isEncryptedData } from './misc';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -29,61 +31,57 @@ export async function validateAuthentication(): Promise<ValidationResult> {
       log.warn('Authentication failed: Wallet not initialized');
       return { isValid: false, reason: 'Wallet not initialized' };
     }
-    
+
     // Step 2: Check if legal terms are accepted
     if (!settings.legal?.termsAgreed) {
-      log.warn('Authentication failed: Legal terms not accepted');
+      log.error('Authentication failed: Legal terms not accepted');
       return { isValid: false, reason: 'Legal terms not accepted' };
     }
-    
+
     // Step 3: Check if wallet is locked
     if (settings.isLocked !== false) {
-      log.warn('Authentication failed: Wallet is locked');
+      log.error('Authentication failed: Wallet is locked');
       return { isValid: false, reason: 'Wallet is locked' };
     }
 
     // Step 4: Validate digest exists and is non-empty
     const digest = getMiscStore();
     if (!digest || digest.length === 0) {
-      log.warn('Authentication failed: No valid digest found');
+      log.error('Authentication failed: No valid digest found');
       return { isValid: false, reason: 'No authentication digest' };
     }
 
     // Step 5: Verify digest matches stored value
     const storedDigest = get(yakklMiscStore);
     if (digest !== storedDigest) {
-      log.warn('Authentication failed: Digest mismatch');
+      log.error('Authentication failed: Digest mismatch');
       return { isValid: false, reason: 'Invalid authentication state' };
     }
 
     // Step 6: Retrieve and validate profile
     const profile = await getProfile();
     if (!profile) {
-      log.warn('Authentication failed: No profile found');
+      log.error('Authentication failed: No profile found');
       return { isValid: false, reason: 'No profile found' };
     }
-    
+
     // Profile from getProfile is already decrypted, validate its structure
     if (!profile.data) {
-      log.warn('Authentication failed: No profile data');
+      log.error('Authentication failed: No profile data');
       return { isValid: false, reason: 'Profile data missing' };
     }
 
     // Step 7: Validate profile data exists
     // The profile from getProfile() is already decrypted if the digest was valid
-    const profileData = profile.data as ProfileData;
-    if (!profileData) {
-      log.warn('Authentication failed: No profile data available');
-      return { isValid: false, reason: 'Profile data missing' };
+    if (isEncryptedData(profile.data)) {
+      const profileData = await decryptData(profile.data, digest) as ProfileData;
+      if (!profileData) {
+        log.error('Authentication failed: No profile data available');
+        return { isValid: false, reason: 'Profile data missing' };
+      }
     }
 
-    // Step 8: Validate profile integrity
-    if (!profile || !profile.id || !profileData) {
-      log.warn('Authentication failed: Invalid profile structure');
-      return { isValid: false, reason: 'Corrupted profile data' };
-    }
-
-    // Step 9: Check JWT session validity
+    // Step 8: Check JWT session validity
     let hasValidJWT = false;
     if (sessionManager.isSessionActive()) {
       const jwtToken = sessionManager.getCurrentJWTToken();
@@ -94,16 +92,16 @@ export async function validateAuthentication(): Promise<ValidationResult> {
             hasValidJWT = true;
             log.debug('JWT token validated successfully');
           } else {
-            log.warn('JWT token validation failed');
+            log.error('JWT token validation failed');
             // Don't fail auth entirely if JWT is invalid - the session manager will handle this
           }
         } catch (error) {
-          log.warn('JWT token verification error', false, error);
+          log.error('JWT token verification error', false, error);
         }
       }
     }
 
-    // Step 10: Additional security checks
+    // Step 9: Additional security checks
     // Check if profile ID matches expected format
     if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(profile.id)) {
       log.warn('Authentication failed: Invalid profile ID format');
@@ -112,8 +110,8 @@ export async function validateAuthentication(): Promise<ValidationResult> {
 
     // All checks passed
     log.info('Authentication validated successfully');
-    return { 
-      isValid: true, 
+    return {
+      isValid: true,
       profile: profile,
       hasValidSession: sessionManager.isSessionActive(),
       hasValidJWT: hasValidJWT
@@ -133,7 +131,7 @@ export async function quickAuthCheck(): Promise<boolean> {
   try {
     const settings = await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS) as Settings;
     const digest = getMiscStore();
-    
+
     return !!(settings && settings.isLocked === false && digest && digest.length > 0);
   } catch {
     return false;
@@ -145,20 +143,16 @@ export async function quickAuthCheck(): Promise<boolean> {
  */
 export async function clearAuthenticationState(): Promise<void> {
   try {
-    const { setObjectInLocalStorage } = await import('$lib/common/storage');
-    const { STORAGE_YAKKL_SETTINGS } = await import('$lib/common/constants');
-    const { setMiscStore, resetStores } = await import('$lib/common/stores');
-    
     // Lock the wallet
     const settings = await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS) as Settings;
     if (settings) {
       settings.isLocked = true;
       await setObjectInLocalStorage(STORAGE_YAKKL_SETTINGS, settings);
     }
-    
+
     // Clear sensitive data
     setMiscStore('');
-    
+
     // Clear session if active
     try {
       if (sessionManager.isSessionActive()) {
@@ -167,10 +161,10 @@ export async function clearAuthenticationState(): Promise<void> {
     } catch (error) {
       log.warn('Error ending session during auth clear', false, error);
     }
-    
+
     // Reset stores
     await resetStores();
-    
+
     log.info('Authentication state cleared');
   } catch (error) {
     log.error('Error clearing authentication state', false, error);
@@ -184,12 +178,12 @@ export async function clearAuthenticationState(): Promise<void> {
 export async function validateAndRefreshAuth(): Promise<boolean> {
   try {
     const validation = await validateAuthentication();
-    
+
     if (!validation.isValid) {
       await clearAuthenticationState();
       return false;
     }
-    
+
     // Refresh session if active
     if (sessionManager.isSessionActive()) {
       try {
@@ -198,7 +192,7 @@ export async function validateAndRefreshAuth(): Promise<boolean> {
         log.warn('Failed to extend session during auth refresh', false, error);
       }
     }
-    
+
     return true;
   } catch (error) {
     log.error('Error validating and refreshing auth', false, error);
@@ -212,7 +206,7 @@ export async function validateAndRefreshAuth(): Promise<boolean> {
 export async function auditAuthEvent(event: string, details: any = {}): Promise<void> {
   try {
     log.info(`Auth Event: ${event}`, false, details);
-    
+
     // Store audit event if needed
     const auditEntry = {
       event,
@@ -220,11 +214,13 @@ export async function auditAuthEvent(event: string, details: any = {}): Promise<
       details,
       profileId: 'unknown' // Profile ID not available in this context
     };
-    
+
     // Could store in local storage or send to backend
     // For now, just log it
     if (event === 'validation_failed' || event === 'unauthorized_access') {
       log.warn('Security audit event', false, auditEntry);
+    } else {
+      log.debug('Security audit event........................', false, auditEntry);
     }
   } catch (error) {
     log.error('Error auditing auth event', false, error);
@@ -242,24 +238,24 @@ const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
 export function checkAuthRateLimit(identifier: string): boolean {
   const now = Date.now();
   const record = authRateLimitMap.get(identifier);
-  
+
   if (!record) {
     authRateLimitMap.set(identifier, { attempts: 1, lastAttempt: now });
     return true;
   }
-  
+
   // Reset if outside time window
   if (now - record.lastAttempt > RATE_LIMIT_WINDOW) {
     authRateLimitMap.set(identifier, { attempts: 1, lastAttempt: now });
     return true;
   }
-  
+
   // Check if exceeded attempts
   if (record.attempts >= MAX_AUTH_ATTEMPTS) {
     log.warn('Authentication rate limit exceeded', false, { identifier });
     return false;
   }
-  
+
   // Increment attempts
   record.attempts++;
   record.lastAttempt = now;

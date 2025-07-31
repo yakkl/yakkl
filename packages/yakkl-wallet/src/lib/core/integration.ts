@@ -1,6 +1,6 @@
 /**
  * Core Integration for V2
- * 
+ *
  * This bridges the existing v2 system with the new YAKKL Core
  * Maintains compatibility while adding extension capabilities
  */
@@ -36,7 +36,6 @@ class CoreIntegration {
     if (this.initialized) return;
 
     try {
-      // TODO: Enable YAKKL Core when build issues are resolved
       // const config: Partial<WalletConfig> = {
       //   name: 'YAKKL Wallet V2',
       //   version: '2.0.0',
@@ -54,12 +53,12 @@ class CoreIntegration {
       console.log('🔧 Using mock engine - YAKKL Core integration ready for future');
 
       this.setupEventListeners();
-      
+
       // Load system extensions
       await this.loadSystemExtensions();
-      
+
       this.updateStores();
-      
+
       this.initialized = true;
     } catch (error) {
       console.error('Failed to initialize core integration:', error);
@@ -77,14 +76,14 @@ class CoreIntegration {
       on(event: string, handler: any): void {},
       emit(event: string, data: any): void {},
       off(event: string, handler: any): void {},
-      async loadExtension(id: string): Promise<any> { 
+      async loadExtension(id: string): Promise<any> {
         // Load from system registry
         return await systemExtensionRegistry.loadExtension(id);
       },
-      async discoverExtensions(): Promise<any[]> { 
+      async discoverExtensions(): Promise<any[]> {
         return systemExtensionRegistry.getAvailableExtensions();
       },
-      async getLoadedExtensions(): Promise<any[]> { 
+      async getLoadedExtensions(): Promise<any[]> {
         return systemExtensionRegistry.getLoadedExtensions();
       },
       accounts: {
@@ -111,7 +110,7 @@ class CoreIntegration {
     try {
       console.log('📦 Loading system extensions...');
       const systemExtensions = await systemExtensionRegistry.loadSystemExtensions();
-      
+
       // Initialize each system extension with the engine
       for (const extension of systemExtensions) {
         try {
@@ -123,7 +122,7 @@ class CoreIntegration {
           console.error(`Failed to initialize system extension ${extension.manifest?.id}:`, error);
         }
       }
-      
+
       console.log(`📦 Loaded ${systemExtensions.length} system extensions`);
     } catch (error) {
       console.error('Failed to load system extensions:', error);
@@ -137,7 +136,7 @@ class CoreIntegration {
     try {
       // Try to load from system registry first
       let extension = await systemExtensionRegistry.loadExtension(extensionId);
-      
+
       if (extension && this.engine) {
         // Initialize the extension with the engine
         if (extension.initialize) {
@@ -146,14 +145,14 @@ class CoreIntegration {
         this.updateStores();
         return extension;
       }
-      
+
       // Fall back to engine loading (for future real core integration)
       if (this.engine) {
         extension = await this.engine.loadExtension(extensionId);
         this.updateStores();
         return extension;
       }
-      
+
       return null;
     } catch (error) {
       console.error(`Failed to load extension ${extensionId}:`, error);
@@ -168,7 +167,7 @@ class CoreIntegration {
     try {
       // Get available extensions from system registry
       const systemExtensions = systemExtensionRegistry.getAvailableExtensions();
-      
+
       // Get discovered extensions from engine (for future expansion)
       let engineExtensions: any[] = [];
       if (this.engine) {
@@ -178,11 +177,11 @@ class CoreIntegration {
           console.warn('Engine extension discovery failed:', error);
         }
       }
-      
+
       // Combine system and engine extensions
       const allDiscovered = [...systemExtensions, ...engineExtensions];
       this.discoveredExtensions.set(allDiscovered);
-      
+
       return allDiscovered;
     } catch (error) {
       console.error('Failed to discover extensions:', error);
@@ -199,7 +198,7 @@ class CoreIntegration {
     try {
       // Get loaded extensions and filter by category
       const loadedExtensions = await this.engine.getLoadedExtensions();
-      return loadedExtensions.filter((extension: Extension) => 
+      return loadedExtensions.filter((extension: Extension) =>
         extension.manifest.category === category
       );
     } catch (error) {
@@ -218,16 +217,16 @@ class CoreIntegration {
       // Get loaded extensions and check for enhancements
       const loadedExtensions = await this.engine.getLoadedExtensions();
       const enhancements: any[] = [];
-      
+
       for (const extension of loadedExtensions) {
         const extensionEnhancements = extension.getEnhancements();
-        const relevantEnhancements = extensionEnhancements.filter((e: any) => 
-          e.targetExtension.includes(feature) || 
+        const relevantEnhancements = extensionEnhancements.filter((e: any) =>
+          e.targetExtension.includes(feature) ||
           e.description.toLowerCase().includes(feature.toLowerCase())
         );
         enhancements.push(...relevantEnhancements);
       }
-      
+
       return enhancements;
     } catch (error) {
       console.error('Failed to check enhancements:', error);
@@ -257,7 +256,7 @@ class CoreIntegration {
     try {
       // Get loaded extensions from system registry
       const systemExtensions = systemExtensionRegistry.getLoadedExtensions();
-      
+
       // Get loaded extensions from engine (for future)
       let engineExtensions: any[] = [];
       if (this.engine) {
@@ -267,7 +266,7 @@ class CoreIntegration {
           console.warn('Engine extension loading failed:', error);
         }
       }
-      
+
       // Combine all loaded extensions
       const allLoadedExtensions = [...systemExtensions, ...engineExtensions];
       this.extensions.set(allLoadedExtensions);
@@ -284,7 +283,7 @@ class CoreIntegration {
         }
       }
       this.enhancements.set(allEnhancements);
-      
+
       console.log(`📊 Updated stores: ${allLoadedExtensions.length} extensions, ${allEnhancements.length} enhancements`);
     } catch (error) {
       console.error('Failed to update stores:', error);
@@ -390,3 +389,4 @@ export function getNetworkManager() {
 export function getTransactionManager() {
   return coreIntegration.getTransactionManager();
 }
+

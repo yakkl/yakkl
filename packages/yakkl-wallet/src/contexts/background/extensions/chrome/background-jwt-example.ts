@@ -73,7 +73,7 @@ async function createJWTAfterAuth(userDetails: {
 			userDetails.userId,
 			userDetails.username,
 			userDetails.profileId,
-			userDetails.planLevel || 'basic',
+			userDetails.planLevel || 'explorer_member',
 			userDetails.sessionId
 		);
 

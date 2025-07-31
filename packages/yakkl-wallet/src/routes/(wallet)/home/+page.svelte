@@ -1,4 +1,6 @@
 <script lang="ts">
+  console.log('<<<<<<<<<<<<<home>>>>>>>>>>>>>>');
+  
   import { onMount } from 'svelte';
   import RecentActivity from "$lib/components/RecentActivity.svelte";
   import SendModal from "$lib/components/SendModalEnhanced.svelte";
@@ -14,12 +16,16 @@
   import Upgrade from "$lib/components/Upgrade.svelte";
   import TokenDetailModal from "$lib/components/TokenDetailModal.svelte";
   import PortfolioDetailsModal from "$lib/components/PortfolioDetailsModal.svelte";
+  import TransactionListModal from "$lib/components/TransactionListModal.svelte";
+  import TransactionDetailModal from "$lib/components/TransactionDetailModal.svelte";
   import PortfolioOverview from '$lib/components/PortfolioOverview.svelte';
   import { isModalOpen, modalStore } from "$lib/stores/modal.store";
   import { initializeCore } from "$lib/core/integration";
   import { currentAccount } from '$lib/stores/account.store';
   import { currentChain } from '$lib/stores/chain.store';
-  import { totalPortfolioValue, isLoadingTokens, lastTokenUpdate, isMultiChainView, multiChainPortfolioValue, displayTokens, tokenStore, grandTotalPortfolioValue } from '$lib/stores/token.store';
+  // import { importWithBrowserAPI, ensureBrowserAPI } from '$lib/browser-polyfill-import';
+  import type { BrowserFeatures } from '$lib/modules/browser-dependent-features';
+  import { totalPortfolioValue, isLoadingTokens, lastTokenUpdate, isMultiChainView, displayTokens, tokenStore, grandTotalPortfolioValue } from '$lib/stores/token.store';
   import { canUseFeature } from '$lib/utils/features';
   import { uiStore } from '$lib/stores/ui.store';
 	import { notificationService } from '$lib/services/notification.service';
@@ -27,10 +33,23 @@
 	import { get } from 'svelte/store';
 	import PincodeVerify from '$lib/components/PincodeVerify.svelte';
 	import ProtectedValue from '$lib/components/ProtectedValue.svelte';
-	import { updateTokenBalances } from '$lib/common/tokens';
-	import { updateTokenPrices } from '$lib/common/tokenPriceManager';
-	import { getInstances } from '$lib/common';
+  import { updateTokenBalances } from '$lib/common/tokens';
+  import { updateTokenPrices } from '$lib/common/tokenPriceManager';
+  import { getInstances } from '$lib/common';
+  import { nativeTokenPriceService } from '$lib/services/native-token-price.service';
+  import { uiJWTValidatorService } from '$lib/services/ui-jwt-validator.service';
+  import { log } from '$lib/common/logger-wrapper';
+  import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
+  import { DecimalMath } from '$lib/common/DecimalMath';
+  import { BigNumber } from '$lib/common/bignumber';
+  import { authStore } from '$lib/stores/auth-store';
 
+  // Initialize core integration dynamically to prevent SSR issues
+  // let initializeCore: (() => Promise<void>) | null = null;
+
+  console.log('[home] before let variables');
+
+  // State
   let showSendModal = $state(false);
   let showSwapModal = $state(false);
   let showReceiveModal = $state(false);
@@ -39,6 +58,7 @@
   let showTokenDetailModal = $state(false);
   let showPortfolioDetailsModal = $state(false);
   let showUpgradeModal = $state(false);
+  let showTransactionListModal = $state(false);
   let modalOpen = $derived($isModalOpen);
   let selectedToken = $state(null);
   let showPincodeModal = $state(false);
@@ -46,224 +66,444 @@
   let pendingAction = $state<'show' | 'hide' | null>(null);
   let previousNativePrice = $state<number | null>(null);
   let nativePriceDirection = $state<'up' | 'down' | null>(null);
-
-  // Track if we've done initial load
+  let selectedTransaction = $state(null);
+  let showTransactionDetailModal = $state(false);
   let hasInitialLoad = $state(false);
-  
-  // Refresh data when account changes or becomes available
+  let transactionListData = $state<any>(null);
+  let browserFeatures = $state<BrowserFeatures | null>(null);
+
+  // Debug state for error tracking
+  let hasError = $state(false);
+  let errorMessage = $state('');
+
+  function safeLog(message: string, data?: any) {
+    try {
+      log.info(`[Home] ${message}`, false, data);
+    } catch (e) {
+      console.log(`[Home] ${message}`, data);
+    }
+  }
+
+  function handleError(error: any, context: string) {
+    const errorMsg = `Error in ${context}: ${error?.message || error}`;
+    safeLog(errorMsg, error);
+    hasError = true;
+    errorMessage = errorMsg;
+
+    // Show user-friendly notification
+    try {
+      uiStore.showError('Page Load Error', `Failed to load home page: ${context}`);
+    } catch (e) {
+      console.error('Failed to show error notification:', e);
+    }
+  }
+
+  // Safely wrap all effects in try-catch
   $effect(() => {
-    if (account?.address && !hasInitialLoad) {
-      console.log('Account available, triggering initial data load:', account.address);
-      hasInitialLoad = true;
-      // The token store will automatically load cached data and refresh
-      // We don't need to force a refresh here as it's handled by the store
+    try {
+      if (account?.address && !hasInitialLoad) {
+        safeLog('Account available, triggering initial data load', account.address);
+        hasInitialLoad = true;
+
+        // Force a refresh to ensure data is loaded
+        setTimeout(() => {
+          safeLog('Forcing initial token refresh for account', account.address);
+          tokenStore.refresh(true).then(() => {
+            safeLog('Initial token refresh completed');
+          }).catch(error => {
+            handleError(error, 'initial token refresh');
+          });
+        }, 500);
+      }
+    } catch (error) {
+      handleError(error, 'account change effect');
     }
   });
-  
-  // Debug portfolio values
+
   $effect(() => {
-    console.log('[Home] Portfolio debug:', {
-      portfolioValue,
-      tokenCount: tokenList.length,
-      isMultiChain,
-      grandTotal,
-      singleChainTotal: $totalPortfolioValue,
-      account: account?.address,
-      chain: chain?.name,
-      firstToken: tokenList[0]
-    });
+    try {
+      // Always log token breakdown for debugging
+      safeLog('Token breakdown:', tokenList.map(t => ({
+        symbol: t.symbol,
+        qty: (t as any).qty || new BigNumber((t as any).balance || '0').toNumber() || 0,
+        price: t.price,
+        value: t.value,
+        address: t.address,
+        chainId: t.chainId
+      })));
+
+      safeLog('Portfolio debug:', {
+        portfolioValue,
+        tokenCount: tokenList.length,
+        isMultiChain,
+        grandTotal,
+        singleChainTotal: $totalPortfolioValue,
+        account: account?.address,
+        chain: chain?.name,
+        firstToken: tokenList[0]
+      });
+    } catch (error) {
+      handleError(error, 'portfolio debug effect');
+    }
   });
 
-   $effect(() => {
-    const unsubscribe = visibilityStore.subscribe((value) => {
-      isVisible = value;
-    });
-    return unsubscribe;
+  $effect(() => {
+    try {
+      const unsubscribe = visibilityStore.subscribe((value) => {
+        isVisible = value;
+      });
+      return unsubscribe;
+    } catch (error) {
+      handleError(error, 'visibility store effect');
+    }
   });
 
-  // Reactive values from stores
+    // Reactive values from stores
   let account = $derived($currentAccount);
   let chain = $derived($currentChain);
   let tokenList = $derived($displayTokens);
   let isMultiChain = $derived($isMultiChainView);
   let grandTotal = $derived($grandTotalPortfolioValue); // Total across ALL addresses and ALL chains
+
   let portfolioValue = $derived.by(() => {
-    // Calculate portfolio value directly from tokenList
-    if (tokenList.length > 0) {
-      const total = tokenList.reduce((sum, token) => {
-        const value = typeof token.value === 'number' ? token.value : parseFloat(token.value || '0');
-        return sum + value;
-      }, 0);
-      return total;
+    try {
+      // Use the appropriate total based on view mode
+      if (isMultiChain) {
+        // In multi-chain view, use the grand total across all addresses/chains
+        return grandTotal;
+      } else {
+        // In single chain view, use the single chain total
+        return $totalPortfolioValue;
+      }
+    } catch (error) {
+      handleError(error, 'calculating portfolio value');
+      return 0;
     }
-    // Fallback to store values
-    return isMultiChain ? grandTotal : $totalPortfolioValue;
   });
-  let loading = $derived($isLoadingTokens);
-  let lastUpdate = $derived($lastTokenUpdate);
+
+  // Current account value on current network only
+  let currentAccountValue = $derived.by(() => {
+    try {
+      if (!account || !chain) return 0;
+      // This is the value for the current account on the current network only
+      return $totalPortfolioValue;
+    } catch (error) {
+      handleError(error, 'calculating current account value');
+      return 0;
+    }
+  });
+
+  let loading = $derived.by(() => {
+    try {
+      return $isLoadingTokens;
+    } catch (error) {
+      handleError(error, 'getting loading state');
+      return false;
+    }
+  });
+
+  let lastUpdate = $derived.by(() => {
+    try {
+      return $lastTokenUpdate;
+    } catch (error) {
+      handleError(error, 'getting last update');
+      return null;
+    }
+  });
 
   // Find native token and its price
-  let nativeToken = $derived(
-    tokenList.find(t =>
-      t.symbol === chain?.nativeCurrency?.symbol ||
-      t.symbol === 'ETH' ||
-      t.symbol === 'MATIC' ||
-      t.symbol === 'BNB'
-    )
-  );
+  let nativeToken = $derived.by(() => {
+    try {
+      return tokenList.find(t =>
+        t.symbol === chain?.nativeCurrency?.symbol ||
+        t.symbol === 'ETH' ||
+        t.symbol === 'MATIC' ||
+        t.symbol === 'BNB'
+      );
+    } catch (error) {
+      handleError(error, 'finding native token');
+      return null;
+    }
+  });
 
-  let nativePrice = $derived(nativeToken?.price || 0);
+  let nativePrice = $derived.by(() => {
+    try {
+      return nativeToken?.price || 0;
+    } catch (error) {
+      handleError(error, 'getting native price');
+      return 0;
+    }
+  });
 
-  // Calculate native token value for account display
+  // Debug native token price
+  $effect(() => {
+    try {
+      if (nativeToken) {
+        safeLog('Native token debug:', {
+          symbol: nativeToken.symbol,
+          price: nativeToken.price,
+          value: nativeToken.value,
+          qty: (nativeToken as any).qty || new BigNumber((nativeToken as any).balance || '0').toNumber() || 0,
+          chainId: nativeToken.chainId
+        });
+
+        // Check if the price looks like a portfolio value
+        if (BigNumberishUtils.compare(nativeToken.price, 10000) > 0) {
+          safeLog('WARNING: Native token price looks like portfolio value!', BigNumberishUtils.toNumber(nativeToken.price));
+        }
+      }
+    } catch (error) {
+      handleError(error, 'native token debug effect');
+    }
+  });
+
+  // Calculate native token value for account display using BigNumber for precision
   let accountNativeValue = $derived.by(() => {
-    if (!account || !chain) return 0;
-    const balance = parseFloat(account.balance || '0');
-    return balance * nativePrice;
+    try {
+      if (!account || !chain) return 0;
+      
+      // Use BigNumber to handle the balance and price multiplication properly
+      const balanceBN = new BigNumber(account.balance || '0');
+      const priceBN = new BigNumber(nativePrice);
+      
+      // Use mulByPrice to get USD value (handles decimal ETH values properly)
+      const usdValue = balanceBN.mulByPrice(BigNumberishUtils.toNumber(nativePrice), 18);
+      
+      // The result is already in USD, just convert to number for display
+      return usdValue.toNumber();
+    } catch (error) {
+      handleError(error, 'calculating account native value');
+      return 0;
+    }
   });
 
   // Track native price changes and update direction indicator
   $effect(() => {
-    if (nativePrice > 0 && previousNativePrice !== null && previousNativePrice > 0) {
-      if (nativePrice > previousNativePrice) {
-        nativePriceDirection = 'up';
-      } else if (nativePrice < previousNativePrice) {
-        nativePriceDirection = 'down';
+    try {
+      if (BigNumberishUtils.compare(nativePrice, 0) > 0 && previousNativePrice !== null && previousNativePrice > 0) {
+        if (BigNumberishUtils.compare(nativePrice, previousNativePrice) > 0) {
+          nativePriceDirection = 'up';
+        } else if (BigNumberishUtils.compare(nativePrice, previousNativePrice) < 0) {
+          nativePriceDirection = 'down';
+        }
       }
-      // Don't clear - keep the indicator visible
-    }
-    if (nativePrice > 0) {
-      previousNativePrice = nativePrice;
+      if (BigNumberishUtils.compare(nativePrice, 0) > 0) {
+        previousNativePrice = BigNumberishUtils.toNumber(nativePrice);
+      }
+    } catch (error) {
+      handleError(error, 'native price tracking effect');
     }
   });
 
   // Update direction from price service
   $effect(() => {
-    if (nativeToken?.symbol) {
-      // DISABLED: Price direction from simulated service
-      // const direction = priceUpdateService.getPriceDirection(nativeToken.symbol);
-      // if (direction) {
-      //   nativePriceDirection = direction;
-      // }
-      // TODO: Implement price direction tracking with real prices
+    try {
+      if (nativeToken?.symbol) {
+        // DISABLED: Price direction from simulated service
+        // const direction = priceUpdateService.getPriceDirection(nativeToken.symbol);
+        // if (direction) {
+        //   nativePriceDirection = direction;
+        // }
+        // TODO: Implement price direction tracking with real prices
+      }
+    } catch (error) {
+      handleError(error, 'price direction update effect');
     }
   });
 
-  // Track upgrade modal state
+  // Track modal states with proper guard to prevent infinite loop
+  let lastUpgradeModalState = false;
   $effect(() => {
-    if (showUpgradeModal) {
-      modalStore.openModal('upgrade');
-    } else if ($isModalOpen && modalStore.isModalOpen()) {
-      // Only close if we opened it
-      modalStore.closeModal();
+    try {
+      // Only act when showUpgradeModal changes
+      if (showUpgradeModal !== lastUpgradeModalState) {
+        lastUpgradeModalState = showUpgradeModal;
+        
+        if (showUpgradeModal) {
+          modalStore.openModal('upgrade');
+        } else if (modalStore.isModalOpen()) {
+          modalStore.closeModal();
+        }
+      }
+    } catch (error) {
+      handleError(error, 'modal state tracking effect');
+    }
+  });
+
+  // Subscribe to modal store for transactionList modal
+  $effect(() => {
+    try {
+      const unsubscribe = modalStore.subscribe(state => {
+        if (state.modalType === 'transactionList' && state.isOpen) {
+          showTransactionListModal = true;
+          transactionListData = (state as any).data || null;
+        } else if (state.modalType === 'transactionList' && !state.isOpen) {
+          showTransactionListModal = false;
+          transactionListData = null;
+        }
+      });
+
+      return () => unsubscribe();
+    } catch (error) {
+      handleError(error, 'modal store subscription effect');
     }
   });
 
   async function refreshAllData(forceRefresh = false) {
-    console.log('refreshAllData: Starting data refresh...', { forceRefresh });
-
     try {
-      // Always refresh to get latest prices
+      safeLog('refreshAllData: Starting data refresh...', { forceRefresh });
+
+      // When force refreshing, update prices first to ensure consistency
+      if (forceRefresh) {
+        // Update prices before refreshing token store
+        await updateTokenPrices();
+        safeLog('refreshAllData: Token prices updated');
+
+        // Small delay to ensure price updates are propagated to cache
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      // Always refresh to get latest data
       await tokenStore.refresh(forceRefresh);
-      console.log('refreshAllData: Token store refreshed');
-      
-      // Force reload of cached data after refresh
+      safeLog('refreshAllData: Token store refreshed');
+
+      // Update balances if needed
       if (forceRefresh) {
         const instances = await getInstances();
         if (instances && instances[1] && $currentAccount) {
           const provider = instances[1].getProvider();
-          await Promise.all([
-            updateTokenBalances($currentAccount.address, provider),
-            updateTokenPrices()
-          ]);
-          
-          // Reload token store to pick up updated cache
+          await updateTokenBalances($currentAccount.address, provider);
+
+          // Final refresh to ensure UI has all latest data
           await tokenStore.refresh();
         }
       }
     } catch (error) {
-      console.error('refreshAllData: Error refreshing data:', error);
+      handleError(error, 'refreshAllData');
     }
   }
 
   onMount(() => {
-    // DISABLED: Simulated price updates - using real prices from tokenPriceManager instead
-    // priceUpdateService.startPriceUpdates(30000); // 30 seconds
+    try {
+      if (typeof window === 'undefined') {
+        console.log('window is not defined');
+        return null;
+      }
 
-    // Run async initialization without blocking UI
-    (async () => {
-      // Don't show global loading - let individual components handle their state
-      // Added: Add timeout to prevent infinite initialization
-      const initTimeout = setTimeout(() => {
-        console.warn('Home page initialization timeout reached');
-      }, 5000);
+      safeLog('onMount: Starting home page initialization');
 
-      try {
-        // Initialize YAKKL Core (non-blocking)
-        initializeCore().catch(err => {
-          console.warn('YAKKL Core initialization failed:', err);
-        });
-
-        // The token store automatically loads cached data on initialization
-        // and sets up auto-refresh, so we don't need to force a refresh here
-        console.log('Home: Token store will handle data loading automatically');
-
-        // Update token balances and prices in the background after a delay
-        if ($currentAccount) {
-          // Wait a bit to avoid conflicting with the initial load
-          setTimeout(() => {
-            console.log('/home/+page.svelte: Background token update for', $currentAccount.address);
-
-            // Load these in background without blocking
-            (async () => {
-              const instances = await getInstances();
-              if (instances && instances[1]) {
-                const provider = instances[1].getProvider();
-
-                // Update in background
-                Promise.all([
-                  updateTokenBalances($currentAccount.address, provider),
-                  updateTokenPrices()
-                ]).then(() => {
-                  // Only refresh if we need to force update
-                  if ($displayTokens.length === 0) {
-                    tokenStore.refresh();
-                    console.log('/home/+page.svelte: Token data force updated');
-                  }
-                }).catch(err => {
-                  console.warn('Token update failed:', err);
-                });
-              }
-            })().catch(err => {
-              console.warn('Failed to load token modules:', err);
-            });
-          }, 2000); // Wait 2 seconds before background update
+      // Dynamic import and async initialization
+      (async () => {
+        // Dynamic import to prevent SSR issues
+        try {
+          // const coreModule = await import('$lib/core/integration');
+          // initializeCore = coreModule.initializeCore;
+          safeLog('onMount: Core integration module loaded');
+        } catch (error) {
+          handleError(error, 'loading core integration module');
         }
 
-      } catch (error) {
-        console.error('Preview 2.0 initialization failed:', error);
-      } finally {
-        clearTimeout(initTimeout);
-      }
-    })();
+        // Add timeout to prevent infinite initialization
+        const initTimeout = setTimeout(() => {
+          handleError(new Error('Initialization timeout'), 'home page initialization timeout');
+        }, 10000); // Increased to 10 seconds
 
-    // Listen for token click events
-    const handleEvent = (event: Event) => {
-      handleTokenClick(event as CustomEvent);
-    };
+        try {
+          safeLog('onMount: Starting async initialization');
 
-    if (typeof document !== 'undefined') {
-      document.addEventListener('tokenclick', handleEvent);
+          // Initialize YAKKL Core (non-blocking)
+          if (initializeCore) {
+            try {
+              await initializeCore();
+              safeLog('onMount: YAKKL Core initialized successfully');
+            } catch (err) {
+              handleError(err, 'YAKKL Core initialization');
+            }
+          }
 
-      return () => {
-        document.removeEventListener('tokenclick', handleEvent);
+          try {
+            await tokenStore.refresh();
+            safeLog('onMount: Token store refreshed');
+          } catch (error) {
+            handleError(error, 'token store refresh');
+          }
+
+          try {
+            await updateTokenPrices();
+            safeLog('onMount: Token prices updated');
+          } catch (error) {
+            handleError(error, 'token price update');
+          }
+
+          try {
+            const instances = await getInstances();
+            if (instances && instances[1]) {
+              await updateTokenBalances($currentAccount.address, instances[1].getProvider());
+              safeLog('onMount: Token balances updated');
+            }
+          } catch (error) {
+            handleError(error, 'token balance update');
+          }
+
+          // Start JWT validation service only if authenticated
+          // Wait to ensure background JWT validator has set up grace period
+          if ($authStore.isAuthenticated && $authStore.jwtToken) {
+            setTimeout(() => {
+              try {
+                safeLog('onMount: Starting UI JWT validation service (authenticated)');
+                uiJWTValidatorService.start();
+              } catch (error) {
+                handleError(error, 'JWT validation service start');
+              }
+            }, 5000); // Wait 5 seconds to ensure background grace period is active
+          } else {
+            safeLog('onMount: Skipping JWT validation service - not authenticated');
+          }
+
+          safeLog('onMount: Async initialization completed successfully');
+        } catch (error) {
+          handleError(error, 'async initialization');
+        } finally {
+          clearTimeout(initTimeout);
+        }
+      })();
+
+      // Listen for token click events
+      const handleEvent = (event: Event) => {
+        try {
+          handleTokenClick(event as CustomEvent);
+        } catch (error) {
+          handleError(error, 'token click event handler');
+        }
       };
-    }
 
-    // Cleanup on unmount
-    return () => {
-      // DISABLED: No longer using simulated price updates
-      // priceUpdateService.stopPriceUpdates();
-    };
+      if (typeof document !== 'undefined') {
+        document.addEventListener('tokenclick', handleEvent);
+      }
+
+      // Cleanup on unmount
+      return () => {
+        try {
+          if (typeof document !== 'undefined') {
+            document.removeEventListener('tokenclick', handleEvent);
+          }
+
+          // Stop native token price updates
+          nativeTokenPriceService.stopAutomaticUpdates();
+          safeLog('onMount cleanup: Native token price service stopped');
+
+          // Stop JWT validation service
+          uiJWTValidatorService.stop();
+          safeLog('onMount cleanup: UI JWT validation service stopped');
+        } catch (error) {
+          handleError(error, 'cleanup');
+        }
+      };
+    } catch (error) {
+      handleError(error, 'onMount');
+      // Return empty cleanup function on error
+      return () => {};
+    }
   });
 
   function handleTokenSend(token: any) {
@@ -274,7 +514,7 @@
 
   function handleSend(tx: any) {
     showSendModal = false;
-    console.log('Transaction sent:', tx);
+    log.info('Transaction sent:', false, tx);
 
     // Show success feedback
     uiStore.showTransactionPending(tx.hash);
@@ -287,7 +527,7 @@
 
   function handleSwap(tx: any) {
     showSwapModal = false;
-    console.log('Swap requested:', tx);
+    log.info('Swap requested:', false, tx);
 
     // Show swap feedback
     uiStore.showSuccess(
@@ -390,6 +630,11 @@
     pendingAction = null;
     showPincodeModal = false;
   }
+
+  function handleTransactionClick(transaction: any) {
+    selectedTransaction = transaction;
+    showTransactionDetailModal = true;
+  }
 </script>
 
 <PincodeVerify
@@ -435,12 +680,71 @@
   onSend={handleTokenSend}
 />
 
+<!-- Debug Panel for Error Tracking -->
+{#if hasError}
+<div class="fixed top-4 left-4 right-4 z-50 bg-red-100 dark:bg-red-900 border border-red-300 dark:border-red-700 rounded-lg p-4 shadow-lg">
+  <div class="flex justify-between items-start">
+    <div>
+      <h3 class="text-red-800 dark:text-red-200 font-bold">Home Page Error</h3>
+      <p class="text-red-700 dark:text-red-300 text-sm mt-1">{errorMessage}</p>
+      <p class="text-red-600 dark:text-red-400 text-xs mt-2">
+        Try refreshing the page or checking the browser console for more details.
+      </p>
+    </div>
+    <button
+      onclick={() => { hasError = false; errorMessage = ''; }}
+      class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200"
+    >
+      ✕
+    </button>
+  </div>
+</div>
+{/if}
+
+
 <!-- Fixed centered logo watermark -->
 <div class="fixed inset-0 flex items-center justify-center pointer-events-none select-none z-0">
   <img src="/images/logoBullFav128x128.png" class="w-44 h-44 opacity-10 dark:opacity-15" alt="logo" />
 </div>
 
 <div class="max-w-[400px] mx-auto p-5 space-y-5 mt-1 pt-2 relative">
+
+  <!-- Error Fallback Content -->
+  {#if hasError}
+    <div class="yakkl-card p-6 text-center">
+      <div class="text-red-500 mb-4">
+        <svg class="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
+        </svg>
+      </div>
+      <h2 class="text-xl font-bold text-zinc-900 dark:text-white mb-4">Page Loading Error</h2>
+      <p class="text-zinc-600 dark:text-zinc-400 mb-6">
+        There was an error loading the home page. This is likely a temporary issue.
+      </p>
+      <div class="space-y-3">
+        <button
+          onclick={() => window.location.reload()}
+          class="yakkl-btn-primary w-full"
+        >
+          Refresh Page
+        </button>
+        <button
+          onclick={() => { hasError = false; errorMessage = ''; }}
+          class="yakkl-btn-secondary w-full"
+        >
+          Try Again
+        </button>
+        <a href="/accounts" class="yakkl-btn-secondary w-full inline-block text-center">
+          Go to Accounts
+        </a>
+      </div>
+      <details class="mt-6 text-left">
+        <summary class="cursor-pointer text-sm text-zinc-500 dark:text-zinc-400">Technical Details</summary>
+        <pre class="mt-2 p-3 bg-zinc-100 dark:bg-zinc-800 rounded text-xs overflow-auto">{errorMessage}</pre>
+      </details>
+    </div>
+  {:else}
+    <!-- Normal Page Content -->
 
   <!-- Account header -->
   <div class="flex items-center justify-between relative z-10">
@@ -463,7 +767,7 @@
         </div>
         <div class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mt-1 group/value cursor-help relative">
           <span class="hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">
-            Value: <ProtectedValue value={formatCurrency(portfolioValue || 0)} placeholder="*******" />
+            Value: <ProtectedValue value={formatCurrency(currentAccountValue || 0)} placeholder="*******" />
           </span>
 
           <!-- Token Breakdown Hover Card -->
@@ -507,7 +811,7 @@
               <span class="text-xs font-medium">Native Balance:</span>
               <span class="text-xs">
                 <ProtectedValue
-                  value={`${parseFloat(account.balance || '0').toFixed(4)} ${chain?.nativeCurrency?.symbol || 'ETH'} (${formatCurrency(accountNativeValue)})`}
+                  value={`${new BigNumber(account.balance || '0').toNumber().toFixed(4)} ${chain?.nativeCurrency?.symbol || 'ETH'} (${formatCurrency(accountNativeValue)})`}
                   placeholder="**** *** (*****)"
                 />
               </span>
@@ -524,10 +828,14 @@
         <div class="text-sm bg-green-100 dark:bg-green-900 dark:text-green-200 text-green-800 px-2 py-1 rounded font-bold">
           {chain.isTestnet ? 'TESTNET' : 'LIVE'}
         </div>
-        {#if chain && nativeToken}
+        {#if chain}
           <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-1">
             <span>{chain.nativeCurrency?.symbol || 'ETH'}:</span>
-            <ProtectedValue value={formatCurrency(nativePrice)} placeholder="****" />
+            {#if BigNumberishUtils.compare(nativePrice, 0) > 0}
+              <ProtectedValue value={formatCurrency(BigNumberishUtils.toNumber(nativePrice))} placeholder="****" />
+            {:else}
+              <span class="animate-pulse">Loading...</span>
+            {/if}
             {#if nativePriceDirection}
               <span class="inline-flex items-center">
                 {#if nativePriceDirection === 'up'}
@@ -543,7 +851,7 @@
             {/if}
           </div>
         {/if}
-        
+
         <!-- Hide Values Button -->
         <button
           onclick={handleToggleClick}
@@ -569,7 +877,7 @@
 
 
   <!-- Portfolio Overview -->
-  <PortfolioOverview 
+  <PortfolioOverview
     onRefresh={() => refreshAllData(true)}
     {loading}
     {lastUpdate}
@@ -617,10 +925,11 @@
 
   <!-- Recent Activity -->
   <!-- Added: Show all transactions (not limited to 5) -->
-  <RecentActivity 
-    className="yakkl-card relative z-10" 
-    showAll={true} 
+  <RecentActivity
+    className="yakkl-card relative z-10"
+    showAll={true}
     onRefresh={async () => await refreshAllData(true)}
+    onTransactionClick={handleTransactionClick}
   />
 
   <!-- Token Portfolio -->
@@ -667,7 +976,9 @@
       </svg>
       YAKKL v2
     </div>
-  </div>
+    </div>
+  {/if} <!-- End normal page content -->
+
 </div>
 
 <!-- AI Help Button - Floating Action Button (hidden during modals) -->
@@ -714,8 +1025,35 @@
   />
 {/if}
 
+<!-- Transaction Detail Modal -->
+<TransactionDetailModal
+  show={showTransactionDetailModal}
+  transaction={selectedTransaction}
+  onClose={() => {
+    showTransactionDetailModal = false;
+    selectedTransaction = null;
+  }}
+/>
+
 <!-- Portfolio Details Modal -->
 <PortfolioDetailsModal
   bind:show={showPortfolioDetailsModal}
   onClose={() => showPortfolioDetailsModal = false}
 />
+
+<!-- Transaction List Modal -->
+{#if transactionListData}
+  <TransactionListModal
+    show={showTransactionListModal}
+    account={transactionListData.account}
+    chainId={transactionListData.chainId}
+    chainName={transactionListData.chainName}
+    transactions={transactionListData.transactions}
+    ethPrice={transactionListData.ethPrice}
+    onClose={() => {
+      showTransactionListModal = false;
+      transactionListData = null;
+      modalStore.closeModal();
+    }}
+  />
+{/if}

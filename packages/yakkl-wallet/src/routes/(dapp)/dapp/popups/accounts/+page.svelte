@@ -20,7 +20,6 @@
 		type YakklConnectedDomain,
 		type YakklCurrentlySelected
 	} from '$lib/common';
-	import type { Runtime } from 'webextension-polyfill';
 	import { dateString } from '$lib/common/datetime';
 	import { log } from '$lib/managers/Logger';
 	import Confirmation from '$lib/components/Confirmation.svelte';
@@ -38,6 +37,7 @@
 		revokeDomainConnection,
 		verifyDomainConnected
 	} from '$lib/extensions/chrome/verifyDomainConnected';
+		import type { Runtime } from 'webextension-polyfill';
 
 	type RuntimePort = Runtime.Port | undefined;
 
@@ -622,7 +622,7 @@
 						<input
 							type="checkbox"
 							class="checkbox checkbox-primary w-5 h-5 flex-shrink-0 text-2xl"
-							checked={address.checked}
+							checked={address.selected}
 							onchange={() => toggleAddress(address.address)}
 						/>
 						<div class="flex flex-col">
@@ -638,7 +638,7 @@
 						<input
 							type="checkbox"
 							class="checkbox checkbox-primary w-5 h-5 flex-shrink-0 text-2xl"
-							checked={address.checked}
+							checked={address.selected}
 							onchange={() => toggleAddress(address.address)}
 						/>
 						<span class="font-mono text-sm truncate" title={address.address}>{address.address}</span

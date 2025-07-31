@@ -7,7 +7,7 @@ import { isEncryptedData } from '$lib/common/misc';
 import type { ProfileData } from '$lib/common/interfaces';
 
 export interface UpgradeRequest {
-	userName: string;
+	username: string;
 	email: string;
 	analytics: {
 		utm_source: string;

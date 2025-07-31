@@ -1,70 +1,47 @@
-import browser from 'webextension-polyfill';
+import { log } from '$lib/common/logger-wrapper';
+import { safeBackgroundSendMessage } from './safeBackgroundSendMessage';
 
 export async function safeBackgroundSendMessageWithRetry<T = any>(
-	message: any,
-	{ timeoutMs = 3000, retries = 2, retryDelayMs = 500 } = {}
-): Promise<T> {
-	let attempt = 0;
-
-	while (attempt <= retries) {
-		try {
-			return await new Promise<T>((resolve, reject) => {
-				let isSettled = false;
-
-				const timeout = setTimeout(() => {
-					if (!isSettled) {
-						isSettled = true;
-						reject(
-							new Error(
-								`safeBackgroundSendMessageWithRetry timed out after ${timeoutMs} ms (attempt ${attempt + 1})`
-							)
-						);
-					}
-				}, timeoutMs);
-
-				browser.runtime
-					.sendMessage(message)
-					.then((response) => {
-						if (!isSettled) {
-							clearTimeout(timeout);
-							isSettled = true;
-							resolve(response as T);
-						}
-					})
-					.catch((err) => {
-						if (!isSettled) {
-							clearTimeout(timeout);
-							isSettled = true;
-							reject(err);
-						}
-					});
-			});
-		} catch (error) {
-			console.warn(`[safeBackgroundSendMessageWithRetry] attempt ${attempt + 1} failed:`, error);
-			if (attempt === retries) {
-				throw new Error(
-					`safeBackgroundSendMessageWithRetry failed after ${retries + 1} attempts: ${error}`
-				);
-			}
-			attempt++;
-			await delay(retryDelayMs); // Wait before retrying
-		}
-	}
-
-	throw new Error('Unexpected failure in safeSendBackgroundMessageWithRetry');
+  message: any,
+  timeoutMs = 5000,
+  maxRetries = 3,
+  retryDelay = 1000
+): Promise<T | null> {
+  let lastError: any;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await safeBackgroundSendMessage<T>(message, timeoutMs);
+      
+      if (response !== null) {
+        return response;
+      }
+      
+      // If null, might be due to extension not ready, wait before retry
+      if (attempt < maxRetries - 1) {
+        log.debug(`Retrying message, attempt ${attempt + 1}/${maxRetries}`, false, { 
+          message: message.type 
+        });
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      }
+    } catch (error) {
+      lastError = error;
+      log.debug(`Message attempt ${attempt + 1} failed`, false, { 
+        message: message.type,
+        error 
+      });
+      
+      if (attempt < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      }
+    }
+  }
+  
+  log.warn('All retry attempts failed', false, { 
+    message: message.type,
+    attempts: maxRetries,
+    lastError 
+  });
+  
+  return null;
 }
-
-// Helper delay function
-function delay(ms: number): Promise<void> {
-	return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-// Example:
-// const sessionInfo = await safeBackgroundSendMessageWithRetry<StoreHashResponse>({
-//   type: 'STORE_SESSION_HASH',
-//   payload: encryptedHash
-// }, {
-//   timeoutMs: 3000,  // optional
-//   retries: 2,       // optional
-//   retryDelayMs: 500 // optional
-// });

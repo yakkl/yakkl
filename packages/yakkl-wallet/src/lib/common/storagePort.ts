@@ -1,8 +1,8 @@
-import { getBrowserExt } from '$lib/browser-polyfill-wrapper';
 import { log } from '$lib/managers/Logger';
 import type { Runtime } from 'webextension-polyfill';
 import type { StorageRequest, StorageResponse } from './storageTypes';
 import { getSafeUUID } from './uuid';
+import { browser_ext } from '$lib/common/environment';
 
 // storage-port.ts
 export class StoragePort {
@@ -31,17 +31,16 @@ export class StoragePort {
 	private async connect() {
 		if (this.port) return;
 
-		const browserExt = getBrowserExt();
-		if (!browserExt) throw new Error('Browser extension API not available');
+		if (!browser_ext) return;
 
-		this.port = browserExt.runtime.connect({ name: 'yakkl-storage-port' });
+		this.port = browser_ext.runtime.connect({ name: 'yakkl-storage-port' });
 		this.setupPortListeners();
 	}
 
 	private setupPortListeners() {
 		if (!this.port) return;
 
-		this.port.onMessage.addListener((message: unknown, port: Runtime.Port) => {
+		this.port.onMessage.addListener((message: unknown) => {
 			const response = message as StorageResponse & { requestId: string };
 			const pending = this.pendingRequests.get(response.requestId);
 			if (pending) {

@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { browserSvelte } from '$lib/common/environment';
-  import { 
+  import {
     getSettings,
     setSettingsStorage,
     getYakklAccounts,
@@ -49,7 +49,7 @@
       setTimeout(() => goto('/register'), 3000);
       return;
     }
-    
+
     registrationData = JSON.parse(regData);
     await createFirstAccount();
   });
@@ -65,17 +65,17 @@
 
       // Create the first account using the portfolio account function
       await createPortfolioAccount(registrationData.digest, profile);
-      
+
       // Get the created accounts
       const accounts = await getYakklAccounts();
       if (!accounts || accounts.length === 0) {
         throw new Error('Failed to create account');
       }
-      
+
       // The last account is the newly created one
       const newAccount = accounts[accounts.length - 1];
       createdAccount = newAccount;
-      
+
       // Set as current account (if not already done by createPortfolioAccount)
       accountStore.setCurrentAccount({
         address: newAccount.address,
@@ -83,15 +83,15 @@
         isActive: true,
         balance: newAccount.quantity?.toString() || '0'
       });
-      
+
       // Get primary accounts to access mnemonic
       const primaryAccounts = await getYakklPrimaryAccounts();
       primaryAccount = primaryAccounts.find(acc => acc.address === newAccount.address);
-      
+
       // Get account data (assuming it's already decrypted by createPortfolioAccount)
       const accountData = newAccount.data as AccountData; // Type assertion since it could be encrypted
       const primaryAccountData = primaryAccount?.data as PrimaryAccountData | undefined;
-      
+
       // Generate emergency kit data
       const emergencyKitManager = new EmergencyKitManager();
       emergencyKitData = {
@@ -105,10 +105,10 @@
         email: (profile as any).email || '', // Email might not be in the interface
         type: 'single'
       };
-      
+
       // Show emergency kit
       showEmergencyKit = true;
-      
+
       // Clear registration data
       sessionStorage.removeItem('registration');
     } catch (error) {
@@ -122,22 +122,22 @@
 
   async function downloadEmergencyKit() {
     if (!emergencyKitData || !registrationData || !createdAccount) return;
-    
+
     try {
       // Create account data for emergency kit
       const accountData = createdAccount.data as AccountData;
       const primaryAccountData = primaryAccount?.data as PrimaryAccountData | undefined;
-      
+
       // Get profile again for emergency kit
       const profile = await getProfile();
-      
+
       const emergencyAccountData: EmergencyKitAccountData = {
         id: createdAccount.id,
         registered: {
           id: profile?.id || '',
           key: '', // License key if any
           plan: {
-            type: PlanType.BASIC_MEMBER,
+            type: PlanType.EXPLORER_MEMBER,
             source: AccessSourceType.STANDARD,
             promo: PromoClassificationType.NONE,
             trialEndDate: '',
@@ -148,7 +148,7 @@
           version: '1.0.0'
         },
         email: (profile as any)?.email || '',
-        userName: registrationData.username,
+        username: registrationData.username,
         blockchain: createdAccount.blockchain,
         portfolioAddress: createdAccount.address,
         portfolioName: createdAccount.name,
@@ -159,13 +159,13 @@
         version: '1.0.0',
         hash: ''
       };
-      
+
       const encryptedKit = await EmergencyKitManager.createEmergencyKit(
         [emergencyAccountData],
         true,
         registrationData.digest
       );
-      
+
       // Download the encrypted kit
       const blob = new Blob([JSON.stringify(encryptedKit, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -185,12 +185,12 @@
 
   function printEmergencyKit() {
     if (!emergencyKitData) return;
-    
+
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
-    
+
     const showSensitive = showPassword && showPin;
-    
+
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
@@ -215,7 +215,7 @@
       </head>
       <body>
         <h1>YAKKL Smart Wallet - Emergency Kit</h1>
-        
+
         <div class="warning">
           <h3>⚠️ CRITICAL SECURITY INFORMATION</h3>
           <p><strong>This document contains sensitive information that provides full access to your wallet.</strong></p>
@@ -226,7 +226,7 @@
             <li>Consider making multiple copies for different secure locations</li>
           </ul>
         </div>
-        
+
         <div class="info-section">
           <h2>Account Information</h2>
           <div class="info-item">
@@ -246,7 +246,7 @@
             <span class="info-value">${new Date(emergencyKitData.createdAt).toLocaleString()}</span>
           </div>
         </div>
-        
+
         <div class="info-section">
           <h2>Recovery Information</h2>
           <div class="info-item sensitive">
@@ -262,7 +262,7 @@
             <span class="info-value">${emergencyKitData.derivedPath}</span>
           </div>
         </div>
-        
+
         <div class="footer">
           <p>Generated on ${new Date().toLocaleString()}</p>
           <p>YAKKL Smart Wallet © ${new Date().getFullYear()}</p>
@@ -270,7 +270,7 @@
       </body>
       </html>
     `);
-    
+
     printWindow.document.close();
     printWindow.focus();
     setTimeout(() => {
@@ -286,7 +286,7 @@
       settings.isLocked = false;
       await setSettingsStorage(settings);
     }
-    
+
     // Navigate to dashboard
     await goto(PATH_WELCOME);
   }
@@ -350,17 +350,17 @@
         <!-- Account Info -->
         <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-6 mb-6 space-y-4">
           <h3 class="font-semibold text-zinc-900 dark:text-white mb-4">Account Information</h3>
-          
+
           <div>
             <span class="text-sm text-zinc-600 dark:text-zinc-400">Username</span>
             <p class="font-mono text-zinc-900 dark:text-white">{emergencyKitData.username}</p>
           </div>
-          
+
           <div>
             <span class="text-sm text-zinc-600 dark:text-zinc-400">Account Name</span>
             <p class="font-mono text-zinc-900 dark:text-white">{emergencyKitData.accountName}</p>
           </div>
-          
+
           <div>
             <span class="text-sm text-zinc-600 dark:text-zinc-400">Wallet Address</span>
             <p class="font-mono text-sm text-zinc-900 dark:text-white break-all">{emergencyKitData.address}</p>
@@ -370,7 +370,7 @@
         <!-- Recovery Info -->
         <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl p-6 mb-6 space-y-4">
           <h3 class="font-semibold text-zinc-900 dark:text-white mb-4">Recovery Information</h3>
-          
+
           <!-- Secret Recovery Phrase -->
           <div>
             <div class="flex items-center justify-between mb-2">
@@ -402,7 +402,7 @@
               {/if}
             </div>
           </div>
-          
+
           <!-- Private Key -->
           <div>
             <div class="flex items-center justify-between mb-2">
@@ -434,7 +434,7 @@
               {/if}
             </div>
           </div>
-          
+
           <div>
             <span class="text-sm text-zinc-600 dark:text-zinc-400">Derivation Path</span>
             <p class="font-mono text-sm text-zinc-900 dark:text-white">{emergencyKitData.derivedPath}</p>
@@ -463,7 +463,7 @@
               Download Encrypted
             </button>
           </div>
-          
+
           <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
             <label class="flex items-start gap-3 cursor-pointer">
               <input
@@ -476,7 +476,7 @@
               </span>
             </label>
           </div>
-          
+
           <button
             onclick={continueToWallet}
             class="yakkl-btn-primary w-full"

@@ -6,8 +6,8 @@ import { TransactionCacheManager } from '../managers/TransactionCacheManager';
 import { currentAccount } from './account.store';
 import { currentChain } from './chain.store';
 import { get } from 'svelte/store';
-import { browser } from '$app/environment';
-// Removed: import browserApi from 'webextension-polyfill';
+import { browser_ext } from '$lib/common/environment';
+// Removed: import browserApi from '$lib/types/browser-types';
 // Added: Use helper to avoid module resolution error
 import { addTransactionUpdateListener, isExtensionContext, getSessionStorage } from './transaction-store-helper';
 
@@ -25,7 +25,7 @@ function createTransactionStore() {
   const txService = TransactionService.getInstance();
   const txMonitor = TransactionMonitorService.getInstance();
   const cacheManager = TransactionCacheManager.getInstance();
-  
+
   const { subscribe, set, update } = writable<TransactionState>({
     transactions: [],
     pendingTx: null,
@@ -41,18 +41,18 @@ function createTransactionStore() {
 
   // Listen for transaction updates broadcasted from background
   // Added: Use helper function to avoid direct browserApi import
-  if (browser && typeof window !== 'undefined') {
+  if (browser_ext && typeof window !== 'undefined') {
     const cleanup = addTransactionUpdateListener((message: any, sender: any) => {
       if (message.type === 'yakkl_transactionUpdate') {
         const { address, chainId, transactions } = message.payload || {};
-        
+
         // Only update if it's for the current account and chain
         const account = get(currentAccount);
         const chain = get(currentChain);
-        
+
         if (account?.address === address && chain?.chainId === chainId) {
           console.log('TransactionStore: Received broadcast update with', transactions.length, 'transactions');
-          
+
           update(state => ({
             ...state,
             transactions: transactions,
@@ -70,7 +70,7 @@ function createTransactionStore() {
     if (account && account.address && account.address !== currentAccountAddress) {
       currentAccountAddress = account.address;
       console.log('TransactionStore: Account changed, loading transactions for:', account.address);
-      
+
       // First try to load from cache for immediate display
       const chain = get(currentChain);
       if (chain?.chainId) {
@@ -80,7 +80,7 @@ function createTransactionStore() {
           chain.chainId,
           currentState.sortOrder
         );
-        
+
         if (cachedTransactions) {
           console.log('TransactionStore: Using cached transactions:', cachedTransactions.length);
           update(state => ({
@@ -91,7 +91,7 @@ function createTransactionStore() {
           }));
         }
       }
-      
+
       // Then fetch fresh data
       await loadTransactions(account.address);
     }
@@ -104,7 +104,7 @@ function createTransactionStore() {
       const account = get(currentAccount);
       if (account && account.address) {
         console.log('TransactionStore: Chain changed to', chain.name, 'chainId:', chain.chainId, ', reloading transactions');
-        
+
         // First try to load from cache for immediate display
         const currentState = get({ subscribe });
         const cachedTransactions = await cacheManager.getCachedTransactions(
@@ -112,7 +112,7 @@ function createTransactionStore() {
           chain.chainId,
           currentState.sortOrder
         );
-        
+
         if (cachedTransactions) {
           console.log('TransactionStore: Using cached transactions:', cachedTransactions.length);
           update(state => ({
@@ -122,7 +122,7 @@ function createTransactionStore() {
             error: { hasError: false }
           }));
         }
-        
+
         // Then fetch fresh data
         await loadTransactions(account.address);
       } else {
@@ -153,13 +153,13 @@ function createTransactionStore() {
 
       const response = await txService.getTransactionHistory(address);
       console.log('TransactionStore: Got response:', response);
-      
+
       if (response.success && response.data) {
         console.log('TransactionStore: Received transactions:', response.data.length, 'items');
-        
+
         // Update cache with new transactions
         await cacheManager.updateCache(address, chain.chainId, response.data);
-        
+
         // Sort according to current sort order
         const sortedTransactions = [...response.data];
         const currentState = get({ subscribe });
@@ -169,7 +169,7 @@ function createTransactionStore() {
         } else {
           sortedTransactions.sort((a, b) => b.timestamp - a.timestamp);
         }
-        
+
         update(state => {
           console.log('TransactionStore: Updating state with transactions');
           const newState = {
@@ -241,7 +241,7 @@ function createTransactionStore() {
             gasPrice: '20000000000'
           }
         ];
-        
+
         update(state => ({
           ...state,
           transactions: mockTransactions,
@@ -253,7 +253,7 @@ function createTransactionStore() {
 
   return {
     subscribe,
-    
+
     async sendTransaction(to: string, value: string, tokenAddress?: string) {
       update(state => ({
         ...state,
@@ -266,7 +266,7 @@ function createTransactionStore() {
         value,
         tokenAddress
       });
-      
+
       if (response.success && response.data) {
         update(state => ({
           ...state,
@@ -274,7 +274,7 @@ function createTransactionStore() {
           loading: { isLoading: false },
           error: { hasError: false }
         }));
-        
+
         // Refresh transactions after a delay
         setTimeout(() => {
           const account = get(currentAccount);
@@ -282,7 +282,7 @@ function createTransactionStore() {
             loadTransactions(account.address);
           }
         }, 3000);
-        
+
         return response.data;
       } else {
         update(state => ({
@@ -300,13 +300,13 @@ function createTransactionStore() {
         value,
         tokenAddress
       });
-      
+
       return response;
     },
 
     async updateGasPrice() {
       const response = await txService.getGasPrice();
-      
+
       if (response.success && response.data) {
         update(state => ({
           ...state,
@@ -326,7 +326,7 @@ function createTransactionStore() {
     async refreshFromStorage() {
       const account = get(currentAccount);
       const chain = get(currentChain);
-      
+
       if (account?.address && chain?.chainId) {
         try {
           const storageKey = `transactions_${account.address}_${chain.chainId}`;
@@ -334,7 +334,7 @@ function createTransactionStore() {
           const cachedData = await getSessionStorage(storageKey) as { transactions: TransactionDisplay[], timestamp: number } | undefined;
           if (cachedData && cachedData.transactions) {
             console.log('TransactionStore: Loaded from session storage:', cachedData.transactions.length, 'transactions');
-            
+
             update(state => ({
               ...state,
               transactions: cachedData.transactions,
@@ -347,7 +347,7 @@ function createTransactionStore() {
         }
       }
     },
-    
+
     // Method to refresh transactions from the blockchain
     async refresh(force = false) {
       const account = get(currentAccount);
@@ -374,13 +374,13 @@ function createTransactionStore() {
       update(state => {
         const newSortOrder = state.sortOrder === 'newest' ? 'oldest' : 'newest';
         const sortedTransactions = [...state.transactions];
-        
+
         if (newSortOrder === 'oldest') {
           sortedTransactions.sort((a, b) => a.timestamp - b.timestamp);
         } else {
           sortedTransactions.sort((a, b) => b.timestamp - a.timestamp);
         }
-        
+
         return {
           ...state,
           sortOrder: newSortOrder,
@@ -415,11 +415,63 @@ function createTransactionStore() {
     async clearCache() {
       const account = get(currentAccount);
       const chain = get(currentChain);
-      
+
       if (account?.address && chain?.chainId) {
         await cacheManager.clearCache(account.address, chain.chainId);
         await loadTransactions(account.address);
       }
+    },
+
+    // Load transactions for multiple accounts (for single network and all networks views)
+    async loadTransactionsForAccounts(
+      accounts: { address: string }[],
+      chainIds?: number[]
+    ): Promise<TransactionDisplay[]> {
+      const allTransactions: TransactionDisplay[] = [];
+      const chain = get(currentChain);
+
+      // If no chainIds specified, use current chain
+      const targetChainIds = chainIds || (chain ? [chain.chainId] : []);
+
+      // Load from cache first for immediate display
+      for (const account of accounts) {
+        for (const chainId of targetChainIds) {
+          const cachedTxs = await cacheManager.getCachedTransactions(
+            account.address,
+            chainId,
+            'newest'
+          );
+
+          if (cachedTxs) {
+            allTransactions.push(...cachedTxs);
+          }
+        }
+      }
+
+      // Remove duplicates (in case same tx appears for multiple accounts)
+      const uniqueTransactions = Array.from(
+        new Map(allTransactions.map(tx => [tx.hash, tx])).values()
+      );
+
+      // Sort by timestamp
+      uniqueTransactions.sort((a, b) => b.timestamp - a.timestamp);
+
+      console.log('TransactionStore: Loaded transactions for multiple accounts:', {
+        accountCount: accounts.length,
+        chainCount: targetChainIds.length,
+        transactionCount: uniqueTransactions.length
+      });
+
+      return uniqueTransactions;
+    },
+
+    // Get all cached transactions across all accounts and chains
+    async getAllCachedTransactions(): Promise<TransactionDisplay[]> {
+      // This would need access to all accounts and chains
+      // For now, return empty array - this would be implemented based on
+      // how the wallet stores all account information
+      console.log('TransactionStore: getAllCachedTransactions not fully implemented yet');
+      return [];
     }
   };
 }

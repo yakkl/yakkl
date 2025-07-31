@@ -36,7 +36,7 @@ The hardware wallet system follows the YAKKL plugin architecture pattern:
 import { pluginRegistry } from '$lib/plugins/registry/PluginRegistry';
 
 // Initialize the plugin registry
-await pluginRegistry.initialize(PlanType.BASIC_MEMBER);
+await pluginRegistry.initialize(PlanType.EXPLORER_MEMBER);
 
 // Check if hardware wallets are supported
 const isSupported = await pluginRegistry.hardwareWallet.isSupported();

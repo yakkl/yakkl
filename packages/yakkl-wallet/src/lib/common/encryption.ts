@@ -1,6 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export const prerender = false;
-
 import { type SaltedKey } from '$lib/common';
 import type { EncryptedData } from '$lib/common';
 import { log } from '$lib/managers/Logger';

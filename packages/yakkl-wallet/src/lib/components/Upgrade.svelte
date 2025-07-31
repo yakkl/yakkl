@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { planStore, currentPlan, isOnTrial } from '../stores/plan.store';
   import { canUseFeature } from '../utils/features';
-  import { PlanType } from '../types';
+  import { PlanType } from '../common';
 
   let {
     show = $bindable(false),
@@ -18,32 +18,32 @@
   let upgradeStep = $state('overview'); // 'overview', 'selecting', 'processing', 'success'
   let isProcessing = $state(false);
   let progress = $state(0);
-  let selectedPlan = $state(PlanType.Pro);
+  let selectedPlan = $state(PlanType.YAKKL_PRO);
   let statusMessage = $state('');
 
   // Plan features configuration
   const planFeatures = {
-    [PlanType.Basic]: [
+    [PlanType.EXPLORER_MEMBER]: [
       'Basic wallet functionality',
       'Up to 3 accounts',
       'Standard networks',
       'Community support'
     ],
-    [PlanType.FoundingMember]: [
+    [PlanType.FOUNDING_MEMBER]: [
       'Everything in Pro',
       'Founding member benefits',
       'Lifetime features',
       'Special recognition',
       'Direct founder access'
     ],
-    [PlanType.EarlyAdopter]: [
+    [PlanType.EARLY_ADOPTER]: [
       'Everything in Pro',
       'Early adopter benefits',
       'Special pricing',
       'Beta access',
       'Priority feedback'
     ],
-    [PlanType.Pro]: [
+    [PlanType.YAKKL_PRO]: [
       'Unlimited accounts',
       'Advanced analytics',
       'Custom networks',
@@ -55,7 +55,7 @@
       'Portfolio tracking',
       'Advanced trading tools'
     ],
-    [PlanType.Enterprise]: [
+    [PlanType.ENTERPRISE]: [
       'Everything in Pro',
       'Multi-signature support',
       'White label solutions',
@@ -70,23 +70,23 @@
   };
 
   const planPricing = {
-    [PlanType.Basic]: { monthly: 0, yearly: 0 },
-    [PlanType.FoundingMember]: { monthly: 0, yearly: 0 }, // Special pricing
-    [PlanType.EarlyAdopter]: { monthly: 7.99, yearly: 79.99 }, // Discounted
-    [PlanType.Pro]: { monthly: 9.99, yearly: 99.99 },
-    [PlanType.Enterprise]: { monthly: 49.99, yearly: 499.99 },
+    [PlanType.EXPLORER_MEMBER]: { monthly: 0, yearly: 0 },
+    [PlanType.FOUNDING_MEMBER]: { monthly: 0, yearly: 0 }, // Special pricing
+    [PlanType.EARLY_ADOPTER]: { monthly: 7.99, yearly: 79.99 }, // Discounted
+    [PlanType.YAKKL_PRO]: { monthly: 9.99, yearly: 99.99 },
+    [PlanType.ENTERPRISE]: { monthly: 49.99, yearly: 499.99 },
   };
 
   const planColors = {
-    [PlanType.Basic]: 'from-gray-500 to-gray-600',
-    [PlanType.FoundingMember]: 'from-purple-600 to-pink-600',
-    [PlanType.EarlyAdopter]: 'from-blue-600 to-cyan-600',
-    [PlanType.Pro]: 'from-indigo-500 to-purple-600',
-    [PlanType.Enterprise]: 'from-yellow-500 to-orange-600',
+    [PlanType.EXPLORER_MEMBER]: 'from-gray-500 to-gray-600',
+    [PlanType.FOUNDING_MEMBER]: 'from-purple-600 to-pink-600',
+    [PlanType.EARLY_ADOPTER]: 'from-blue-600 to-cyan-600',
+    [PlanType.YAKKL_PRO]: 'from-indigo-500 to-purple-600',
+    [PlanType.ENTERPRISE]: 'from-yellow-500 to-orange-600',
   };
 
   function getAvailableUpgrades() {
-    const plans = [PlanType.Basic, PlanType.Pro, PlanType.Enterprise];
+    const plans = [PlanType.EXPLORER_MEMBER, PlanType.YAKKL_PRO, PlanType.ENTERPRISE];
     const currentIndex = plans.indexOf(plan);
     return plans.slice(currentIndex + 1);
   }
@@ -99,11 +99,11 @@
 
   function getPlanIcon(planType: PlanType): string {
     switch (planType) {
-      case PlanType.Basic: return '🌟';
-      case PlanType.FoundingMember: return '👑';
-      case PlanType.EarlyAdopter: return '🚀';
-      case PlanType.Pro: return '💎';
-      case PlanType.Enterprise: return '🏢';
+      case PlanType.EXPLORER_MEMBER: return '🌟';
+      case PlanType.FOUNDING_MEMBER: return '👑';
+      case PlanType.EARLY_ADOPTER: return '🚀';
+      case PlanType.YAKKL_PRO: return '💎';
+      case PlanType.ENTERPRISE: return '🏢';
       default: return '📦';
     }
   }
@@ -241,8 +241,8 @@
                         {formatPlanName(planType)}
                       </h4>
                       <p class="text-sm text-zinc-600 dark:text-zinc-400">
-                        Perfect for {planType === PlanType.Pro ? 'advanced users' :
-                                    planType === PlanType.Enterprise ? 'businesses' :
+                        Perfect for {planType === PlanType.YAKKL_PRO ? 'advanced users' :
+                                    planType === PlanType.ENTERPRISE ? 'businesses' :
                                     'getting started'}
                       </p>
                     </div>
