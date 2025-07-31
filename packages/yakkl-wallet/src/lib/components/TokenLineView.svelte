@@ -139,7 +139,13 @@
 				{@const isImagePath = iconUrl && (iconUrl.startsWith('/') || iconUrl.startsWith('http') || iconUrl.includes('.svg') || iconUrl.includes('.png') || iconUrl.includes('.jpg') || iconUrl.includes('.jpeg') || iconUrl.includes('.gif') || iconUrl.includes('.webp'))}
 				{#if isImagePath}
 					<!-- Image files (local or remote) -->
-					<img src={iconUrl} alt={token.symbol} class="w-6 h-6 rounded-full" onerror={(e) => { e.currentTarget.style.display='none'; e.currentTarget.nextElementSibling.style.display='flex'; }} />
+					<img src={iconUrl} alt={token.symbol} class="w-6 h-6 rounded-full" 
+						onerror={(e) => { 
+							const target = e.currentTarget as HTMLImageElement;
+							target.style.display = 'none'; 
+							const nextEl = target.nextElementSibling as HTMLElement;
+							if (nextEl) nextEl.style.display = 'flex'; 
+						}} />
 					<div class="w-6 h-6 rounded-full items-center justify-center bg-gray-400 text-white font-bold text-xs" style="display:none;">
 						{token.symbol?.[0] || '?'}
 					</div>
@@ -180,7 +186,13 @@
 				{@const isImagePath = iconUrl && (iconUrl.startsWith('/') || iconUrl.startsWith('http') || iconUrl.includes('.svg') || iconUrl.includes('.png') || iconUrl.includes('.jpg') || iconUrl.includes('.jpeg') || iconUrl.includes('.gif') || iconUrl.includes('.webp'))}
 				{#if isImagePath}
 					<!-- Image files (local or remote) -->
-					<img src={iconUrl} alt={token.symbol} class="w-6 h-6 rounded-full" onerror={(e) => { e.currentTarget.style.display='none'; e.currentTarget.nextElementSibling.style.display='flex'; }} />
+					<img src={iconUrl} alt={token.symbol} class="w-6 h-6 rounded-full" 
+						onerror={(e) => { 
+							const target = e.currentTarget as HTMLImageElement;
+							target.style.display = 'none'; 
+							const nextEl = target.nextElementSibling as HTMLElement;
+							if (nextEl) nextEl.style.display = 'flex'; 
+						}} />
 					<div class="w-6 h-6 rounded-full items-center justify-center bg-gray-400 text-white font-bold text-xs" style="display:none;">
 						{token.symbol?.[0] || '?'}
 					</div>

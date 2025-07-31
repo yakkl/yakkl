@@ -6,7 +6,8 @@
   import type { TransactionDisplay } from '$lib/types';
   import type { YakklAccount as Account } from '$lib/types';
   import { uiStore } from '$lib/stores/ui.store';
-  
+  import { BigNumber } from '$lib/common/bignumber';
+
   interface Props {
     show?: boolean;
     account: Account;
@@ -16,7 +17,7 @@
     ethPrice?: number;
     onClose?: () => void;
   }
-  
+
   let {
     show = false,
     account,
@@ -26,20 +27,20 @@
     ethPrice = 0,
     onClose
   }: Props = $props();
-  
+
   let selectedTransaction = $state<TransactionDisplay | null>(null);
   let showDetailModal = $state(false);
   let sortNewestFirst = $state(true);
-  
+
   // Sort transactions
   let sortedTransactions = $derived.by(() => {
     const txs = [...transactions];
-    return sortNewestFirst 
+    return sortNewestFirst
       ? txs.sort((a, b) => b.timestamp - a.timestamp)
       : txs.sort((a, b) => a.timestamp - b.timestamp);
   });
-  
-  // Calculate account total
+
+  // Calculate account total // TODO: Keep this for now, but we need to update it to use the new BigNumberish type
   let accountTotal = $derived.by(() => {
     return transactions.reduce((total, tx) => {
       const isOutgoing = tx.from.toLowerCase() === account.address.toLowerCase();
@@ -47,10 +48,10 @@
       return total + (isOutgoing ? -value : value);
     }, 0);
   });
-  
+
   function formatAmount(value: string): string {
     try {
-      const num = parseFloat(value);
+      const num = parseFloat(value); // TODO: Keep this for now, but we need to update it to use the new BigNumberish type
       if (num < 0.0001) {
         return num.toExponential(2);
       }
@@ -59,16 +60,17 @@
       return value;
     }
   }
-  
-  function calculateFiatValue(ethAmount: string): number {
+
+  function calculateFiatValue(quantity: string): number {
     try {
-      const amount = parseFloat(ethAmount);
-      return amount * ethPrice;
+      const amount = BigNumber.from(quantity);
+      return amount.mul(ethPrice).toNumber();
     } catch {
       return 0;
     }
   }
-  
+
+  // TODO: Keep this for now, but we need to update it to use the new BigNumberish type
   function formatFiatValue(value: number): string {
     if (value === 0) return '';
     return new Intl.NumberFormat('en-US', {
@@ -78,12 +80,12 @@
       maximumFractionDigits: 2
     }).format(value);
   }
-  
+
   function shortAddress(address: string): string {
     if (!address) return '';
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   }
-  
+
   function formatTime(timestamp: number): string {
     const date = new Date(timestamp);
     return date.toLocaleDateString('en-US', {
@@ -94,11 +96,11 @@
       minute: '2-digit'
     });
   }
-  
+
   function getTransactionDirection(tx: TransactionDisplay): 'sent' | 'received' {
     return tx.from.toLowerCase() === account.address.toLowerCase() ? 'sent' : 'received';
   }
-  
+
   function getStatusColor(status: string): string {
     switch (status) {
       case 'confirmed':
@@ -110,7 +112,7 @@
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
     }
   }
-  
+
   function getTransactionIcon(type: string): string {
     switch (type) {
       case 'send':
@@ -125,7 +127,7 @@
         return '💸';
     }
   }
-  
+
   async function copyAddress(address: string) {
     try {
       await navigator.clipboard.writeText(address);
@@ -135,12 +137,12 @@
       uiStore.showError('Copy Failed', 'Failed to copy address to clipboard');
     }
   }
-  
+
   function handleTransactionClick(tx: TransactionDisplay) {
     selectedTransaction = tx;
     showDetailModal = true;
   }
-  
+
   function handleClose() {
     if (onClose) {
       onClose();
@@ -148,7 +150,7 @@
   }
 </script>
 
-<Modal bind:show onClose={handleClose} width="max-w-3xl">
+<Modal bind:show onClose={handleClose} className="max-w-3xl">
   <div class="p-6">
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
@@ -158,7 +160,7 @@
         </h2>
         <div class="flex items-center gap-2 mt-1">
           <span class="text-sm text-gray-600 dark:text-gray-400">
-            Account: 
+            Account:
           </span>
           <span class="font-mono text-sm text-gray-700 dark:text-gray-300">
             {shortAddress(account.address)}
@@ -178,7 +180,7 @@
           </span>
         </div>
       </div>
-      
+
       <!-- Sort toggle -->
       <button
         onclick={() => sortNewestFirst = !sortNewestFirst}
@@ -196,7 +198,7 @@
         <span>{sortNewestFirst ? 'Newest' : 'Oldest'}</span>
       </button>
     </div>
-    
+
     <!-- Summary stats -->
     <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 mb-4">
       <div class="grid grid-cols-3 gap-4 text-center">
@@ -224,7 +226,7 @@
         </div>
       </div>
     </div>
-    
+
     <!-- Transactions list -->
     <div class="max-h-[60vh] overflow-y-auto">
       {#if sortedTransactions.length === 0}
@@ -250,13 +252,13 @@
                   <span class="text-2xl" title={tx.type}>
                     {getTransactionIcon(tx.type)}
                   </span>
-                  
+
                   <!-- Transaction details -->
                   <div>
                     <div class="flex items-center gap-2">
                       <span class="font-semibold text-base {isOutgoing ? 'text-red-500' : 'text-green-500'}">
                         <ProtectedValue
-                          value={`${isOutgoing ? '−' : '+'}${formatAmount(tx.value)} ETH`}
+                          value={`${isOutgoing ? '−' : '+'}${formatAmount(tx.value)} ${tx.symbol || 'ETH'}`}
                           placeholder="******* ***"
                         />
                       </span>
@@ -277,7 +279,7 @@
                     </p>
                   </div>
                 </div>
-                
+
                 <!-- Status -->
                 <div class="text-right">
                   <span class="inline-block px-2 py-1 rounded-full text-xs {getStatusColor(tx.status)}">
@@ -290,7 +292,7 @@
         </div>
       {/if}
     </div>
-    
+
     <!-- Footer -->
     <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
       <button

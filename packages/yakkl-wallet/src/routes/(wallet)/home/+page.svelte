@@ -1,6 +1,4 @@
 <script lang="ts">
-  console.log('<<<<<<<<<<<<<home>>>>>>>>>>>>>>');
-  
   import { onMount } from 'svelte';
   import RecentActivity from "$lib/components/RecentActivity.svelte";
   import SendModal from "$lib/components/SendModalEnhanced.svelte";
@@ -35,19 +33,17 @@
 	import ProtectedValue from '$lib/components/ProtectedValue.svelte';
   import { updateTokenBalances } from '$lib/common/tokens';
   import { updateTokenPrices } from '$lib/common/tokenPriceManager';
-  import { getInstances } from '$lib/common';
+  import { getInstances, VERSION } from '$lib/common';
   import { nativeTokenPriceService } from '$lib/services/native-token-price.service';
   import { uiJWTValidatorService } from '$lib/services/ui-jwt-validator.service';
   import { log } from '$lib/common/logger-wrapper';
   import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
   import { DecimalMath } from '$lib/common/DecimalMath';
-  import { BigNumber } from '$lib/common/bignumber';
+  import { BigNumber, type BigNumberish } from '$lib/common/bignumber';
   import { authStore } from '$lib/stores/auth-store';
 
   // Initialize core integration dynamically to prevent SSR issues
   // let initializeCore: (() => Promise<void>) | null = null;
-
-  console.log('[home] before let variables');
 
   // State
   let showSendModal = $state(false);
@@ -80,7 +76,7 @@
     try {
       log.info(`[Home] ${message}`, false, data);
     } catch (e) {
-      console.log(`[Home] ${message}`, data);
+      log.warn(`[Home] ${message}`, false, data);
     }
   }
 
@@ -94,7 +90,7 @@
     try {
       uiStore.showError('Page Load Error', `Failed to load home page: ${context}`);
     } catch (e) {
-      console.error('Failed to show error notification:', e);
+      log.warn('Failed to show error notification:', false, e);
     }
   }
 
@@ -228,7 +224,9 @@
 
   let nativePrice = $derived.by(() => {
     try {
-      return nativeToken?.price || 0;
+      // Ensure we return a valid number, not undefined/null
+      const price = nativeToken?.price;
+      return price !== undefined && price !== null ? price : 0;
     } catch (error) {
       handleError(error, 'getting native price');
       return 0;
@@ -248,7 +246,7 @@
         });
 
         // Check if the price looks like a portfolio value
-        if (BigNumberishUtils.compare(nativeToken.price, 10000) > 0) {
+        if (nativeToken.price && BigNumberishUtils.compare(nativeToken.price, 10000) > 0) {
           safeLog('WARNING: Native token price looks like portfolio value!', BigNumberishUtils.toNumber(nativeToken.price));
         }
       }
@@ -261,14 +259,14 @@
   let accountNativeValue = $derived.by(() => {
     try {
       if (!account || !chain) return 0;
-      
+
       // Use BigNumber to handle the balance and price multiplication properly
       const balanceBN = new BigNumber(account.balance || '0');
       const priceBN = new BigNumber(nativePrice);
-      
+
       // Use mulByPrice to get USD value (handles decimal ETH values properly)
       const usdValue = balanceBN.mulByPrice(BigNumberishUtils.toNumber(nativePrice), 18);
-      
+
       // The result is already in USD, just convert to number for display
       return usdValue.toNumber();
     } catch (error) {
@@ -280,14 +278,14 @@
   // Track native price changes and update direction indicator
   $effect(() => {
     try {
-      if (BigNumberishUtils.compare(nativePrice, 0) > 0 && previousNativePrice !== null && previousNativePrice > 0) {
-        if (BigNumberishUtils.compare(nativePrice, previousNativePrice) > 0) {
+      if (nativePrice && BigNumberishUtils.compare(nativePrice, 0) > 0 && previousNativePrice !== null && previousNativePrice > 0) {
+        if (previousNativePrice && BigNumberishUtils.compare(nativePrice, previousNativePrice) > 0) {
           nativePriceDirection = 'up';
-        } else if (BigNumberishUtils.compare(nativePrice, previousNativePrice) < 0) {
+        } else if (previousNativePrice && BigNumberishUtils.compare(nativePrice, previousNativePrice) < 0) {
           nativePriceDirection = 'down';
         }
       }
-      if (BigNumberishUtils.compare(nativePrice, 0) > 0) {
+      if (nativePrice && BigNumberishUtils.compare(nativePrice, 0) > 0) {
         previousNativePrice = BigNumberishUtils.toNumber(nativePrice);
       }
     } catch (error) {
@@ -318,7 +316,7 @@
       // Only act when showUpgradeModal changes
       if (showUpgradeModal !== lastUpgradeModalState) {
         lastUpgradeModalState = showUpgradeModal;
-        
+
         if (showUpgradeModal) {
           modalStore.openModal('upgrade');
         } else if (modalStore.isModalOpen()) {
@@ -363,21 +361,18 @@
         await new Promise(resolve => setTimeout(resolve, 100));
       }
 
-      // Always refresh to get latest data
-      await tokenStore.refresh(forceRefresh);
-      safeLog('refreshAllData: Token store refreshed');
-
       // Update balances if needed
       if (forceRefresh) {
         const instances = await getInstances();
         if (instances && instances[1] && $currentAccount) {
           const provider = instances[1].getProvider();
           await updateTokenBalances($currentAccount.address, provider);
-
-          // Final refresh to ensure UI has all latest data
-          await tokenStore.refresh();
         }
       }
+      // Always refresh to get latest data
+      await tokenStore.refresh(forceRefresh);
+      safeLog('refreshAllData: Token store refreshed');
+
     } catch (error) {
       handleError(error, 'refreshAllData');
     }
@@ -386,7 +381,7 @@
   onMount(() => {
     try {
       if (typeof window === 'undefined') {
-        console.log('window is not defined');
+        log.info('window is not defined');
         return null;
       }
 
@@ -560,13 +555,23 @@
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   }
 
-  function formatCurrency(value: number): string {
+  function formatCurrency(value: number | BigNumberish): string {
+    let numValue: number;
+
+    if (typeof value === 'number') {
+      numValue = value;
+    } else {
+      // Value is stored as cents (bigint), convert to dollars for display
+      const valueInCents = BigNumberishUtils.toBigInt(value);
+      numValue = Number(valueInCents) / 100;
+    }
+
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
-    }).format(value);
+    }).format(numValue);
   }
 
 
@@ -585,7 +590,7 @@
       // For public addresses, we don't need to clear the clipboard
       // as mentioned in the requirement
     } catch (error) {
-      console.error('Failed to copy address:', error);
+      log.warn('Failed to copy address:', false, error);
       uiStore.showError('Copy Failed', 'Failed to copy address to clipboard');
     }
   }
@@ -723,12 +728,6 @@
       </p>
       <div class="space-y-3">
         <button
-          onclick={() => window.location.reload()}
-          class="yakkl-btn-primary w-full"
-        >
-          Refresh Page
-        </button>
-        <button
           onclick={() => { hasError = false; errorMessage = ''; }}
           class="yakkl-btn-secondary w-full"
         >
@@ -793,7 +792,7 @@
                       <span class="font-medium">{token.symbol}</span>
                     </div>
                     <ProtectedValue
-                      value={formatCurrency(Number(token?.value) || 0)}
+                      value={formatCurrency(token?.value || 0)}
                       placeholder="*****"
                     />
                   </div>
@@ -831,8 +830,8 @@
         {#if chain}
           <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-1">
             <span>{chain.nativeCurrency?.symbol || 'ETH'}:</span>
-            {#if BigNumberishUtils.compare(nativePrice, 0) > 0}
-              <ProtectedValue value={formatCurrency(BigNumberishUtils.toNumber(nativePrice))} placeholder="****" />
+            {#if nativePrice && nativePrice > 0}
+              <ProtectedValue value={formatCurrency(nativePrice)} placeholder="****" />
             {:else}
               <span class="animate-pulse">Loading...</span>
             {/if}
@@ -928,7 +927,7 @@
   <RecentActivity
     className="yakkl-card relative z-10"
     showAll={true}
-    onRefresh={async () => await refreshAllData(true)}
+    onRefresh={async () => refreshAllData(true)}
     onTransactionClick={handleTransactionClick}
   />
 
@@ -974,7 +973,7 @@
       <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
       </svg>
-      YAKKL v2
+      YAKKL v{VERSION}
     </div>
     </div>
   {/if} <!-- End normal page content -->

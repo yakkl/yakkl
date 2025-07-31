@@ -127,7 +127,7 @@ export class UIJWTValidatorService {
 
       log.info('[UIJWTValidator] Connected to background script');
     } catch (error) {
-      log.error('[UIJWTValidator] Failed to connect to background', false, error);
+      log.warn('[UIJWTValidator] Failed to connect to background', false, error);
     }
   }
 
@@ -176,7 +176,7 @@ export class UIJWTValidatorService {
           break;
 
         case 'JWT_ERROR':
-          log.error('[UIJWTValidator] JWT validation error from background', false, message.error);
+          log.warn('[UIJWTValidator] JWT validation error from background', false, message.error);
           this.updateModal(
             'error',
             `Authentication error: ${message.error || 'Unknown validation error'}`,
@@ -189,7 +189,7 @@ export class UIJWTValidatorService {
           log.debug('[UIJWTValidator] Unknown message type', false, message.type);
       }
     } catch (error) {
-      log.error('[UIJWTValidator] Error handling background message', false, error);
+      log.warn('[UIJWTValidator] Error handling background message', false, error);
       this.updateModal('error', 'Error processing authentication status', 0, true);
     }
   }
@@ -236,7 +236,7 @@ export class UIJWTValidatorService {
 
       log.debug('[UIJWTValidator] JWT validation passed');
     } catch (error) {
-      log.error('[UIJWTValidator] JWT validation error', false, error);
+      log.warn('[UIJWTValidator] JWT validation error', false, error);
       // Show 20-second security countdown modal instead of immediate logout
       this.showSecurityWarningModal(
         'A security error occurred during session validation.',
@@ -269,17 +269,15 @@ export class UIJWTValidatorService {
 
       log.info('[UIJWTValidator] Logout completed', false, { reason });
     } catch (error) {
-      log.error('[UIJWTValidator] Error during logout', false, error);
+      log.warn('[UIJWTValidator] Error during logout', false, error);
 
       // Force navigation even if auth store logout fails
       try {
         await goto('/logout');
       } catch (navError) {
-        log.error('[UIJWTValidator] Failed to navigate to logout', false, navError);
-        // Last resort: reload the page
-        if (browser && window.location) {
-          window.location.href = '/logout';
-        }
+        log.warn('[UIJWTValidator] Failed to navigate to logout', false, navError);
+        // Navigation failed - log but don't throw
+        log.warn('[UIJWTValidator] Navigation to logout failed, user may need to manually navigate', false, navError);
       }
     }
   }

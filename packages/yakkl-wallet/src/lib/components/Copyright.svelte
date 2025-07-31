@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { VERSION, YEAR } from '$lib/common/constants';
 	import type { Settings } from '$lib/common';
-	import { getSettings } from '$lib/common/stores';
+	import { getSettingsDirect } from '$lib/common/stores';
 	import { onMount } from 'svelte';
 
 	interface Props {
@@ -18,9 +18,11 @@
 	let registered: string = $state('');
 
 	onMount(async () => {
-		getSettings().then(async (result) => {
+		getSettingsDirect().then(async (result) => {
 			const yakklSettings = result as Settings;
-			registered = yakklSettings.plan.type;
+			if (yakklSettings && yakklSettings.plan) {
+				registered = yakklSettings.plan.type;
+			}
 		});
 	});
 

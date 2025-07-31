@@ -22,6 +22,7 @@
 	$effect(() => {
 		yakklCurrentlySelected = $yakklCurrentlySelectedStore;
 	});
+
 	$effect(() => {
 		yakklSettings = $yakklSettingsStore;
 	});
@@ -30,6 +31,7 @@
 
 	async function update() {
 		if (!browserSvelte) return;
+
 		if (isUpdating) return; // Prevent multiple updates
 		isUpdating = true;
 
@@ -37,7 +39,7 @@
 			// Use centralized lockWallet function which saves cache and clears state
 			await lockWallet('user-logout');
 		} catch (error) {
-			log.error('Logout failed:', false, error);
+			log.warn('Logout failed:', false, error);
 			alert(
 				'Logout encountered an error. Please try again or refresh the extension via browser extension manager.'
 			);
@@ -47,7 +49,7 @@
 			try {
         window.close();
 			} catch (closeError) {
-				log.error('Could not close window:', false, closeError);
+				log.warn('Could not close window:', false, closeError);
 				await goto('/login'); // Redirect to login page only if window.close fails
 			}
 		}

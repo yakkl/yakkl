@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { browser_ext, browserSvelte } from '$lib/common/environment';
+	import { browserSvelte } from '$lib/common/environment';
+	import { browserAPI } from '$lib/services/browser-api.service';
 	import {
 		getYakklAccounts,
 		setYakklConnectedDomainsStorage,
@@ -23,7 +24,7 @@
 	import { dateString } from '$lib/common/datetime';
 	import { log } from '$lib/managers/Logger';
 	import Confirmation from '$lib/components/Confirmation.svelte';
-	import type { BackgroundPendingRequest } from '$lib/extensions/chrome/background';
+	import type { BackgroundPendingRequest } from '$lib/common/interfaces';
 	import Warning from '$lib/components/Warning.svelte';
 	import Failed from '$lib/components/Failed.svelte';
 	import {
@@ -466,7 +467,7 @@
 				log.info('Dapp - accounts page getting currently selected:', false, currentlySelected);
 
 				// Since we're 1:1 we can attach to the known port name
-				const sessionInfo = (await browser_ext.runtime.sendMessage({
+				const sessionInfo = (await browserAPI.runtimeSendMessage({
 					type: 'REQUEST_SESSION_PORT',
 					requestId
 				})) as SessionInfo;

@@ -209,7 +209,10 @@
 
           if (allowance < amountIn) {
             // Need approval
-            notificationService.info('Approving token for swap...');
+            notificationService.show({
+              message: 'Approving token for swap...',
+              type: 'info'
+            });
 
             const approvalResponse = await messagingService.sendMessage('swap.approve', {
               tokenAddress: fromToken.address,
@@ -248,10 +251,11 @@
 
       if (swapResponse.success && swapResponse.data) {
         // Show success notification
-        notificationService.success(
-          'Swap Initiated!',
-          `Transaction hash: ${swapResponse.data.txHash}`
-        );
+        notificationService.show({
+          title: 'Swap Initiated!',
+          message: `Transaction hash: ${swapResponse.data.txHash}`,
+          type: 'success'
+        });
 
         // Show pending transaction UI
         uiStore.showTransactionPending(swapResponse.data.txHash);
@@ -269,7 +273,11 @@
       }
     } catch (error: any) {
       console.error('Swap error:', error);
-      notificationService.error('Swap Failed', error.message);
+      notificationService.show({
+        title: 'Swap Failed',
+        message: error.message,
+        type: 'error'
+      });
     } finally {
       loading = false;
     }
@@ -330,7 +338,6 @@
 <Modal
   bind:show
   title="Swap Tokens"
-  size="lg"
   onClose={() => {
     show = false;
     resetForm();
@@ -533,7 +540,6 @@
   <Modal
     show={showSettings}
     title="Transaction Settings"
-    size="sm"
     onClose={() => showSettings = false}
   >
     <div class="space-y-4">
@@ -623,7 +629,8 @@
 <!-- PIN Verification -->
 {#if showPincode}
   <PincodeVerify
-    onSuccess={handlePinSuccess}
-    onCancel={() => showPincode = false}
+    show={showPincode}
+    onVerified={handlePinSuccess}
+    onRejected={() => showPincode = false}
   />
 {/if}

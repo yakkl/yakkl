@@ -1,0 +1,12 @@
+Testing the notification sound again! 🔔
+
+This should trigger:
+- The success sound (Glass on macOS)
+- A desktop notification saying "Task completed successfully! ✅"
+
+If you want to test different sounds or adjust the volume, you can:
+1. Edit .claude/hooks/task-complete-notify.sh
+2. Change the sound name in the osascript command
+3. Available macOS sounds: Basso, Blow, Bottle, Frog, Funk, Glass, Hero, Morse, Ping, Pop, Purr, Sosumi, Submarine, Tink
+
+Current timestamp: $(date)

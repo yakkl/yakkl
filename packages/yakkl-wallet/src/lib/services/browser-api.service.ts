@@ -20,7 +20,12 @@ import {
   type NotificationCreatePayload,
   type RuntimeGetURLPayload,
   type RuntimeSendMessagePayload,
-  type RuntimeConnectPayload
+  type RuntimeConnectPayload,
+  type ActionSetIconPayload,
+  type ActionSetBadgeTextPayload,
+  type ActionSetBadgeBackgroundColorPayload,
+  type ActionGetBadgeTextPayload,
+  type ActionSetTitlePayload
 } from '$lib/types/browser-api-messages';
 import { log } from '$lib/managers/Logger';
 
@@ -315,6 +320,15 @@ class BrowserAPIService extends BaseService {
   }
   
   /**
+   * Get the last runtime error
+   */
+  async runtimeGetLastError(): Promise<{ message: string } | null> {
+    return this.sendBrowserAPIRequest(
+      BrowserAPIMessageType.BROWSER_API_RUNTIME_GET_LAST_ERROR
+    );
+  }
+  
+  /**
    * Note: Event listeners like runtime.onMessage are handled differently
    * Since we can't directly attach listeners from the client context,
    * messages are routed through the existing BaseService messaging system.
@@ -337,6 +351,60 @@ class BrowserAPIService extends BaseService {
    * }
    * ```
    */
+  
+  // ===============================
+  // Action API Methods
+  // ===============================
+  
+  /**
+   * Set the extension action icon
+   */
+  async actionSetIcon(details: ActionSetIconPayload['details']): Promise<void> {
+    return this.sendBrowserAPIRequest(
+      BrowserAPIMessageType.BROWSER_API_ACTION_SET_ICON,
+      { details } as ActionSetIconPayload
+    );
+  }
+  
+  /**
+   * Set the badge text on the extension action
+   */
+  async actionSetBadgeText(details: ActionSetBadgeTextPayload['details']): Promise<void> {
+    return this.sendBrowserAPIRequest(
+      BrowserAPIMessageType.BROWSER_API_ACTION_SET_BADGE_TEXT,
+      { details } as ActionSetBadgeTextPayload
+    );
+  }
+  
+  /**
+   * Set the badge background color
+   */
+  async actionSetBadgeBackgroundColor(details: ActionSetBadgeBackgroundColorPayload['details']): Promise<void> {
+    return this.sendBrowserAPIRequest(
+      BrowserAPIMessageType.BROWSER_API_ACTION_SET_BADGE_BACKGROUND_COLOR,
+      { details } as ActionSetBadgeBackgroundColorPayload
+    );
+  }
+  
+  /**
+   * Get the badge text
+   */
+  async actionGetBadgeText(details?: ActionGetBadgeTextPayload['details']): Promise<string> {
+    return this.sendBrowserAPIRequest(
+      BrowserAPIMessageType.BROWSER_API_ACTION_GET_BADGE_TEXT,
+      { details: details || {} } as ActionGetBadgeTextPayload
+    );
+  }
+  
+  /**
+   * Set the action title (tooltip)
+   */
+  async actionSetTitle(details: ActionSetTitlePayload['details']): Promise<void> {
+    return this.sendBrowserAPIRequest(
+      BrowserAPIMessageType.BROWSER_API_ACTION_SET_TITLE,
+      { details } as ActionSetTitlePayload
+    );
+  }
   
   // ===============================
   // Notifications API Methods

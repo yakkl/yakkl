@@ -179,6 +179,7 @@
 		"node": ">=18.0.0"
 	},
 	"dependencies": {
+		"@cloudflare/speedtest": "^1.5.1",
 		"@ethersproject/properties": "^5.7.0",
 		"@ethersproject/web": "^5.7.1",
 		"@ledgerhq/hw-app-eth": "^6.45.7",

@@ -4,6 +4,7 @@ import { ethers } from 'ethers-v6';
 import { get } from 'svelte/store';
 import { currentAccount } from '../stores/account.store';
 import { currentChain } from '../stores/chain.store';
+import { log } from '$lib/common/logger-wrapper';
 
 interface SendTransactionParams {
   to: string;
@@ -31,7 +32,7 @@ export class TransactionService extends BaseService {
     try {
       const account = get(currentAccount);
       const chain = get(currentChain);
-      
+
       if (!account) {
         return {
           success: false,
@@ -79,31 +80,46 @@ export class TransactionService extends BaseService {
 
   async getTransactionHistory(address: string, limit: number = 100): Promise<ServiceResponse<TransactionDisplay[]>> {
     try {
-      console.log('TransactionService: Requesting transaction history for:', address, 'limit:', limit);
-      
-      // Request transaction history from background - use the type field for MessageHandler
-      const response = await this.sendMessage<TransactionDisplay[]>({
-        type: 'yakkl_getTransactionHistory',
-        payload: { address, limit }
-      });
+      log.info('TransactionService: Requesting transaction history for:', false, address, 'limit:', limit);
 
-      console.log('TransactionService: Received response:', {
+      // Request transaction history from background - use the type field for MessageHandler
+      const response = await Promise.race([
+        this.sendMessage<TransactionDisplay[]>({
+          type: 'yakkl_getTransactionHistory',
+          payload: { address, limit }
+        }),
+        new Promise<ServiceResponse<TransactionDisplay[]>>((resolve) => {
+          setTimeout(() => {
+            log.warn('TransactionService: Request timeout, returning empty data');
+            resolve({ success: true, data: [] });
+          }, 15000); // 15 second timeout
+        })
+      ]);
+
+      log.info('TransactionService: Received response:', false, {
         success: response.success,
         hasData: !!response.data,
         dataLength: response.data?.length,
-        firstItem: response.data?.[0]
+        firstItem: response.data?.[0] ? {
+          hash: response.data[0].hash,
+          type: response.data[0].type,
+          value: response.data[0].value,
+          timestamp: response.data[0].timestamp
+        } : null,
+        responseType: typeof response,
+        responseKeys: Object.keys(response)
       });
 
       if (response.success && response.data) {
         // Data is already in the correct format from the handler
-        console.log('TransactionService: Returning', response.data.length, 'transactions');
-        console.log('TransactionService: First transaction:', response.data[0]);
+        log.info('TransactionService: Returning', false, response.data.length, 'transactions');
+        log.debug('TransactionService: First transaction:', false, response.data[0]);
         return { success: true, data: response.data };
       }
 
       // If no data, return empty array instead of failing
       if (!response.data) {
-        console.log('TransactionService: No data in response, returning empty array');
+        console.log('TransactionService: No data in response, returning empty array', response);
         return { success: true, data: [] };
       }
 
@@ -111,8 +127,8 @@ export class TransactionService extends BaseService {
     } catch (error) {
       console.warn('TransactionService: Failed to load transaction history:', error);
       // Return empty array on error to avoid breaking UI
-      return { 
-        success: true, 
+      return {
+        success: true,
         data: []
       };
     }
@@ -121,7 +137,7 @@ export class TransactionService extends BaseService {
   async estimateGas(params: SendTransactionParams): Promise<ServiceResponse<string>> {
     try {
       const account = get(currentAccount);
-      
+
       if (!account) {
         return {
           success: false,
@@ -173,7 +189,7 @@ export class TransactionService extends BaseService {
     // ERC20 transfer function signature
     const transferFn = 'transfer(address,uint256)';
     const transferSelector = ethers.id(transferFn).slice(0, 10);
-    
+
     // Encode parameters
     const encodedParams = ethers.AbiCoder.defaultAbiCoder().encode(
       ['address', 'uint256'],

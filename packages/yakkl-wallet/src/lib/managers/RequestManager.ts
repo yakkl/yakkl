@@ -1,7 +1,7 @@
 // RequestManager.ts
 import type { Runtime } from 'webextension-polyfill';
 import { log } from '$lib/managers/Logger';
-import type { BackgroundPendingRequest } from '$contexts/background/extensions/chrome/background';
+import type { BackgroundPendingRequest } from '$lib/common/interfaces';
 
 export interface ExtendedBackgroundPendingRequest extends BackgroundPendingRequest {
 	promise?: Promise<any>;

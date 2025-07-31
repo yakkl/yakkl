@@ -53,7 +53,7 @@ export class SingletonWindowManager {
 			this.initialized = true;
 			log.info('SingletonWindowManager initialized successfully');
 		} catch (error) {
-			log.error('Failed to initialize SingletonWindowManager:', false, error);
+			log.warn('Failed to initialize SingletonWindowManager:', false, error);
 			// Even on error, mark as initialized to prevent repeated attempts
 			this.initialized = true;
 		}
@@ -88,7 +88,7 @@ export class SingletonWindowManager {
 				}
 			}
 		} catch (error) {
-			log.error('Failed to load stored window ID:', false, error);
+			log.warn('Failed to load stored window ID:', false, error);
 		}
 	}
 
@@ -206,7 +206,7 @@ export class SingletonWindowManager {
 			try {
 				window = await showExtensionPopup(428, 926, url, pinnedLocation);
 			} catch (error) {
-				log.error('Failed to create popup window', false, {
+				log.warn('Failed to create popup window', false, {
 					error: error instanceof Error ? error.message : error,
 					url,
 					pinnedLocation
@@ -215,7 +215,7 @@ export class SingletonWindowManager {
 			}
 
 			if (!window || !window.id) {
-				log.error('Window creation returned invalid result', false, { window });
+				log.warn('Window creation returned invalid result', false, { window });
 				throw new Error('Failed to create popup window - invalid window object');
 			}
 
@@ -241,12 +241,10 @@ export class SingletonWindowManager {
 
 			// Track window in openWindows map
 			if (openWindows) {
-        // This is not an error - only doing it to draw attention in the logs
-        log.error('Tracking window in openWindows map', false, { windowId: window.id, window });
 				openWindows.set(window.id, window);
 			}
 		} catch (error) {
-			log.error('SingletonWindowManager - showPopup', false, error);
+			log.warn('SingletonWindowManager - showPopup', false, error);
 		}
 	}
 
@@ -310,7 +308,7 @@ export class SingletonWindowManager {
 				return false;
 			}
 		} catch (error) {
-			log.error('Failed to check for active window:', false, error);
+			log.warn('Failed to check for active window:', false, error);
 			return false;
 		}
 	}

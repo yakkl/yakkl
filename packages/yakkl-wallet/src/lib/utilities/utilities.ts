@@ -18,10 +18,11 @@ import type { BigNumberish } from '$lib/common/bignumber';
 import { yakklVersionStore } from '$lib/common/stores';
 import { Utils } from 'alchemy-sdk';
 import { ethers as ethersv6 } from 'ethers-v6';
-import { browserSvelte, browser_ext } from '$lib/common/environment';
+import { browserSvelte } from '$lib/common/environment';
 import { log } from '$lib/managers/Logger';
 import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
+import { browserAPI } from '$lib/services/browser-api.service';
 
 export function getTokenChange(changeArray: TokenChange[], timeline: string): number | null {
 	if (!changeArray) {
@@ -520,7 +521,7 @@ export function splitWords(str: string, delimiter = ' '): string[] {
 // Opens a tab in the browser
 export function handleOpenInTab(url: string): void {
 	if (browserSvelte) {
-		browser_ext.tabs.create({ url: url });
+		browserAPI.tabsCreate({ url });
 	}
 }
 
@@ -575,7 +576,7 @@ export function timeoutClipboard(ms: number, redactText: string = '<redacted>') 
 export async function setIconLock() {
 	try {
 		if (browserSvelte) {
-			await browser_ext.action.setIcon({
+			await browserAPI.actionSetIcon({
 				path: {
 					16: '/images/logoBullLock16x16.png',
 					32: '/images/logoBullLock32x32.png',
@@ -592,7 +593,7 @@ export async function setIconLock() {
 export async function setIconUnlock() {
 	try {
 		if (browserSvelte) {
-			await browser_ext.action.setIcon({
+			await browserAPI.actionSetIcon({
 				path: {
 					16: '/images/logoBull16x16.png',
 					32: '/images/logoBull32x32.png',
@@ -609,7 +610,7 @@ export async function setIconUnlock() {
 export async function setBadgeText(text: string = '') {
 	try {
 		if (browserSvelte) {
-			await browser_ext.action.setBadgeText({ text: text });
+			await browserAPI.actionSetBadgeText({ text });
 		}
 	} catch (e) {
 		log.error(e);
@@ -675,7 +676,7 @@ export function hexToString(str1: string, Ox = true) {
 		for (let n = 0; n < hex.length; n += 2) {
 			// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 			// @ts-ignore
-			str += String.fromCharCode(parseInt(hex.substr(n, 2), 16));
+			str += String.fromCharCode(parseInt(hex.substring(n, n + 2), 16));
 		}
 		return str;
 	} catch (e) {
@@ -714,9 +715,9 @@ export function autoscroll(node: HTMLElement) {
  *
  * @returns {Error|undefined}
  */
-export function checkForError(): Error | undefined {
+export async function checkForError(): Promise<Error | undefined> {
 	if (browserSvelte) {
-		const { lastError } = browser_ext && browser_ext.runtime ? browser_ext.runtime : null;
+		const lastError = await browserAPI.runtimeGetLastError();
 		if (!lastError) {
 			return undefined;
 		}

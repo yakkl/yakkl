@@ -12,6 +12,7 @@ import { uiListenerManager } from '$lib/common/listeners/ui/uiListeners';
 import { protectedContexts } from '$lib/common/globals';
 import { initializeGlobalErrorHandlers, cleanupGlobalErrorHandlers } from '$lib/common/globalErrorHandler';
 import { browser_ext } from '$lib/common/environment';
+import { initializeMessaging, initializeUiContext } from '$lib/common/messaging';
 
 // Helper function to check if context needs idle protection
 function contextNeedsIdleProtection(contextType: string): boolean {
@@ -85,7 +86,7 @@ let initializationAttempted = false;
 // 		initializationAttempted = true;
 // 	}
 
-// 	// Use the centralized browser detection 
+// 	// Use the centralized browser detection
 // 	// browser_ext = getBrowserExtFromWrapper();
 
 // 	// Log only on first failed attempt
@@ -213,11 +214,20 @@ export function getContextType(): string {
 export async function init() {
 	if (!isClient) return; // Skip initialization on server
 
+	// Add timeout to prevent hanging initialization
+	const initTimeout = setTimeout(() => {
+		log.warn('Initialization timeout - forcing completion');
+		window.EXTENSION_INIT_STATE.initialized = true;
+	}, 10000); // 10 second timeout
+
 	try {
 		// Use window state to prevent multiple initializations across contexts
 		if (window.EXTENSION_INIT_STATE && window.EXTENSION_INIT_STATE.initialized) {
+			clearTimeout(initTimeout);
 			return;
 		}
+
+		log.info('Starting initialization process');
 
 		try {
 			await getSettings();
@@ -227,9 +237,6 @@ export async function init() {
 
 		// Initialize global error handlers early
 		initializeGlobalErrorHandlers();
-
-		// First get the browser API
-		// const browserApi = getBrowserExt();
 
 		// Register UI context with global listener manager if not already done
 		if (!globalListenerManager.hasContext('ui')) {
@@ -246,6 +253,21 @@ export async function init() {
 		// Get context type for this initialization
 		const contextType = getContextType();
 
+		// Initialize messaging service if browser API is available
+		log.info('Checking browser API availability:', false, { browser_ext: !!browser_ext });
+		if (browser_ext) {
+			log.info('Initializing messaging service with browser API');
+			try {
+				initializeMessaging(browser_ext);
+				await initializeUiContext(browser_ext, contextType);
+				log.info('Messaging service initialized successfully');
+			} catch (error) {
+				log.warn('Failed to initialize messaging service:', false, error);
+			}
+		} else {
+			log.warn('Browser API not available, messaging service not initialized');
+		}
+
 		// Set up UI listeners through the manager
 		await setupUIListeners();
 
@@ -257,9 +279,14 @@ export async function init() {
 
 		// Mark as initialized
 		window.EXTENSION_INIT_STATE.initialized = true;
+		clearTimeout(initTimeout);
+		log.info('Initialization completed successfully');
 	} catch (error: any) {
+		clearTimeout(initTimeout);
 		console.warn(`[${CONTEXT_ID}] Initialization error:`, error);
 		handleError(error);
+		// Mark as initialized even on error to prevent infinite retries
+		window.EXTENSION_INIT_STATE.initialized = true;
 	}
 }
 

@@ -1,0 +1,10 @@
+This is a test file to trigger the completion notification.
+
+If you hear a sound and/or see a notification, the system is working!
+
+You should hear:
+- On macOS: A "Glass" sound with a notification
+- On Linux: A completion sound or beep with desktop notification
+- On Windows: A system sound with toast notification
+
+The notification should say: "Task completed successfully! ✅"

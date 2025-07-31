@@ -16,6 +16,7 @@
 	import { sessionToken, sessionExpiresAt } from '$lib/common/auth/session';
 	import { browserAPI } from '$lib/services/browser-api.service';
 	import { goto } from '$app/navigation';
+	import { initNetworkSpeedMonitoring } from '$lib/common/networkSpeed';
 
   // State
   let showError = $state(false);
@@ -36,8 +37,24 @@
 
   onMount(async () => {
     yakklSettings = await getNormalizedSettings();
-    await setSettingsStorage(yakklSettings);
-    planType = yakklSettings?.plan.type ?? PlanType.EXPLORER_MEMBER;
+    
+    // Handle null settings - user might be on first launch
+    if (!yakklSettings) {
+      console.warn('[Login] No settings found, redirecting to legal page for initial setup');
+      // Redirect to legal page which starts the registration flow
+      await goto('/legal');
+      return;
+    } else {
+      // Check if user has completed initial setup
+      if (!yakklSettings.init || !yakklSettings.legal?.termsAgreed) {
+        console.warn('[Login] Settings exist but not initialized, redirecting to legal page');
+        await goto('/legal');
+        return;
+      }
+      
+      await setSettingsStorage(yakklSettings);
+      planType = yakklSettings?.plan?.type ?? PlanType.EXPLORER_MEMBER;
+    }
 
     // Load cache managers early to ensure cached data is available
     // try {
@@ -132,7 +149,7 @@
   // Handle successful login
 
   async function onSuccess(profile: Profile, digest: string, isMinimal: boolean) {
-    console.log('[LOGIN onSuccess] Called with:', {
+    log.debug('[LOGIN onSuccess] Called with:', false, {
       profile,
       hasDigest: !!digest,
       digestLength: digest?.length,
@@ -173,7 +190,7 @@
       // }
 
       // Unlock the wallet using setLocks function - this updates both storage and stores
-      await setLocks(false, yakklSettings?.plan.type || PlanType.EXPLORER_MEMBER);
+      await setLocks(false, yakklSettings?.plan?.type || PlanType.EXPLORER_MEMBER);
 
       // Start activity tracking
       const contextType = 'popup-wallet';
@@ -181,6 +198,9 @@
         log.info(`Starting activity tracking for protected context: ${contextType}`);
         startActivityTracking(contextType);
       }
+
+      // Initialize network speed monitoring for dynamic timeouts
+      initNetworkSpeedMonitoring();
 
       // NEW: Pre-load token cache during login as user requested
       // This ensures the cache is populated before reaching the home page

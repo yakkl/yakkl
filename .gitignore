@@ -4,9 +4,6 @@
 # Node modules
 node_modules/
 
-# Ignore all Markdown files
-*.md
-
 # But don't ignore any .md files in /docs/
 !docs/**/*.md
 !docs/*.md
@@ -103,9 +100,6 @@ packages/yakkl-wallet/src/lib/**/*.tmp
 !**/.env.example
 
 # Restricted files
-# AI assistant files
-**/CLAUDE.md
-**/CLAUDE.md.*
 
 # Lock files
 # pnpm-lock.yaml

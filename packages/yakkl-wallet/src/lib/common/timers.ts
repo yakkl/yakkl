@@ -8,7 +8,7 @@ export async function stopTimers() {
 			timerManager.stopAll();
 		}
 	} catch (error) {
-		log.error('Error stopping timers:', false, error);
+		log.warn('Error stopping timers:', false, error);
 	}
 }
 
@@ -19,6 +19,6 @@ export function removeTimers() {
 			timerManager.removeAll(); // Stops and then clears all timers
 		}
 	} catch (error) {
-		log.error('Error removing timers:', false, error);
+		log.warn('Error removing timers:', false, error);
 	}
 }

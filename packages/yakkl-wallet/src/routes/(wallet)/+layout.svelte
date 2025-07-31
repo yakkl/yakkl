@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { get } from 'svelte/store';
   // Note: Using window.location instead of goto to avoid HMR conflicts in browser extensions
   import '../../app.css';
   import DockLauncher from '$lib/components/DockLauncher.svelte';
@@ -15,19 +16,35 @@
   import ManageAccounts from '$lib/components/ManageAccounts.svelte';
   import NetworkMismatchModal from '$lib/components/NetworkMismatchModal.svelte';
   import ScrollIndicator from '$lib/components/ScrollIndicator.svelte';
+  import TroubleshootingFAB from '$lib/components/TroubleshootingFAB.svelte';
   import { accountStore, currentAccount } from '$lib/stores/account.store';
   import { chainStore, currentChain, visibleChains } from '$lib/stores/chain.store';
   import { planStore } from '$lib/stores/plan.store';
   import { canUseFeature } from '$lib/stores/plan.store';
   import { modalStore, isModalOpen } from '$lib/stores/modal.store';
   import { sessionManager } from '$lib/managers/SessionManager';
-  import { getYakklAccounts, getProfile, syncStorageToStore, getMiscStore } from '$lib/common/stores';
+  import {
+    getYakklAccounts,
+    getProfile,
+    syncStorageToStore,
+    getMiscStore,
+    resetStores,
+    setMiscStore,
+    setYakklTokenDataCustomStorage,
+    yakklTokenDataCustomStore
+  } from '$lib/common/stores';
   import type { ChainDisplay } from '$lib/types';
   import { setupConsoleFilters } from '$lib/utils/console-filter';
   import { validateAndRefreshAuth } from '$lib/common/authValidation';
-	import { goto } from '$app/navigation';
-	import { decryptData, isEncryptedData, type ProfileData } from '$lib/common';
-	import { log } from '$lib/common/logger-wrapper';
+  import { goto } from '$app/navigation';
+  import { decryptData, isEncryptedData, type ProfileData } from '$lib/common';
+  import { log } from '$lib/common/logger-wrapper';
+  import { setBadgeText, setIconLock } from '$lib/utilities/utilities';
+  import { removeTimers } from '$lib/common/timers';
+  import { removeListeners } from '$lib/common/listeners';
+  import { setLocks } from '$lib/common/locks';
+  import { resetTokenDataStoreValues } from '$lib/common/resetTokenDataStoreValues';
+  import { stopActivityTracking } from '$lib/common/messaging';
 
   interface Props {
     children?: import('svelte').Snippet;
@@ -95,11 +112,11 @@
                 )
               ]);
             } catch (error) {
-              console.warn('Wallet Layout: Store loading failed or timed out:', error);
+              log.warn('Wallet Layout: Store loading failed or timed out:', false, error);
               // Don't fail - stores will be populated when needed
             }
           } else {
-            console.log('Wallet Layout: Skipping store loading - extension context not ready');
+            log.info('Wallet Layout: Skipping store loading - extension context not ready');
           }
 
         } else {
@@ -252,22 +269,6 @@
 
  async function performLogout() {
     try {
-      // Import all necessary functions
-      const {
-        resetStores,
-        setMiscStore,
-        setYakklTokenDataCustomStorage,
-        yakklTokenDataCustomStore
-      } = await import('$lib/common/stores');
-
-      const { setBadgeText, setIconLock } = await import('$lib/utilities/utilities');
-      const { removeTimers } = await import('$lib/common/timers');
-      const { removeListeners } = await import('$lib/common/listeners');
-      const { setLocks } = await import('$lib/common/locks');
-      const { resetTokenDataStoreValues } = await import('$lib/common/resetTokenDataStoreValues');
-      const { stopActivityTracking } = await import('$lib/common/messaging');
-      const { log } = await import('$lib/common/logger-wrapper');
-      const { get } = await import('svelte/store');
 
       // Stop activity tracking
       await stopActivityTracking();
@@ -301,19 +302,19 @@
       if (planStore && typeof planStore.reset === 'function') {
         planStore.reset();
       } else {
-        console.warn('planStore.reset is not available, skipping plan store reset');
+        log.warn('planStore.reset is not available, skipping plan store reset');
       }
 
       // Clear session marker
       sessionStorage.removeItem('wallet-authenticated');
 
-      console.log('V2: Logout completed successfully');
+      log.info('V2: Logout completed successfully');
 
       // Navigate to logout page using SvelteKit navigation
       await goto('/logout');
 
     } catch (error) {
-      console.error('V2: Logout failed:', error);
+      log.warn('V2: Logout failed:', false, error);
       alert('Logout encountered an error. Please try again or refresh the extension.');
     }
   }
@@ -471,6 +472,9 @@
       </div>
     {/if}
   {/if}
+
+  <!-- Troubleshooting FAB - Always visible -->
+  <TroubleshootingFAB />
 
 </div>
 

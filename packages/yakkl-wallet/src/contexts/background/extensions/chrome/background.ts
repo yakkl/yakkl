@@ -10,6 +10,7 @@ import { onAlarmListener } from '$lib/common/listeners/background/alarmListeners
 
 import browser from 'webextension-polyfill';
 import type { Runtime } from 'webextension-polyfill';
+import { safePortPostMessage } from '$lib/common/safePortMessaging';
 
 import { activeTabBackgroundStore, activeTabUIStore, backgroundUIConnectedStore } from '$lib/common/stores';
 import { get } from 'svelte/store';
@@ -188,13 +189,22 @@ browser.runtime.onConnect.addListener((port: RuntimePort) => {
 
           } catch (error) {
             log.error('Error handling dapp request:', false, error);
-            port.postMessage({
+            safePortPostMessage(port, {
               type: 'YAKKL_RESPONSE:EIP6963',
               id: msg.id,
               method: msg.method,
               error: {
                 code: -32603,
                 message: 'Internal error processing request'
+              }
+            }, {
+              context: 'background-dapp-error',
+              onError: (error) => {
+                log.warn('[Background] Failed to send dapp error response:', false, { 
+                  messageId: msg.id, 
+                  method: msg.method,
+                  error: error instanceof Error ? error.message : error 
+                });
               }
             });
           }
@@ -207,13 +217,22 @@ browser.runtime.onConnect.addListener((port: RuntimePort) => {
       log.error('Error processing message:', false, error);
       if (message && typeof message === 'object') {
         const msg = message as DappRequest;
-        port.postMessage({
+        safePortPostMessage(port, {
           type: 'YAKKL_RESPONSE:EIP6963',
           id: msg.id,
           method: msg.method,
           error: {
             code: -32603,
             message: 'Internal error processing request'
+          }
+        }, {
+          context: 'background-message-error',
+          onError: (error) => {
+            log.warn('[Background] Failed to send message error response:', false, { 
+              messageId: msg.id, 
+              method: msg.method,
+              error: error instanceof Error ? error.message : error 
+            });
           }
         });
       }
@@ -300,13 +319,22 @@ async function handlePortMessage(message: YakklMessage, port: RuntimePort) {
         return;
       }
 
-      // Forward the response to the original requester
+      // Forward the response to the original requester safely
       if (originalRequest.port) {
-        originalRequest.port.postMessage({
+        safePortPostMessage(originalRequest.port, {
           ...message,
           id,
           method: method || originalRequest.data.method,
           jsonrpc: '2.0'
+        }, {
+          context: 'background-response-forward',
+          onError: (error) => {
+            log.warn('[Background] Failed to forward response to original requester:', false, { 
+              requestId: id,
+              method: method || originalRequest.data.method,
+              error: error instanceof Error ? error.message : error 
+            });
+          }
         });
         pendingRequests.delete(id);
       }
@@ -350,22 +378,39 @@ async function handlePortMessage(message: YakklMessage, port: RuntimePort) {
 
           const fullRequest = {
             resolve: (result: unknown) => {
-              port.postMessage({
+              safePortPostMessage(port, {
                 type: 'YAKKL_RESPONSE:EIP6963',
                 jsonrpc: '2.0',
                 id,
                 result
+              }, {
+                context: 'background-approval-resolve',
+                onError: (error) => {
+                  log.warn('[Background] Failed to send approval resolve response:', false, { 
+                    requestId: id,
+                    error: error instanceof Error ? error.message : error 
+                  });
+                }
               });
               // if (portState) portState.pendingMessages--;
             },
             reject: (error: Error) => {
-              port.postMessage({
+              safePortPostMessage(port, {
                 type: 'YAKKL_RESPONSE:EIP6963',
                 jsonrpc: '2.0',
                 id,
                 error: {
                   code: -32603,
                   message: error?.message || 'Internal error'
+                }
+              }, {
+                context: 'background-approval-reject',
+                onError: (sendError) => {
+                  log.warn('[Background] Failed to send approval reject response:', false, { 
+                    requestId: id,
+                    originalError: error?.message,
+                    sendError: sendError instanceof Error ? sendError.message : sendError 
+                  });
                 }
               });
               if (portState) portState.pendingMessages--;
@@ -376,12 +421,21 @@ async function handlePortMessage(message: YakklMessage, port: RuntimePort) {
 
           pendingRequests.set(id, fullRequest);
           const result = await showEIP6963Popup(method, params || []);
-          port.postMessage({
+          safePortPostMessage(port, {
             type: 'YAKKL_RESPONSE:EIP6963',
             jsonrpc: '2.0',
             method,
             id,
             result
+          }, {
+            context: 'background-popup-result',
+            onError: (error) => {
+              log.warn('[Background] Failed to send popup result response:', false, { 
+                requestId: id,
+                method,
+                error: error instanceof Error ? error.message : error 
+              });
+            }
           });
           if (portState) portState.pendingMessages--;
           return;
@@ -389,23 +443,41 @@ async function handlePortMessage(message: YakklMessage, port: RuntimePort) {
 
         // For non-approval methods, handle directly
         const result = await handleRequest(method, params || [], origin, port, id);
-        port.postMessage({
+        safePortPostMessage(port, {
           type: 'YAKKL_RESPONSE:EIP6963',
           jsonrpc: '2.0',
           method,
           id,
           result
+        }, {
+          context: 'background-direct-result',
+          onError: (error) => {
+            log.warn('[Background] Failed to send direct result response:', false, { 
+              requestId: id,
+              method,
+              error: error instanceof Error ? error.message : error 
+            });
+          }
         });
         if (portState) portState.pendingMessages--;
       } catch (error) {
         log.error('Error processing request:', false, error);
-        port.postMessage({
+        safePortPostMessage(port, {
           type: 'YAKKL_RESPONSE:EIP6963',
           jsonrpc: '2.0',
           id,
           error: {
             code: -32603,
             message: 'Internal error processing request'
+          }
+        }, {
+          context: 'background-request-error',
+          onError: (sendError) => {
+            log.warn('[Background] Failed to send request error response:', false, { 
+              requestId: id,
+              originalError: error instanceof Error ? error.message : error,
+              sendError: sendError instanceof Error ? sendError.message : sendError 
+            });
           }
         });
         if (portState) portState.pendingMessages--;
@@ -522,9 +594,19 @@ function broadcastEvent(eventName: string, data: any, type: string = 'YAKKL_EVEN
     event: eventName,
     data
   };
-  // Send to all ports
+  // Send to all ports safely
   for (const port of ports.values()) {
-    port.postMessage(event);
+    safePortPostMessage(port, event, {
+      context: `broadcast-${eventName}`,
+      onError: (error) => {
+        log.warn('[Background] Failed to broadcast event:', false, { 
+          eventName,
+          type,
+          portName: port.name,
+          error: error instanceof Error ? error.message : error 
+        });
+      }
+    });
   }
 }
 

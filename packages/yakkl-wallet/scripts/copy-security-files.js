@@ -20,10 +20,6 @@ const FILES_TO_COPY = [
   {
     source: 'src/lib/managers/EmergencyKitManager.ts',
     destination: 'src/lib/managers/EmergencyKitManager.ts'
-  },
-  {
-    source: 'src/lib/managers/ShamirSecretManager.ts',
-    destination: 'src/lib/managers/ShamirSecretManager.ts'
   }
   // Add more files as needed
 ];

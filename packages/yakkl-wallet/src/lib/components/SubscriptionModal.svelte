@@ -106,7 +106,7 @@
 
       if (response.success) {
         // Update plan store
-        await planStore.upgradePlan(selectedPlan.type);
+        await planStore.upgradeTo(selectedPlan.type);
         
         step = 'confirmation';
         
@@ -133,7 +133,7 @@
 
       if (response.success) {
         // Update plan store
-        await planStore.upgradePlan(PlanType.PRO);
+        await planStore.upgradeTo(PlanType.PRO);
         
         step = 'confirmation';
         

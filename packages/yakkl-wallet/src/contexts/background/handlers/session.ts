@@ -1,7 +1,7 @@
 import type { MessageHandlerFunc, MessageResponse } from './MessageHandler';
 import browser from 'webextension-polyfill';
 import { log } from '$lib/common/logger-wrapper';
-import { lockWallet } from '$lib/common/lockWallet';
+import { lockWalletBackground } from '../utils/lockWalletBackground';
 
 // Session state management
 const sessionState = {
@@ -82,7 +82,7 @@ export const sessionHandlers = new Map<string, MessageHandlerFunc>([
       log.info('[SessionHandler] Logout request received:', false, { reason });
 
       // Lock the wallet (this handles all cleanup)
-      await lockWallet(reason);
+      await lockWalletBackground(reason);
 
       // Close all extension windows
       const windows = await browser.windows.getAll({ windowTypes: ['popup'] });

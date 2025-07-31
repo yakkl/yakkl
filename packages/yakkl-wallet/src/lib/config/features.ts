@@ -3,6 +3,7 @@
 // export { PlanType };
 
 import { PlanType } from "$lib/common/types";
+export { PlanType };
 
 // Define feature arrays first to avoid circular reference
 const BASIC_FEATURES = [
@@ -40,7 +41,8 @@ const PRO_FEATURES = [
   'api_key_management',
   'custom_rpc',
   'advanced_security',
-  'multi_sig'
+  'multi_sig',
+  'network_diagnostics' // Advanced troubleshooting tools
 ] as const;
 
 const ENTERPRISE_FEATURES = [

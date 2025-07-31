@@ -126,8 +126,13 @@ export class ExtensionContext {
 		// Notify UI components that user is active
 		browser.runtime.sendMessage({ 
 			type: 'IDLE_STATE_CHANGED', 
-			state: 'active' 
-		}).catch(() => {});
+			state: 'active',
+			timestamp: Date.now()
+		}).catch((error) => {
+			// Ignore errors when there are no listeners
+			// This is normal when the message is sent but no UI contexts are open
+			log.debug('Could not send IDLE_STATE_CHANGED message (normal if no UI contexts):', false, error);
+		});
 
 		log.info('User is active again, cancelling lock', false);
 	}

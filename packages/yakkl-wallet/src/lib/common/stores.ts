@@ -191,7 +191,7 @@ export interface AddressTokenHolding {
   tokenAddress: string;      // Token contract address
   isNative: boolean;
   symbol: string;            // Token symbol for quick reference
-  quantity: number;          // Amount held
+  quantity: BigNumberish;          // Amount held
   lastUpdated: Date;         // When balance was last fetched
 }
 
@@ -202,7 +202,7 @@ export interface TokenCacheEntry {
   isNative: boolean;
   symbol: string;            // For quick reference
   quantity: BigNumberish;
-  price: BigNumberish;       // Changed from number
+  price: number;
   value: BigNumberish;       // Changed from number
   lastPriceUpdate: Date;
   lastBalanceUpdate: Date;
@@ -897,6 +897,28 @@ export async function getYakklCombinedTokens(id?: string, persona?: string): Pro
 	}
 }
 
+// Direct version for critical initialization paths (sidepanel)
+export async function getYakklCombinedTokensDirect(id?: string, persona?: string): Promise<TokenData[]> {
+	try {
+		const { getObjectFromLocalStorageDirect } = await import('./storage');
+		const value = await getObjectFromLocalStorageDirect<TokenData[]>(STORAGE_YAKKL_COMBINED_TOKENS);
+		if (typeof value === 'string') {
+			// Handle the case where value is a string, which shouldn't happen in this context
+			throw new Error('Unexpected string value received from local storage');
+		}
+
+		if (id && persona) {
+			// TODO: Implement this later
+		}
+
+		if (value) setYakklCombinedTokenStore(value);
+		return value || []; // Return an empty array or provide a default value if necessary
+	} catch (error) {
+		log.error('Error in getYakklCombinedTokensDirect:', false, error);
+		return []; // Return empty array instead of throwing
+	}
+}
+
 export async function getYakklChats(id?: string, persona?: string): Promise<YakklChat[]> {
 	try {
 		let value = await getObjectFromLocalStorage<YakklChat[]>(STORAGE_YAKKL_CHATS);
@@ -1012,6 +1034,27 @@ export async function getSettings(id?: string, persona?: string): Promise<Settin
 	} catch (error) {
 		log.error('Error in getSettings:', false, error);
 		throw error;
+	}
+}
+
+// Direct version for critical initialization paths (sidepanel)
+export async function getSettingsDirect(id?: string, persona?: string): Promise<Settings | null> {
+	try {
+		const { getObjectFromLocalStorageDirect } = await import('./storage');
+		const value = await getObjectFromLocalStorageDirect<Settings>(STORAGE_YAKKL_SETTINGS);
+		if (typeof value === 'string') {
+			// Handle the case where value is a string, which shouldn't happen in this context
+			throw new Error('Unexpected string value received from local storage');
+		}
+
+		if (id && persona) {
+			// TODO: Implement this later
+		}
+
+		return value; // Return an empty object or provide a default value if necessary
+	} catch (error) {
+		log.error('Error in getSettingsDirect:', false, error);
+		return null; // Return null instead of throwing to handle initialization gracefully
 	}
 }
 
@@ -1249,7 +1292,7 @@ export async function getYakklTokenCache(): Promise<TokenCacheEntry[]> {
 				// Check if the value matches any suspicious values
 				if (SUSPICIOUS_VALUES.some(suspicious => {
 					const entryValue = BigNumber.toNumber(entry.value) || 0;
-					const entryPrice = BigNumber.toNumber(entry.price) || 0;
+					const entryPrice = entry.price || 0;
 					return Math.abs(entryValue - suspicious) < 0.01 ||
 						Math.abs(entryPrice - suspicious) < 0.01;
 				})) {
@@ -1544,7 +1587,7 @@ export async function getYakklBookmarkedArticles(): Promise<RSSItem[]> {
 		yakklBookmarkedArticlesStore.set(articles); // Ensure store is in sync
 		return articles;
 	} catch (error) {
-		console.error('Error getting bookmarked articles:', error);
+		log.warn('Error getting bookmarked articles:', false, error);
 		return [];
 	}
 }
@@ -1554,7 +1597,7 @@ export async function setYakklBookmarkedArticles(articles: RSSItem[]): Promise<v
 		await setObjectInLocalStorage('yakklBookmarkedArticles', articles);
 		yakklBookmarkedArticlesStore.set(articles); // Update store after storage
 	} catch (error) {
-		console.error('Error setting bookmarked articles:', error);
+		log.warn('Error setting bookmarked articles:', false, error);
 	}
 }
 
@@ -1575,7 +1618,7 @@ export async function setObjectInExtensionStorage(key: string, value: any): Prom
 		await browser_ext.storage.local.set({ [key]: value });
 		return true;
 	} catch (error) {
-		console.error('Error setting extension storage:', error);
+		log.warn('Error setting extension storage:', false, error);
 		// Fallback to localStorage
 		return setObjectInLocalStorage(key, value);
 	}
@@ -1597,7 +1640,7 @@ export async function getObjectFromExtensionStorage<T>(key: string): Promise<T |
 		if (error && typeof error === 'object' && 'message' in error &&
 		    !error.message.includes('Cannot access') &&
 		    !error.message.includes('before initialization')) {
-			console.error('Error getting extension storage:', error);
+			log.warn('Error getting extension storage:', false, error);
 		}
 		// Fallback to localStorage
 		return getObjectFromLocalStorage<T>(key);
@@ -1616,7 +1659,7 @@ export async function removeFromExtensionStorage(key: string): Promise<void | bo
 		await browser_ext.storage.local.remove(key);
 		return true;
 	} catch (error) {
-		console.error('Error removing from extension storage:', error);
+		log.warn('Error removing from extension storage:', false, error);
 		// Fallback to localStorage
 		return removeObjectFromLocalStorage(key);
 	}

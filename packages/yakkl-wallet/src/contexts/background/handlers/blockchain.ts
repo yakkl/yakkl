@@ -1,5 +1,6 @@
 import type { MessageHandlerFunc, MessageResponse } from './MessageHandler';
 import { BlockchainExplorer } from '$lib/managers/providers/explorer/BlockchainExplorer';
+import { AlchemyTransactionFetcher } from '$lib/managers/providers/explorer/AlchemyTransactionFetcher';
 import { getYakklCurrentlySelected } from '$lib/common/stores';
 import { log } from '$lib/common/logger-wrapper';
 import { sendToExtensionUI } from '$lib/common/safeMessaging';
@@ -8,26 +9,60 @@ import browser from 'webextension-polyfill';
 export const blockchainHandlers = new Map<string, MessageHandlerFunc>([
   ['yakkl_getTransactionHistory', async (payload): Promise<MessageResponse> => {
     try {
+      log.info('Blockchain handler: Received payload:', false, { payload, payloadType: typeof payload, payloadKeys: payload ? Object.keys(payload) : [] });
+
+      // The messaging service spreads the data at the top level, so address and limit are directly in payload
       const { address, limit = 0 } = payload || {};  // Default 0 means fetch all transactions
 
       if (!address) {
+        log.warn('Blockchain handler: Address is missing from payload:', false, { payload });
         return { success: false, error: 'Address is required' };
       }
 
-      // Get current chain from store
-      const currentlySelected = await getYakklCurrentlySelected();
-      const chainId = currentlySelected?.shortcuts?.chainId || 1;
+      // Get current chain from store - handle missing data gracefully
+      let chainId = 1; // Default to Ethereum mainnet
+      let currentlySelectedOutside: any = null;
+      try {
+        const currentlySelected = await getYakklCurrentlySelected();
+        currentlySelectedOutside = currentlySelected;
+        chainId = currentlySelected?.shortcuts?.chainId || 1;
+        log.info('Blockchain handler: Got chain ID from store:', false, chainId);
+      } catch (error) {
+        log.warn('Blockchain handler: Could not get currently selected, using default chainId:', false, chainId);
+      }
 
-      log.info('Blockchain handler: Getting transaction history', false, {
+        log.info('Blockchain handler: Getting transaction history', false, {
+          address,
+          chainId,
+          limit,
+          currentlySelected: currentlySelectedOutside?.shortcuts
+        });
+
+
+            // Use Etherscan only in background context (Alchemy SDK has webpack issues)
+      let transactions: any[] = [];
+
+      log.info('Blockchain handler: Starting transaction fetch', false, {
         address,
         chainId,
         limit,
-        currentlySelected: currentlySelected?.shortcuts
+        hasEtherscanKey: !!process.env.ETHERSCAN_API_KEY,
+        context: 'background'
       });
 
-      // Get transaction history from blockchain explorer
-      const explorer = BlockchainExplorer.getInstance();
-      const transactions = await explorer.getTransactionHistory(address, chainId, limit, true);
+      try {
+        // Use Etherscan directly in background context
+        const explorer = BlockchainExplorer.getInstance();
+        transactions = await explorer.getTransactionHistory(address, chainId, limit, true);
+        log.info('Successfully fetched transactions from Etherscan', false, { count: transactions.length });
+      } catch (etherscanError) {
+        log.error('Etherscan transaction fetch failed', false, {
+          error: etherscanError instanceof Error ? etherscanError.message : etherscanError,
+          chainId,
+          address
+        });
+        transactions = [];
+      }
 
       log.info('Blockchain handler: Retrieved transactions from explorer', false, {
         count: transactions.length,
@@ -167,7 +202,7 @@ export const blockchainHandlers = new Map<string, MessageHandlerFunc>([
   ['yakkl_isOwnTransaction', async (payload): Promise<MessageResponse> => {
     try {
       const { hash } = payload || {};
-      
+
       if (!hash) {
         return { success: false, error: 'Transaction hash is required' };
       }
@@ -176,11 +211,11 @@ export const blockchainHandlers = new Map<string, MessageHandlerFunc>([
       // For now, we'll check session storage for pending transactions
       // In the future, this should check a persistent store of wallet-initiated transactions
       const pendingTxs = await browser.storage.session.get('pendingTransactions');
-      const pending = pendingTxs.pendingTransactions || [];
-      
+      const pending = (pendingTxs.pendingTransactions || []) as Array<{hash: string}>;
+
       // Check if the hash exists in our pending transactions
-      const isOwn = pending.some((tx: any) => tx.hash === hash);
-      
+      const isOwn = pending.some((tx) => tx.hash === hash);
+
       log.debug('Checking if transaction is YAKKL initiated', false, {
         hash,
         isOwn,

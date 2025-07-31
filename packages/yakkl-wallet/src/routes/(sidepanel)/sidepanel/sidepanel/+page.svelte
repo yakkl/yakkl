@@ -2,14 +2,15 @@
 <script lang="ts">
 	import TokenComponentList from '$lib/components/TokenComponentList.svelte';
 	// import RotatingBanner from '$lib/components/RotatingBanner.svelte';
-	import { browser_ext, browserSvelte } from '$lib/common/environment';
+	import { browserSvelte, browser_ext } from '$lib/common/environment';
+	import { browserAPI } from '$lib/services/browser-api.service';
 	import WalletIcon from '$lib/components/icons/WalletIcon.svelte';
 	import TokenIcon from '$lib/components/icons/TokenIcon.svelte';
 	import NewsIcon from '$lib/components/icons/NewsIcon.svelte';
 	import ToolIcon from '$lib/components/icons/ToolIcon.svelte';
 	import { onMount } from 'svelte';
 	import {
-		getSettings,
+		getSettingsDirect,
 		setSettingsStorage,
 		setYakklCombinedTokenStorage,
 		updateCombinedTokenStore,
@@ -56,13 +57,14 @@
 	// let showBanner = $state(true);
 	let showNewsfeeds = $state(false);
 	let showDynamicNewsfeeds = $state(false);
-	let showLegalTerms = $state(false);
+	// let showLegalTerms = $state(false);
 	let isAgreed = $state(false);
 	let planType = $state('yakkl_pro (Trial)');
 	let trialEnds = $state('2025-07-01');
 
 	// List of crypto news RSS feeds
 	const cryptoFeeds = [
+    'https://feeds.feedburner.com/InvestingHaven',
     'https://www.ft.com/cryptofinance?format=rss/?utm_source=yakkl&utm_medium=extension',
     'https://seekingalpha.com/feeds/cryptocompare/cryptos/?utm_source=yakkl&utm_medium=extension',
     'https://finbold.com/category/cryptocurrency-news/feed/?utm_source=yakkl&utm_medium=extension',
@@ -81,19 +83,18 @@
 	// WebSocket URL for dynamic feed
 	const wsFeedUrl = '';
 
-	function openWallet() {
-		if (browserSvelte) {
+	async function openWallet() {
+		if (browser_ext) {
 			try {
-				// Use the popout message to open the wallet popup
-				browser_ext.runtime.sendMessage({ type: 'popout' })
-					.catch((error) => {
-						// Silently handle the error - this is expected when extension context is invalid
-						console.debug('Extension context not available:', error.message);
-					});
+				// Use browser_ext directly for reliability
+				console.log('[Sidepanel] Opening wallet popup via browser_ext...');
+				const response = await browser_ext.runtime.sendMessage({ type: 'popout' });
+				console.log('[Sidepanel] Popup response:', response);
 			} catch (error) {
-				// Handle synchronous errors
-				console.debug('Failed to send message:', error);
+				console.error('[Sidepanel] Failed to open wallet:', error);
 			}
+		} else {
+			console.error('[Sidepanel] browser_ext not available');
 		}
 	}
 
@@ -229,10 +230,19 @@
 		try {
 			if (!browserSvelte) return;
 
-			const settings = await getSettings();
-			if (!settings.init || !settings.legal.termsAgreed) {
+
+
+
+
+// TODO: Walk through the flow of the sidepanel for a brand new user and make adjustments
+
+
+
+
+
+			const settings = await getSettingsDirect();
+			if (!settings || !settings.init) {
 				// Show legal terms first for new users
-				showLegalTerms = true;
 				init = false;
 				document.documentElement.classList.remove('dark');
 				localStorage.theme = 'light';
@@ -244,7 +254,7 @@
 				tokensLockedCount = 0; // Show all tokens for both Basic and Pro
 				newsfeedsLockedCount = (await isProLevel()) ? 10 : 4;
 				planType = (await isProLevel()) ? 'yakkl_pro' : 'explorer_member';
-				trialEnds = settings.plan.trialEndDate || null;
+				trialEnds = settings.plan?.trialEndDate || null;
 			}
 
 			// Always load default tokens regardless of init state
@@ -280,7 +290,7 @@
 		if (!isAgreed) return;
 
 		try {
-			const settings = await getSettings();
+			const settings = await getSettingsDirect();
 			if (settings) {
 				settings.legal.privacyViewed = true;
 				settings.legal.termsAgreed = true;
@@ -288,7 +298,7 @@
 				await setSettingsStorage(settings);
 
 				// Hide legal terms and show normal sidepanel
-				showLegalTerms = false;
+				// showLegalTerms = false;
 				init = true;
 
 				// Update local state instead of reloading
@@ -296,7 +306,7 @@
 				tokensLockedCount = 0; // Show all tokens for both Basic and Pro
 				newsfeedsLockedCount = (await isProLevel()) ? 10 : 4;
 				planType = (await isProLevel()) ? 'yakkl_pro' : 'explorer_member';
-				trialEnds = settings.plan.trialEndDate || null;
+				trialEnds = settings.plan?.trialEndDate || null;
 
 				// Load default tokens and update stores
 				await loadDefaultTokens();
@@ -315,72 +325,6 @@
 	onCancel={() => (showUpgradeModal = false)}
 />
 
-{#if showLegalTerms}
-<!-- Legal Terms View -->
-<div class="flex flex-col h-screen bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-100">
-	<div class="min-h-screen flex items-center justify-center p-4">
-		<div class="max-w-3xl w-full">
-			<div class="yakkl-card p-8">
-				<!-- Header -->
-				<div class="text-center mb-6">
-					<img src="/images/logoBullFav128x128.png" alt="YAKKL" class="w-16 h-16 mx-auto mb-4" />
-					<h1 class="text-2xl font-bold text-zinc-900 dark:text-white mb-2">
-						Welcome to YAKKL Insights
-					</h1>
-					<p class="text-zinc-600 dark:text-zinc-400">
-						Please review and accept our terms of service to continue
-					</p>
-				</div>
-
-				<!-- Terms Content -->
-				<div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-6 mb-6 h-[400px] overflow-y-auto border border-zinc-200 dark:border-zinc-700">
-					<div class="prose dark:prose-invert max-w-none text-sm">
-						<h2>Terms of Service</h2>
-						<p>By using YAKKL Smart Wallet, you agree to these terms...</p>
-						<h3>1. Acceptance of Terms</h3>
-						<p>By accessing or using YAKKL Smart Wallet, you agree to be bound by these Terms of Service.</p>
-						<h3>2. Privacy Policy</h3>
-						<p>Your use of our service is also governed by our Privacy Policy.</p>
-						<h3>3. Wallet Security</h3>
-						<p>You are responsible for maintaining the security of your wallet credentials.</p>
-						<p>For complete terms and conditions, please visit <a href="https://yakkl.com/terms" target="_blank" rel="noopener">yakkl.com/terms</a></p>
-					</div>
-				</div>
-
-				<!-- Agreement Checkbox -->
-				<div class="mb-6">
-					<label class="flex items-start gap-3 cursor-pointer group">
-						<input
-							type="checkbox"
-							bind:checked={isAgreed}
-							class="mt-1 w-5 h-5 rounded border-zinc-300 dark:border-zinc-600 text-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 dark:bg-zinc-700"
-						/>
-						<div class="flex-1">
-							<span class="text-zinc-900 dark:text-white font-medium group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-								I have read and agree to the terms of service
-							</span>
-							<p class="text-xs text-zinc-600 dark:text-zinc-400 mt-1">
-								By checking this box, you agree to our Terms of Service and Privacy Policy.
-							</p>
-						</div>
-					</label>
-				</div>
-
-				<!-- Actions -->
-				<div class="flex justify-center">
-					<button
-						onclick={handleLegalAccept}
-						disabled={!isAgreed}
-						class="yakkl-btn-primary"
-					>
-						Accept and Continue
-					</button>
-				</div>
-			</div>
-		</div>
-	</div>
-</div>
-{:else}
 <!-- Normal Sidepanel View -->
 <!-- Fixed centered logo watermark -->
 <div class="fixed inset-0 flex items-center justify-center pointer-events-none select-none z-0">
@@ -610,4 +554,3 @@
 	</footer>
 	{/if}
 </div>
-{/if}
