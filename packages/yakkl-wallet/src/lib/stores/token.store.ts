@@ -264,16 +264,16 @@ export const networkTotalValue = derived(
   ([$cache, $chain]) => {
     if (!$chain) return 0;
 
-    let total = 0;
+    let totalValue = 0n;
     const chainCache = $cache.chainAccountCache[$chain.chainId];
 
     if (chainCache) {
       Object.values(chainCache).forEach(accountCache => {
-        total += accountCache.portfolio.totalValue;
+        totalValue += BigNumberishUtils.toBigInt(accountCache.portfolio.totalValue) || 0n;
       });
     }
 
-    return total;
+    return totalValue;
   }
 );
 
@@ -281,14 +281,13 @@ export const networkTotalValue = derived(
 export const grandTotalPortfolioValue = derived(
   walletCacheStore,
   $cache => {
-    let total = 0;
+    let totalValue = 0n;
 
     Object.values($cache.chainAccountCache).forEach(chainData => {
       Object.values(chainData).forEach(accountCache => {
-        total += accountCache.portfolio.totalValue;
+        totalValue += BigNumberishUtils.toBigInt(accountCache.portfolio.totalValue) || 0n;
       });
     });
-
-    return total;
+    return totalValue;
   }
 );

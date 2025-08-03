@@ -40,7 +40,7 @@
   // Gas state
   let gasEstimate = $state('21000');
   let estimatingGas = $state(false);
-  let gasSpeed = $state<'slow' | 'standard' | 'fast'>('standard');
+  let gasSpeed = $state<'slow' | 'normal' | 'fast'>('normal');
   let gasPrice = $state({
     slow: '10',
     standard: '20',
@@ -124,6 +124,7 @@
 
   // Validate address format
   function validateAddress(address: string): boolean {
+    if (!address || typeof address !== 'string') return false;
     try {
       return ethers.isAddress(address) || address.endsWith('.eth');
     } catch {
@@ -161,23 +162,14 @@
       const to = recipientENS || recipient;
 
       const response = await transactionStore.estimateGas(
-        account?.address || '',
         to,
         amount,
-        isETH ? undefined : selectedToken.address,
-        hexData || undefined
+        isETH ? undefined : selectedToken.address
       );
 
       if (response.success && response.data) {
-        gasEstimate = response.data.gasLimit;
-        // Update gas prices if available
-        if (response.data.gasPrice) {
-          gasPrice = {
-            slow: response.data.gasPrice.slow || gasPrice.slow,
-            standard: response.data.gasPrice.standard || gasPrice.standard,
-            fast: response.data.gasPrice.fast || gasPrice.fast
-          };
-        }
+        // response.data is the gas estimate as a string
+        gasEstimate = response.data;
       }
     } catch (error) {
       console.error('Gas estimation failed:', error);
@@ -234,15 +226,24 @@
       }
 
       // Send transaction
-      const response = await transactionStore.sendTransaction(tx);
+      const response = await transactionStore.sendTransaction(
+        to,
+        value,
+        selectedToken.symbol !== 'ETH' ? selectedToken.address : undefined
+      );
 
-      if (response.success && response.data) {
+      // The store returns the tx hash directly on success or throws on error
+      if (response) {
         // Show success notification
-        notificationService.success('Transaction Sent', `Transaction hash: ${response.data.hash}`);
+        notificationService.show({
+          title: 'Transaction Sent',
+          message: `Transaction hash: ${response}`,
+          type: 'success'
+        });
 
         // Call parent handler
         if (onSend) {
-          onSend(response.data);
+          onSend({ hash: response });
         }
 
         // Close modal
@@ -250,8 +251,6 @@
 
         // Reset form
         resetForm();
-      } else {
-        throw new Error(response.error?.message || 'Transaction failed');
       }
     } catch (error: any) {
       validationError = error.message || 'Transaction failed';
@@ -516,13 +515,14 @@
   {:else if activeTab === 'fees'}
     <div class="space-y-4">
       <GasFeeSelector
-        bind:gasSpeed
-        bind:gasPrice
+        selectedOption={gasSpeed}
         bind:customGasPrice
         bind:customGasLimit
-        {gasEstimate}
-        {estimatingGas}
-        onUpdate={estimateGas}
+        showCustom={true}
+        onSelect={(option) => {
+          gasSpeed = option.speed;
+          gasPrice[option.speed] = option.gasPrice;
+        }}
       />
 
       <!-- Gas Trend Indicator -->
@@ -656,8 +656,9 @@
 <!-- PIN Verification Modal -->
 {#if showPincode}
   <PincodeVerify
-    onSuccess={handlePinSuccess}
-    onCancel={() => showPincode = false}
+    show={showPincode}
+    onVerified={handlePinSuccess}
+    onRejected={() => showPincode = false}
   />
 {/if}
 

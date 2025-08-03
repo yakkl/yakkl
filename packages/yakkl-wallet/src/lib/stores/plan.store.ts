@@ -241,7 +241,7 @@ export const currentPlan = derived(
 
 export const isProUser = derived(
   planStore,
-  $store => $store.plan.type === PlanType.YAKKL_PRO || $store.plan.type === PlanType.ENTERPRISE
+  $store => $store.plan.type === PlanType.YAKKL_PRO || $store.plan.type === PlanType.ENTERPRISE || $store.plan.type === PlanType.EARLY_ADOPTER || $store.plan.type === PlanType.FOUNDING_MEMBER
 );
 
 export const isOnTrial = derived(

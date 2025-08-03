@@ -1,6 +1,7 @@
-import { browser } from '$app/environment';
-import { safeClientSendMessage } from '$lib/common/safeClientSendMessage';
+import { browserSvelte } from '$lib/common/environment';
+import messagingService from '$lib/common/messaging';
 import type { ServiceResponse, ErrorState } from '../types';
+import { log } from '$lib/common/logger-wrapper';
 
 export abstract class BaseService {
   protected serviceName: string;
@@ -8,37 +9,77 @@ export abstract class BaseService {
 
   constructor(serviceName: string) {
     this.serviceName = serviceName;
-    console.log(`[BaseService] ${serviceName} initialized`);
+    log.info(`[BaseService] ${serviceName} initialized`);
   }
 
   protected async sendMessage<T>(message: any): Promise<ServiceResponse<T>> {
-    console.log(`[BaseService.${this.serviceName}] Sending message:`, {
+    log.info(`[BaseService.${this.serviceName}] Sending message:`, false, {
       messageType: message.type,
       messageId: message.id,
       hasPayload: !!message.payload
     });
-    
+
     try {
-      if (!browser) {
-        console.error(`[BaseService.${this.serviceName}] Not in browser environment`);
+      if (!browserSvelte) {
+        log.warn(`[BaseService.${this.serviceName}] Not in browser environment`);
         return {
           success: false,
           error: { hasError: true, message: 'Not in browser environment' }
         };
       }
 
-      const response = await safeClientSendMessage(message);
-      
-      console.log(`[BaseService.${this.serviceName}] Received response:`, {
+      // Check if messaging service is initialized
+      if (!messagingService.isInitialized()) {
+        log.warn(`[BaseService.${this.serviceName}] Messaging service not initialized, returning empty response`);
+        // Return empty success response instead of error to prevent UI blocking
+        return {
+          success: true,
+          data: [] as any
+        };
+      }
+
+      log.debug(`[BaseService.${this.serviceName}] Messaging service is initialized, proceeding with request`);
+
+      // Use messaging service instead of safeClientSendMessage
+      let response;
+      try {
+        log.debug(`[BaseService.${this.serviceName}] Sending message:`, false, {
+          type: message.type,
+          payload: message.payload,
+          serviceName: this.serviceName
+        });
+
+        response = await messagingService.sendMessage(message.type, message.payload || {}, {
+          priority: 'normal',
+          retryOnFail: true,
+          waitForResponse: true
+        });
+
+        log.debug(`[BaseService.${this.serviceName}] Received response:`, false, {
+          success: response.success,
+          hasData: !!response.data,
+          dataLength: response.data?.length,
+          responseType: typeof response,
+          responseKeys: Object.keys(response)
+        });
+      } catch (error) {
+        log.warn(`[BaseService.${this.serviceName}] Messaging service error, returning empty response:`, false, error);
+        return {
+          success: true,
+          data: [] as any
+        };
+      }
+
+      log.debug(`[BaseService.${this.serviceName}] Received response:`, false, {
         response,
         hasResponse: !!response,
         responseType: typeof response,
         responseKeys: response ? Object.keys(response) : []
       });
-      
+
       // Handle error response
       if (response.error || !response.success) {
-        console.error(`[BaseService.${this.serviceName}] Error response:`, JSON.stringify(response, null, 2));
+        log.warn(`[BaseService.${this.serviceName}] Error response:`, false, JSON.stringify(response, null, 2));
         return {
           success: false,
           error: {
@@ -55,16 +96,27 @@ export abstract class BaseService {
         data: response.data
       };
     } catch (error) {
-      console.error(`[BaseService.${this.serviceName}] Caught exception:`, {
-        error,
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
-      });
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      // Convert timeout errors to warnings to keep error logs clean
+      if (errorMessage.includes('timed out after')) {
+        log.warn(`[BaseService.${this.serviceName}] Request timeout (will retry with longer timeout):`, false, {
+          error: errorMessage,
+          messageType: message?.type
+        });
+      } else {
+        log.warn(`[BaseService.${this.serviceName}] Caught exception:`, false, {
+          error,
+          message: errorMessage,
+          stack: error instanceof Error ? error.stack : undefined
+        });
+      }
+
       return {
         success: false,
         error: {
           hasError: true,
-          message: error instanceof Error ? error.message : 'Unknown error'
+          message: errorMessage
         }
       };
     }

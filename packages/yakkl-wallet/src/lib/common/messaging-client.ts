@@ -74,16 +74,8 @@ class ExtensionMessaging {
 		// Start processing any queued messages
 		this.processQueue();
 
-		// Set up message listener for responses
-		if (browserSvelte && browser_ext) {
-			browser_ext.runtime.onMessage.addListener((message: any, sender: any, sendResponse: (response?: any) => void) => {
-				if (message && message.responseId) {
-					this.handleIncomingMessage(message);
-				}
-				// Return true to indicate we will respond asynchronously
-				return true;
-			});
-		}
+		// Note: Message listeners for responses are handled elsewhere
+		// This client only sends messages and uses promises for responses
 
 		// Start cleanup interval using UnifiedTimerManager
 		this.timerManager.addInterval('messaging-cleanup', () => this.cleanup(), 60000);

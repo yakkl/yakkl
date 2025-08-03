@@ -53,7 +53,9 @@
 
     switch (format) {
       case 'value':
-        return formatValue(Number(token.value));
+        // Convert bigint (cents) to number (dollars) for display
+        const valueInDollars = typeof token.value === 'bigint' ? Number(token.value) / 100 : Number(token.value);
+        return formatValue(valueInDollars);
       case 'full':
         return formatFullPrice(BigNumberishUtils.toNumber(token.price));
       default:

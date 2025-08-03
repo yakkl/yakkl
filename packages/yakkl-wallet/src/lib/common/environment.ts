@@ -80,7 +80,7 @@ async function loadBrowserAPI(): Promise<BrowserAPI | null> {
 				return cachedBrowserAPI;
 			}
 		} catch (err) {
-			log.error('Error accessing native browser APIs:', err);
+			log.warn('Error accessing native browser APIs:', err);
 		}
 	}
 
@@ -97,7 +97,7 @@ export async function getBrowserExtFromGlobal(): Promise<BrowserAPI | null> {
 	try {
 		return await loadBrowserAPI();
 	} catch (err) {
-		log.error('Error accessing browser API:', err);
+		log.warn('Error accessing browser API:', err);
 		return null;
 	}
 }
@@ -119,7 +119,7 @@ export function getBrowserExt(): BrowserAPI | null {
 			return (window as any).chrome;
 		}
 	} catch (err) {
-		log.error('Error accessing browser API from global:', err);
+		log.warn('Error accessing browser API from global:', err);
 	}
 
 	return null;

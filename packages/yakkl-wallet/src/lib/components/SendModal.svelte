@@ -20,7 +20,7 @@
   let gasEstimate = $state('');
   let estimatingGas = $state(false);
   let validationError = $state('');
-  let gasSpeed = $state<'slow' | 'standard' | 'fast'>('standard');
+  let gasSpeed = $state<'slow' | 'normal' | 'fast'>('normal');
   let gasPrice = $state({
     slow: '10',
     standard: '20',
@@ -261,9 +261,8 @@
       <!-- Gas Fee Selector -->
       {#if mode === 'send'}
         <GasFeeSelector 
-          selectedSpeed={gasSpeed}
-          {gasPrice}
-          onSelect={(speed) => gasSpeed = speed}
+          selectedOption={gasSpeed}
+          onSelect={(option) => gasSpeed = option.speed}
         />
       {/if}
 

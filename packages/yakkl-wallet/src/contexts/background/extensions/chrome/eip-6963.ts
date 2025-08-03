@@ -2,8 +2,10 @@ import { log } from '$lib/managers/Logger';
 import type { Runtime } from 'webextension-polyfill';
 import { ProviderRpcError } from '$lib/common';
 import browser from 'webextension-polyfill';
+import { safePortPostMessage } from '$lib/common/safePortMessaging';
 import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 import { initializePermissions } from '$lib/permissions';
+import { createSafeMessageHandler } from '$lib/common/messageChannelValidator';
 import {
 	getBlock,
 	getLatestBlock,
@@ -129,15 +131,10 @@ function getRequestOrigin(request?: any, sender?: browser.Runtime.MessageSender)
 
 // Add this function to handle messages with proper typing
 function setupMessageListener() {
-  browser.runtime.onMessage.addListener((
-    message: unknown,
-    sender: Runtime.MessageSender,
-    sendResponse: (response?: any) => void
-  ): any | Promise<unknown> => {
-    try {
+  const safeEIP6963Handler = createSafeMessageHandler(
+    async (message: unknown, sender: Runtime.MessageSender) => {
       log.warn('Received message', false, message);
       log.warn('Sender', false, sender);
-      log.warn('Send response', false, sendResponse);
 
       // Type guard to check if message has the expected structure
       const isEIP6963Message = (msg: any): msg is EIP6963Message => {
@@ -160,12 +157,11 @@ function setupMessageListener() {
         });
 
         const success = resolveEIP6963Request(message.requestId, message.result);
-        sendResponse({
+        return {
           type: 'YAKKL_RESPONSE:EIP6963',
           result: success,
           requestId: message.requestId
-        });
-        return true;
+        };
       }
       else if (message.action === 'rejectEIP6963Request') {
         log.debug('Rejecting EIP-6963 request from popup', false, {
@@ -174,36 +170,30 @@ function setupMessageListener() {
         });
 
         const success = rejectEIP6963Request(message.requestId, message.error);
-        sendResponse({
+        return {
           type: 'YAKKL_RESPONSE:EIP6963',
           result: success,
           requestId: message.requestId,
           error: message.error
-        });
-        return true;
+        };
       }
 
       // Default case - respond with error
-      sendResponse({
+      return {
         type: 'YAKKL_RESPONSE:EIP6963',
         error: {
           code: 4200,
           message: 'Unknown action'
         }
-      });
-      return true;
-    } catch (error) {
-      log.error('Error handling EIP-6963 message', false, error);
-      sendResponse({
-        type: 'YAKKL_RESPONSE:EIP6963',
-        error: {
-          code: 4200,
-          message: error instanceof Error ? error.message : String(error)
-        }
-      });
-      return true;
+      };
+    },
+    {
+      timeout: 25000,
+      logPrefix: 'EIP6963'
     }
-  });
+  );
+
+  browser.runtime.onMessage.addListener(safeEIP6963Handler as any);
 }
 
 export function initializeEIP6963() {
@@ -447,12 +437,21 @@ export async function onEIP6963Listener(message: unknown, port: Runtime.Port) {
       result = await handleWriteMethod(method, params);
     }
 
-    // Send success response
-    port.postMessage({
+    // Send success response safely
+    safePortPostMessage(port, {
       type: 'YAKKL_RESPONSE:EIP6963',
       id,
       method,
       result
+    }, {
+      context: 'eip6963-success',
+      onError: (error) => {
+        log.warn('[EIP6963] Failed to send success response:', false, { 
+          requestId: id,
+          method,
+          error: error instanceof Error ? error.message : error 
+        });
+      }
     });
 
   } catch (error) {
@@ -462,14 +461,24 @@ export async function onEIP6963Listener(message: unknown, port: Runtime.Port) {
       timestamp: new Date().toISOString()
     });
 
-    // Send error response
-    port.postMessage({
+    // Send error response safely
+    safePortPostMessage(port, {
       type: 'YAKKL_RESPONSE:EIP6963',
       id,
       method,
       error: {
         code: error instanceof ProviderRpcError ? error.code : 4200,
         message: error instanceof Error ? error.message : "Unknown error occurred"
+      }
+    }, {
+      context: 'eip6963-error',
+      onError: (sendError) => {
+        log.warn('[EIP6963] Failed to send error response:', false, { 
+          requestId: id,
+          method,
+          originalError: error instanceof Error ? error.message : error,
+          sendError: sendError instanceof Error ? sendError.message : sendError 
+        });
       }
     });
   }
@@ -645,10 +654,19 @@ export function broadcastToEIP6963Ports(event: string, data: any): void {
   eip6963Ports.forEach(port => {
     try {
       if (port.sender) {
-        port.postMessage({
+        safePortPostMessage(port, {
           type: 'YAKKL_EVENT:EIP6963',
           event,
           data
+        }, {
+          context: `eip6963-broadcast-${event}`,
+          onError: (error) => {
+            log.warn('[EIP6963] Failed to broadcast event:', false, { 
+              event,
+              portName: port.name,
+              error: error instanceof Error ? error.message : error 
+            });
+          }
         });
       }
     } catch (error) {

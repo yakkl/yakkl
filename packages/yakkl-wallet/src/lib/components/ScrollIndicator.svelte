@@ -64,7 +64,7 @@
 		<button
 			bind:this={button}
 			class={cn(
-				'fixed bottom-4 right-4 z-40',
+				'fixed bottom-4 right-4 z-[9999]',
 				'w-10 h-10 rounded-full',
 				'bg-blue-500 dark:bg-blue-600',
 				'shadow-lg hover:shadow-xl',

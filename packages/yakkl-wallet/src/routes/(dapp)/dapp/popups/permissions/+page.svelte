@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { browser_ext, browserSvelte } from '$lib/common/environment';
+	import { browserSvelte } from '$lib/common/environment';
+import { browserAPI } from '$lib/services/browser-api.service';
 	import { page } from '$app/state';
 	import {
 		getYakklCurrentlySelected,
@@ -12,8 +13,7 @@
 	import { onMount } from 'svelte';
 	import { log } from '$lib/common/logger-wrapper';
 	import type { Runtime } from 'webextension-polyfill';
-	import type { JsonRpcResponse, SessionInfo } from '$lib/common/interfaces';
-	import type { BackgroundPendingRequest } from '$lib/extensions/chrome/background';
+	import type { JsonRpcResponse, SessionInfo, BackgroundPendingRequest } from '$lib/common/interfaces';
 	import Confirmation from '$lib/components/Confirmation.svelte';
 	import { requestSigning } from '$lib/extensions/chrome/signingClient';
 	import Copyright from '$lib/components/Copyright.svelte';
@@ -161,7 +161,7 @@
 				currentlySelected = await getYakklCurrentlySelected();
 
 				// Since we're 1:1 we can attach to the known port name
-				const sessionInfo = (await browser_ext.runtime.sendMessage({
+				const sessionInfo = (await browserAPI.runtimeSendMessage({
 					type: 'REQUEST_SESSION_PORT',
 					requestId
 				})) as SessionInfo;

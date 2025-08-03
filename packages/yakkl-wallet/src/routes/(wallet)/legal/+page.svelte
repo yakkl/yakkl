@@ -1,10 +1,13 @@
 <script lang="ts">
-  import { browserSvelte, browser_ext } from '$lib/common/environment';
-  import { PATH_REGISTER } from '$lib/common';
+  import { browserSvelte } from '$lib/common/environment';
+  import { browserAPI } from '$lib/services/browser-api.service';
+  import { PATH_REGISTER, PlanType, AccessSourceType, VERSION } from '$lib/common';
   import type { Settings } from '$lib/common';
   import { getSettings, setSettingsStorage } from '$lib/common/stores';
   import { goto } from '$app/navigation';
   import { log } from '$lib/common/logger-wrapper';
+  import { dateString } from '$lib/common/datetime';
+  import { DEFAULT_PERSONA } from '$lib/common/constants';
 
   let yakklSettings: Settings | null = null;
   let isAgreed = $state(false);
@@ -13,13 +16,67 @@
     try {
       if (browserSvelte) {
         yakklSettings = await getSettings();
-        if (yakklSettings) {
+        
+        // If no settings exist, create default settings
+        if (!yakklSettings) {
+          console.log('[Legal] Creating initial settings for new user');
+          yakklSettings = {
+            id: '', // Will be set during registration
+            persona: DEFAULT_PERSONA,
+            version: VERSION,
+            previousVersion: '',
+            plan: {
+              type: PlanType.EXPLORER_MEMBER,
+              source: AccessSourceType.STANDARD,
+              promo: null,
+              trialEndDate: null,
+              upgradeDate: ''
+            },
+            trialCountdownPinned: false,
+            legal: {
+              termsAgreed: true,
+              privacyViewed: true,
+              updated: false
+            },
+            platform: {
+              arch: '',
+              nacl_arch: '',
+              os: ''
+            },
+            init: false, // Will be set to true after registration
+            isLocked: true,
+            disableNotifications: false,
+            security: {},
+            connections: [],
+            transactions: {
+              retry: {
+                enabled: true,
+                howManyAttempts: 3,
+                seconds: 30,
+                baseFeeIncrease: 0.1,
+                priorityFeeIncrease: 0.1
+              },
+              retain: {
+                enabled: true,
+                days: -1,
+                includeRaw: true
+              }
+            },
+            meta: {},
+            upgradeDate: '',
+            lastAccessDate: dateString(),
+            createDate: dateString(),
+            updateDate: dateString()
+          };
+        } else {
+          // Update existing settings
           yakklSettings.legal.privacyViewed = true;
           yakklSettings.legal.termsAgreed = true;
           yakklSettings.isLocked = true;
-          await setSettingsStorage(yakklSettings);
-          await goto(PATH_REGISTER);
         }
+        
+        await setSettingsStorage(yakklSettings);
+        await goto(PATH_REGISTER);
       }
     } catch (error) {
       log.error(error);
@@ -32,9 +89,9 @@
     }
   }
 
-  function handleLink(e: { srcElement: { href: any } }) {
+  async function handleLink(e: { srcElement: { href: any } }) {
     if (browserSvelte) {
-      browser_ext.tabs.create({ url: e.srcElement.href });
+      await browserAPI.tabsCreate({ url: e.srcElement.href });
     }
   }
 </script>

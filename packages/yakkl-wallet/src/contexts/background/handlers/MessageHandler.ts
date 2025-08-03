@@ -54,7 +54,7 @@ export async function handleMessage(request: MessageRequest, sender: Runtime.Mes
     console.log('MessageHandler: Available handlers:', Array.from(handlers.keys()));
     console.log('MessageHandler: Looking for handler:', request.type);
     console.log('MessageHandler: Has blockchain handler for yakkl_getTransactionHistory?', handlers.has('yakkl_getTransactionHistory'));
-    
+
     const handler = handlers.get(request.type);
 
     if (!handler) {
@@ -66,8 +66,20 @@ export async function handleMessage(request: MessageRequest, sender: Runtime.Mes
       };
     }
 
-    console.log('MessageHandler: Found handler, executing with payload:', request.payload);
-    return await handler(request.payload);
+    // Handle both payload structure and top-level data structure
+    let payload = request.payload;
+    if (!payload && request.type === 'yakkl_getTransactionHistory') {
+      // If no payload but we have the data at top level, use the request itself as payload
+      payload = {
+        address: (request as any).address,
+        limit: (request as any).limit
+      };
+    }
+
+    console.log('MessageHandler: Found handler, executing with payload:', payload);
+    console.log('MessageHandler: Payload type:', typeof payload);
+    console.log('MessageHandler: Payload keys:', payload ? Object.keys(payload) : []);
+    return await handler(payload);
   } catch (error) {
     console.error(`Error handling message ${request.type}:`, error);
     return {

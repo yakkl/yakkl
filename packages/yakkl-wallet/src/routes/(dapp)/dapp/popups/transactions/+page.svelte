@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { browser_ext, browserSvelte } from '$lib/common/environment';
+	import { browserSvelte } from '$lib/common/environment';
+	import { browserAPI } from '$lib/services/browser-api.service';
 	import {
 		getYakklCurrentlySelected,
 		getMiscStore,
@@ -32,7 +33,7 @@
 	import type { Wallet } from '$lib/managers/Wallet';
 	import { log } from '$lib/common/logger-wrapper';
 	import { sessionToken, verifySessionToken } from '$lib/common/auth/session';
-	import type { BackgroundPendingRequest } from '$lib/extensions/chrome/background';
+	import type { BackgroundPendingRequest } from '$lib/common/interfaces';
 	import Confirmation from '$lib/components/Confirmation.svelte';
 	import Warning from '$lib/components/Warning.svelte';
 	import Failed from '$lib/components/Failed.svelte';
@@ -218,7 +219,7 @@
 				);
 
 				// Request session port
-				const sessionInfo = (await browser_ext.runtime.sendMessage({
+				const sessionInfo = (await browserAPI.runtimeSendMessage({
 					type: 'REQUEST_SESSION_PORT',
 					requestId
 				})) as SessionInfo;

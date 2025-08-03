@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import type { Runtime } from 'webextension-polyfill';
 import type { AccessList, Log, Transaction } from '$lib/common/evm';
 import type {
 	AccessSourceType,
@@ -107,13 +108,16 @@ export interface PendingRequestData {
 	origin?: string;
 }
 
-// Background Pending Request is in the background.ts file
-// export type BackgroundPendingRequest = {
-//   resolve: (value: any) => void;
-//   reject: (reason: any) => void;
-//   port: RuntimePort;
-//   data: PendingRequestData;
-// };
+// Type alias for Runtime.Port
+type RuntimePort = Runtime.Port;
+
+// Background Pending Request type
+export type BackgroundPendingRequest = {
+  resolve: (value: any) => void;
+  reject: (reason: any) => void;
+  port: RuntimePort;
+  data: PendingRequestData;
+};
 
 export interface EncryptedData {
 	data: string;
@@ -243,19 +247,19 @@ export interface PoolInfo {
 	fee: BigNumberish;           // Changed from number
 	liquidity: string;
 	// quoteAmount: number;
-	price: BigNumberish;         // Changed from number
+	price: number;         // Changed from number
 	tokenInAmount?: string; // Converted from bigint to string
 	tokenOutAmount: string; // Converted from bigint to string
 	tokenInReserve: string;
 	tokenOutReserve: string;
-	tokenInPrice: BigNumberish;  // Changed from number
-	tokenOutPrice: BigNumberish; // Changed from number
-	tvl: BigNumberish;           // Changed from number
+	tokenInPrice: number;  // Changed from number
+	tokenOutPrice: number; // Changed from number
+	tvl: number;           // Changed from number
 }
 
 export interface PriceData {
 	provider: string;
-	price: BigNumberish;         // Changed from number - CRITICAL
+	price: number;         // Changed from number - CRITICAL
 	lastUpdated: Date;
 	contractFeePool?: BigNumberish; // Changed from number
 	isNative?: boolean;
@@ -1178,11 +1182,11 @@ export interface SwapPriceData extends BasePriceData {
 	exchangeRate: BigNumberish; // Amount of buy token per sell token
 
 	// MarketPrice - Updated to BigNumberish for precision
-	marketPriceIn: BigNumberish; // Changed from number
-	marketPriceOut: BigNumberish; // Changed from number
-	marketPriceGas: BigNumberish; // Changed from number
+	marketPriceIn: number; // Changed from number
+	marketPriceOut: number; // Changed from number
+	marketPriceGas: number; // Changed from number
 
-	priceImpactRatio: BigNumberish; // Changed from number - critical for DeFi calculations
+	priceImpactRatio: number; // Changed from number - critical for DeFi calculations
 	path: string[]; // Path of tokens for the swap
 	fee?: BigNumberish; // Changed from number
 	feeBasisPoints: number; // Fee in basis points - constant - can stay number
@@ -1211,7 +1215,7 @@ export interface SwapPriceData extends BasePriceData {
 // }
 
 export interface MarketPriceData extends BasePriceData {
-	price: BigNumberish; // Changed from number - CRITICAL
+	price: number;
 	pair?: string;
 }
 
@@ -1245,13 +1249,13 @@ export interface SwapCalculation {
 }
 
 export interface PoolPriceData {
-	price: BigNumberish; // Changed from number
-	token0Price: BigNumberish; // Changed from number
-	token1Price: BigNumberish; // Changed from number
+	price: number; // Changed from number
+	token0Price: number; // Changed from number
+	token1Price: number; // Changed from number
 	token0Reserve: string;
 	token1Reserve: string;
-	liquidityUSD: BigNumberish; // Changed from number
-	priceImpact: BigNumberish; // Changed from number
+	liquidityUSD: number; // Changed from number
+	priceImpact: number; // Changed from number
 }
 
 // interfaces.ts (add this)

@@ -9,6 +9,7 @@ import browser from 'webextension-polyfill';
 import type { Runtime } from 'webextension-polyfill';
 import { handleBrowserAPIMessage } from './browser-api.handler';
 import { log } from '$lib/managers/Logger';
+import { safePortPostMessage } from '$lib/common/safePortMessaging';
 
 interface PortMessage {
   id: string;
@@ -85,20 +86,28 @@ export function handleBrowserAPIPortConnection(port: Runtime.Port) {
           break;
       }
       
-      // Send response back through port
-      port.postMessage({
+      // Send response back through port safely
+      safePortPostMessage(port, {
         id: message.id,
         response: {
           success: true,
           data: result
         }
-      } as PortMessage);
+      } as PortMessage, {
+        context: 'BrowserAPIPort-success',
+        onError: (error) => {
+          log.warn('[BrowserAPIPort] Failed to send success response:', false, { 
+            messageId: message.id, 
+            error: error instanceof Error ? error.message : error 
+          });
+        }
+      });
       
     } catch (error) {
       log.error('[BrowserAPIPort] Error handling message:', false, error);
       
-      // Send error response
-      port.postMessage({
+      // Send error response safely
+      safePortPostMessage(port, {
         id: message.id,
         response: {
           success: false,
@@ -108,7 +117,16 @@ export function handleBrowserAPIPortConnection(port: Runtime.Port) {
             details: error
           }
         }
-      } as PortMessage);
+      } as PortMessage, {
+        context: 'BrowserAPIPort-error',
+        onError: (sendError) => {
+          log.warn('[BrowserAPIPort] Failed to send error response:', false, { 
+            messageId: message.id, 
+            originalError: error instanceof Error ? error.message : error,
+            sendError: sendError instanceof Error ? sendError.message : sendError
+          });
+        }
+      });
     }
   });
   

@@ -9,7 +9,7 @@ import { getObjectFromLocalStorage, setObjectInLocalStorage } from './storage';
 import { resetTokenDataStoreValues } from './resetTokenDataStoreValues';
 import { get } from 'svelte/store';
 import { STORAGE_YAKKL_CURRENTLY_SELECTED, STORAGE_YAKKL_SETTINGS } from './constants';
-import { browser_ext } from './environment';
+import { browserAPI } from '$lib/services/browser-api.service';
 import type { Browser } from 'webextension-polyfill';
 import { walletCacheStore } from '$lib/stores/wallet-cache.store';
 import { SingletonWindowManager } from '$lib/managers/SingletonWindowManager';
@@ -39,6 +39,8 @@ export async function lockWallet(reason: string = 'manual', tokenToInvalidate?: 
     await setBadgeText('');
     await setIconLock();
 
+    // Browser API check removed - browserAPI handles client/background context automatically
+
     // 4. Save wallet cache before clearing - CRITICAL: Do not save if being reset
     try {
       // Force save of wallet cache to ensure complete state is persisted
@@ -66,7 +68,7 @@ export async function lockWallet(reason: string = 'manual', tokenToInvalidate?: 
         }
       }
     } catch (error) {
-      log.error('Failed to save wallet cache during lock:', false, error);
+      log.warn('Failed to save wallet cache during lock:', false, error);
     }
 
     // 4. Update storage to reflect locked state
@@ -101,20 +103,19 @@ export async function lockWallet(reason: string = 'manual', tokenToInvalidate?: 
     }
 
     // 9. Clear extension session storage (except windowId)
-    if (browser_ext?.storage?.session) {
-      // Get all keys from session storage
-      const allData = await browser_ext.storage.session.get(null);
-      const keysToRemove = Object.keys(allData).filter(key => key !== 'windowId');
-
-      // Remove all keys except windowId
-      if (keysToRemove.length > 0) {
-        await browser_ext.storage.session.remove(keysToRemove);
-      }
+    try {
+      // Session storage API not yet implemented in browserAPI
+      // Will be added in future phase
+      log.debug('Session storage clear skipped - API not yet implemented');
+    } catch (error) {
+      log.warn('Failed to clear session storage:', false, error);
     }
 
     // 10. Clear any auth tokens from local storage
-    if (browser_ext?.storage?.local) {
-      await browser_ext.storage.local.remove(['sessionToken', 'sessionExpiresAt', 'authToken']);
+    try {
+      await browserAPI.storageRemove(['sessionToken', 'sessionExpiresAt', 'authToken']);
+    } catch (error) {
+      log.warn('Failed to remove auth tokens from storage:', false, error);
     }
 
     // 11. Reset SingletonWindowManager to clear any stale window references
@@ -127,7 +128,7 @@ export async function lockWallet(reason: string = 'manual', tokenToInvalidate?: 
 
     log.info(`Wallet locked successfully - Reason: ${reason}`);
   } catch (error) {
-    log.error('Failed to lock wallet:', false, { error, reason });
+    log.warn('Failed to lock wallet:', false, { error, reason });
     // Even if there's an error, try to ensure critical data is cleared
     try {
       resetStores();
@@ -135,7 +136,7 @@ export async function lockWallet(reason: string = 'manual', tokenToInvalidate?: 
         sessionStorage.clear();
       }
     } catch (e) {
-      log.error('Critical error during wallet lock:', false, e);
+      log.warn('Critical error during wallet lock:', false, e);
     }
   }
 }
@@ -149,7 +150,7 @@ export function registerWalletLockHandlers(): void {
   if (typeof window !== 'undefined') {
     window.addEventListener('beforeunload', () => {
       lockWallet('window-close').catch(err =>
-        log.error('Error locking wallet on beforeunload:', false, err)
+        log.warn('Error locking wallet on beforeunload:', false, err)
       );
     });
 
@@ -173,28 +174,32 @@ export function registerWalletLockHandlers(): void {
  */
 export function registerBackgroundWalletLockHandlers(browserApi: Browser): void {
   if (!browserApi) {
-    log.error('Browser API is required for background handlers');
+    log.warn('Browser API is required for background handlers');
     return;
   }
 
-  // Handle extension-specific events
-  if (browserApi.runtime?.onSuspend) {
-    browserApi.runtime.onSuspend.addListener(() => {
-      lockWallet('extension-suspend').catch(err =>
-        log.error('Error locking wallet on suspend:', false, err)
-      );
-    });
-  }
-
-  // Handle idle detection
-  if (browserApi.idle) {
-    browserApi.idle.setDetectionInterval(300); // 5 minutes
-    browserApi.idle.onStateChanged.addListener((state: string) => {
-      if (state === 'idle' || state === 'locked') {
-        lockWallet(`idle-${state}`).catch(err =>
-          log.error('Error locking wallet on idle:', false, err)
+  try {
+    // Handle extension-specific events
+    if (browserApi.runtime?.onSuspend) {
+      browserApi.runtime.onSuspend.addListener(() => {
+        lockWallet('extension-suspend').catch(err =>
+          log.warn('Error locking wallet on suspend:', false, err)
         );
-      }
-    });
+      });
+    }
+
+    // Handle idle detection
+    if (browserApi.idle) {
+      browserApi.idle.setDetectionInterval(300); // 5 minutes
+      browserApi.idle.onStateChanged.addListener((state: string) => {
+        if (state === 'idle' || state === 'locked') {
+          lockWallet(`idle-${state}`).catch(err =>
+            log.warn('Error locking wallet on idle:', false, err)
+          );
+        }
+      });
+    }
+  } catch (error) {
+    log.warn('Error registering background wallet lock handlers:', false, error);
   }
 }

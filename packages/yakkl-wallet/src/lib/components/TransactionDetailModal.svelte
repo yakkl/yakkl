@@ -10,6 +10,8 @@
   import TransactionHoverCard from './TransactionHoverCard.svelte';
   import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
 
+  // TODO: May need to update tokens to be whatever the symbol for cross-chain transactions
+
   interface Props {
     show: boolean;
     transaction: TransactionDisplay | null;
@@ -115,7 +117,7 @@
       return `${currentChain.explorerUrl}/tx/${txHash}`;
     }
 
-    // Fallback to Etherscan
+    // Fallback to Etherscan fore ETH
     return `https://etherscan.io/tx/${txHash}`;
   }
 

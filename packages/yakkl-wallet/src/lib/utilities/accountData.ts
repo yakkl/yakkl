@@ -5,12 +5,14 @@ import { get } from 'svelte/store';
 import { balanceCacheManager } from '$lib/managers/BalanceCacheManager';
 import { log } from '$lib/managers/Logger';
 import type { BigNumberish } from '$lib/common/bignumber';
+import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
+import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
 
 export interface AccountData {
 	id?: string;
 	persona?: string; // The persona that is associated with the account
 	account: YakklAccount;
-	quantity: bigint;
+	quantity: BigNumberish;
 	quantityFormatted: string;
 	totalValue: BigNumberish;
 	totalValueFormatted: string;
@@ -26,7 +28,7 @@ export interface CachedBalanceData {
 	address: string;
 	balance: bigint;
 	timestamp: number;
-	price: BigNumberish;
+	price: number;
 }
 
 // Helper function to determine if an error should be shown to the user
@@ -78,14 +80,18 @@ export async function collectAccountData(
 	const accountDataPromises = accounts.map(async (account) => {
 		try {
 			const quantity = await wallet.getBalance(account.address);
-			const quantityFormatted = (Number(quantity) / 1e18).toFixed(6);
-			const totalValue = (Number(quantity) / 1e18) * price;
-			const totalValueFormatted = currency.format(totalValue);
+			const quantityFormatted = BigNumberishUtils.toDecimal(BigNumberishUtils.toBigInt(quantity) / 10n ** 18n, 6);
+			// Use precision-safe calculation for total value
+			const totalValueInCents = EthereumBigNumber.toFiat(quantity, price) * 100;
+			const totalValue = BigInt(Math.round(totalValueInCents));
+			// Convert from cents (bigint) to dollars (number) for formatting
+			const totalValueInDollars = Number(totalValue) / 100;
+			const totalValueFormatted = currency.format(totalValueInDollars);
 
 			return {
 				account,
 				quantity,
-				quantityFormatted,
+				quantityFormatted: quantityFormatted.toString(),
 				totalValue,
 				totalValueFormatted,
 				isLoading: false,
@@ -104,8 +110,8 @@ export async function collectAccountData(
 				account,
 				quantity: 0n,
 				quantityFormatted: '0.000000',
-				totalValue: 0,
-				totalValueFormatted: currency.format(0),
+				totalValue: 0n,
+				totalValueFormatted: currency.format(0n),
 				isLoading: false,
 				lastUpdated: new Date(),
 				loadingError: 'Network error',

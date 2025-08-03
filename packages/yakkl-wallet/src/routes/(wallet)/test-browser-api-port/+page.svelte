@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { browserAPIPort } from '$lib/services/browser-api-port.service';
   import type { EncryptedData } from '$lib/common/interfaces';
+  import { log } from '$lib/common/logger-wrapper';
 
   interface TestResult {
     test: string;
@@ -97,7 +98,7 @@
   }
 
   onMount(() => {
-    console.log('[Test Browser API Port] Page mounted');
+    log.info('[Test Browser API Port] Page mounted');
   });
 </script>
 
