@@ -17,10 +17,16 @@ interface SendResult {
 
 export class SendService {
   private static instance: SendService;
-  private txService: TransactionService;
+  private txService: TransactionService | null = null;
 
   private constructor() {
-    this.txService = TransactionService.getInstance();
+    // Delay initialization to avoid circular dependencies
+  }
+  
+  private ensureServicesInitialized(): void {
+    if (!this.txService) {
+      this.txService = TransactionService.getInstance();
+    }
   }
 
   static getInstance(): SendService {
@@ -69,7 +75,8 @@ export class SendService {
         return validation as unknown as ServiceResponse<string>;
       }
 
-      return await this.txService.estimateGas({
+      this.ensureServicesInitialized();
+      return await this.txService!.estimateGas({
         to: params.to,
         value: params.amount,
         tokenAddress: params.tokenAddress
@@ -94,7 +101,8 @@ export class SendService {
       }
 
       // Send the transaction
-      const response = await this.txService.sendTransaction({
+      this.ensureServicesInitialized();
+      const response = await this.txService!.sendTransaction({
         to: params.to,
         value: params.amount,
         tokenAddress: params.tokenAddress,

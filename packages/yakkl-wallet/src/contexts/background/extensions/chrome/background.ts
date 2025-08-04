@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Background actions for the extension...
-import { initializeEIP6963, handleRequestAccounts } from './eip-6963';
+import { initializeEIP6963, handleRequestAccounts, showEIP6963Popup } from './eip-6963';
 
 import { addBackgroundListeners } from '$lib/common/listeners/background/backgroundListeners';
 import { globalListenerManager } from '$lib/managers/GlobalListenerManager';
@@ -27,6 +27,7 @@ import { extractSecureDomain } from '$lib/common/security';
 import { getAddressesForDomain, verifyDomainConnected } from './verifyDomainConnectedBackground';
 import { onDappListener } from './dapp';
 import { getCurrentlySelectedData } from '$lib/common/shortcuts';
+import { BackgroundIntervalService } from '$lib/services/background-interval.service';
 
 type RuntimeSender = Runtime.MessageSender;
 type RuntimePort = Runtime.Port;
@@ -341,6 +342,44 @@ async function handlePortMessage(message: YakklMessage, port: RuntimePort) {
       return;
     }
 
+    // Handle refresh requests
+    if (message.type === 'YAKKL_REFRESH_REQUEST') {
+      const { refreshType = 'all' } = message as any;
+      
+      log.info('[Background] Handling refresh request:', false, refreshType);
+      
+      try {
+        const intervalService = BackgroundIntervalService.getInstance();
+        await intervalService.handleManualRefresh(refreshType);
+        
+        // Send success response
+        safePortPostMessage(port, {
+          type: 'YAKKL_REFRESH_RESPONSE',
+          success: true,
+          refreshType
+        }, {
+          context: 'refresh-response',
+          onError: (error) => {
+            log.warn('[Background] Failed to send refresh response:', false, error);
+          }
+        });
+      } catch (error) {
+        log.error('[Background] Error handling refresh request:', false, error);
+        
+        // Send error response
+        safePortPostMessage(port, {
+          type: 'YAKKL_REFRESH_RESPONSE',
+          success: false,
+          error: error instanceof Error ? error.message : 'Refresh failed',
+          refreshType
+        }, {
+          context: 'refresh-error-response'
+        });
+      }
+      
+      return;
+    }
+
     // Handle requests
     if (message.type === 'YAKKL_REQUEST:EIP6963' || message.type === 'YAKKL_REQUEST:EIP1193') {
       const request = message as YakklRequest;
@@ -349,7 +388,7 @@ async function handlePortMessage(message: YakklMessage, port: RuntimePort) {
 
       try {
         if (requiresApproval) {
-          const { showEIP6963Popup } = await import('./eip-6963');
+          // Use statically imported showEIP6963Popup
           const activeTab = get(activeTabBackgroundStore);
           const url = activeTab?.url || '';
           const domain = url ? extractSecureDomain(url) : 'NO DOMAIN - NOT ALLOWED';
@@ -698,6 +737,24 @@ async function initializeOnStartup() {
     // Initialize EIP-6963 handler
     initializeEIP6963();
 
+    // Initialize BackgroundManager for port communication
+    try {
+      const { backgroundManager } = await import('$lib/managers/BackgroundManager');
+      await backgroundManager.initialize();
+      log.info('[Background] BackgroundManager initialized');
+    } catch (error) {
+      log.error('[Background] Failed to initialize BackgroundManager:', false, error);
+    }
+
+    // Initialize background interval service for data fetching
+    try {
+      const intervalService = BackgroundIntervalService.getInstance();
+      await intervalService.initialize();
+      log.info('[Background] Background interval service initialized');
+    } catch (error) {
+      log.error('[Background] Failed to initialize interval service:', false, error);
+    }
+
     await watchLockedState(2 * 60 * 1000);
 
     // Migrate legacy storage to secure storage test
@@ -719,7 +776,20 @@ async function initializeOnStartup() {
   }
 }
 
-await initializeOnStartup(); // Initial setup on load or reload. Alarm and State need to be set up quickly so they are here
+// Ensure browser APIs are ready before initializing
+if (typeof browser !== 'undefined' && browser.runtime) {
+  await initializeOnStartup(); // Initial setup on load or reload. Alarm and State need to be set up quickly so they are here
+} else {
+  log.error('Browser APIs not ready at startup - deferring initialization');
+  // For service workers, we might need to wait for the first event
+  setTimeout(async () => {
+    if (typeof browser !== 'undefined' && browser.runtime) {
+      await initializeOnStartup();
+    } else {
+      log.error('Browser APIs still not ready after delay');
+    }
+  }, 100);
+}
 
 try {
   if (browser) {
@@ -836,14 +906,37 @@ export async function onSuspendListener() {
  */
 function isDevelopmentEnvironment(): boolean {
   // Check multiple possible indicators for development mode
-  return (
+  try {
+    // Check for webpack-defined DEV_MODE
+    // @ts-ignore
+    if (typeof DEV_MODE !== 'undefined') {
+      // @ts-ignore
+      return DEV_MODE === true || DEV_MODE === 'true';
+    }
+    
+    // Check for __DEV__ flag
+    // @ts-ignore
+    if (typeof __DEV__ !== 'undefined') {
+      // @ts-ignore
+      return __DEV__ === true;
+    }
+    
     // Standard NODE_ENV check
-    (typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production') ||
-    // Vite-specific development indicator
-    (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV === true) ||
-    // Check for DEV_MODE flag that might be set in your build process
-    (typeof process !== 'undefined' && process.env && process.env.DEV_MODE === 'true')
-  );
+    if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production') {
+      return true;
+    }
+    
+    // Fallback: check if we're in a local extension environment
+    if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.getManifest) {
+      const manifest = browser.runtime.getManifest();
+      return !!(manifest.name && (manifest.name.includes('dev') || manifest.name.includes('Dev')));
+    }
+    
+    return false;
+  } catch (e) {
+    // If any check fails, assume production
+    return false;
+  }
 }
 
 /**

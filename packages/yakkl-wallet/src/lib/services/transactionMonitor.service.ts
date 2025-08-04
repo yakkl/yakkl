@@ -8,7 +8,8 @@ import { currentAccount } from '$lib/stores/account.store';
 import { currentChain } from '$lib/stores/chain.store';
 import { transactionStore } from '$lib/stores/transaction.store';
 import { log } from '$lib/managers/Logger';
-import { browser } from '$app/environment';
+// Check if we're in a browser environment
+const browser = typeof window !== 'undefined';
 
 interface MonitorConfig {
   pollingInterval: number; // Milliseconds between polls

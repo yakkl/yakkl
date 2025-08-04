@@ -34,17 +34,7 @@ function createPlanStore() {
       try {
         const settings = await getSettings();
         // Convert old plan types to new ones
-        const oldPlanType = settings?.plan?.type;
-        let planType: PlanType;
-
-        // Map old plan types to new ones
-        if (oldPlanType === 'yakkl_pro' || oldPlanType === 'founding_member' || oldPlanType === 'early_adopter') {
-          planType = PlanType.YAKKL_PRO;
-        } else if (oldPlanType === 'enterprise' || oldPlanType === 'institution' || oldPlanType === 'business') {
-          planType = PlanType.ENTERPRISE;
-        } else {
-          planType = PlanType.EXPLORER_MEMBER;
-        }
+        const planType = settings?.plan?.type;
 
         const trialEndDate = settings?.plan?.trialEndDate;
 
@@ -53,7 +43,7 @@ function createPlanStore() {
         const effectivePlan = onTrial ? PlanType.YAKKL_PRO : planType;
 
         // Update feature manager
-        featureManager.setPlan(effectivePlan);
+        featureManager.setPlan(planType);
 
         set({
           plan: {
@@ -108,13 +98,13 @@ export const currentPlan = derived(
 
 export const isProUser = derived(
   planStore,
-  $store => featureManager.hasAccess(PlanType.YAKKL_PRO)
+  $store => featureManager.hasAccess(PlanType.YAKKL_PRO) || featureManager.hasAccess(PlanType.FOUNDING_MEMBER) || featureManager.hasAccess(PlanType.EARLY_ADOPTER)
 );
 
 export const isOnTrial = derived(
   planStore,
   $store => {
-    const { trialEndDate } = $store.plan;
+    const trialEndDate = $store.plan.trialEndDate;
     return trialEndDate && new Date(trialEndDate) > new Date();
   }
 );

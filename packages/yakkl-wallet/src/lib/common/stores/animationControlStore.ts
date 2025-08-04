@@ -14,7 +14,7 @@ export type CanAnimateFunction = (componentId?: string) => boolean;
 const defaultState: AnimationControlState = {
   globalEnabled: true,
   performanceMode: 'auto',
-  maxActiveAnimations: 20,
+  maxActiveAnimations: 5, // Reduced from 20 to improve performance
   respectMotionPreference: true,
   disabledComponents: new Set()
 };

@@ -37,17 +37,19 @@
 
 	let portManager = createPortManagerWithStream(YAKKL_DAPP);
 
-	if (browserSvelte) {
-		try {
-			requestId = page.url.searchParams.get('requestId');
-			const methodParam = page.url.searchParams.get('method');
-			if (methodParam) method = methodParam;
-			$yakklDappConnectRequestStore = requestId;
-		} catch (e) {
-			log.error(e);
-			handleReject('No requestId or methodwas found. Access to YAKKL® is denied.');
+	onMount(() => {
+		if (browserSvelte) {
+			try {
+				requestId = page.url.searchParams.get('requestId');
+				const methodParam = page.url.searchParams.get('method');
+				if (methodParam) method = methodParam;
+				$yakklDappConnectRequestStore = requestId;
+			} catch (e) {
+				log.error(e);
+				handleReject('No requestId or methodwas found. Access to YAKKL® is denied.');
+			}
 		}
-	}
+	});
 
 	// NOTE: domains will be added (if not already there at the next step - if accounts)
 	async function handleProcess() {

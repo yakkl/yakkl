@@ -184,15 +184,30 @@ export async function handleBrowserAPIMessage(
 
 // Storage API implementations
 async function handleStorageGet(payload: StorageGetPayload) {
+  if (!payload || !payload.keys) {
+    log.warn('[BrowserAPI] storage.get called with invalid payload', false, payload);
+    // Return empty object if no keys specified
+    return {};
+  }
   return browser.storage.local.get(payload.keys);
 }
 
 async function handleStorageSet(payload: StorageSetPayload) {
+  if (!payload || !payload.items) {
+    log.warn('[BrowserAPI] storage.set called with invalid payload', false, payload);
+    // Skip if no items to set
+    return { success: true };
+  }
   await browser.storage.local.set(payload.items);
   return { success: true };
 }
 
 async function handleStorageRemove(payload: StorageRemovePayload) {
+  if (!payload || !payload.keys) {
+    log.warn('[BrowserAPI] storage.remove called with invalid payload', false, payload);
+    // Skip if no keys to remove
+    return { success: true };
+  }
   await browser.storage.local.remove(payload.keys);
   return { success: true };
 }
@@ -203,10 +218,20 @@ async function handleStorageClear() {
 }
 
 async function handleStorageSyncGet(payload: StorageGetPayload) {
+  if (!payload || !payload.keys) {
+    log.warn('[BrowserAPI] storage.sync.get called with invalid payload', false, payload);
+    // Return empty object if no keys specified
+    return {};
+  }
   return browser.storage.sync.get(payload.keys);
 }
 
 async function handleStorageSyncSet(payload: StorageSetPayload) {
+  if (!payload || !payload.items) {
+    log.warn('[BrowserAPI] storage.sync.set called with invalid payload', false, payload);
+    // Skip if no items to set
+    return { success: true };
+  }
   await browser.storage.sync.set(payload.items);
   return { success: true };
 }
@@ -308,6 +333,12 @@ async function handleRuntimeGetLastError() {
 
 // Action API implementations
 async function handleActionSetIcon(payload: ActionSetIconPayload) {
+  if (!payload || !payload.details) {
+    log.warn('[BrowserAPI] action.setIcon called with invalid payload', false, payload);
+    // Skip icon update if no payload
+    return { success: true };
+  }
+  
   const { details } = payload;
   log.info('[BrowserAPI] action.setIcon', false, details);
   await browser.action.setIcon(details);
@@ -315,13 +346,30 @@ async function handleActionSetIcon(payload: ActionSetIconPayload) {
 }
 
 async function handleActionSetBadgeText(payload: ActionSetBadgeTextPayload) {
+  if (!payload || !payload.details) {
+    log.warn('[BrowserAPI] action.setBadgeText called with invalid payload', false, payload);
+    // Default to empty text if no payload
+    await browser.action.setBadgeText({ text: '' });
+    return { success: true };
+  }
+  
   const { details } = payload;
-  log.info('[BrowserAPI] action.setBadgeText', false, details);
+  // log.info('[BrowserAPI] action.setBadgeText', false, details);
+
+  console.log('[BrowserAPI] action.setBadgeText', details);
+
   await browser.action.setBadgeText(details);
   return { success: true };
 }
 
 async function handleActionSetBadgeBackgroundColor(payload: ActionSetBadgeBackgroundColorPayload) {
+  if (!payload || !payload.details) {
+    log.warn('[BrowserAPI] action.setBadgeBackgroundColor called with invalid payload', false, payload);
+    // Default to transparent if no payload
+    await browser.action.setBadgeBackgroundColor({ color: [0, 0, 0, 0] } as any);
+    return { success: true };
+  }
+  
   const { details } = payload;
   log.info('[BrowserAPI] action.setBadgeBackgroundColor', false, details);
   await browser.action.setBadgeBackgroundColor(details.color as any);
@@ -329,12 +377,24 @@ async function handleActionSetBadgeBackgroundColor(payload: ActionSetBadgeBackgr
 }
 
 async function handleActionGetBadgeText(payload: ActionGetBadgeTextPayload) {
+  if (!payload || !payload.details) {
+    // Use empty object as default if no payload
+    return browser.action.getBadgeText({});
+  }
+  
   const { details } = payload;
   log.info('[BrowserAPI] action.getBadgeText', false, details);
   return browser.action.getBadgeText(details || {});
 }
 
 async function handleActionSetTitle(payload: ActionSetTitlePayload) {
+  if (!payload || !payload.details) {
+    log.warn('[BrowserAPI] action.setTitle called with invalid payload', false, payload);
+    // Default to empty title if no payload
+    await browser.action.setTitle({ title: 'YAKKL' });
+    return { success: true };
+  }
+  
   const { details } = payload;
   log.info('[BrowserAPI] action.setTitle', false, details);
   await browser.action.setTitle(details);

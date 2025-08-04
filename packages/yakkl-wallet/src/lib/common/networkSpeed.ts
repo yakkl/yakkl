@@ -31,18 +31,18 @@ export async function testNetworkSpeed(): Promise<NetworkSpeedResult> {
     log.debug('Using cached network speed result', false, speedCache.result);
     return speedCache.result;
   }
-  
+
   // Check rate limit
   if (!networkTestLimiter.isAllowed('network-speed-test-core')) {
     log.warn('Network speed test rate limited', false, {
       resetTime: networkTestLimiter.getResetTime('network-speed-test-core')
     });
-    
+
     // Return last cached result or conservative defaults
     if (speedCache) {
       return speedCache.result;
     }
-    
+
     return {
       latency: 500,
       downloadSpeed: 1,
@@ -59,10 +59,10 @@ export async function testNetworkSpeed(): Promise<NetworkSpeedResult> {
     // Try to use Cloudflare SpeedTest library, but it may fail in sidepanel context
     try {
       // Skip Cloudflare speed test in sidepanel context to avoid transferSize errors
-      const isSidepanel = typeof window !== 'undefined' && 
-                          (window.location.pathname.includes('sidepanel') || 
+      const isSidepanel = typeof window !== 'undefined' &&
+                          (window.location.pathname.includes('sidepanel') ||
                            window.location.href.includes('sidepanel'));
-      
+
       if (!isSidepanel) {
         const speedTest = new SpeedTest({
           autoStart: false,
@@ -71,7 +71,7 @@ export async function testNetworkSpeed(): Promise<NetworkSpeedResult> {
             { type: 'download', bytes: 102400, count: 3 }
           ]
         });
-        
+
         let isTestComplete = false;
 
         // Set up event listeners with proper error handling
@@ -106,7 +106,7 @@ export async function testNetworkSpeed(): Promise<NetworkSpeedResult> {
 
         await Promise.race([
           waitForCompletion,
-          new Promise((_, reject) => 
+          new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Speed test timeout')), 15000)
           )
         ]);
@@ -115,12 +115,12 @@ export async function testNetworkSpeed(): Promise<NetworkSpeedResult> {
         if (speedTest.results && !speedTestError) {
           try {
             const summary = speedTest.results.getSummary();
-            
+
             // Get latency
             if (summary.latency) {
               latency = summary.latency;
             }
-            
+
             // Get download speed (already in Mbps)
             if (summary.download) {
               downloadSpeed = summary.download / 1_000_000; // Convert bps to Mbps
@@ -143,22 +143,22 @@ export async function testNetworkSpeed(): Promise<NetworkSpeedResult> {
     // Fallback: Simple latency check if Cloudflare test didn't provide results
     if (latency === 0) {
       const latencyStart = performance.now();
-      
-      try {
-        await fetch('https://api.yakkl.com/health', {
-          method: 'HEAD',
-          cache: 'no-cache',
-          signal: AbortSignal.timeout(5000)
-        });
-      } catch {
+
+      // try {
+      //   await fetch('https://api.yakkl.com/health', {
+      //     method: 'HEAD',
+      //     cache: 'no-cache',
+      //     signal: AbortSignal.timeout(5000)
+      //   });
+      // } catch {
         // Fallback to a reliable public endpoint
-        await fetch('https://cloudflare-dns.com/dns-query?name=example.com', {
+        await fetch('https://cloudflare-dns.com/dns-query?name=yakkl.com', {
           method: 'HEAD',
           cache: 'no-cache',
           signal: AbortSignal.timeout(5000)
         });
-      }
-      
+      // }
+
       latency = performance.now() - latencyStart;
     }
 
@@ -285,17 +285,21 @@ export async function getDynamicTimeout(messageType?: string): Promise<number> {
  * This should be called once when the wallet starts
  */
 export function initNetworkSpeedMonitoring(): void {
-  // Test network speed immediately
-  testNetworkSpeed().catch(error => {
-    log.warn('Initial network speed test failed', false, error);
-  });
-
-  // Then test every 5 minutes
-  setInterval(() => {
+  try {
+    // Test network speed immediately
     testNetworkSpeed().catch(error => {
-      log.warn('Periodic network speed test failed', false, error);
+      log.warn('Initial network speed test failed', false, error);
     });
-  }, CACHE_DURATION);
 
-  log.info('Network speed monitoring initialized');
+    // Then test every 5 minutes
+    setInterval(() => {
+      testNetworkSpeed().catch(error => {
+        log.warn('Periodic network speed test failed', false, error);
+      });
+      }, CACHE_DURATION);
+
+      log.info('Network speed monitoring initialized');
+  } catch (error) {
+    log.warn('Network speed monitoring initialization failed', false, error);
+  }
 }

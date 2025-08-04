@@ -6,7 +6,7 @@ import { log } from '$lib/managers/Logger';
 import { activeTabBackgroundStore, activeTabUIStore } from '$lib/common/stores';
 import { get } from 'svelte/store';
 import { setObjectInLocalStorage } from '$lib/common/storage';
-import { backgroundManager } from '$lib/managers/BackgroundManager';
+import { getBackgroundManager } from '$lib/managers/BackgroundManager';
 import { MessageType } from '$lib/common/types';
 import type { WindowFocusData } from '$lib/common/types';
 
@@ -37,7 +37,7 @@ export async function onTabActivatedListener(activeInfo: Tabs.OnActivatedActiveI
 				activeTabBackgroundStore.set(activeTab);
 				activeTabUIStore.set(activeTab);
 				try {
-					await backgroundManager.sendMessage(MessageType.ACTIVE_TAB_CHANGED, activeTab);
+					await getBackgroundManager().sendMessage(MessageType.ACTIVE_TAB_CHANGED, activeTab);
 					await setObjectInLocalStorage('activeTabBackground', activeTab); // Not sure if this is needed
 				} catch (error) {
 					log.warn('Error sending active tab changed message:', false, error);
@@ -81,7 +81,7 @@ export async function onTabUpdatedListener(tabId: number, changeInfo: any, tabTa
 				activeTabBackgroundStore.set(activeTab);
 				activeTabUIStore.set(activeTab);
 				try {
-					await backgroundManager.sendMessage(MessageType.TAB_UPDATED, activeTab);
+					await getBackgroundManager().sendMessage(MessageType.TAB_UPDATED, activeTab);
 					await setObjectInLocalStorage('activeTabBackground', activeTab); // Not sure if this is needed
 				} catch (error) {
 					// silent
@@ -125,7 +125,7 @@ export async function onTabRemovedListener(
 			if (tab.tabId === tabId) {
 				activeTabBackgroundStore.set(null);
 				try {
-					await backgroundManager.sendMessage(MessageType.TAB_REMOVED, null);
+					await getBackgroundManager().sendMessage(MessageType.TAB_REMOVED, null);
 					await setObjectInLocalStorage('activeTabBackground', null); // Not sure if this is needed
 				} catch (error) {
 					// silent
@@ -170,7 +170,7 @@ export async function onWindowsFocusChangedListener(windowId: number) {
 					if (activeTab.tabId > 0) {
 						activeTabBackgroundStore.set(activeTab);
 						activeTabUIStore.set(activeTab); // ??
-						await backgroundManager.sendMessage(MessageType.WINDOW_FOCUSED, data);
+						await getBackgroundManager().sendMessage(MessageType.WINDOW_FOCUSED, data);
 						await setObjectInLocalStorage('activeTabBackground', activeTab); // Not sure if this is needed
 					}
 				}

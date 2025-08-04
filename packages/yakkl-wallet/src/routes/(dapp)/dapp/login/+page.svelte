@@ -14,6 +14,7 @@
 	import ErrorNoAction from '$lib/components/ErrorNoAction.svelte';
 	import Welcome from '$lib/components/Welcome.svelte';
 	import { protectedContexts } from '$lib/common/globals';
+	import { onMount } from 'svelte';
 
 	// Get request parameters
 	let requestId = $state('');
@@ -47,18 +48,24 @@
 	function initializeFromUrl() {
 		if (!browserSvelte) return;
 
-		const urlRequestId = (page.url.searchParams.get('requestId') as string) ?? '';
-		requestId = urlRequestId;
-		method = (page.url.searchParams.get('method') as string) ?? '';
+		try {
+			const urlRequestId = (page.url.searchParams.get('requestId') as string) ?? '';
+			requestId = urlRequestId;
+			method = (page.url.searchParams.get('method') as string) ?? '';
 
-		approvalUrl = getApprovalUrl();
+			approvalUrl = getApprovalUrl();
 
-		console.log('approvalUrl', approvalUrl);
-		console.log('requestId', requestId);
-		console.log('method', method);
+			log.info('approvalUrl', false, approvalUrl);
+			log.info('requestId', false, requestId);
+			log.info('method', false, method);
+		} catch (e) {
+			log.error('Error accessing URL parameters', false, e);
+		}
 	}
 
-	initializeFromUrl();
+	onMount(() => {
+		initializeFromUrl();
+	});
 
 	// Determine which approval page to go to based on method
 	// Handle successful login in dapp context

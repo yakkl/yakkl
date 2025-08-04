@@ -13,6 +13,7 @@ import { BigNumber } from '$lib/common/bignumber';
 import { DecimalMath } from '$lib/common/DecimalMath';
 import { loadDefaultTokens } from '$lib/managers/tokens/loadDefaultTokens';
 import { PriceManager } from '$lib/managers/PriceManager';
+import { ethers } from 'ethers-v6';
 
 export class TokenService extends BaseService {
 	private static instance: TokenService;
@@ -84,6 +85,7 @@ export class TokenService extends BaseService {
 			const preview2Tokens: TokenDisplay[] = await Promise.all(
 				chainTokens.map(async (token) => {
 					// Convert balance from smallest unit (wei) to token unit using decimals
+					// CRITICAL: Preserve existing quantity if no new balance is provided
 					let balanceStr = String(token.balance || token.quantity || '0');
 					let balance = 0;
 
@@ -133,7 +135,7 @@ export class TokenService extends BaseService {
 								const walletService = WalletService.getInstance();
 								const balanceResponse = await walletService.getBalance(account.address);
 								if (balanceResponse.success && balanceResponse.data) {
-									const { ethers } = await import('ethers-v6');
+									// Use statically imported ethers
 									const balanceInEth = ethers.formatEther(balanceResponse.data);
 									balance = parseFloat(balanceInEth);
 									console.log(`[TokenService] Fetched balance directly: ${balance} ETH`);
@@ -328,6 +330,7 @@ export class TokenService extends BaseService {
 
 	private transformToTokenDisplay(token: any): TokenDisplay {
 		// Convert balance from smallest unit (wei) to token unit using decimals
+		// CRITICAL: Preserve existing quantity if no new balance is provided
 		let balanceStr = String(token.balance || token.quantity || '0');
 		let balance = 0;
 

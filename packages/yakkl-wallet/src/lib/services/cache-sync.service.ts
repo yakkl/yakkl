@@ -1,5 +1,6 @@
 import { get } from 'svelte/store';
-import { browser } from '$app/environment';
+// Check if we're in a browser environment
+const browser = typeof window !== 'undefined';
 import { walletCacheStore } from '$lib/stores/wallet-cache.store';
 import { currentAccount as currentAccountStore, accountStore } from '$lib/stores';
 import { currentChain as currentChainStore, chainStore } from '$lib/stores';
@@ -19,8 +20,8 @@ import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
 
 export class CacheSyncManager {
 	private static instance: CacheSyncManager;
-	private tokenService: TokenService;
-	private transactionService: TransactionService;
+	private tokenService: TokenService | null = null;
+	private transactionService: TransactionService | null = null;
 
 	// Auto-sync intervals
 	private balanceSyncInterval: number | null = null;
@@ -33,8 +34,20 @@ export class CacheSyncManager {
 	private readonly TRANSACTION_SYNC_INTERVAL = 60000; // 60 seconds
 
 	private constructor() {
-		this.tokenService = TokenService.getInstance();
-		this.transactionService = TransactionService.getInstance();
+		// Delay service initialization to avoid circular dependencies
+		// Services will be initialized on first use
+	}
+	
+	/**
+	 * Lazy initialization of services to avoid circular dependency issues
+	 */
+	private ensureServicesInitialized(): void {
+		if (!this.tokenService) {
+			this.tokenService = TokenService.getInstance();
+		}
+		if (!this.transactionService) {
+			this.transactionService = TransactionService.getInstance();
+		}
 	}
 
 	static getInstance(): CacheSyncManager {
@@ -49,7 +62,10 @@ export class CacheSyncManager {
 		const account = get(currentAccountStore);
 		const chain = get(currentChainStore);
 
-		if (!account || !chain) return;
+		if (!account || !chain) {
+			log.info('[CacheSync] No account or chain yet, skipping initialization', false);
+			return;
+		}
 
 		// Set initializing state
 		walletCacheStore.setInitializing(true);
@@ -63,9 +79,10 @@ export class CacheSyncManager {
 			}
 
 			const cache = walletCacheStore.getAccountCache(chain.chainId, account.address);
+			const needsInitialization = !cache || !cache.tokens.length || cache.portfolio.totalValue === 0n;
 
-			if (!cache || !cache.tokens.length) {
-				log.info('[CacheSync] First time load - fetching all data for', false, account.address);
+			if (needsInitialization) {
+				log.info('[CacheSync] Initializing account data for', false, account.address);
 
 				// First time accessing this account/chain
 				// Create a minimal YakklAccount from AccountDisplay
@@ -110,9 +127,19 @@ export class CacheSyncManager {
 				// CRITICAL: Force portfolio recalculation after all data is loaded
 				walletCacheStore.forcePortfolioRecalculation(chain.chainId, account.address);
 
+				// Calculate ALL rollups on initial load to ensure everything is populated
+				await walletCacheStore.calculateAllRollups();
+
 				// Mark as loaded
 				walletCacheStore.setHasEverLoaded(true);
-				log.info('[CacheSync] Initial data load completed with portfolio recalculation', false);
+				log.info('[CacheSync] Initial data load completed with portfolio recalculation and ALL rollups', false);
+			} else {
+				// Cache exists but ensure rollups are calculated
+				const cacheState = get(walletCacheStore);
+				if (!cacheState.portfolioRollups?.grandTotal || cacheState.portfolioRollups.grandTotal.totalValue === 0n) {
+					log.info('[CacheSync] Cache exists but rollups need calculation', false);
+					await walletCacheStore.calculateAllRollups();
+				}
 			}
 		} finally {
 			// Clear initializing state
@@ -126,8 +153,11 @@ export class CacheSyncManager {
 		try {
 			log.info(`[CacheSync] Syncing token balances for ${address} on chain ${chainId}`, false);
 
+			// Ensure services are initialized
+			this.ensureServicesInitialized();
+
 			// Get fresh token data
-			const response = await this.tokenService.getTokens(address);
+			const response = await this.tokenService!.getTokens(address);
 
 			if (response.success && response.data) {
 				// Convert to cache format
@@ -323,7 +353,10 @@ export class CacheSyncManager {
 		try {
 			log.info(`[CacheSync] Syncing transactions for ${address} on chain ${chainId}`, false);
 
-			const response = await this.transactionService.getTransactionHistory(address);
+			// Ensure services are initialized
+			this.ensureServicesInitialized();
+
+			const response = await this.transactionService!.getTransactionHistory(address);
 
 			if (response.success && response.data) {
 				// Get current last block from cache
@@ -365,6 +398,9 @@ export class CacheSyncManager {
 			this.syncTokenPrices(chain.chainId),
 			this.syncTransactions(chain.chainId, account.address)
 		]);
+		
+		// After syncing, ensure rollups are calculated
+		await walletCacheStore.updateAccountRollup(account.address);
 	}
 
 	// Start auto-sync timers
@@ -492,6 +528,141 @@ export class CacheSyncManager {
 			await this.syncTokenBalances(chain.chainId, address);
 			await this.syncTransactions(chain.chainId, address);
 			await this.syncTokenPrices(chain.chainId);
+		}
+	}
+
+	// ============= ROLLUP SYNC METHODS =============
+
+	/**
+	 * Sync all portfolio rollups
+	 * This should be called after major data updates
+	 */
+	async syncPortfolioRollups() {
+		try {
+			log.info('[CacheSync] Syncing all portfolio rollups', false);
+			
+			// Calculate all rollups from scratch
+			await walletCacheStore.calculateAllRollups();
+			
+			log.info('[CacheSync] Portfolio rollups synced successfully', false);
+		} catch (error) {
+			log.error('[CacheSync] Failed to sync portfolio rollups:', false, error);
+			// Re-throw the error so callers know it failed
+			throw error;
+		}
+	}
+
+	/**
+	 * Sync rollups for a specific account
+	 * More efficient than full sync when only one account changes
+	 */
+	async syncAccountRollups(address: string) {
+		try {
+			log.debug('[CacheSync] Syncing rollups for account:', false, address);
+			
+			await walletCacheStore.updateAccountRollup(address);
+			
+			log.debug('[CacheSync] Account rollups synced:', false, address);
+		} catch (error) {
+			log.error('[CacheSync] Failed to sync account rollups:', false, error);
+		}
+	}
+
+	/**
+	 * Sync rollups for a specific chain
+	 * Called when chain data is updated
+	 */
+	async syncChainRollups(chainId: number) {
+		try {
+			log.debug('[CacheSync] Syncing rollups for chain:', false, chainId);
+			
+			await walletCacheStore.updateChainRollup(chainId);
+			
+			log.debug('[CacheSync] Chain rollups synced:', false, chainId);
+		} catch (error) {
+			log.error('[CacheSync] Failed to sync chain rollups:', false, error);
+		}
+	}
+
+	/**
+	 * Sync watch list rollups
+	 * Called when watch list changes or includeInPortfolio flags are updated
+	 */
+	async syncWatchListRollups() {
+		try {
+			log.debug('[CacheSync] Syncing watch list rollups', false);
+			
+			// This will be handled by calculateAllRollups for now
+			// In the future, we can optimize this to only recalculate watch list
+			await walletCacheStore.calculateAllRollups();
+			
+			log.debug('[CacheSync] Watch list rollups synced', false);
+		} catch (error) {
+			log.error('[CacheSync] Failed to sync watch list rollups:', false, error);
+		}
+	}
+
+	/**
+	 * Sync primary account hierarchy rollups
+	 * Called when primary/derived relationships change
+	 */
+	async syncPrimaryAccountHierarchy() {
+		try {
+			log.debug('[CacheSync] Syncing primary account hierarchy rollups', false);
+			
+			// This will be handled by calculateAllRollups for now
+			// In the future, we can optimize this to only recalculate hierarchies
+			await walletCacheStore.calculateAllRollups();
+			
+			log.debug('[CacheSync] Primary account hierarchy synced', false);
+		} catch (error) {
+			log.error('[CacheSync] Failed to sync primary account hierarchy:', false, error);
+		}
+	}
+
+	/**
+	 * Smart sync that determines what needs to be updated
+	 * Based on what data has changed
+	 */
+	async smartSync(changes: {
+		tokensUpdated?: boolean;
+		pricesUpdated?: boolean;
+		transactionsUpdated?: boolean;
+		accountsChanged?: string[];
+		chainsChanged?: number[];
+		watchListChanged?: boolean;
+	}) {
+		try {
+			log.debug('[CacheSync] Smart sync initiated', false, changes);
+			
+			// If specific accounts changed, update their rollups
+			if (changes.accountsChanged?.length) {
+				for (const account of changes.accountsChanged) {
+					await this.syncAccountRollups(account);
+				}
+			}
+			
+			// If specific chains changed, update their rollups
+			if (changes.chainsChanged?.length) {
+				for (const chainId of changes.chainsChanged) {
+					await this.syncChainRollups(chainId);
+				}
+			}
+			
+			// If watch list changed, sync watch list rollups
+			if (changes.watchListChanged) {
+				await this.syncWatchListRollups();
+			}
+			
+			// If tokens or prices updated extensively, do full sync
+			if ((changes.tokensUpdated || changes.pricesUpdated) && 
+				!changes.accountsChanged?.length && !changes.chainsChanged?.length) {
+				await this.syncPortfolioRollups();
+			}
+			
+			log.debug('[CacheSync] Smart sync completed', false);
+		} catch (error) {
+			log.error('[CacheSync] Smart sync failed:', false, error);
 		}
 	}
 }

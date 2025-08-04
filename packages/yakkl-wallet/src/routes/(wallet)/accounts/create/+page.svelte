@@ -12,7 +12,7 @@
   } from '$lib/common/stores';
   import { currentAccount, accounts as accountsStore, accountStore } from '$lib/stores/account.store';
   import {
-    PATH_WELCOME,
+    PATH_HOME,
     type YakklAccount,
     type YakklPrimaryAccount,
     type AccountData,
@@ -288,7 +288,7 @@
     }
 
     // Navigate to dashboard
-    await goto(PATH_WELCOME);
+    await goto(PATH_HOME);
   }
 
   function onClose() {

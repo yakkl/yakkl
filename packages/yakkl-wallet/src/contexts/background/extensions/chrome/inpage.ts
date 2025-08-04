@@ -55,9 +55,9 @@ declare namespace chrome {
 
 // Window declarations
 declare global {
-	var yakkl: EIP6963ProviderDetail;
 	interface Window {
 		ethereum: EIP6963Provider;
+		yakkl?: EIP6963ProviderDetail & { isConnected?: boolean };
 	}
 }
 

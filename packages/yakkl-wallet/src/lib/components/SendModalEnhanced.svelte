@@ -124,7 +124,7 @@
 
   // Validate address format
   function validateAddress(address: string): boolean {
-    if (!address || typeof address !== 'string') return false;
+    if (!address) return false;
     try {
       return ethers.isAddress(address) || address.endsWith('.eth');
     } catch {

@@ -1,4 +1,5 @@
-import { browser_ext } from '$lib/common/environment';
+// import { browser_ext } from '$lib/common/environment';
+import browser from 'webextension-polyfill';
 import { log } from '$lib/common/logger-wrapper';
 import type { Runtime } from 'webextension-polyfill';
 
@@ -35,9 +36,7 @@ export class BackgroundManager {
 	private constructor() {
 		this.connections = new Map();
 		this.messageQueue = [];
-		this.initialize().catch((error) => {
-			log.error('Failed to initialize BackgroundManager:', false, error);
-		});
+		// Don't initialize in constructor - wait for explicit initialization
 	}
 
 	public static getInstance(): BackgroundManager {
@@ -47,12 +46,32 @@ export class BackgroundManager {
 		return BackgroundManager.instance;
 	}
 
-	private async initialize(): Promise<void> {
-		if (!browser_ext) return;
+	public async initialize(): Promise<void> {
+		if (!browser) {
+			log.warn('Browser extension API not available for BackgroundManager');
+			return;
+		}
 		if (this.initialized) return;
 
 		try {
-			browser_ext.runtime.onConnect.addListener((port) => {
+			// Ensure browser.runtime exists before adding listeners
+			if (!browser.runtime) {
+				log.error('browser.runtime not available - will retry');
+				// Retry after a short delay
+				setTimeout(() => {
+					this.initialize().catch(error => {
+						log.error('Failed to retry BackgroundManager initialization:', false, error);
+					});
+				}, 1000);
+				return;
+			}
+
+			if (!browser.runtime.onConnect) {
+				log.error('browser.runtime.onConnect not available');
+				return;
+			}
+
+			browser.runtime.onConnect.addListener((port) => {
 				if (this.isValidConnectionType(port.name)) {
 					this.handleNewConnection(port);
 				}
@@ -187,10 +206,10 @@ export class BackgroundManager {
 	}
 
 	private async persistQueue(): Promise<void> {
-		if (!browser_ext) return;
+		if (!browser) return;
 
 		try {
-			await browser_ext.storage.local.set({
+			await browser.storage.local.set({
 				[`${this.STORAGE_PREFIX}queue`]: this.messageQueue
 			});
 		} catch (error) {
@@ -199,10 +218,10 @@ export class BackgroundManager {
 	}
 
 	private async restoreQueuedMessages(): Promise<void> {
-		if (!browser_ext) return;
+		if (!browser) return;
 
 		try {
-			const result = await browser_ext.storage.local.get(`${this.STORAGE_PREFIX}queue`);
+			const result = await browser.storage.local.get(`${this.STORAGE_PREFIX}queue`);
 			const storedQueue = result[`${this.STORAGE_PREFIX}queue`];
 
 			// Type guard to ensure array of QueuedMessage
@@ -231,10 +250,10 @@ export class BackgroundManager {
 	}
 
 	private async saveToStorage<T>(type: string, data: T): Promise<void> {
-		if (!browser_ext) return;
+		if (!browser) return;
 
 		try {
-			await browser_ext.storage.local.set({
+			await browser.storage.local.set({
 				[`${this.STORAGE_PREFIX}${type}`]: {
 					data,
 					timestamp: Date.now()
@@ -285,8 +304,40 @@ export class BackgroundManager {
 	}
 }
 
-// Export singleton instance
-export const backgroundManager = BackgroundManager.getInstance();
+// Export a getter function instead of the instance directly
+// This prevents immediate instantiation when the module is imported
+export function getBackgroundManager(): BackgroundManager {
+	return BackgroundManager.getInstance();
+}
+
+// For backward compatibility, export a lazy-loaded instance
+export const backgroundManager = {
+	get instance() {
+		return BackgroundManager.getInstance();
+	},
+	// Proxy all methods to the actual instance
+	async sendMessage(type: string, data: unknown): Promise<void> {
+		return BackgroundManager.getInstance().sendMessage(type, data);
+	},
+	async initialize(): Promise<void> {
+		return BackgroundManager.getInstance().initialize();
+	},
+	hasConnections(): boolean {
+		return BackgroundManager.getInstance().hasConnections();
+	},
+	async processQueuedMessages(): Promise<void> {
+		return BackgroundManager.getInstance().processQueuedMessages();
+	},
+	async clearQueue(): Promise<void> {
+		return BackgroundManager.getInstance().clearQueue();
+	},
+	getQueueSize(): number {
+		return BackgroundManager.getInstance().getQueueSize();
+	},
+	isInitialized(): boolean {
+		return BackgroundManager.getInstance().isInitialized();
+	}
+};
 
 // Example how to use:
 

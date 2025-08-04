@@ -71,60 +71,15 @@
     }
   });
 
-    // Prevent infinite loop
-  let hasTriggeredLoad = $state(false);
-  let loadAttempts = $state(0);
-  const MAX_LOAD_ATTEMPTS = 3;
-
-  // Load transactions when component mounts if not already loaded
+  // Simple effect to log transaction state for debugging
   $effect(() => {
-    if (account?.address && chain?.chainId && transactions.length === 0 && !loading && !hasTriggeredLoad && loadAttempts < MAX_LOAD_ATTEMPTS) {
-      console.log('RecentActivity: No transactions loaded, triggering manual load (attempt', loadAttempts + 1, ')');
-      console.log('RecentActivity: Account and chain info:', {
-        accountAddress: account.address,
-        chainId: chain.chainId,
-        chainName: chain.name
-      });
-
-      hasTriggeredLoad = true;
-      loadAttempts++;
-
-      // Use setTimeout to break the immediate loop
-      setTimeout(() => {
-        transactionStore.refresh(true);
-        // Reset the flag after a delay
-        setTimeout(() => {
-          hasTriggeredLoad = false;
-        }, 2000);
-      }, 100);
-    }
-  });
-
-  // Also trigger load when account/chain changes (but only once)
-  $effect(() => {
-    if (account?.address && chain?.chainId && !hasTriggeredLoad && loadAttempts < MAX_LOAD_ATTEMPTS) {
-      console.log('RecentActivity: Account or chain changed, checking if transactions need to be loaded');
-      console.log('RecentActivity: Current state:', {
+    if (account?.address && chain?.chainId) {
+      console.log('RecentActivity: Transaction state:', {
         accountAddress: account.address,
         chainId: chain.chainId,
         transactionCount: transactions.length,
-        loading,
-        loadAttempts
+        loading
       });
-
-      if (transactions.length === 0 && !loading) {
-        console.log('RecentActivity: Triggering load due to account/chain change (attempt', loadAttempts + 1, ')');
-
-        hasTriggeredLoad = true;
-        loadAttempts++;
-
-        setTimeout(() => {
-          transactionStore.refresh(true);
-          setTimeout(() => {
-            hasTriggeredLoad = false;
-          }, 2000);
-        }, 100);
-      }
     }
   });
 
@@ -199,13 +154,21 @@
     });
   });
 
-  // Debounced refresh function - only refresh transactions, not portfolio
+  // Debounced refresh function - triggers background refresh
   async function handleRefresh() {
     if (isRefreshing || refreshDebounceTimer) return;
     isRefreshing = true;
 
     try {
-      // Always refresh transactions directly, don't call onRefresh which might refresh portfolio
+      // Use the new refresh utility to trigger background refresh
+      const { refreshTransactions } = await import('$lib/utils/refresh');
+      await refreshTransactions();
+      
+      // The background service will update the cache and stores will react
+      console.log('RecentActivity: Triggered background transaction refresh');
+    } catch (error) {
+      console.error('RecentActivity: Failed to refresh transactions:', error);
+      // Fallback to direct store refresh if background refresh fails
       await transactionStore.refresh(true);
     } finally {
       setTimeout(() => {

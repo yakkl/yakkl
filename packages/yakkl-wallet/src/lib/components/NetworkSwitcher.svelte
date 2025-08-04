@@ -42,13 +42,11 @@
                        ];
 
     const filtered = showTestnetsSetting || showTestnets ? chainsArray : chainsArray.filter(chain => !chain.isTestnet);
-    console.log('NetworkSwitcher effectiveChains:', filtered);
     return filtered;
   });
 
   let effectiveSelectedChain = $derived.by(() => {
     const selected = storeSelectedChain || selectedChain || effectiveChains[0] || { name: 'Unknown', network: 'Network' };
-    console.log('NetworkSwitcher effectiveSelectedChain:', selected);
     return selected;
   });
 

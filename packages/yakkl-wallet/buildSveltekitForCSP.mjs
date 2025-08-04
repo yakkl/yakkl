@@ -35,6 +35,23 @@ htmlFilePaths.forEach((htmlFilePath) => {
 
 	// Load the HTML into cheerio
 	const $ = load(html);
+	
+	// Inject browser polyfill as the first script in head if not already present
+	if (!$('script[src="/ext/browser-polyfill.js"]').length) {
+		const polyfillScript = '<script src="/ext/browser-polyfill.js" defer data-browser-polyfill="true"></script>';
+		const head = $('head');
+		if (head.length) {
+			// Find the first script tag in head
+			const firstScript = head.find('script').first();
+			if (firstScript.length) {
+				firstScript.before(polyfillScript);
+			} else {
+				// No scripts in head, append it
+				head.append(polyfillScript);
+			}
+			console.log(`[CSP Build] Injected browser polyfill into ${htmlFilePath}`);
+		}
+	}
 
 	// Find the script tag, get its contents, and remove it
 	$('script').each((i, script) => {

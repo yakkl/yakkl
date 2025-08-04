@@ -6,6 +6,7 @@ import { getYakklCurrentlySelected, setYakklCurrentlySelectedStorage } from './a
 import { walletCacheStore } from './wallet-cache.store';
 import { tokenStore } from './token.store';
 import { log } from '$lib/common/logger-wrapper';
+import { ethers } from 'ethers-v6';
 
 interface AccountState {
   accounts: AccountDisplay[];
@@ -35,6 +36,8 @@ function createAccountStore() {
 
       const response = await walletService.getAccounts();
 
+      console.log('loadAccounts:>>>>>>>>>>>>>>>>>>>', response);
+
       if (response.success && response.data) {
         // Update accounts but don't fetch balances here - let token store handle that
         update(state => ({
@@ -60,8 +63,7 @@ function createAccountStore() {
               // Already in ETH format
               balanceInEth = balanceResponse.data;
             } else {
-              // Convert from Wei to ETH
-              const { ethers } = await import('ethers-v6');
+              // Convert from Wei to ETH (using static import)
               balanceInEth = ethers.formatEther(balanceResponse.data);
             }
 
@@ -86,6 +88,8 @@ function createAccountStore() {
     async switchAccount(address: string) {
       const response = await walletService.switchAccount(address);
 
+      console.log('switchAccount:>>>>>>>>>>>>>>>>>>>', response);
+      
       if (response.success) {
         // Find the account first
         const currentState = get({ subscribe });
@@ -105,8 +109,7 @@ function createAccountStore() {
               // Already in ETH format
               balanceInEth = balanceResponse.data;
             } else {
-              // Convert from Wei to ETH
-              const { ethers } = await import('ethers-v6');
+              // Convert from Wei to ETH (using static import)
               balanceInEth = ethers.formatEther(balanceResponse.data);
             }
 

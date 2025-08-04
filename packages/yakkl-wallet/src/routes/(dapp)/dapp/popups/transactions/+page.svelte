@@ -78,22 +78,24 @@
 	let stream: PortDuplexStream | null = null;
 
 	// Extract parameters from URL
-	if (browserSvelte) {
-		try {
-			requestId = page.url.searchParams.get('requestId');
-			method = page.url.searchParams.get('method') || 'eth_sendTransaction';
-			$yakklDappConnectRequestStore = requestId as string;
+	onMount(() => {
+		if (browserSvelte) {
+			try {
+				requestId = page.url.searchParams.get('requestId');
+				method = page.url.searchParams.get('method') || 'eth_sendTransaction';
+				$yakklDappConnectRequestStore = requestId as string;
 
-			if (!requestId) {
-				errorValue = 'No request ID was found. Access to YAKKL® is denied.';
+				if (!requestId) {
+					errorValue = 'No request ID was found. Access to YAKKL® is denied.';
+					showFailure = true;
+				}
+			} catch (e) {
+				log.error('Error parsing URL parameters:', false, e);
+				errorValue = 'Invalid request parameters. Access to YAKKL® is denied.';
 				showFailure = true;
 			}
-		} catch (e) {
-			log.error('Error parsing URL parameters:', false, e);
-			errorValue = 'Invalid request parameters. Access to YAKKL® is denied.';
-			showFailure = true;
 		}
-	}
+	});
 
 	// Process incoming message from background
 	async function onMessageListener(event: any) {

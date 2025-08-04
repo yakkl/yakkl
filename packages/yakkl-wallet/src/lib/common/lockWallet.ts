@@ -14,6 +14,7 @@ import type { Browser } from 'webextension-polyfill';
 import { walletCacheStore } from '$lib/stores/wallet-cache.store';
 import { SingletonWindowManager } from '$lib/managers/SingletonWindowManager';
 import { invalidateJWT } from '$lib/utilities/jwt-background';
+import type { YakklCurrentlySelected } from './interfaces';
 
 /**
  * Lock the wallet and clear all sensitive data
@@ -39,42 +40,11 @@ export async function lockWallet(reason: string = 'manual', tokenToInvalidate?: 
     await setBadgeText('');
     await setIconLock();
 
-    // Browser API check removed - browserAPI handles client/background context automatically
-
-    // 4. Save wallet cache before clearing - CRITICAL: Do not save if being reset
-    try {
-      // Force save of wallet cache to ensure complete state is persisted
-      const cacheState = get(walletCacheStore);
-
-      // Only save if we have valid data (not zeroed out)
-      if (cacheState && cacheState.chainAccountCache) {
-        let hasValidData = false;
-
-        // Check if there's at least one non-zero value in the cache
-        Object.values(cacheState.chainAccountCache).forEach(chainData => {
-          Object.values(chainData as any).forEach((accountData: any) => {
-            if (accountData?.portfolio?.totalValue > 0 ||
-                accountData?.tokens?.some((t: any) => t.balance && parseFloat(t.balance) > 0)) {
-              hasValidData = true;
-            }
-          });
-        });
-
-        if (hasValidData) {
-          await setObjectInLocalStorage('yakklWalletCache', cacheState);
-          log.info('Wallet cache saved before lock with valid data');
-        } else {
-          log.warn('Skipping cache save - no valid data to persist');
-        }
-      }
-    } catch (error) {
-      log.warn('Failed to save wallet cache during lock:', false, error);
-    }
-
     // 4. Update storage to reflect locked state
-    const yakklCurrentlySelected = await getObjectFromLocalStorage(STORAGE_YAKKL_CURRENTLY_SELECTED) as any;
+    const yakklCurrentlySelected = await getObjectFromLocalStorage<YakklCurrentlySelected>(STORAGE_YAKKL_CURRENTLY_SELECTED);
     if (yakklCurrentlySelected?.shortcuts) {
       yakklCurrentlySelected.shortcuts.isLocked = true;
+      yakklCurrentlySelected.updateDate = new Date().toISOString();
       await setObjectInLocalStorage(STORAGE_YAKKL_CURRENTLY_SELECTED, yakklCurrentlySelected);
     }
 
@@ -82,6 +52,7 @@ export async function lockWallet(reason: string = 'manual', tokenToInvalidate?: 
     const settings = await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS) as any;
     if (settings) {
       settings.isLocked = true;
+      settings.lastUpdated = new Date().toISOString();
       await setObjectInLocalStorage(STORAGE_YAKKL_SETTINGS, settings);
     }
 
@@ -89,41 +60,43 @@ export async function lockWallet(reason: string = 'manual', tokenToInvalidate?: 
     removeTimers();
     removeListeners();
     setMiscStore('');
-    resetTokenDataStoreValues();
+    // resetTokenDataStoreValues();
 
-    // 6. Zero out values in custom token storage
-    setYakklTokenDataCustomStorage(get(yakklTokenDataCustomStore));
-
-    // 7. Reset all stores
+    // 6. Reset all stores
     resetStores();
 
-    // 8. Clear session markers
+    // 7. Clear session markers
     if (typeof sessionStorage !== 'undefined') {
       sessionStorage.removeItem('wallet-authenticated');
     }
 
-    // 9. Clear extension session storage (except windowId)
-    try {
-      // Session storage API not yet implemented in browserAPI
-      // Will be added in future phase
-      log.debug('Session storage clear skipped - API not yet implemented');
-    } catch (error) {
-      log.warn('Failed to clear session storage:', false, error);
-    }
-
-    // 10. Clear any auth tokens from local storage
+    // 8. Clear any auth tokens from local storage
     try {
       await browserAPI.storageRemove(['sessionToken', 'sessionExpiresAt', 'authToken']);
     } catch (error) {
       log.warn('Failed to remove auth tokens from storage:', false, error);
     }
 
-    // 11. Reset SingletonWindowManager to clear any stale window references
+    // 9. Reset SingletonWindowManager to clear any stale window references
     try {
       SingletonWindowManager.reset();
       log.info('SingletonWindowManager reset during wallet lock');
     } catch (error) {
       log.warn('Failed to reset SingletonWindowManager during wallet lock', false, error);
+    }
+
+    // 12. Send message to background to close windows if in client context
+    if (typeof window !== 'undefined') {
+      try {
+        const { getBrowserExtFromGlobal } = await import('./environment');
+        const browserApi = await getBrowserExtFromGlobal();
+        if (browserApi && browserApi.runtime) {
+          // Tell background to close all windows
+          await browserApi.runtime.sendMessage({ type: 'closeAllWindows', reason });
+        }
+      } catch (error) {
+        log.debug('Could not send close windows message:', false, error);
+      }
     }
 
     log.info(`Wallet locked successfully - Reason: ${reason}`);
@@ -190,10 +163,12 @@ export function registerBackgroundWalletLockHandlers(browserApi: Browser): void 
 
     // Handle idle detection
     if (browserApi.idle) {
+      console.log('Setting idle detection interval to 300 seconds');
       browserApi.idle.setDetectionInterval(300); // 5 minutes
-      browserApi.idle.onStateChanged.addListener((state: string) => {
+      browserApi.idle.onStateChanged.addListener(async (state: string) => {
         if (state === 'idle' || state === 'locked') {
-          lockWallet(`idle-${state}`).catch(err =>
+          console.log('Locking wallet on idle or locked state', state);
+          await lockWallet(`idle-${state}`).catch(err =>
             log.warn('Error locking wallet on idle:', false, err)
           );
         }

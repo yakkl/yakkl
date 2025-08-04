@@ -4,6 +4,7 @@ const path = require('path');
 const TerserPlugin = require('terser-webpack-plugin');
 const webpack = require('webpack');
 const CopyPlugin = require('copy-webpack-plugin');
+const TsconfigPathsPlugin = require('tsconfig-paths-webpack-plugin');
 const { config } = require('dotenv');
 const fs = require('fs');
 
@@ -93,17 +94,17 @@ module.exports = {
 			'node_modules'
 			// path.resolve(__dirname, '../../node_modules') // Add this to resolve from root node_modules
 		],
-		extensions: ['.tsx', '.ts', '.js'],
+		extensions: ['.tsx', '.ts', '.js', '.json'],
+		plugins: [
+			new TsconfigPathsPlugin({
+				configFile: path.resolve(__dirname, './tsconfig.json'),
+				extensions: ['.ts', '.tsx', '.js', '.json']
+			})
+		],
 		alias: {
 			'process/browser': require.resolve('process/browser'),
 			'webextension-polyfill': require.resolve('webextension-polyfill'),
-			'dexie': require.resolve('dexie'), // Force resolution to a single dexie instance
-			$lib: path.resolve(__dirname, 'src/lib'),
-			'$lib/common': path.resolve(__dirname, 'src/lib/common'),
-			'$lib/utilities': path.resolve(__dirname, 'src/lib/utilities'),
-			$managers: path.resolve(__dirname, 'src/lib/managers'),
-			$plugins: path.resolve(__dirname, 'src/lib/plugins'),
-			$contexts: path.resolve(__dirname, 'src/contexts')
+			'dexie': require.resolve('dexie') // Force resolution to a single dexie instance
 		},
 		fallback: {
 			crypto: require.resolve('crypto-browserify'),
@@ -119,7 +120,12 @@ module.exports = {
 			DEV_MODE: JSON.stringify(process.env.NODE_ENV !== 'production'),
 			__DEV__: process.env.NODE_ENV !== 'production',
 			__PROD__: process.env.NODE_ENV === 'production',
-			__LOG_LEVEL__: process.env.NODE_ENV === 'production' ? '"WARN"' : '"DEBUG"'
+			__LOG_LEVEL__: process.env.NODE_ENV === 'production' ? '"WARN"' : '"DEBUG"',
+			// Define import.meta.env for compatibility
+			'import.meta.env.DEV': JSON.stringify(process.env.NODE_ENV !== 'production'),
+			'import.meta.env.PROD': JSON.stringify(process.env.NODE_ENV === 'production'),
+			'import.meta.env.MODE': JSON.stringify(process.env.NODE_ENV || 'development'),
+			'import.meta.env.VITE_LOG_LEVEL': JSON.stringify(process.env.VITE_LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'warn' : 'debug'))
 		}),
 		new webpack.ProvidePlugin({
 			browser: ['webextension-polyfill', 'default'],

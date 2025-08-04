@@ -111,22 +111,24 @@
 	let stream: PortDuplexStream | null = null;
 	let dappInterface: DappInterface | null = null;
 
-	if (browserSvelte) {
-		try {
-			requestId = page.url.searchParams.get('requestId');
-			$yakklDappConnectRequestStore = requestId as string;
+	onMount(() => {
+		if (browserSvelte) {
+			try {
+				requestId = page.url.searchParams.get('requestId');
+				$yakklDappConnectRequestStore = requestId as string;
 
-			log.info('Dapp - accounts page loading:', false, { requestId });
+				log.info('Dapp - accounts page loading:', false, { requestId });
 
-			if (requestId) {
-				pass = true;
+				if (requestId) {
+					pass = true;
+				}
+				// NOTE: The internal check now makes sure the requestId is valid
+			} catch (e) {
+				log.error(e);
+				throw e;
 			}
-			// NOTE: The internal check now makes sure the requestId is valid
-		} catch (e) {
-			log.error(e);
-			throw e;
 		}
-	}
+	});
 
 	// NOTE: We need to think through the id and persona for each store and any wrappers and how best to handle them.
 	async function getAccounts() {

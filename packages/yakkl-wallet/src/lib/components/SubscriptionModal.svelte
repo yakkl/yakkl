@@ -133,7 +133,7 @@
 
       if (response.success) {
         // Update plan store
-        await planStore.upgradeTo(PlanType.PRO);
+        await planStore.upgradeTo(PlanType.YAKKL_PRO);
         
         step = 'confirmation';
         
@@ -203,9 +203,9 @@
 
   function getPlanFeatureColor(plan: any): string {
     switch (plan.type) {
-      case PlanType.BASIC:
+      case PlanType.EXPLORER_MEMBER:
         return 'text-gray-600 dark:text-gray-400';
-      case PlanType.PRO:
+      case PlanType.YAKKL_PRO:
         return 'text-blue-600 dark:text-blue-400';
       case PlanType.ENTERPRISE:
         return 'text-purple-600 dark:text-purple-400';
@@ -308,7 +308,7 @@
                     <button class="w-full p-3 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-lg cursor-not-allowed">
                       Current Plan
                     </button>
-                  {:else if plan.type === PlanType.PRO && !onTrial && userPlan === PlanType.BASIC}
+                  {:else if plan.type === PlanType.YAKKL_PRO && !onTrial && userPlan === PlanType.EXPLORER_MEMBER}
                     <!-- Show trial option for Pro plan -->
                     <button 
                       class="w-full p-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg font-semibold hover:from-purple-600 hover:to-pink-600 transition-all"

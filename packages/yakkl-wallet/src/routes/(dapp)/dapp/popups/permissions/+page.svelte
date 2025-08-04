@@ -56,21 +56,23 @@ import { browserAPI } from '$lib/services/browser-api.service';
 	let portManager: PortManagerWithStream | null = null;
 	let stream: PortDuplexStream | null = null;
 
-	if (browserSvelte) {
-		try {
-			requestId = page.url.searchParams.get('requestId');
-			method = (page.url.searchParams.get('method') as string) ?? '';
-			$yakklDappConnectRequestStore = requestId as string; // NOT SURE IF THIS IS NEEDED here
+	onMount(() => {
+		if (browserSvelte) {
+			try {
+				requestId = page.url.searchParams.get('requestId');
+				method = (page.url.searchParams.get('method') as string) ?? '';
+				$yakklDappConnectRequestStore = requestId as string; // NOT SURE IF THIS IS NEEDED here
 
-			if (requestId) {
-				pass = true;
+				if (requestId) {
+					pass = true;
+				}
+				// NOTE: The internal check now makes sure the requestId is valid
+			} catch (e) {
+				log.error(e);
+				handleReject('No requestId or method was found. Access to YAKKL® is denied.');
 			}
-			// NOTE: The internal check now makes sure the requestId is valid
-		} catch (e) {
-			log.error(e);
-			handleReject('No requestId or method was found. Access to YAKKL® is denied.');
 		}
-	}
+	});
 
 	// We no longer need to do get_params since we can access the request data directly
 	async function onMessageListener(event: any) {

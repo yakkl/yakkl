@@ -39,7 +39,8 @@ import {
 	STORAGE_YAKKL_TOKENDATA_CUSTOM,
 	STORAGE_YAKKL_COMBINED_TOKENS,
 	STORAGE_YAKKL_ADDRESS_TOKEN_HOLDINGS,
-	STORAGE_YAKKL_TOKEN_CACHE
+	STORAGE_YAKKL_TOKEN_CACHE,
+  STORAGE_YAKKL_WALLET_CACHE
 } from '$lib/common/constants';
 
 import { encryptData, decryptData } from '$lib/common/encryption';
@@ -66,7 +67,9 @@ import type {
 	ContractData,
 	TokenData,
 	MarketPriceData,
-	ActiveTab
+	ActiveTab,
+  AddressTokenHolding,
+  TokenCacheEntry
 } from '$lib/common/interfaces';
 
 import { walletStore, type Wallet } from '$lib/managers/Wallet';
@@ -81,6 +84,7 @@ import { log } from '$lib/common/logger-wrapper';
 import type { RSSItem } from '$lib/managers/ExtensionRSSFeedService';
 import { BigNumber, type BigNumberish } from '$lib/common/bignumber';
 import { browser_ext } from '$lib/common/environment';
+import { walletCacheStore } from '$lib/stores/wallet-cache.store';
 
 // Svelte writeable stores
 export const alert = writable({
@@ -183,31 +187,6 @@ export const yakklWalletBlockchainsStore = writable<string[]>([]);
 export const yakklTokenDataStore = writable<TokenData[]>([]); // This is the official list of default tokens that we check to see if the user has any positions in
 export const yakklTokenDataCustomStore = writable<TokenData[]>([]); // This is the official list of user added tokens that we check to see if the user has any positions in
 export const yakklCombinedTokenStore = writable<TokenData[]>([]); // This is the combined list of default and custom tokens. We use this instead of derived so we can control the reactiveness better
-
-// New stores for proper token holdings and caching
-export interface AddressTokenHolding {
-  walletAddress: string;      // The wallet address that holds tokens
-  chainId: number;           // Chain ID
-  tokenAddress: string;      // Token contract address
-  isNative: boolean;
-  symbol: string;            // Token symbol for quick reference
-  quantity: BigNumberish;          // Amount held
-  lastUpdated: Date;         // When balance was last fetched
-}
-
-export interface TokenCacheEntry {
-  walletAddress: string;
-  chainId: number;
-  tokenAddress: string;
-  isNative: boolean;
-  symbol: string;            // For quick reference
-  quantity: BigNumberish;
-  price: number;
-  value: BigNumberish;       // Changed from number
-  lastPriceUpdate: Date;
-  lastBalanceUpdate: Date;
-  priceProvider: string;     // Changed from provider to priceProvider
-}
 
 export const yakklAddressTokenHoldingsStore = writable<AddressTokenHolding[]>([]); // Tracks which addresses hold which tokens
 export const yakklTokenCacheStore = writable<TokenCacheEntry[]>([]); // Cache of last known prices and balances for instant display
@@ -359,13 +338,71 @@ export function storageChange(changes: any) {
 		if (changes.yakklTokenCache) {
 			yakklTokenCacheStore.set(changes.yakklTokenCache.newValue);
 		}
+		// Handle yakklWalletCache updates
+		if (changes.yakklWalletCache) {
+			// Import and update the wallet cache store
+        console.log('yakklWalletCache', changes.yakklWalletCache.newValue);
+        walletCacheStore.loadFromStorage();
+		}
 	} catch (error) {
 		log.error(error);
 		throw error;
 	}
 }
 
-export async function syncStorageToStore() {
+// Prioritized store loading for specific stores
+export async function syncStorageToStore(storeName?: string): Promise<void> {
+	if (storeName) {
+		// Load a specific store
+		try {
+			switch (storeName) {
+				case 'profileStore':
+				case 'profilesStore': {
+					const profileLocal = await getProfile();
+					setProfileStore(profileLocal ?? profile);
+					break;
+				}
+				case 'addressIndexStore':
+				case 'yakklAccounts': {
+					const yakklAccounts = await getYakklAccounts();
+					setYakklAccountsStore(yakklAccounts);
+					break;
+				}
+				case 'featurePlanStore':
+				case 'preferencesStore': {
+					const preferences = await getPreferences();
+					setPreferencesStore(preferences ?? yakklPreferences);
+					break;
+				}
+				case 'settingsStore': {
+					const settings = await getSettings();
+					setSettingsStore(settings ?? yakklSettings);
+					break;
+				}
+				case 'networkStore':
+				case 'yakklWalletBlockchains': {
+					const yakklWalletBlockchains = await getYakklWalletBlockchains();
+					yakklWalletBlockchainsStore.set(yakklWalletBlockchains);
+					break;
+				}
+				case 'primaryNetworkStore':
+				case 'yakklCurrentlySelected': {
+					const yakklCurrentlySelectedLocal = await getYakklCurrentlySelected();
+					setYakklCurrentlySelectedStore(yakklCurrentlySelectedLocal ?? yakklCurrentlySelected);
+					break;
+				}
+				default:
+					log.warn(`Unknown store name: ${storeName}`);
+					break;
+			}
+		} catch (error) {
+			log.error(`Error syncing store ${storeName}:`, false, error);
+			throw error;
+		}
+		return;
+	}
+
+	// Load all stores (original behavior)
 	try {
 		const [
 			preferences,
@@ -385,7 +422,7 @@ export async function syncStorageToStore() {
 			yakklAddressTokenHoldings,
 			yakklTokenCache,
       yakklWalletBlockchains,
-      yakklWalletProviders
+      yakklWalletProviders,
 		] = await Promise.all([
 			getPreferences(),
 			getSettings(),
@@ -404,7 +441,8 @@ export async function syncStorageToStore() {
 			getYakklAddressTokenHoldings(),
 			getYakklTokenCache(),
 			getYakklWalletBlockchains(),
-			getYakklWalletProviders()
+			getYakklWalletProviders(),
+      walletCacheStore.loadFromStorage()
 		]);
 
 		setPreferencesStore(preferences ?? yakklPreferences);

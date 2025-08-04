@@ -79,6 +79,15 @@ export function createSafeMessageHandler(
       }, timeout);
     });
 
+    // Check if the channel is still valid before starting async work
+    if (!validateChannel()) {
+      log.warn(`[${logPrefix}] Channel already closed, not processing message`, false, {
+        request: request.type || request.action || 'unknown'
+      });
+      // Return undefined to indicate we're not handling this message
+      return undefined;
+    }
+
     // Execute the handler with timeout protection
     Promise.race([
       handler(request, sender),
@@ -103,6 +112,10 @@ export function createSafeMessageHandler(
         } else {
           log.warn(`[${logPrefix}] Handler error but channel already closed:`, false, error);
         }
+      })
+      .finally(() => {
+        // Ensure we always clean up
+        channelClosed = true;
       });
 
     // Return true to indicate async response
