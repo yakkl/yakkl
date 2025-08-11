@@ -228,7 +228,7 @@ class ContentScriptManager {
 			try {
 				// Add a small delay to ensure background is ready
 				await new Promise(resolve => setTimeout(resolve, 100));
-				
+
 				this.port = browser.runtime.connect({ name: YAKKL_DAPP });
 			} catch (error) {
 				if (error instanceof Error) {
@@ -408,16 +408,18 @@ class ContentScriptManager {
 
 		// Handle runtime messages with extension context check
 		try {
-			browser.runtime.onMessage.addListener(
-				(
-					message: unknown,
-					sender: Runtime.MessageSender,
-					sendResponse: (response?: any) => void
-				): any => {
-					this.handleRuntimeMessage(message, sender, sendResponse);
-					return false;
-				}
-			);
+            browser.runtime.onMessage.addListener(
+                (
+                    message: unknown,
+                    sender: Runtime.MessageSender,
+                    sendResponse: (response?: any) => void
+                ): any => {
+                    this.handleRuntimeMessage(message, sender, sendResponse);
+                    // Return undefined so this content-script listener does NOT hijack
+                    // the one-off response intended for the background listener.
+                    return undefined;
+                }
+            );
 		} catch (error) {
 			if (error instanceof Error && error.message.includes('Extension context invalidated')) {
 				log.warn('Extension context invalidated during onMessage.addListener', false);
@@ -530,7 +532,7 @@ class ContentScriptManager {
 	}
 
 	// Handle runtime messages (security updates, etc.)
-	private handleRuntimeMessage(
+    private handleRuntimeMessage(
 		message: unknown,
 		sender: Runtime.MessageSender,
 		sendResponse: (response?: any) => void
@@ -552,7 +554,9 @@ class ContentScriptManager {
 			this.handleProviderEvent(typedMessage);
 		}
 
-		return false;
+        // Do not provide a synchronous return value to avoid hijacking the
+        // browser.runtime.sendMessage response resolution. Let background handle it.
+        return undefined;
 	}
 
 	// Forward request to background

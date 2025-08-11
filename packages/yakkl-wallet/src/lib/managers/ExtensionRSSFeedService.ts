@@ -2,6 +2,7 @@
 
 import { VERSION } from '$lib/common/constants';
 import { browser_ext } from '$lib/common/environment';
+import { log } from '$lib/common/logger-wrapper';
 
 export interface RSSItem {
 	title: string;
@@ -75,7 +76,7 @@ export class ExtensionRSSFeedService {
 
 			return feed;
 		} catch (error) {
-			console.error('Error fetching RSS feed:', error);
+			log.warn('Error fetching RSS feed:', false, error);
 
 			// Try to load from extension storage if fetch fails
 			const storedFeed = await this.loadFeedFromExtensionStorage(feedUrl);
@@ -169,21 +170,60 @@ export class ExtensionRSSFeedService {
 		url: string
 	): Promise<{ content: string; quality: 'complete' | 'partial' | 'minimal' }> {
 		try {
-			const response = await fetch(url, {
-				headers: {
-					'User-Agent': 'YAKKL Smart Wallet Extension/' + VERSION,
-					Accept: 'text/html,application/xhtml+xml'
-				}
-			});
-
-			if (!response.ok) {
-				throw new Error(`Failed to fetch article: ${response.statusText}`);
+			// Validate URL
+			if (!url || typeof url !== 'string') {
+				log.warn('Invalid URL provided for article fetch', false, { url });
+				return { content: '', quality: 'minimal' };
 			}
 
-			const html = await response.text();
-			return this.extractArticleContent(html);
+			// Add timeout to prevent hanging requests
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+			try {
+				const response = await fetch(url, {
+					headers: {
+						'User-Agent': 'YAKKL Smart Wallet Extension/' + VERSION,
+						Accept: 'text/html,application/xhtml+xml'
+					},
+					signal: controller.signal,
+					// Add more restrictive options for sidepanel context
+					credentials: 'omit',
+					mode: 'cors'
+				});
+
+				clearTimeout(timeoutId);
+
+				if (!response.ok) {
+					log.warn(`Article fetch failed with status: ${response.status}`, false, {
+						url,
+						status: response.status,
+						statusText: response.statusText
+					});
+					return { content: '', quality: 'minimal' };
+				}
+
+				const html = await response.text();
+				return this.extractArticleContent(html);
+			} catch (fetchError) {
+				clearTimeout(timeoutId);
+				
+				if (fetchError.name === 'AbortError') {
+					log.warn('Article fetch timeout', false, { url });
+				} else {
+					log.warn('Article fetch error', false, { 
+						url, 
+						error: fetchError.message,
+						type: fetchError.name 
+					});
+				}
+				return { content: '', quality: 'minimal' };
+			}
 		} catch (error) {
-			console.error('Error fetching article content:', error);
+			log.error('Unexpected error in fetchArticleContent', false, { 
+				url,
+				error: error instanceof Error ? error.message : String(error)
+			});
 			return { content: '', quality: 'minimal' };
 		}
 	}
@@ -380,14 +420,25 @@ export class ExtensionRSSFeedService {
 									contentQuality = this.assessContentQuality(content, content.split(/\s+/).length);
 								} else if (itemLink) {
 									// If no content:encoded or content is too short, try to fetch full article
-									const result = await this.fetchArticleContent(itemLink);
-									if (result.content) {
-										content = result.content;
-										contentQuality = result.quality;
+									try {
+										const result = await this.fetchArticleContent(itemLink);
+										if (result.content) {
+											content = result.content;
+											contentQuality = result.quality;
+										}
+									} catch (fetchError) {
+										log.warn('Failed to fetch article content', false, {
+											url: itemLink,
+											error: fetchError instanceof Error ? fetchError.message : String(fetchError)
+										});
+										// Keep the fallback content from description
 									}
 								}
 							} catch (error) {
-								console.error('Error processing article content:', error);
+								log.error('Error processing article content', false, {
+									title: itemTitle,
+									error: error instanceof Error ? error.message : String(error)
+								});
 								// Keep the fallback content from description
 							}
 						}

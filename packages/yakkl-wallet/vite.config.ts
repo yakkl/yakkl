@@ -61,9 +61,8 @@ export default defineConfig(({ mode }) => {
 				$managers: path.resolve('./src/lib/managers'),
 				$plugins: path.resolve('./src/lib/plugins'),
 				$contexts: path.resolve('./src/contexts'),
-				// For build time, use the import wrapper to handle both SSR and client
-				'webextension-polyfill': path.resolve(__dirname, 'src/lib/browser-polyfill-wrapper.ts'),
-				// 'webextension-polyfill': path.resolve(__dirname, 'node_modules/webextension-polyfill/dist/browser-polyfill.js'),
+				// Let webextension-polyfill resolve normally
+				// The mock plugin will handle SSR, and the unified loader handles client
 				stream: 'stream-browserify',
 				net: 'net-browserify',
 				fs: path.resolve(__dirname, 'empty.js'),
@@ -140,7 +139,8 @@ export default defineConfig(({ mode }) => {
 				include: [/node_modules/]
 			},
 			rollupOptions: {
-				external: ['webextension-polyfill'],
+				// Don't externalize webextension-polyfill, let it be bundled
+			// external: ['webextension-polyfill'],
 				plugins: [
 					// Prevent webextension-polyfill from being loaded during build
 					// {

@@ -1,20 +1,24 @@
 {
 	"extends": "./.svelte-kit/tsconfig.json",
 	"compilerOptions": {
-		"baseUrl": "./",
+		"baseUrl": ".",
 		"paths": {
 			"$lib": ["src/lib"],
 			"$lib/*": ["src/lib/*"],
+			"$base": ["src"],
+			"$base/*": ["src/*"],
+			"$static": ["src/static"],
+			"$static/*": ["src/static/*"],
+			"$components": ["src/lib/components"],
+			"$components/*": ["src/lib/components/*"],
+			"$routes": ["src/routes"],
+			"$routes/*": ["src/routes/*"],
 			"$managers": ["src/lib/managers"],
 			"$managers/*": ["src/lib/managers/*"],
 			"$plugins": ["src/lib/plugins"],
 			"$plugins/*": ["src/lib/plugins/*"],
-			"$components": ["src/lib/components"],
-			"$components/*": ["src/lib/components/*"],
 			"$contexts": ["src/contexts"],
-			"$contexts/*": ["src/contexts/*"],
-			"@yakkl/*": ["./packages/*/src"],
-			"lucide-svelte/icons/*": ["node_modules/lucide-svelte/dist/icons/*"]
+			"$contexts/*": ["src/contexts/*"]
 		},
 		"verbatimModuleSyntax": true,
 		"allowSyntheticDefaultImports": true,

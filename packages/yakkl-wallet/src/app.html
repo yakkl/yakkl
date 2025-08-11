@@ -22,7 +22,8 @@
 		<link rel="stylesheet" type="text/css" href="/css/inter.css" />
 
 		<script src="/js/init-polyfill.js"></script>
-		<!-- <script src="/ext/browser-polyfill.js"></script> -->
+		<!-- Browser Extension Polyfill - Loaded first to ensure availability -->
+		<script src="/ext/browser-polyfill.js" defer data-browser-polyfill="true"></script>
 
 		<style>
 			@media print {

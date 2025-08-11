@@ -3,10 +3,10 @@ export default function mockBrowserPolyfill() {
 	return {
 		name: 'mock-browser-polyfill',
 		enforce: 'pre', // Run before other plugins
-		resolveId(id, importer) {
-			// Check if the import is for webextension-polyfill
-			if (id === 'webextension-polyfill' || id.includes('webextension-polyfill')) {
-				console.log(`[mock-browser-polyfill] Intercepting import: ${id} from ${importer}`);
+		resolveId(id, importer, options) {
+			// Only mock during SSR, not for client builds
+			if (options?.ssr && (id === 'webextension-polyfill' || id.includes('webextension-polyfill'))) {
+				console.log(`[mock-browser-polyfill] Intercepting SSR import: ${id} from ${importer}`);
 				// Return a custom id that our plugin will handle
 				return 'virtual:browser-polyfill-mock';
 			}

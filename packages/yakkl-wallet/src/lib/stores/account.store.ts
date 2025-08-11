@@ -5,6 +5,8 @@ import { WalletService } from '../services/wallet.service';
 import { getYakklCurrentlySelected, setYakklCurrentlySelectedStorage } from './account-utils';
 import { walletCacheStore } from './wallet-cache.store';
 import { tokenStore } from './token.store';
+import { log } from '$lib/common/logger-wrapper';
+import { ethers } from 'ethers-v6';
 
 interface AccountState {
   accounts: AccountDisplay[];
@@ -34,6 +36,8 @@ function createAccountStore() {
 
       const response = await walletService.getAccounts();
 
+      console.log('loadAccounts:>>>>>>>>>>>>>>>>>>>', response);
+
       if (response.success && response.data) {
         // Update accounts but don't fetch balances here - let token store handle that
         update(state => ({
@@ -47,27 +51,24 @@ function createAccountStore() {
         const currentResponse = await walletService.getCurrentAccount();
         if (currentResponse.success && currentResponse.data) {
           // Fetch real balance for current account
-          console.log('[AccountStore] Fetching balance for:', currentResponse.data.address);
+          log.info('[AccountStore] Fetching balance for:', false, currentResponse.data.address);
           const balanceResponse = await walletService.getBalance(currentResponse.data.address);
-          console.log('[AccountStore] Balance response:', balanceResponse);
+          log.info('[AccountStore] Balance response:', false, balanceResponse);
           if (balanceResponse.success && balanceResponse.data) {
             // Balance might already be in ETH format (decimal string) or Wei (bigint/string)
             let balanceInEth: string;
-            
+
             // Check if the balance is already a decimal string (ETH format)
             if (typeof balanceResponse.data === 'string' && balanceResponse.data.includes('.')) {
               // Already in ETH format
               balanceInEth = balanceResponse.data;
             } else {
-              // Convert from Wei to ETH
-              const { ethers } = await import('ethers-v6');
+              // Convert from Wei to ETH (using static import)
               balanceInEth = ethers.formatEther(balanceResponse.data);
             }
-            
+
             currentResponse.data.balance = balanceInEth;
-            console.log('[AccountStore] Set balance:', balanceInEth, 'ETH for', currentResponse.data.address);
-          } else {
-            console.error('[AccountStore] Failed to fetch balance:', balanceResponse ? balanceResponse?.error ?? 'No balance response' : 'No balance response');
+            log.info('[AccountStore] Set balance:', false, balanceInEth, 'ETH for', currentResponse.data.address);
           }
 
           update(state => ({
@@ -87,6 +88,8 @@ function createAccountStore() {
     async switchAccount(address: string) {
       const response = await walletService.switchAccount(address);
 
+      console.log('switchAccount:>>>>>>>>>>>>>>>>>>>', response);
+      
       if (response.success) {
         // Find the account first
         const currentState = get({ subscribe });
@@ -94,27 +97,26 @@ function createAccountStore() {
 
         if (account) {
           // Fetch fresh balance for the new account
-          console.log('[AccountStore] Switching account - fetching balance for:', address);
+          log.info('[AccountStore] Switching account - fetching balance for:', false, address);
           const balanceResponse = await walletService.getBalance(address);
-          console.log('[AccountStore] Switch account balance response:', balanceResponse);
+          log.info('[AccountStore] Switch account balance response:', false, balanceResponse);
           if (balanceResponse.success && balanceResponse.data) {
             // Balance might already be in ETH format (decimal string) or Wei (bigint/string)
             let balanceInEth: string;
-            
+
             // Check if the balance is already a decimal string (ETH format)
             if (typeof balanceResponse.data === 'string' && balanceResponse.data.includes('.')) {
               // Already in ETH format
               balanceInEth = balanceResponse.data;
             } else {
-              // Convert from Wei to ETH
-              const { ethers } = await import('ethers-v6');
+              // Convert from Wei to ETH (using static import)
               balanceInEth = ethers.formatEther(balanceResponse.data);
             }
-            
+
             account.balance = balanceInEth;
-            console.log('[AccountStore] Switch account - set balance:', balanceInEth, 'ETH');
+            log.info('[AccountStore] Switch account - set balance:', false, balanceInEth, 'ETH');
           } else {
-            console.error('[AccountStore] Switch account - failed to fetch balance:', balanceResponse.error);
+            log.warn('[AccountStore] Switch account - failed to fetch balance:',false, balanceResponse.error);
           }
         }
 
@@ -134,13 +136,13 @@ function createAccountStore() {
             if (currentlySelected.shortcuts) {
               currentlySelected.shortcuts.address = address;
               await setYakklCurrentlySelectedStorage(currentlySelected);
-              console.log('[AccountStore] Persisted account switch to:', address);
+              log.info('[AccountStore] Persisted account switch to:', address);
             } else {
-              console.warn('[AccountStore] No shortcuts object in currentlySelected, cannot persist account switch');
+              log.warn('[AccountStore] No shortcuts object in currentlySelected, cannot persist account switch');
             }
           }
         } catch (error) {
-          console.error('[AccountStore] Failed to persist account switch:', error);
+          log.warn('[AccountStore] Failed to persist account switch:', false, error);
         }
 
         // Update wallet cache store with the new active account

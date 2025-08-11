@@ -1,6 +1,7 @@
 // $lib/common/environment.ts
 import { log } from '$lib/managers/Logger';
 import type { Browser } from 'webextension-polyfill';
+import { getBrowserSync, getBrowserAsync, initializeBrowserPolyfill, browserExtension } from './browser-polyfill-unified';
 
 // Use a more generic type or create your own
 type BrowserAPI = Browser; // or create a proper interface in your types file
@@ -36,7 +37,7 @@ const mockBrowser = {
 			clear: () => Promise.resolve()
 		}
 	}
-};
+} as unknown as BrowserAPI;
 
 // Set up mocks during SSR to prevent webextension-polyfill errors
 if (!isClient && typeof globalThis !== 'undefined') {
@@ -48,89 +49,43 @@ if (!isClient && typeof globalThis !== 'undefined') {
 	}
 }
 
-// Dynamic browser API loader to avoid SSR issues
-let cachedBrowserAPI: BrowserAPI | null = null;
-let apiLoadAttempted = false;
-
-async function loadBrowserAPI(): Promise<BrowserAPI | null> {
-	// if (!isClient) return null;
-  // Testing having the above commented out
-
-	if (apiLoadAttempted) return cachedBrowserAPI;
-	apiLoadAttempted = true;
-
-	try {
-		// Try to dynamically import webextension-polyfill
-		const browserModule = await import('$lib/browser-polyfill-wrapper');
-		const browser = browserModule.default;
-		cachedBrowserAPI = browser;
-		return browser;
-	} catch (error) {
-		log.warn('Could not load webextension-polyfill, falling back to native APIs:', error);
-
-		// Fallback to native browser APIs
-		try {
-			if ((window as any).browser) {
-				cachedBrowserAPI = (window as any).browser;
-				return cachedBrowserAPI;
-			}
-
-			if ((window as any).chrome && (window as any).chrome.runtime) {
-				cachedBrowserAPI = (window as any).chrome;
-				return cachedBrowserAPI;
-			}
-		} catch (err) {
-			log.error('Error accessing native browser APIs:', err);
-		}
-	}
-
-	cachedBrowserAPI = null;
-	return null;
-}
-
-// Get the browser API from dynamic import or global
+// Get the browser API from unified loader
 export async function getBrowserExtFromGlobal(): Promise<BrowserAPI | null> {
-	// if (!isClient) return null;
-  // Testing having the above commented out
+	if (!isClient) return mockBrowser;
 
-  log.info('Loading browser API from global', false);
+	log.info('Loading browser API from unified loader', false);
 	try {
-		return await loadBrowserAPI();
+		return await getBrowserAsync();
 	} catch (err) {
-		log.error('Error accessing browser API:', err);
+		log.warn('Error accessing browser API:', false, err);
 		return null;
 	}
 }
 
-// Synchronous version for backward compatibility (but prefer async version)
+// Synchronous version for backward compatibility
 export function getBrowserExt(): BrowserAPI | null {
-	if (!isClient) return null;
+	if (!isClient) return mockBrowser;
 
-	// Return cached version if available
-	if (cachedBrowserAPI) return cachedBrowserAPI;
+	// Use the synchronous getter from unified loader
+	const browser = getBrowserSync();
+	if (browser) return browser;
 
-	// Try native APIs as fallback for sync access
-	try {
-		if ((window as any).browser) {
-			return (window as any).browser;
-		}
-
-		if ((window as any).chrome && (window as any).chrome.runtime) {
-			return (window as any).chrome;
-		}
-	} catch (err) {
-		log.error('Error accessing browser API from global:', err);
-	}
+	// If not loaded yet, trigger initialization
+	initializeBrowserPolyfill().catch(err => {
+		log.warn('Failed to initialize browser polyfill:', false, err);
+	});
 
 	return null;
 }
 
-// For backward compatibility - but this will be null until async load completes
-export const browser_ext = isClient ? await getBrowserExtFromGlobal() : null;
-export const browserSvelte = isClient && !!browser_ext;
+// Use the proxy from unified loader for immediate access
+// This will work synchronously if already loaded, or async if not
+export const browser_ext: BrowserAPI = isClient ? browserExtension : mockBrowser;
+export const browserSvelte = true; // Always true now since we have mock for SSR
 
 export function isBrowserEnv(): boolean {
-	return isClient && getBrowserExt() !== null;
+	// With unified loader, we can always return true in client
+	return isClient;
 }
 
 // Async version for new code
@@ -138,4 +93,13 @@ export async function isBrowserEnvAsync(): Promise<boolean> {
 	if (!isClient) return false;
 	const api = await getBrowserExtFromGlobal();
 	return api !== null;
+}
+
+// Initialize browser API on module load (non-blocking)
+if (isClient) {
+	initializeBrowserPolyfill().then(() => {
+		log.info('Browser polyfill initialized successfully', false);
+	}).catch(err => {
+		log.warn('Browser polyfill initialization failed:', false, err);
+	});
 }

@@ -1,5 +1,6 @@
 import { derived } from 'svelte/store';
-import { browser } from '$app/environment';
+// Check if we're in a browser environment
+const browser = typeof window !== 'undefined';
 import type { LoadingState, ErrorState } from '../types';
 import {
   walletCacheStore,
@@ -42,44 +43,77 @@ function createTokenStore() {
   async function initialize() {
     log.info('[TokenStore] Initializing...', false);
 
-    // Initialize wallet cache from storage
-    await walletCacheStore.initialize();
+    try {
+      // CRITICAL FIX: Ensure wallet cache is properly initialized first
+      log.info('[TokenStore] Step 1: Initializing wallet cache from storage...', false);
+      await walletCacheStore.initialize();
 
-    // Initialize current account cache if needed
-    await syncManager.initializeCurrentAccount();
-
-    // Start auto-sync only in browser
-    if (browser) {
-      syncManager.startAutoSync();
-    }
-
-    // Set up listeners after initialization to avoid circular dependency
-    if (browser) {
-      try {
-        // Dynamically import currentAccount after initialization to avoid circular dependency
-        const { currentAccount } = await import('./account.store');
-
-        // Listen for account changes
-        currentAccount.subscribe(async (account) => {
-          if (account) {
-            log.info('[TokenStore] Account changed, initializing cache...', false);
-            await syncManager.initializeCurrentAccount();
-          }
-        });
-      } catch (error) {
-        log.error('[TokenStore] Failed to set up account listener:', false, error);
+      // CRITICAL FIX: Initialize current account cache with retry logic
+      log.info('[TokenStore] Step 2: Initializing current account cache...', false);
+      await syncManager.initializeCurrentAccount();
+      
+      // CRITICAL FIX: Ensure rollups are always calculated on initial load
+      log.info('[TokenStore] Step 3: Calculating rollups...', false);
+      const cacheState = walletCacheStore.getCacheSync();
+      if (cacheState) {
+        // Always calculate rollups on initialization to ensure UI shows values
+        log.info('[TokenStore] Calculating initial rollups to ensure UI shows values...', false);
+        await walletCacheStore.calculateAllRollups();
+        
+        // Mark cache as having been loaded
+        walletCacheStore.setHasEverLoaded(true);
       }
 
-      // Listen for chain changes
-      currentChain.subscribe(async (chain) => {
-        if (chain) {
-          log.info('[TokenStore] Chain changed, initializing cache...', false);
-          await syncManager.initializeCurrentAccount();
-        }
-      });
-    }
+      // Start auto-sync only in browser
+      if (browser) {
+        log.info('[TokenStore] Step 4: Starting auto-sync...', false);
+        syncManager.startAutoSync();
+      }
 
-    log.info('[TokenStore] Initialization complete', false);
+      // Set up listeners after initialization to avoid circular dependency
+      if (browser) {
+        try {
+          // EXCEPTION: Dynamic import required here to avoid circular dependency
+          // account.store imports token.store, so we can't statically import it back
+          const { currentAccount } = await import('./account.store');
+
+          // Listen for account changes with better error handling
+          currentAccount.subscribe(async (account) => {
+            if (account) {
+              log.info('[TokenStore] Account changed, initializing cache...', false, account.address);
+              try {
+                await syncManager.initializeCurrentAccount();
+                // Ensure rollups are recalculated for new account
+                await walletCacheStore.calculateAllRollups();
+              } catch (error) {
+                log.error('[TokenStore] Failed to initialize cache for account change:', false, error);
+              }
+            }
+          });
+        } catch (error) {
+          log.error('[TokenStore] Failed to set up account listener:', false, error);
+        }
+
+        // Listen for chain changes with better error handling
+        currentChain.subscribe(async (chain) => {
+          if (chain) {
+            log.info('[TokenStore] Chain changed, initializing cache...', false, chain.chainId);
+            try {
+              await syncManager.initializeCurrentAccount();
+              // Ensure rollups are recalculated for new chain
+              await walletCacheStore.calculateAllRollups();
+            } catch (error) {
+              log.error('[TokenStore] Failed to initialize cache for chain change:', false, error);
+            }
+          }
+        });
+      }
+
+      log.info('[TokenStore] Initialization complete successfully', false);
+    } catch (error) {
+      log.error('[TokenStore] Initialization failed:', false, error);
+      // Don't throw - allow the app to continue with degraded functionality
+    }
   }
 
   // Run initialization only in browser
@@ -97,13 +131,26 @@ function createTokenStore() {
       }));
 
       try {
+        // CRITICAL FIX: Ensure cache is properly initialized before refresh
+        log.info('[TokenStore] Starting refresh - ensuring cache initialization...', false);
+        
+        // First ensure cache is initialized
+        await syncManager.initializeCurrentAccount();
+        
+        // Then sync current account data
         await syncManager.syncCurrentAccount();
+        
+        // CRITICAL: Always recalculate rollups after refresh to ensure UI shows values
+        log.info('[TokenStore] Refresh complete - recalculating rollups...', false);
+        await walletCacheStore.calculateAllRollups();
 
         update(state => ({
           ...state,
           loading: { isLoading: false },
           error: { hasError: false }
         }));
+        
+        log.info('[TokenStore] Refresh completed successfully', false);
       } catch (error) {
         log.warn('[TokenStore] Refresh failed:', false, error);
         update(state => ({
@@ -264,16 +311,27 @@ export const networkTotalValue = derived(
   ([$cache, $chain]) => {
     if (!$chain) return 0;
 
-    let total = 0;
+    let totalValue = 0n;
     const chainCache = $cache.chainAccountCache[$chain.chainId];
 
     if (chainCache) {
       Object.values(chainCache).forEach(accountCache => {
-        total += accountCache.portfolio.totalValue;
+        try {
+          const portfolioValue = accountCache.portfolio?.totalValue;
+          if (portfolioValue !== undefined && portfolioValue !== null) {
+            const bigIntValue = BigNumber.toBigInt(portfolioValue);
+            if (bigIntValue !== null) {
+              totalValue += bigIntValue;
+            }
+          }
+        } catch (err) {
+          // Silently ignore invalid portfolio values
+          console.warn('Invalid portfolio value in network total:', accountCache.portfolio?.totalValue);
+        }
       });
     }
 
-    return total;
+    return totalValue;
   }
 );
 
@@ -281,14 +339,29 @@ export const networkTotalValue = derived(
 export const grandTotalPortfolioValue = derived(
   walletCacheStore,
   $cache => {
-    let total = 0;
+    let totalValue = 0n;
 
-    Object.values($cache.chainAccountCache).forEach(chainData => {
-      Object.values(chainData).forEach(accountCache => {
-        total += accountCache.portfolio.totalValue;
+    try {
+      Object.values($cache.chainAccountCache).forEach(chainData => {
+        Object.values(chainData).forEach(accountCache => {
+          try {
+            const portfolioValue = accountCache.portfolio?.totalValue;
+            if (portfolioValue !== undefined && portfolioValue !== null) {
+              const bigIntValue = BigNumber.toBigInt(portfolioValue);
+              if (bigIntValue !== null) {
+                totalValue += bigIntValue;
+              }
+            }
+          } catch (err) {
+            // Silently ignore invalid portfolio values
+            console.warn('Invalid portfolio value:', accountCache.portfolio?.totalValue);
+          }
+        });
       });
-    });
-
-    return total;
+    } catch (error) {
+      console.error('Error calculating grand total portfolio value:', error);
+    }
+    
+    return totalValue;
   }
 );

@@ -31,7 +31,7 @@ function createPlanStore() {
         // Get plan from settings
         const settings = await getSettings();
         const planType = settings?.plan?.type || PlanType.EXPLORER_MEMBER;
-        const trialEndsAt = (settings as any)?.plan?.trialEndsAt as string | undefined;
+        const trialEndsAt = (settings as any)?.plan?.trialEndsAt as string || null;
 
         // Check if user is on trial
         const onTrial = isTrialUser(trialEndsAt);
@@ -175,7 +175,7 @@ function createPlanStore() {
         update(state => ({
           ...state,
           plan: {
-            type: PlanType.YAKKL_PRO, // Trial gives Pro features
+            type: PlanType.YAKKL_PRO, // Trial gives Pro features - If still in specific date range, give Early Adopter or Founding Member perks - all are Pro features
             features: getFeaturesForPlan(PlanType.YAKKL_PRO) as string[],
             trialEndsAt: trialEndsAt.toISOString(),
             subscriptionId: null
@@ -193,7 +193,8 @@ function createPlanStore() {
     },
 
     getUpgradeOptions(currentPlan: PlanType) {
-      const plans = [PlanType.EXPLORER_MEMBER, PlanType.YAKKL_PRO, PlanType.ENTERPRISE];
+      // Note: Need to check dates to see if planType.EARLY_ADOPTER or planType.FOUNDING_MEMBER are still active
+      const plans = [PlanType.EXPLORER_MEMBER, PlanType.YAKKL_PRO, PlanType.EARLY_ADOPTER, PlanType.FOUNDING_MEMBER, PlanType.ENTERPRISE];
       const currentIndex = plans.indexOf(currentPlan);
       return plans.slice(currentIndex + 1);
     },
@@ -241,12 +242,12 @@ export const currentPlan = derived(
 
 export const isProUser = derived(
   planStore,
-  $store => $store.plan.type === PlanType.YAKKL_PRO || $store.plan.type === PlanType.ENTERPRISE
+  $store => $store?.plan?.type === (PlanType.YAKKL_PRO || $store.plan.type === PlanType.ENTERPRISE || $store.plan.type === PlanType.EARLY_ADOPTER || $store.plan.type === PlanType.FOUNDING_MEMBER)
 );
 
 export const isOnTrial = derived(
   planStore,
-  $store => isTrialUser($store.plan.trialEndsAt)
+  $store => isTrialUser($store?.plan?.trialEndsAt)
 );
 
 export const availableFeatures = derived(

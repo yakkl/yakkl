@@ -7,6 +7,7 @@
   import { getSettings } from '$lib/common/stores';
   import type { Settings } from '$lib/common/interfaces';
   import { Bell, BellOff, X, AlertTriangle, Info, CheckCircle, XCircle, Clock, Volume2 } from 'lucide-svelte';
+  import { addSafeMessageListener } from '$lib/common/messageChannelWrapper';
 
   // Notification types
   type NotificationType = 'info' | 'success' | 'warning' | 'error' | 'security' | 'lockdown';
@@ -33,6 +34,7 @@
   let lockdownTimeLeft = $state(0);
   let isUrgent = $state(false);
   let settings = $state<Settings | null>(null);
+  let removeMessageListener: (() => void) | null = null;
 
   // Audio context for playing sounds
   let audioContext: AudioContext | null = null;
@@ -118,8 +120,8 @@
 
     loadSettings();
 
-    const messageListener = (message: any, sender: any, sendResponse: any): true => {
-      if (!message || typeof message !== 'object') return true;
+    const messageListener = (message: any, sender: any, sendResponse: any): void => {
+      if (!message || typeof message !== 'object') return;
 
       // Handle different notification types
       switch (message.type) {
@@ -158,8 +160,6 @@
           dismissAll();
           break;
       }
-
-      return true;
     };
 
     // Event listeners
@@ -175,18 +175,16 @@
       }
     };
 
-    // Add listeners
-    if (browser_ext.runtime?.onMessage) {
-      browser_ext.runtime.onMessage.addListener(messageListener);
-    }
+    // Add safe message listener
+    removeMessageListener = addSafeMessageListener(messageListener);
 
     window.addEventListener('yakklIdleStateChanged', handleIdleStateChange as EventListener);
     window.addEventListener('yakklUserActivityDetected', handleUserActivity);
 
     return () => {
       // Cleanup
-      if (browser_ext.runtime?.onMessage) {
-        browser_ext.runtime.onMessage.removeListener(messageListener);
+      if (removeMessageListener) {
+        removeMessageListener();
       }
 
       window.removeEventListener('yakklIdleStateChanged', handleIdleStateChange as EventListener);
@@ -388,7 +386,7 @@
 <!-- Lockdown Bar -->
 {#if isLockdownActive}
   <div
-    class="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg border-b-2 border-red-500"
+    class="fixed top-0 left-0 right-0 z-[1001] bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg border-b-2 border-red-500"
     class:animate-pulse={isUrgent}
     transition:fly={{ y: -100, duration: 400 }}
   >

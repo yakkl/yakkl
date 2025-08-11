@@ -47,8 +47,8 @@
 
   let audioContext: AudioContext | null = null;
 
-  onMount(async () => {
-    await loadSettings();
+  onMount(() => {
+    loadSettings();
     
     return () => {
       if (audioContext) {

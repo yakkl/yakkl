@@ -1,0 +1,68 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/pre-write-checkpoint.sh"
+          },
+          {
+            "type": "command", 
+            "command": ".claude/hooks/task-complete-notify.sh"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/compile-check.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/post-edit-checkpoint.sh"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/task-complete-notify.sh"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/compile-check.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/pre-multi-edit-checkpoint.sh"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/task-complete-notify.sh"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/compile-check.sh"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/analyze-risk-checkpoint.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

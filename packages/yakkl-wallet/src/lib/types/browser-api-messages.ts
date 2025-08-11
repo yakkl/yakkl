@@ -61,6 +61,16 @@ export enum BrowserAPIMessageType {
   BROWSER_API_ALARMS_GET = 'BROWSER_API_ALARMS_GET',
   BROWSER_API_ALARMS_GET_ALL = 'BROWSER_API_ALARMS_GET_ALL',
   
+  // Action API (chrome.action or browser.action)
+  BROWSER_API_ACTION_SET_ICON = 'BROWSER_API_ACTION_SET_ICON',
+  BROWSER_API_ACTION_SET_BADGE_TEXT = 'BROWSER_API_ACTION_SET_BADGE_TEXT',
+  BROWSER_API_ACTION_SET_BADGE_BACKGROUND_COLOR = 'BROWSER_API_ACTION_SET_BADGE_BACKGROUND_COLOR',
+  BROWSER_API_ACTION_GET_BADGE_TEXT = 'BROWSER_API_ACTION_GET_BADGE_TEXT',
+  BROWSER_API_ACTION_SET_TITLE = 'BROWSER_API_ACTION_SET_TITLE',
+  
+  // Runtime Error API
+  BROWSER_API_RUNTIME_GET_LAST_ERROR = 'BROWSER_API_RUNTIME_GET_LAST_ERROR',
+  
   // Encryption API (Background only)
   YAKKL_ENCRYPT = 'YAKKL_ENCRYPT',
   YAKKL_DECRYPT = 'YAKKL_DECRYPT',
@@ -162,5 +172,40 @@ export interface RuntimeConnectPayload {
   connectInfo?: {
     name?: string;
     includeTlsChannelId?: boolean;
+  };
+}
+
+// Action API Payloads
+export interface ActionSetIconPayload {
+  details: {
+    path?: string | { [size: string]: string };
+    tabId?: number;
+  };
+}
+
+export interface ActionSetBadgeTextPayload {
+  details: {
+    text: string;
+    tabId?: number;
+  };
+}
+
+export interface ActionSetBadgeBackgroundColorPayload {
+  details: {
+    color: string | number[];
+    tabId?: number;
+  };
+}
+
+export interface ActionGetBadgeTextPayload {
+  details: {
+    tabId?: number;
+  };
+}
+
+export interface ActionSetTitlePayload {
+  details: {
+    title: string;
+    tabId?: number;
   };
 }

@@ -256,20 +256,43 @@ export function getExplorerApiConfig(chainId: number, isBackgroundContext: boole
   if (chain) {
     // Get API key from environment variable based on chain
     let apiKey = '';
-    
+
     // Only use environment variables in background context
-    if (isBackgroundContext && chain.explorerApiUrl?.includes('etherscan.io')) {
+    if (isBackgroundContext) {
       // In background context (webpack), use process.env
-      apiKey = process.env.ETHERSCAN_API_KEY || '';
+      // Check for different explorer types
+      if (chain.explorerApiUrl?.includes('etherscan.io')) {
+        apiKey = process.env.ETHERSCAN_API_KEY || '';
+      } else if (chain.explorerApiUrl?.includes('basescan.org')) {
+        apiKey = process.env.BASESCAN_API_KEY || process.env.ETHERSCAN_API_KEY || '';
+      } else if (chain.explorerApiUrl?.includes('ftmscan.com')) {
+        apiKey = process.env.FTMSCAN_API_KEY || process.env.ETHERSCAN_API_KEY || '';
+      } else {
+        // For other explorers, try to use a generic API key
+        apiKey = process.env.ETHERSCAN_API_KEY || '';
+      }
     }
     // Never expose API keys in client context
-    
-    return {
+
+    const config = {
       name: chain.name,
       baseUrl: chain.explorerApiUrl || '',
       apiKey,
       chainId: chain.chainId
     };
+
+    // Debug log in background context
+    if (isBackgroundContext) {
+      console.log('Explorer API Config:', {
+        chainId,
+        name: config.name,
+        baseUrl: config.baseUrl,
+        hasApiKey: !!config.apiKey,
+        apiKeyLength: config.apiKey?.length || 0
+      });
+    }
+
+    return config;
   }
   return null;
 }

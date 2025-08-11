@@ -8,7 +8,11 @@ import { log } from '$lib/managers/Logger';
 // Coingecko does not update their prices as frequently as other providers so it may appear that prices look like an arbitrage opportunity but it may not be.
 export class CoingeckoPriceProvider implements PriceProvider {
 	getAPIKey(): string {
-		return import.meta.env.VITE_COINGECKO_API_KEY;
+    if (typeof window !== 'undefined') {
+      return import.meta.env.VITE_COINGECKO_API_KEY;
+    } else {
+      return process.env.COINGECKO_API_KEY; // Only background context
+    }
 	}
 
 	getName() {
@@ -60,7 +64,7 @@ export class CoingeckoPriceProvider implements PriceProvider {
 				message: 'Success'
 			};
 		} catch (e: any) {
-			log.error('CoingeckoPriceProvider - getPrice - error', e);
+			log.error('CoingeckoPriceProvider - getPrice - error', false, e);
 
 			let status = 404; // Default status
 			let message = `Error - ${e}`;

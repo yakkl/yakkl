@@ -28,8 +28,8 @@
   let selectedCategory = $state('all');
 
   // Reactive stores
-  let loadedExtensions = $derived($extensions as Extension[]);
-  let discovered = $derived($discoveredExtensions as Extension[]);
+  let loadedExtensions: Extension[] = $derived($extensions as Extension[]);
+  let discovered: Extension[] = $derived($discoveredExtensions as Extension[]);
 
   // Categories for filtering
   const categories = [

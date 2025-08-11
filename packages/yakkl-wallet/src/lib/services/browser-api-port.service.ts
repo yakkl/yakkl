@@ -12,7 +12,8 @@ import {
   type BrowserAPIResponse,
   type BrowserAPIError
 } from '$lib/types/browser-api-messages';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
+import { isChannelClosedError } from '$lib/common/messageChannelWrapper';
 
 interface PortMessage {
   id: string;
@@ -40,8 +41,11 @@ class BrowserAPIPortService {
   private isConnecting = false;
   
   private constructor() {
-    console.log('[BrowserAPIPort] Service initialized');
-    this.connect();
+    log.info('[BrowserAPIPort] Service initialized');
+    // Only connect in browser environment
+    if (typeof window !== 'undefined') {
+      this.connect();
+    }
   }
   
   static getInstance(): BrowserAPIPortService {
@@ -57,6 +61,12 @@ class BrowserAPIPortService {
   private async connect(): Promise<boolean> {
     if (this.isConnecting || this.port) {
       return !!this.port;
+    }
+    
+    // Check if we're in browser environment
+    if (typeof window === 'undefined') {
+      log.warn('[BrowserAPIPort] Cannot connect - not in browser environment');
+      return false;
     }
     
     this.isConnecting = true;
@@ -81,7 +91,7 @@ class BrowserAPIPortService {
       
     } catch (error) {
       this.isConnecting = false;
-      log.error('[BrowserAPIPort] Failed to connect:', false, error);
+      log.warn('[BrowserAPIPort] Failed to connect:', false, error);
       
       if (this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
         const delay = this.RECONNECT_DELAY * Math.pow(2, this.reconnectAttempts);
@@ -195,14 +205,34 @@ class BrowserAPIPortService {
         clearTimeout(timeout);
         this.pendingRequests.delete(id);
         
-        // Port might be disconnected, try to reconnect and retry
-        if (retries < this.MAX_RETRIES) {
+        // Check if this is a disconnected port error
+        if (isChannelClosedError(error)) {
+          log.warn('[BrowserAPIPort] Port disconnected during send, attempting reconnect:', false, {
+            messageId: id,
+            retries,
+            error: error.message
+          });
+          
+          // Mark port as disconnected and try to reconnect
           this.port = null;
-          this.sendPortRequest<T>(type, payload, retries + 1)
-            .then(resolve)
-            .catch(reject);
+          
+          if (retries < this.MAX_RETRIES) {
+            this.sendPortRequest<T>(type, payload, retries + 1)
+              .then(resolve)
+              .catch(reject);
+          } else {
+            reject(new Error(`Port disconnected - failed after ${this.MAX_RETRIES} retries`));
+          }
         } else {
-          reject(error);
+          // Other error types
+          if (retries < this.MAX_RETRIES) {
+            this.port = null;
+            this.sendPortRequest<T>(type, payload, retries + 1)
+              .then(resolve)
+              .catch(reject);
+          } else {
+            reject(error);
+          }
         }
       }
     });
@@ -223,6 +253,9 @@ class BrowserAPIPortService {
    * Send encrypted data to background for decryption
    */
   async decrypt(encryptedData: any): Promise<any> {
+    if (typeof window === 'undefined') {
+      throw new Error('[BrowserAPIPort] decrypt() cannot be called in SSR environment');
+    }
     return this.sendPortRequest(BrowserAPIMessageType.YAKKL_DECRYPT, { encryptedData });
   }
   
@@ -230,6 +263,9 @@ class BrowserAPIPortService {
    * Send data to background for encryption
    */
   async encrypt(data: any): Promise<any> {
+    if (typeof window === 'undefined') {
+      throw new Error('[BrowserAPIPort] encrypt() cannot be called in SSR environment');
+    }
     return this.sendPortRequest(BrowserAPIMessageType.YAKKL_ENCRYPT, { data });
   }
   
@@ -237,6 +273,9 @@ class BrowserAPIPortService {
    * Check if digest is valid (without exposing it)
    */
   async verifyDigest(): Promise<boolean> {
+    if (typeof window === 'undefined') {
+      throw new Error('[BrowserAPIPort] verifyDigest() cannot be called in SSR environment');
+    }
     return this.sendPortRequest(BrowserAPIMessageType.YAKKL_VERIFY_DIGEST);
   }
   
@@ -246,6 +285,9 @@ class BrowserAPIPortService {
    * Storage API
    */
   async storageGet(keys?: string | string[] | Record<string, any> | null): Promise<Record<string, any>> {
+    if (typeof window === 'undefined') {
+      throw new Error('[BrowserAPIPort] storageGet() cannot be called in SSR environment');
+    }
     return this.sendPortRequest(
       BrowserAPIMessageType.BROWSER_API_STORAGE_GET,
       { keys }
@@ -253,6 +295,9 @@ class BrowserAPIPortService {
   }
   
   async storageSet(items: Record<string, any>): Promise<void> {
+    if (typeof window === 'undefined') {
+      throw new Error('[BrowserAPIPort] storageSet() cannot be called in SSR environment');
+    }
     return this.sendPortRequest(
       BrowserAPIMessageType.BROWSER_API_STORAGE_SET,
       { items }
@@ -260,6 +305,19 @@ class BrowserAPIPortService {
   }
   
   // ... rest of the API methods using sendPortRequest
+  
+  /**
+   * Send a runtime message to the background
+   */
+  async runtimeSendMessage(message: any): Promise<any> {
+    if (typeof window === 'undefined') {
+      throw new Error('[BrowserAPIPort] runtimeSendMessage() cannot be called in SSR environment');
+    }
+    return this.sendPortRequest(
+      BrowserAPIMessageType.BROWSER_API_RUNTIME_SEND_MESSAGE,
+      { message }
+    );
+  }
 }
 
 // Export singleton instance

@@ -170,7 +170,13 @@ export async function canUpgrade(providedSettings?: Settings): Promise<boolean> 
 	return true;
 }
 
-export function normalizeUserPlan(settings: Settings): Settings {
+export function normalizeUserPlan(settings: Settings): Settings | null {
+	// Handle null or missing settings
+	if (!settings || !settings.plan) {
+		console.warn('[normalizeUserPlan] Settings or plan is null/undefined');
+		return null;
+	}
+
 	const now = new Date();
 
 	const isTrialExpired =
@@ -196,11 +202,19 @@ export function normalizeUserPlan(settings: Settings): Settings {
 	return settings;
 }
 
-export async function getNormalizedSettings(): Promise<Settings> {
+export async function getNormalizedSettings(): Promise<Settings | null> {
 	const raw = await getSettings();
+
+	// Handle null settings - return null to let caller handle it
+	if (!raw) {
+		console.warn('[getNormalizedSettings] Settings is null');
+		return null;
+	}
+
 	const normalized = normalizeUserPlan(raw);
 
-	if (JSON.stringify(normalized.plan) !== JSON.stringify(raw.plan)) {
+	if (normalized && raw && normalized.plan && raw.plan &&
+	    JSON.stringify(normalized.plan) !== JSON.stringify(raw.plan)) {
 		await setSettingsStorage(normalized);
 	}
 

@@ -1,6 +1,7 @@
 import { browser_ext } from '$lib/common/environment';
 import { log } from '$lib/common/logger-wrapper';
 import { checkExtensionConnection, ConnectionState } from '$lib/common/extensionConnection';
+import { getDynamicTimeout } from '$lib/common/networkSpeed';
 
 // Example:
 // const res = await safeClientSendMessage<StoreHashResponse>({
@@ -10,11 +11,14 @@ import { checkExtensionConnection, ConnectionState } from '$lib/common/extension
 
 export async function safeClientSendMessage<T = any>(
 	message: any,
-	timeoutMs = 3000,
+	timeoutMs?: number,
 	retries = 3,
 	retryDelay = 100
 ): Promise<T> {
 	let lastError: any;
+
+	// Get dynamic timeout if not explicitly provided
+	const actualTimeout = timeoutMs || await getDynamicTimeout(message?.type);
 
 	// Check connection state before attempting to send
 	const connectionState = await checkExtensionConnection();
@@ -34,17 +38,17 @@ export async function safeClientSendMessage<T = any>(
 				let isSettled = false;
 
 				if (attempt === 0) {
-					log.info('safeClientSendMessage', false, { message });
+					log.info('safeClientSendMessage', false, { message, timeout: actualTimeout });
 				} else {
-					log.info(`safeClientSendMessage retry ${attempt + 1}/${retries}`, false, { message });
+					log.info(`safeClientSendMessage retry ${attempt + 1}/${retries}`, false, { message, timeout: actualTimeout });
 				}
 
 				const timeout = setTimeout(() => {
 					if (!isSettled) {
 						isSettled = true;
-						reject(new Error(`safeClientSendMessage timed out after ${timeoutMs} ms`));
+						reject(new Error(`safeClientSendMessage timed out after ${actualTimeout} ms`));
 					}
-				}, timeoutMs);
+				}, actualTimeout);
 
 				try {
           if (!browser_ext) return null;

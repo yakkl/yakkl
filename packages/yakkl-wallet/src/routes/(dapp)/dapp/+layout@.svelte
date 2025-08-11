@@ -10,6 +10,7 @@
 
 	let { children }: Props = $props();
 
+  if (typeof window !== 'undefined') {
 	if (!process.env.DEV_MODE) {
 		if (browserSvelte) {
 			blockContextMenu(); // Could setup svelte:body like below with svelte if statement
@@ -20,6 +21,7 @@
 			blockWindowResize(DEFAULT_POPUP_WIDTH, DEFAULT_POPUP_HEIGHT);
 		}
 	}
+  }
 </script>
 
 <SecurityWarningEnhanced />

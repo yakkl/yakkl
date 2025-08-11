@@ -1,5 +1,4 @@
 // src/hooks.client.ts
-// import type { BrowserAPI } from '$lib/types/browser-types';
 import { getSettings, setContextTypeStore, syncStorageToStore } from '$lib/common/stores';
 import { loadTokens } from '$lib/common/stores/tokens';
 import { BalanceCacheManager } from '$lib/managers/BalanceCacheManager';
@@ -10,8 +9,9 @@ import { addUIListeners, removeUIListeners } from '$lib/common/listeners/ui/uiLi
 import { globalListenerManager } from '$lib/managers/GlobalListenerManager';
 import { uiListenerManager } from '$lib/common/listeners/ui/uiListeners';
 import { protectedContexts } from '$lib/common/globals';
-import { initializeGlobalErrorHandlers, cleanupGlobalErrorHandlers } from '$lib/common/globalErrorHandler';
+import { initializeGlobalErrorHandlers } from '$lib/common/globalErrorHandler';
 import { browser_ext } from '$lib/common/environment';
+import { initializeMessaging, initializeUiContext } from '$lib/common/messaging';
 
 // Helper function to check if context needs idle protection
 function contextNeedsIdleProtection(contextType: string): boolean {
@@ -51,12 +51,8 @@ if (isClient && typeof process !== 'undefined' && process.env && process.env.DEV
 		'ERROR_TRACE',
 		'TRACE'
 	]);
-	// console.log(`[${CONTEXT_ID}] Logger set to DEBUG mode`);
 } else {
 	log.setLevel('ERROR', 'CONTAINS', ['ERROR', 'ERROR_TRACE']);
-	// if (isClient) {
-	//   console.log(`[${CONTEXT_ID}] Logger set to ERROR mode`);
-	// }
 }
 
 if (isClient) {
@@ -70,33 +66,6 @@ if (isClient) {
 		};
 	}
 }
-
-// let browser_ext: BrowserAPI | null = null;
-let initializationAttempted = false;
-
-// function getBrowserExt(): BrowserAPI | null {
-// 	if (!isClient) return null;
-
-// 	// If already initialized, return the existing instance
-// 	if (browser_ext) return browser_ext;
-
-// 	// Only log once
-// 	if (!initializationAttempted) {
-// 		initializationAttempted = true;
-// 	}
-
-// 	// Use the centralized browser detection 
-// 	// browser_ext = getBrowserExtFromWrapper();
-
-// 	// Log only on first failed attempt
-// 	if (!browser_ext && initializationAttempted) {
-// 		log.warn(
-// 			'Browser extension API not available - ' + 'check if browser-polyfill.js is loading correctly'
-// 		);
-// 	}
-
-// 	return browser_ext;
-// }
 
 const errorHandler = ErrorHandler.getInstance(); // Initialize error handlers
 
@@ -141,28 +110,6 @@ if (isClient) {
 		// Call the original console.error for other errors
 		originalConsoleError.apply(console, args);
 	};
-}
-
-/**
- * Load cache managers early to ensure cached data is available
- */
-async function loadCacheManagers(): Promise<void> {
-	if (!isClient) return;
-
-	try {
-		// Initialize cache managers to load their data from storage
-		// These will load cached balance and token data that needs to be available immediately
-		BalanceCacheManager.getInstance();
-		AccountTokenCacheManager.getInstance();
-
-		// Give them a moment to load from storage
-		await new Promise(resolve => setTimeout(resolve, 10));
-
-		log.debug('Cache managers loaded successfully');
-	} catch (error) {
-		log.warn('Failed to load cache managers:', false, error);
-		// Don't throw - this shouldn't block initialization
-	}
 }
 
 /**
@@ -213,11 +160,20 @@ export function getContextType(): string {
 export async function init() {
 	if (!isClient) return; // Skip initialization on server
 
+	// Add timeout to prevent hanging initialization
+	const initTimeout = setTimeout(() => {
+		log.warn('Initialization timeout - forcing completion');
+		window.EXTENSION_INIT_STATE.initialized = true;
+	}, 10000); // 10 second timeout
+
 	try {
 		// Use window state to prevent multiple initializations across contexts
 		if (window.EXTENSION_INIT_STATE && window.EXTENSION_INIT_STATE.initialized) {
+			clearTimeout(initTimeout);
 			return;
 		}
+
+		log.info('Starting initialization process');
 
 		try {
 			await getSettings();
@@ -228,23 +184,31 @@ export async function init() {
 		// Initialize global error handlers early
 		initializeGlobalErrorHandlers();
 
-		// First get the browser API
-		// const browserApi = getBrowserExt();
-
 		// Register UI context with global listener manager if not already done
 		if (!globalListenerManager.hasContext('ui')) {
 			globalListenerManager.registerContext('ui', uiListenerManager);
 		}
 
 		// Initialize stores first (these need to be ready before any UI rendering)
-		await syncStorageToStore();
 		await loadTokens();
-
-		// Load cache managers very early to ensure cached data is available
-		await loadCacheManagers();
 
 		// Get context type for this initialization
 		const contextType = getContextType();
+
+		// Initialize messaging service if browser API is available
+		log.info('Checking browser API availability:', false, { browser_ext: !!browser_ext });
+		if (browser_ext) {
+			log.info('Initializing messaging service with browser API');
+			try {
+				initializeMessaging(browser_ext);
+				await initializeUiContext(browser_ext, contextType);
+				log.info('Messaging service initialized successfully');
+			} catch (error) {
+				log.warn('Failed to initialize messaging service:', false, error);
+			}
+		} else {
+			log.warn('Browser API not available, messaging service not initialized');
+		}
 
 		// Set up UI listeners through the manager
 		await setupUIListeners();
@@ -257,9 +221,14 @@ export async function init() {
 
 		// Mark as initialized
 		window.EXTENSION_INIT_STATE.initialized = true;
+		clearTimeout(initTimeout);
+		log.info('Initialization completed successfully');
 	} catch (error: any) {
+		clearTimeout(initTimeout);
 		console.warn(`[${CONTEXT_ID}] Initialization error:`, error);
 		handleError(error);
+		// Mark as initialized even on error to prevent infinite retries
+		window.EXTENSION_INIT_STATE.initialized = true;
 	}
 }
 
@@ -371,7 +340,6 @@ async function registerWithBackgroundScript() {
 
 	try {
 		const contextType = getContextType();
-		// const browserExt = getBrowserExt();
 
 		// Function to send initialization message with retry logic
 		const sendInitMessage = async (retries = 3, delay = 100) => {
@@ -450,6 +418,3 @@ async function registerWithBackgroundScript() {
 		console.warn(`[${CONTEXT_ID}] Error registering context:`, err);
 	}
 }
-
-// Export for external use if needed
-// export { getBrowserExt };

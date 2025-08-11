@@ -92,11 +92,15 @@
 			const loginString = normalizedUsername + '.nfs.id' + password;
 
 			// Call the existing verify function - this is your core authentication
+			log.info('Login.svelte: Starting verification for user:', false, normalizedUsername);
 			const profile = await verify(loginString);
 
 			if (!profile) {
+				log.warn('Login.svelte: Verification returned no profile');
 				throw 'Invalid credentials or profile not found';
 			}
+			
+			log.info('Login.svelte: Verification successful, profile received');
 
 			// Get the digest that was set during verification
 			// This is important as it's used for decryption throughout the app

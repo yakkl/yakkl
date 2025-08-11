@@ -1,105 +1,118 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { log } from '$lib/managers/Logger';
-import { getBrowserExtFromGlobal } from './environment';
+import { browserAPI } from '$lib/services/browser-api.service';
+// import { browser_ext } from './environment';
 import type { Browser } from 'webextension-polyfill';
 
-// Try to get browser API directly for service worker context
-let browserApi: Browser | null = await getBrowserExtFromGlobal();
+let browser: Browser;
 
-// Check if we're in a service worker or extension context
-// declare const browser: any;
-// declare const chrome: any;
+if (typeof window === 'undefined') {
+  browser = await import ('webextension-polyfill');
+} else {
+  browser = await import ('./environment').then(m => m.browser_ext);
+}
 
-// try {
-// 	if (typeof browser !== 'undefined' && browser?.storage) {
-// 		// In service worker or extension context, browser is available globally
-// 		browserApi = browser;
-// 	} else if (typeof chrome !== 'undefined' && chrome?.storage) {
-// 		// Fallback to chrome API if available
-// 		browserApi = chrome;
-// 	}
-// } catch (e) {
-// 	// Keep using browser_ext
-// }
+// Note: This file is used for client contexts only.
+// Background contexts use the backgroundStorage.ts file.
+// With the unified browser polyfill, browser_ext now works consistently in all contexts.
 
-export const clearObjectsFromLocalStorage = async (): Promise<void> => {
-	if (!browserApi) return;
+// Storage functions CAN use the browserAPI service for client contexts if needed
 
+export const clearObjectsFromLocalStorage = async (useBrowserAPI = false): Promise<void> => {
 	try {
-		await browserApi.storage.local.clear();
+    // if (!useBrowserAPI && browser_ext?.storage?.local) {
+    if (browser) {
+      await browser.storage.local.clear();
+    } else if (useBrowserAPI) {
+      await browserAPI.storageClear();
+    }
 	} catch (error) {
-		log.error('Error clearing local storage', false, error);
+		log.warn('Error clearing local storage', false, error);
 		throw error;
 	}
 };
 
-// This had two arguments, but I removed the second one since we only want to return objects
-// export const getObjectFromLocalStorage = async <T>(key: string): Promise<T | null> => {
-//   try {
-//     if (!browser_ext) {
-//       console.log('Browser extension is not available. Returning null.');
-//       return null;
-//     }
-//     const result = await browser_ext.storage.local.get(key);
-//     return result[key] as T;
-//   } catch (error) {
-//     console.log('Error getting object from local storage', false, error);
-//     throw error;
-//   }
-// };
-
 export const getObjectFromLocalStorage = async <T>(
 	key: string,
+  useBrowserAPI = false,
 	timeoutMs = 1000
 ): Promise<T | null> => {
 	try {
-		if (!browserApi) {
-      return null;
-		}
+    // if (!useBrowserAPI && browser_ext?.storage?.local) {
+    if (browser) {
+      const result = await browser.storage.local.get(key);
+      return result[key] as T;
+    } else if (useBrowserAPI) {
+      let storagePromise = browserAPI.storageGet(key);
 
-		const storagePromise = browserApi.storage.local.get(key);
+      // Set a timeout to prevent infinite hangs
+      const timeoutPromise = new Promise<null>((resolve) =>
+        setTimeout(() => {
+          resolve(null);
+        }, timeoutMs)
+      );
 
-		// Set a timeout to prevent infinite hangs
-		const timeoutPromise = new Promise<null>((resolve) =>
-			setTimeout(() => {
-				resolve(null);
-			}, timeoutMs)
-		);
+      const result = await Promise.race([storagePromise, timeoutPromise]);
 
-		const result = await Promise.race([storagePromise, timeoutPromise]);
+      if (!result || !(key in result)) {
+        return null;
+      }
 
-		if (!result || !(key in result)) {
-			return null;
-		}
-
-		return result[key] as T;
+      return result[key] as T;
+    }
 	} catch (error) {
-		log.error('Error getting object from local storage', false, error);
+		log.warn('Error getting object from local storage', false, error);
 		return null;
 	}
 };
 
 export const setObjectInLocalStorage = async <T extends Record<string, any>>(
 	key: string,
-	obj: T | string
+	obj: T | string,
+  useBrowserAPI = false
 ): Promise<void> => {
-	if (!browserApi) return;
-
 	try {
-		await browserApi.storage.local.set({ [key]: obj });
+    // if (!useBrowserAPI && browser_ext?.storage?.local) {
+    if (browser) {
+      await browser.storage.local.set({ [key]: obj });
+    } else if (useBrowserAPI) {
+      await browserAPI.storageSet({ [key]: obj });
+    }
 	} catch (error) {
-		log.error('Error setting object in local storage', false, error);
+		log.warn('Error setting object in local storage', false, error);
 		throw error;
 	}
 };
 
-export const removeObjectFromLocalStorage = async (keys: string): Promise<void> => {
-	if (!browserApi) return;
-
+export const removeObjectFromLocalStorage = async (keys: string, useBrowserAPI = false): Promise<void> => {
 	try {
-		await browserApi.storage.local.remove(keys);
+    // if (!useBrowserAPI && browser_ext?.storage?.local) {
+    if (browser) {
+      await browser.storage.local.remove(keys);
+    } else if (useBrowserAPI) {
+      await browserAPI.storageRemove(keys);
+    }
 	} catch (error) {
-		log.error('Error removing object from local storage', false, error);
+		log.warn('Error removing object from local storage', false, error);
 		throw error;
+	}
+};
+
+// Direct storage access for critical initialization paths (sidepanel, popups)
+// With unified polyfill, this now just uses browser_ext directly
+export const getObjectFromLocalStorageDirect = async <T>(key: string): Promise<T | null> => {
+	try {
+		if (browser) {
+			const result = await browser.storage.local.get(key);
+			return result[key] as T || null;
+		}
+
+		// Fallback to browserContext for edge cases
+		const { fastStorageGet } = await import('./browserContext');
+		const result = await fastStorageGet<T>(key);
+		return result[key] || null;
+	} catch (error) {
+		log.warn('Error getting object from local storage (direct)', false, error);
+		return null;
 	}
 };

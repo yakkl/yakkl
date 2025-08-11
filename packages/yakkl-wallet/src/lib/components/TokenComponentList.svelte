@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getYakklCombinedTokens, yakklCombinedTokenStore, getSettings } from '$lib/common/stores';
+	import { getYakklCombinedTokensDirect, yakklCombinedTokenStore, getSettingsDirect } from '$lib/common/stores';
 	import type { Settings, TokenData } from '$lib/common';
 	import { onMount } from 'svelte';
 	import { log } from '$lib/managers/Logger';
@@ -35,12 +35,12 @@
 	onMount(async (): Promise<any> => {
 		log.info('TokenComponentList', false, 'onMount');
 
-		const settings: Settings = await getSettings();
-		if (!settings.init || !settings.legal.termsAgreed) {
+		const settings: Settings = await getSettingsDirect();
+		if (!settings || !settings.init || !settings.legal?.termsAgreed) {
 			tokens = [];
 			updateTokenDisplay();
 		} else {
-			getYakklCombinedTokens().then((initialTokens) => {
+			getYakklCombinedTokensDirect().then((initialTokens) => {
 				console.log('TokenComponentList: combined tokens loaded', initialTokens.length);
 
 				// If no tokens are loaded, try to trigger loading them
@@ -51,7 +51,7 @@
 					import('$lib/managers/tokens/loadDefaultTokens').then(({ loadDefaultTokens }) => {
 						loadDefaultTokens().then(() => {
 							// After loading defaults, attempt to get combined tokens again
-							getYakklCombinedTokens().then((reloadedTokens) => {
+							getYakklCombinedTokensDirect().then((reloadedTokens) => {
 								console.log('TokenComponentList: tokens after reload', reloadedTokens.length);
 								const effectiveMaxTokens = locked ? maxTokens : maxTokens > 0 ? maxTokens : 0;
 								tokens =

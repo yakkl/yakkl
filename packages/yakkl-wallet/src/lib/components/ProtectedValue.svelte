@@ -38,7 +38,7 @@
 	let visible = $state(get(visibilityStore));
 
 	// Parse MAPCRS config
-	const mapcrsEnabled = typeof mapcrs === 'boolean' ? mapcrs : mapcrs.enabled;
+	const mapcrsEnabled = false; //Turn off MAPCRS for now //typeof mapcrs === 'boolean' ? mapcrs : mapcrs.enabled;
 	const enforcement = typeof mapcrs === 'object' ? (mapcrs.enforcement || 'learning') : 'learning';
 	const debug = typeof mapcrs === 'object' ? (mapcrs.debug || false) : false;
 
@@ -82,6 +82,7 @@
 		}
 
 		// Setup placeholder animation
+    placeholderAnimation.enabled = false; //Turn off placeholder animation for now
 		if (placeholderAnimation?.enabled && shouldAnimate(componentId)) {
 			placeholderAnimator = new PlaceholderAnimator();
 
@@ -136,14 +137,14 @@
 	// Track previous value to prevent unnecessary re-tokenization
 	let previousValue = '';
 	let previousMapcrsEnabled = mapcrsEnabled;
-	
+
 	// Tokenize value when it changes or when MAPCRS is toggled
 	$effect(() => {
 		// Only re-tokenize if value or mapcrs setting actually changed
 		if (value !== previousValue || mapcrsEnabled !== previousMapcrsEnabled) {
 			previousValue = value;
 			previousMapcrsEnabled = mapcrsEnabled;
-			
+
 			if (mapcrsEnabled && value) {
 				tokenMap.clear();
 				const newTokens = tokenizeProtectedText(value);
@@ -155,7 +156,7 @@
 						tokenMap.set(token.id, token.value);
 					}
 				});
-				
+
 				// Update tokens after all processing is done
 				tokens = newTokens;
 			} else {

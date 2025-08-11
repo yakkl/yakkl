@@ -157,6 +157,7 @@
 		"terser-webpack-plugin": "^5.3.11",
 		"ts-jest": "^29.2.5",
 		"ts-loader": "^9.5.2",
+		"tsconfig-paths-webpack-plugin": "^4.2.0",
 		"tslib": "^2.8.1",
 		"typescript": "^5.8.3",
 		"typescript-eslint": "^8.21.0",
@@ -179,6 +180,7 @@
 		"node": ">=18.0.0"
 	},
 	"dependencies": {
+		"@cloudflare/speedtest": "^1.5.1",
 		"@ethersproject/properties": "^5.7.0",
 		"@ethersproject/web": "^5.7.1",
 		"@ledgerhq/hw-app-eth": "^6.45.7",

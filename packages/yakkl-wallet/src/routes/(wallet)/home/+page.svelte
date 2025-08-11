@@ -1,6 +1,4 @@
 <script lang="ts">
-  console.log('<<<<<<<<<<<<<home>>>>>>>>>>>>>>');
-  
   import { onMount } from 'svelte';
   import RecentActivity from "$lib/components/RecentActivity.svelte";
   import SendModal from "$lib/components/SendModalEnhanced.svelte";
@@ -10,9 +8,9 @@
   import TokenPortfolio from "$lib/components/TokenPortfolio.svelte";
   import AddCustomToken from "$lib/components/AddCustomToken.svelte";
   import AIHelpButton from "$lib/components/AIHelpButton.svelte";
-  import AdvancedAnalytics from "$lib/components/pro/AdvancedAnalytics.svelte";
-  import SecureRecovery from "$lib/components/private/SecureRecovery.svelte";
-  import ExtensionDashboard from "$lib/components/extensions/ExtensionDashboard.svelte";
+  // import AdvancedAnalytics from "$lib/components/pro/AdvancedAnalytics.svelte";
+  // import SecureRecovery from "$lib/components/private/SecureRecovery.svelte";
+  // import ExtensionDashboard from "$lib/components/extensions/ExtensionDashboard.svelte";
   import Upgrade from "$lib/components/Upgrade.svelte";
   import TokenDetailModal from "$lib/components/TokenDetailModal.svelte";
   import PortfolioDetailsModal from "$lib/components/PortfolioDetailsModal.svelte";
@@ -20,11 +18,11 @@
   import TransactionDetailModal from "$lib/components/TransactionDetailModal.svelte";
   import PortfolioOverview from '$lib/components/PortfolioOverview.svelte';
   import { isModalOpen, modalStore } from "$lib/stores/modal.store";
-  import { initializeCore } from "$lib/core/integration";
+  // import { initializeCore } from "$lib/core/integration";
   import { currentAccount } from '$lib/stores/account.store';
   import { currentChain } from '$lib/stores/chain.store';
   // import { importWithBrowserAPI, ensureBrowserAPI } from '$lib/browser-polyfill-import';
-  import type { BrowserFeatures } from '$lib/modules/browser-dependent-features';
+  // import type { BrowserFeatures } from '$lib/modules/browser-dependent-features';
   import { totalPortfolioValue, isLoadingTokens, lastTokenUpdate, isMultiChainView, displayTokens, tokenStore, grandTotalPortfolioValue } from '$lib/stores/token.store';
   import { canUseFeature } from '$lib/utils/features';
   import { uiStore } from '$lib/stores/ui.store';
@@ -33,21 +31,19 @@
 	import { get } from 'svelte/store';
 	import PincodeVerify from '$lib/components/PincodeVerify.svelte';
 	import ProtectedValue from '$lib/components/ProtectedValue.svelte';
-  import { updateTokenBalances } from '$lib/common/tokens';
-  import { updateTokenPrices } from '$lib/common/tokenPriceManager';
-  import { getInstances } from '$lib/common';
+  // Removed unused imports
+  import { VERSION } from '$lib/common';
   import { nativeTokenPriceService } from '$lib/services/native-token-price.service';
   import { uiJWTValidatorService } from '$lib/services/ui-jwt-validator.service';
   import { log } from '$lib/common/logger-wrapper';
   import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
-  import { DecimalMath } from '$lib/common/DecimalMath';
-  import { BigNumber } from '$lib/common/bignumber';
+  // Removed unused import - DecimalMath
+  import { BigNumber, type BigNumberish } from '$lib/common/bignumber';
   import { authStore } from '$lib/stores/auth-store';
+  import { BrowserAPIPortService } from '$lib/services/browser-api-port.service';
 
   // Initialize core integration dynamically to prevent SSR issues
   // let initializeCore: (() => Promise<void>) | null = null;
-
-  console.log('[home] before let variables');
 
   // State
   let showSendModal = $state(false);
@@ -70,7 +66,7 @@
   let showTransactionDetailModal = $state(false);
   let hasInitialLoad = $state(false);
   let transactionListData = $state<any>(null);
-  let browserFeatures = $state<BrowserFeatures | null>(null);
+  // let browserFeatures = $state<BrowserFeatures | null>(null);
 
   // Debug state for error tracking
   let hasError = $state(false);
@@ -80,40 +76,126 @@
     try {
       log.info(`[Home] ${message}`, false, data);
     } catch (e) {
-      console.log(`[Home] ${message}`, data);
+      log.warn(`[Home] ${message}`, false, data);
     }
   }
 
   function handleError(error: any, context: string) {
     const errorMsg = `Error in ${context}: ${error?.message || error}`;
-    safeLog(errorMsg, error);
+    console.log(errorMsg, error);
     hasError = true;
     errorMessage = errorMsg;
 
     // Show user-friendly notification
     try {
+      console.trace('handleError', errorMsg);
+
       uiStore.showError('Page Load Error', `Failed to load home page: ${context}`);
     } catch (e) {
-      console.error('Failed to show error notification:', e);
+      log.warn('Failed to show error notification:', false, e);
     }
   }
+
+  onMount(() => {
+    try {
+      if (typeof window === 'undefined') {
+        log.info('window is not defined');
+        return null;
+      }
+
+      console.log('onMount: Starting home page initialization');
+
+      // Dynamic import and async initialization
+      (async () => {
+        try {
+          // Core services initialize automatically through stores
+          // Just ensure token store is ready
+          console.log('onMount: Core services initializing automatically');
+
+          // Non-blocking token store refresh
+          tokenStore.refresh().then(() => {
+            console.log('onMount: Token store refreshed');
+          }).catch(error => {
+            handleError(error, 'token store refresh');
+          });
+
+          // The background interval service handles price and balance updates
+          // We just need to ensure the stores are reactive to storage changes
+          console.log('onMount: Background interval service handles data updates', $authStore);
+          // Start JWT validation service only if authenticated
+          if ($authStore.isAuthenticated && $authStore.jwtToken) {
+            try {
+              console.log('onMount: Starting UI JWT validation service (authenticated)');
+              // Start immediately - the service should handle its own grace period
+              uiJWTValidatorService.start();
+            } catch (error) {
+              handleError(error, 'JWT validation service start');
+            }
+          } else {
+            console.log('onMount: Skipping JWT validation service - not authenticated');
+          }
+          console.log('onMount: Async initialization completed successfully');
+        } catch (error) {
+          handleError(error, 'async initialization');
+        }
+      })();
+
+      // Listen for token click events
+      const handleEvent = (event: Event) => {
+        try {
+          handleTokenClick(event as CustomEvent);
+        } catch (error) {
+          handleError(error, 'token click event handler');
+        }
+      };
+
+      if (typeof document !== 'undefined') {
+        document.addEventListener('tokenclick', handleEvent);
+      }
+
+      // Cleanup on unmount
+      return () => {
+        try {
+          if (typeof document !== 'undefined') {
+            document.removeEventListener('tokenclick', handleEvent);
+          }
+
+          // Stop native token price updates
+          nativeTokenPriceService.stopAutomaticUpdates();
+          console.log('onMount cleanup: Native token price service stopped');
+
+          // Stop JWT validation service
+          uiJWTValidatorService.stop();
+          console.log('onMount cleanup: UI JWT validation service stopped');
+        } catch (error) {
+          handleError(error, 'cleanup');
+        }
+      };
+    } catch (error) {
+      handleError(error, 'onMount');
+      // Return empty cleanup function on error
+      return () => {};
+    }
+  });
 
   // Safely wrap all effects in try-catch
   $effect(() => {
     try {
-      if (account?.address && !hasInitialLoad) {
-        safeLog('Account available, triggering initial data load', account.address);
+      // Ensure account is defined before accessing properties
+      if (!account) {
+        console.log('No account available yet');
+        return;
+      }
+
+      if (account.address && !hasInitialLoad) {
+        console.log('Account available, triggering initial data load', account.address);
         hasInitialLoad = true;
 
-        // Force a refresh to ensure data is loaded
-        setTimeout(() => {
-          safeLog('Forcing initial token refresh for account', account.address);
-          tokenStore.refresh(true).then(() => {
-            safeLog('Initial token refresh completed');
-          }).catch(error => {
-            handleError(error, 'initial token refresh');
-          });
-        }, 500);
+        // Non-blocking refresh - stores will update reactively
+        console.log('Account changed, stores will update reactively', account.address);
+        tokenStore.refresh(false).catch(error => {
+          console.log('Token refresh failed', error);
+        });
       }
     } catch (error) {
       handleError(error, 'account change effect');
@@ -122,17 +204,40 @@
 
   $effect(() => {
     try {
-      // Always log token breakdown for debugging
-      safeLog('Token breakdown:', tokenList.map(t => ({
-        symbol: t.symbol,
-        qty: (t as any).qty || new BigNumber((t as any).balance || '0').toNumber() || 0,
-        price: t.price,
-        value: t.value,
-        address: t.address,
-        chainId: t.chainId
-      })));
+      // Ensure tokenList is ready before logging
+      if (!tokenList || tokenList.length === 0) {
+        return;
+      }
 
-      safeLog('Portfolio debug:', {
+      // Always log token breakdown for debugging with safer conversion
+      console.log('Token breakdown:', tokenList.map((t: any) => {
+        // Safely handle balance conversion
+        let qty = 0;
+        try {
+          const balance = (t as any).balance;
+          if (balance !== undefined && balance !== null && balance !== '') {
+            // Try to parse balance as a number or BigNumber
+            const balanceStr = String(balance);
+            if (balanceStr && balanceStr !== '0') {
+              qty = new BigNumber(balanceStr).toNumber();
+            }
+          }
+        } catch (e) {
+          // If balance conversion fails, use qty field or default to 0
+          qty = (t as any).qty || 0;
+        }
+
+        return {
+          symbol: t.symbol,
+          qty: qty,
+          price: t.price,
+          value: t.value,
+          address: t.address,
+          chainId: t.chainId
+        };
+      }));
+
+      console.log('Portfolio debug:', {
         portfolioValue,
         tokenCount: tokenList.length,
         isMultiChain,
@@ -228,7 +333,9 @@
 
   let nativePrice = $derived.by(() => {
     try {
-      return nativeToken?.price || 0;
+      // Ensure we return a valid number, not undefined/null
+      const price = nativeToken?.price;
+      return price !== undefined && price !== null ? price : 0;
     } catch (error) {
       handleError(error, 'getting native price');
       return 0;
@@ -239,7 +346,7 @@
   $effect(() => {
     try {
       if (nativeToken) {
-        safeLog('Native token debug:', {
+        console.log('Native token debug:', {
           symbol: nativeToken.symbol,
           price: nativeToken.price,
           value: nativeToken.value,
@@ -248,8 +355,8 @@
         });
 
         // Check if the price looks like a portfolio value
-        if (BigNumberishUtils.compare(nativeToken.price, 10000) > 0) {
-          safeLog('WARNING: Native token price looks like portfolio value!', BigNumberishUtils.toNumber(nativeToken.price));
+        if (nativeToken.price && BigNumberishUtils.compare(nativeToken.price, 10000) > 0) {
+          console.log('WARNING: Native token price looks like portfolio value!', BigNumberishUtils.toNumber(nativeToken.price));
         }
       }
     } catch (error) {
@@ -261,14 +368,13 @@
   let accountNativeValue = $derived.by(() => {
     try {
       if (!account || !chain) return 0;
-      
+
       // Use BigNumber to handle the balance and price multiplication properly
       const balanceBN = new BigNumber(account.balance || '0');
-      const priceBN = new BigNumber(nativePrice);
-      
+
       // Use mulByPrice to get USD value (handles decimal ETH values properly)
       const usdValue = balanceBN.mulByPrice(BigNumberishUtils.toNumber(nativePrice), 18);
-      
+
       // The result is already in USD, just convert to number for display
       return usdValue.toNumber();
     } catch (error) {
@@ -280,14 +386,14 @@
   // Track native price changes and update direction indicator
   $effect(() => {
     try {
-      if (BigNumberishUtils.compare(nativePrice, 0) > 0 && previousNativePrice !== null && previousNativePrice > 0) {
-        if (BigNumberishUtils.compare(nativePrice, previousNativePrice) > 0) {
+      if (nativePrice && BigNumberishUtils.compare(nativePrice, 0) > 0 && previousNativePrice !== null && previousNativePrice > 0) {
+        if (previousNativePrice && BigNumberishUtils.compare(nativePrice, previousNativePrice) > 0) {
           nativePriceDirection = 'up';
-        } else if (BigNumberishUtils.compare(nativePrice, previousNativePrice) < 0) {
+        } else if (previousNativePrice && BigNumberishUtils.compare(nativePrice, previousNativePrice) < 0) {
           nativePriceDirection = 'down';
         }
       }
-      if (BigNumberishUtils.compare(nativePrice, 0) > 0) {
+      if (nativePrice && BigNumberishUtils.compare(nativePrice, 0) > 0) {
         previousNativePrice = BigNumberishUtils.toNumber(nativePrice);
       }
     } catch (error) {
@@ -296,20 +402,20 @@
   });
 
   // Update direction from price service
-  $effect(() => {
-    try {
-      if (nativeToken?.symbol) {
-        // DISABLED: Price direction from simulated service
-        // const direction = priceUpdateService.getPriceDirection(nativeToken.symbol);
-        // if (direction) {
-        //   nativePriceDirection = direction;
-        // }
-        // TODO: Implement price direction tracking with real prices
-      }
-    } catch (error) {
-      handleError(error, 'price direction update effect');
-    }
-  });
+  // $effect(() => {
+  //   try {
+  //     if (nativeToken?.symbol) {
+  //       // DISABLED: Price direction from simulated service
+  //       // const direction = priceUpdateService.getPriceDirection(nativeToken.symbol);
+  //       // if (direction) {
+  //       //   nativePriceDirection = direction;
+  //       // }
+  //       // TODO: Implement price direction tracking with real prices
+  //     }
+  //   } catch (error) {
+  //     handleError(error, 'price direction update effect');
+  //   }
+  // });
 
   // Track modal states with proper guard to prevent infinite loop
   let lastUpgradeModalState = false;
@@ -318,7 +424,7 @@
       // Only act when showUpgradeModal changes
       if (showUpgradeModal !== lastUpgradeModalState) {
         lastUpgradeModalState = showUpgradeModal;
-        
+
         if (showUpgradeModal) {
           modalStore.openModal('upgrade');
         } else if (modalStore.isModalOpen()) {
@@ -349,162 +455,40 @@
     }
   });
 
-  async function refreshAllData(forceRefresh = false) {
+  function refreshAllData(forceRefresh = false) {
     try {
-      safeLog('refreshAllData: Starting data refresh...', { forceRefresh });
+      console.log('refreshAllData: Starting data refresh...', { forceRefresh });
 
-      // When force refreshing, update prices first to ensure consistency
-      if (forceRefresh) {
-        // Update prices before refreshing token store
-        await updateTokenPrices();
-        safeLog('refreshAllData: Token prices updated');
-
-        // Small delay to ensure price updates are propagated to cache
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-
-      // Always refresh to get latest data
-      await tokenStore.refresh(forceRefresh);
-      safeLog('refreshAllData: Token store refreshed');
-
-      // Update balances if needed
-      if (forceRefresh) {
-        const instances = await getInstances();
-        if (instances && instances[1] && $currentAccount) {
-          const provider = instances[1].getProvider();
-          await updateTokenBalances($currentAccount.address, provider);
-
-          // Final refresh to ensure UI has all latest data
-          await tokenStore.refresh();
+      // Only use BrowserAPIPortService if we're in the browser extension context
+      if (typeof window !== 'undefined' && (window as any).browser?.runtime) {
+        const browserAPI = BrowserAPIPortService.getInstance();
+        if (browserAPI.runtimeSendMessage) {
+          browserAPI.runtimeSendMessage({
+            type: 'YAKKL_REFRESH_REQUEST',
+            refreshType: 'all'
+          }).then((response: any) => {
+            if (response?.success) {
+              console.log('refreshAllData: Background refresh completed');
+            } else {
+              console.log('refreshAllData: Background refresh failed', response?.error);
+            }
+          }).catch((error: any) => {
+            console.log('refreshAllData: Failed to send refresh request', error);
+          });
         }
       }
+
+      // Always do token store refresh as primary refresh mechanism
+      tokenStore.refresh(forceRefresh).then(() => {
+        console.log('refreshAllData: Token store refreshed');
+      }).catch(error => {
+        console.log('refreshAllData: Token store refresh failed', error);
+      });
+
     } catch (error) {
       handleError(error, 'refreshAllData');
     }
   }
-
-  onMount(() => {
-    try {
-      if (typeof window === 'undefined') {
-        console.log('window is not defined');
-        return null;
-      }
-
-      safeLog('onMount: Starting home page initialization');
-
-      // Dynamic import and async initialization
-      (async () => {
-        // Dynamic import to prevent SSR issues
-        try {
-          // const coreModule = await import('$lib/core/integration');
-          // initializeCore = coreModule.initializeCore;
-          safeLog('onMount: Core integration module loaded');
-        } catch (error) {
-          handleError(error, 'loading core integration module');
-        }
-
-        // Add timeout to prevent infinite initialization
-        const initTimeout = setTimeout(() => {
-          handleError(new Error('Initialization timeout'), 'home page initialization timeout');
-        }, 10000); // Increased to 10 seconds
-
-        try {
-          safeLog('onMount: Starting async initialization');
-
-          // Initialize YAKKL Core (non-blocking)
-          if (initializeCore) {
-            try {
-              await initializeCore();
-              safeLog('onMount: YAKKL Core initialized successfully');
-            } catch (err) {
-              handleError(err, 'YAKKL Core initialization');
-            }
-          }
-
-          try {
-            await tokenStore.refresh();
-            safeLog('onMount: Token store refreshed');
-          } catch (error) {
-            handleError(error, 'token store refresh');
-          }
-
-          try {
-            await updateTokenPrices();
-            safeLog('onMount: Token prices updated');
-          } catch (error) {
-            handleError(error, 'token price update');
-          }
-
-          try {
-            const instances = await getInstances();
-            if (instances && instances[1]) {
-              await updateTokenBalances($currentAccount.address, instances[1].getProvider());
-              safeLog('onMount: Token balances updated');
-            }
-          } catch (error) {
-            handleError(error, 'token balance update');
-          }
-
-          // Start JWT validation service only if authenticated
-          // Wait to ensure background JWT validator has set up grace period
-          if ($authStore.isAuthenticated && $authStore.jwtToken) {
-            setTimeout(() => {
-              try {
-                safeLog('onMount: Starting UI JWT validation service (authenticated)');
-                uiJWTValidatorService.start();
-              } catch (error) {
-                handleError(error, 'JWT validation service start');
-              }
-            }, 5000); // Wait 5 seconds to ensure background grace period is active
-          } else {
-            safeLog('onMount: Skipping JWT validation service - not authenticated');
-          }
-
-          safeLog('onMount: Async initialization completed successfully');
-        } catch (error) {
-          handleError(error, 'async initialization');
-        } finally {
-          clearTimeout(initTimeout);
-        }
-      })();
-
-      // Listen for token click events
-      const handleEvent = (event: Event) => {
-        try {
-          handleTokenClick(event as CustomEvent);
-        } catch (error) {
-          handleError(error, 'token click event handler');
-        }
-      };
-
-      if (typeof document !== 'undefined') {
-        document.addEventListener('tokenclick', handleEvent);
-      }
-
-      // Cleanup on unmount
-      return () => {
-        try {
-          if (typeof document !== 'undefined') {
-            document.removeEventListener('tokenclick', handleEvent);
-          }
-
-          // Stop native token price updates
-          nativeTokenPriceService.stopAutomaticUpdates();
-          safeLog('onMount cleanup: Native token price service stopped');
-
-          // Stop JWT validation service
-          uiJWTValidatorService.stop();
-          safeLog('onMount cleanup: UI JWT validation service stopped');
-        } catch (error) {
-          handleError(error, 'cleanup');
-        }
-      };
-    } catch (error) {
-      handleError(error, 'onMount');
-      // Return empty cleanup function on error
-      return () => {};
-    }
-  });
 
   function handleTokenSend(token: any) {
     selectedToken = token;
@@ -514,20 +498,19 @@
 
   function handleSend(tx: any) {
     showSendModal = false;
-    log.info('Transaction sent:', false, tx);
+    console.log('Transaction sent:', tx);
 
     // Show success feedback
     uiStore.showTransactionPending(tx.hash);
 
-    // Refresh token data after send
-    setTimeout(() => {
-      refreshAllData();
-    }, 2000);
+    // Refresh token data immediately after send
+    // The stores will update when the transaction is confirmed
+    refreshAllData();
   }
 
   function handleSwap(tx: any) {
     showSwapModal = false;
-    log.info('Swap requested:', false, tx);
+    console.log('Swap requested:', tx);
 
     // Show swap feedback
     uiStore.showSuccess(
@@ -535,10 +518,9 @@
       'Your token swap is being processed'
     );
 
-    // Refresh data after swap
-    setTimeout(() => {
-      refreshAllData();
-    }, 2000);
+    // Refresh data immediately after swap
+    // The stores will update when the transaction is confirmed
+    refreshAllData();
   }
 
   function handleReceive() {
@@ -560,13 +542,23 @@
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   }
 
-  function formatCurrency(value: number): string {
+  function formatCurrency(value: number | BigNumberish): string {
+    let numValue: number;
+
+    if (typeof value === 'number') {
+      numValue = value;
+    } else {
+      // Value is stored as cents (bigint), convert to dollars for display
+      const valueInCents = BigNumberishUtils.toBigInt(value);
+      numValue = Number(valueInCents) / 100;
+    }
+
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
-    }).format(value);
+    }).format(numValue);
   }
 
 
@@ -585,7 +577,7 @@
       // For public addresses, we don't need to clear the clipboard
       // as mentioned in the requirement
     } catch (error) {
-      console.error('Failed to copy address:', error);
+      log.warn('Failed to copy address:', false, error);
       uiStore.showError('Copy Failed', 'Failed to copy address to clipboard');
     }
   }
@@ -682,7 +674,7 @@
 
 <!-- Debug Panel for Error Tracking -->
 {#if hasError}
-<div class="fixed top-4 left-4 right-4 z-50 bg-red-100 dark:bg-red-900 border border-red-300 dark:border-red-700 rounded-lg p-4 shadow-lg">
+<div class="fixed top-2 left-4 right-4 z-50 bg-red-100 dark:bg-red-900 border border-red-300 dark:border-red-700 rounded-lg p-4 shadow-lg">
   <div class="flex justify-between items-start">
     <div>
       <h3 class="text-red-800 dark:text-red-200 font-bold">Home Page Error</h3>
@@ -700,7 +692,6 @@
   </div>
 </div>
 {/if}
-
 
 <!-- Fixed centered logo watermark -->
 <div class="fixed inset-0 flex items-center justify-center pointer-events-none select-none z-0">
@@ -722,12 +713,6 @@
         There was an error loading the home page. This is likely a temporary issue.
       </p>
       <div class="space-y-3">
-        <button
-          onclick={() => window.location.reload()}
-          class="yakkl-btn-primary w-full"
-        >
-          Refresh Page
-        </button>
         <button
           onclick={() => { hasError = false; errorMessage = ''; }}
           class="yakkl-btn-secondary w-full"
@@ -793,7 +778,7 @@
                       <span class="font-medium">{token.symbol}</span>
                     </div>
                     <ProtectedValue
-                      value={formatCurrency(Number(token?.value) || 0)}
+                      value={formatCurrency(token?.value || 0)}
                       placeholder="*****"
                     />
                   </div>
@@ -831,8 +816,8 @@
         {#if chain}
           <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-1">
             <span>{chain.nativeCurrency?.symbol || 'ETH'}:</span>
-            {#if BigNumberishUtils.compare(nativePrice, 0) > 0}
-              <ProtectedValue value={formatCurrency(BigNumberishUtils.toNumber(nativePrice))} placeholder="****" />
+            {#if nativePrice && nativePrice > 0}
+              <ProtectedValue value={formatCurrency(nativePrice)} placeholder="****" />
             {:else}
               <span class="animate-pulse">Loading...</span>
             {/if}
@@ -928,7 +913,7 @@
   <RecentActivity
     className="yakkl-card relative z-10"
     showAll={true}
-    onRefresh={async () => await refreshAllData(true)}
+    onRefresh={async () => refreshAllData(true)}
     onTransactionClick={handleTransactionClick}
   />
 
@@ -940,7 +925,7 @@
   />
 
   <!-- Pro Feature: Advanced Analytics -->
-  {#if canUseFeature('advanced_analytics')}
+  <!-- {#if canUseFeature('advanced_analytics')}
     <AdvancedAnalytics className="relative z-10" />
   {:else}
     <div class="yakkl-card relative z-10 p-6 text-center border-2 border-dashed border-gray-300 dark:border-gray-600">
@@ -958,15 +943,15 @@
         </button>
       </div>
     </div>
-  {/if}
+  {/if} -->
 
   <!-- Secure Full Recovery - Basic Feature -->
-  {#if canUseFeature('secure_recovery')}
+  <!-- {#if canUseFeature('secure_recovery')}
     <SecureRecovery className="relative z-10" />
-  {/if}
+  {/if} -->
 
   <!-- Extension System -->
-  <ExtensionDashboard className="yakkl-card relative z-10" />
+  <!-- <ExtensionDashboard className="yakkl-card relative z-10" /> -->
 
   <!-- Version Badge -->
   <div class="text-center pt-4 pb-2 relative z-10">
@@ -974,7 +959,7 @@
       <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
       </svg>
-      YAKKL v2
+      YAKKL v{VERSION}
     </div>
     </div>
   {/if} <!-- End normal page content -->

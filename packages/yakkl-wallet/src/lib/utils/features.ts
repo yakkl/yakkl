@@ -78,15 +78,13 @@ class FeatureManager {
       case PlanType.EXPLORER_MEMBER:
         return PLAN_FEATURES.BASIC;
       case PlanType.FOUNDING_MEMBER:
-        return PLAN_FEATURES.PRO; // Founding members get Pro features
       case PlanType.EARLY_ADOPTER:
-        return PLAN_FEATURES.PRO; // Early adopters get Pro features
       case PlanType.YAKKL_PRO:
         return PLAN_FEATURES.PRO;
       case PlanType.ENTERPRISE:
         return PLAN_FEATURES.ENTERPRISE;
       default:
-        log.warn(`Unknown plan type: ${plan}, defaulting to Basic`);
+        log.warn(`Unknown plan type: ${plan}, defaulting to Explorer`);
         return PLAN_FEATURES.BASIC;
     }
   }
@@ -95,9 +93,12 @@ class FeatureManager {
 // Export singleton instance
 export const featureManager = new FeatureManager();
 
-// Export convenience functions
-export const canUseFeature = (feature: string): boolean =>
-  featureManager.canUse(feature);
+// Export convenience functions  
+export const canUseFeature = (feature: string): boolean => {
+  // Initialize subscription if needed
+  initializeSubscription();
+  return featureManager.canUse(feature);
+};
 
 export const hasAccessToPlan = (plan: PlanType): boolean =>
   featureManager.hasAccess(plan);
@@ -105,12 +106,16 @@ export const hasAccessToPlan = (plan: PlanType): boolean =>
 export const setUserPlan = (plan: PlanType): void =>
   featureManager.setPlan(plan);
 
-export const getCurrentPlan = (): PlanType =>
-  featureManager.getCurrentPlan();
+export const getCurrentPlan = (): PlanType => {
+  // Initialize subscription if needed
+  initializeSubscription();
+  return featureManager.getCurrentPlan();
+};
 
 // Plan display helpers
 export const getPlanBadgeText = (plan?: PlanType): string => {
   const currentPlan = plan || featureManager.getCurrentPlan();
+  console.log('currentPlan 2', currentPlan);
   switch (currentPlan) {
     case PlanType.FOUNDING_MEMBER:
       return 'FOUNDING / PRO';
@@ -128,6 +133,7 @@ export const getPlanBadgeText = (plan?: PlanType): string => {
 
 export const getPlanBadgeColor = (plan?: PlanType): string => {
   const currentPlan = plan || featureManager.getCurrentPlan();
+  console.log('currentPlan', currentPlan);
   switch (currentPlan) {
     case PlanType.FOUNDING_MEMBER:
       return 'oklch(71.97% 0.149 81.37 / 1)'; // Gold/yellow as specified
@@ -159,6 +165,28 @@ export const getPlanGradientClass = (plan?: PlanType): string => {
       return 'from-stone-500 to-amber-700';
   }
 };
+
+// Lazy initialization to avoid circular dependency
+let subscriptionInitialized = false;
+function initializeSubscription() {
+  if (!subscriptionInitialized && typeof window !== 'undefined') {
+    subscriptionInitialized = true;
+    // Lazy import to avoid circular dependency
+    import('../stores/plan.store').then(({ planStore }) => {
+      planStore.subscribe((plan) => {
+        if (plan?.plan?.type) {
+          featureManager.setPlan(plan.plan.type);
+        }
+      });
+    });
+  }
+}
+
+// Initialize on first use
+if (typeof window !== 'undefined') {
+  // Delay initialization to next tick to avoid circular dependency
+  setTimeout(() => initializeSubscription(), 0);
+}
 
 // Export class for testing
 export { FeatureManager };

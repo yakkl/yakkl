@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { browser_ext, browserSvelte } from '$lib/common/environment';
+	import { browserSvelte } from '$lib/common/environment';
+	import { browserAPI } from '$lib/services/browser-api.service';
 	import { page } from '$app/state';
 	import {
 		getYakklCurrentlySelected,
@@ -12,8 +13,7 @@
 	import { onMount } from 'svelte';
 	import { log } from '$managers/Logger';
 	// import type { Runtime } from '$lib/types/browser-types';
-	import type { JsonRpcResponse, SessionInfo } from '$lib/common/interfaces';
-	import type { BackgroundPendingRequest } from '$lib/extensions/chrome/background';
+	import type { JsonRpcResponse, SessionInfo, BackgroundPendingRequest } from '$lib/common/interfaces';
 	import Confirmation from '$lib/components/Confirmation.svelte';
 	import Copyright from '$lib/components/Copyright.svelte';
 	// import Warning from '$lib/components/Warning.svelte';
@@ -64,21 +64,23 @@
 
 	const currentChainId = $derived(currentChainData?.shortcuts?.chainId ?? '0x1');
 
-	if (browserSvelte) {
-		try {
-			requestId = page.url.searchParams.get('requestId');
-			method = page.url.searchParams.get('method');
-			$yakklDappConnectRequestStore = requestId as string;
+	onMount(() => {
+		if (browserSvelte) {
+			try {
+				requestId = page.url.searchParams.get('requestId');
+				method = page.url.searchParams.get('method');
+				$yakklDappConnectRequestStore = requestId as string;
 
-			if (requestId) {
-				pass = true;
+				if (requestId) {
+					pass = true;
+				}
+				// NOTE: The internal check now makes sure the requestId is valid
+			} catch (e) {
+				log.error(e);
+				handleReject('No requestId or method was found. Access to YAKKL® is denied.');
 			}
-			// NOTE: The internal check now makes sure the requestId is valid
-		} catch (e) {
-			log.error(e);
-			handleReject('No requestId or method was found. Access to YAKKL® is denied.');
 		}
-	}
+	});
 
 	// We no longer need to do get_params since we can access the request data directly
 	async function onMessageListener(event: any) {
@@ -150,7 +152,7 @@
 				yakklMiscStore = getMiscStore();
 
 				// Since we're 1:1 we can attach to the known port name
-				const sessionInfo = (await browser_ext.runtime.sendMessage({
+				const sessionInfo = (await browserAPI.runtimeSendMessage({
 					type: 'REQUEST_SESSION_PORT',
 					requestId
 				})) as SessionInfo;

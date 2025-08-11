@@ -28,6 +28,31 @@
   // Reactive values from stores
   let transactions = $derived(showAll ? $allRecentTransactions : $recentTransactions);
   let loading = $derived($isLoadingTx);
+
+  // Debug transaction loading
+  $effect(() => {
+    console.log('RecentActivity: Transaction data:', {
+      showAll,
+      transactionCount: transactions.length,
+      loading,
+      firstTransaction: transactions[0] ? {
+        hash: transactions[0].hash,
+        type: transactions[0].type,
+        value: transactions[0].value,
+        timestamp: transactions[0].timestamp
+      } : null,
+      timestamp: Date.now()
+    });
+
+    // Also log the full transaction store state
+    console.log('RecentActivity: Full transaction store state:', {
+      storeTransactions: $transactionStore.transactions.length,
+      storeLoading: $transactionStore.loading,
+      storeError: $transactionStore.error,
+      recentTransactionsCount: $recentTransactions.length,
+      allRecentTransactionsCount: $allRecentTransactions.length
+    });
+  });
   let account = $derived($currentAccount);
   let totalCount = $derived($totalTransactionCount);
   let chain = $derived($currentChain);
@@ -43,6 +68,18 @@
   $effect(() => {
     if (isMultiChain) {
       viewMode = 'all_networks';
+    }
+  });
+
+  // Simple effect to log transaction state for debugging
+  $effect(() => {
+    if (account?.address && chain?.chainId) {
+      console.log('RecentActivity: Transaction state:', {
+        accountAddress: account.address,
+        chainId: chain.chainId,
+        transactionCount: transactions.length,
+        loading
+      });
     }
   });
 
@@ -103,17 +140,36 @@
     }
   });
 
-  // Debounced refresh function
+  // Debug filtered transactions
+  $effect(() => {
+    console.log('RecentActivity: Filtered transactions:', {
+      viewMode,
+      totalTransactions: transactions.length,
+      sortedTransactions: sortedTransactions.length,
+      filteredTransactions: filteredTransactions.length,
+      account: account?.address,
+      chain: chain?.name,
+      chainId: chain?.chainId,
+      ourAddresses: accounts.map(a => a.address.toLowerCase())
+    });
+  });
+
+  // Debounced refresh function - triggers background refresh
   async function handleRefresh() {
     if (isRefreshing || refreshDebounceTimer) return;
     isRefreshing = true;
 
     try {
-      if (onRefresh) {
-        onRefresh();
-      } else {
-        await transactionStore.refresh(true);
-      }
+      // Use the new refresh utility to trigger background refresh
+      const { refreshTransactions } = await import('$lib/utils/refresh');
+      await refreshTransactions();
+      
+      // The background service will update the cache and stores will react
+      console.log('RecentActivity: Triggered background transaction refresh');
+    } catch (error) {
+      console.error('RecentActivity: Failed to refresh transactions:', error);
+      // Fallback to direct store refresh if background refresh fails
+      await transactionStore.refresh(true);
     } finally {
       setTimeout(() => {
         isRefreshing = false;
@@ -185,9 +241,8 @@
       </div>
       <div class="flex items-center gap-2">
         <!-- View mode toggle - Improved styling -->
-        <button
+        <!-- <button
           onclick={() => {
-            // Cycle through view modes
             if (viewMode === 'current_account') {
               viewMode = 'single_network';
             } else if (viewMode === 'single_network') {
@@ -200,7 +255,7 @@
           title="Click to change view mode"
         >
           {viewMode === 'current_account' ? 'Current Account' : viewMode === 'single_network' ? 'Single Network' : 'All Networks'}
-        </button>
+        </button> -->
 
         <!-- Sort toggle -->
         <button

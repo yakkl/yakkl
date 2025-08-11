@@ -15,15 +15,50 @@ export class ListenerManager {
 	}
 
 	add(event: any, handler: Function) {
-		const wrappedHandler = async (...args: any[]) => {
-			const [message] = args;
+		const wrappedHandler = (...args: any[]) => {
+			const [message, sender, sendResponse] = args;
 
 			// Check if message should be handled in this context
-			if (message.targetContext && message.targetContext !== this.context) {
-				return false;
+			if (message && message.targetContext && message.targetContext !== this.context) {
+				// Return undefined to indicate we're not handling this message
+				return undefined;
 			}
 
-			return await handler(...args);
+			// Handle the async response pattern for Chrome extension messaging
+			// This is critical for proper message passing!
+			const handleAsync = async () => {
+				try {
+					const result = await handler(...args);
+					// Only send response if we have a valid result
+					if (result !== undefined && sendResponse && typeof sendResponse === 'function') {
+						sendResponse(result);
+					}
+					return result;
+				} catch (error) {
+					console.error('[ListenerManager] Error in wrapped handler:', error);
+					const errorResponse = { 
+						success: false, 
+						error: error instanceof Error ? error.message : 'Handler error' 
+					};
+					if (sendResponse && typeof sendResponse === 'function') {
+						sendResponse(errorResponse);
+					}
+					return errorResponse;
+				}
+			};
+
+			// Start the async handling
+			const resultPromise = handleAsync();
+
+			// Check if this is a Chrome runtime message handler with sendResponse
+			// If so, return true to indicate we'll send a response asynchronously
+			if (sendResponse && typeof sendResponse === 'function') {
+				// Return true to keep the message channel open for async response
+				return true;
+			}
+
+			// For other types of listeners, return the promise
+			return resultPromise;
 		};
 
 		if (event.hasListener(wrappedHandler)) {

@@ -90,7 +90,7 @@ export async function showExtensionPopup(
 			left = 0;
 		}
 
-		// Use the URL as-is 
+		// Use the URL as-is
 		let finalUrl = url || 'index.html';
 		const fullUrl = browser.runtime.getURL(finalUrl);
 

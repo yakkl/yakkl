@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+.git/
+*.log
+*.tmp
+packages/yakkl-wallet-v1/
+packages/!(yakkl-wallet)/
+src/examples/
+src/mocks/
+*.backup
+.svelte-kit/

@@ -7,18 +7,20 @@
   import { get } from 'svelte/store';
   import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
 
-  function formatCurrency(value: number): string {
-    if (value === 0) return '$0.00';
+  function formatCurrency(value: number | bigint): string {
+    // Convert bigint (cents) to number (dollars) for display
+    const numValue = typeof value === 'bigint' ? Number(value) / 100 : value;
+    if (numValue === 0) return '$0.00';
 
-    const absValue = Math.abs(value);
+    const absValue = Math.abs(numValue);
     if (absValue >= 1e12) {
-      return `$${(value / 1e12).toFixed(1)}T+`;
+      return `$${(numValue / 1e12).toFixed(1)}T+`;
     } else if (absValue >= 1e9) {
-      return `$${(value / 1e9).toFixed(1)}B+`;
+      return `$${(numValue / 1e9).toFixed(1)}B+`;
     } else if (absValue >= 1e6) {
-      return `$${(value / 1e6).toFixed(1)}M+`;
+      return `$${(numValue / 1e6).toFixed(1)}M+`;
     } else if (absValue >= 1e3) {
-      return `$${(value / 1e3).toFixed(1)}K+`;
+      return `$${(numValue / 1e3).toFixed(1)}K+`;
     }
 
     return new Intl.NumberFormat('en-US', {
@@ -26,46 +28,51 @@
       currency: 'USD',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
-    }).format(value);
+    }).format(numValue);
   }
 
-  function formatCurrencyFull(value: number): string {
+  function formatCurrencyFull(value: number | bigint): string {
+    // Convert bigint (cents) to number (dollars) for display
+    const numValue = typeof value === 'bigint' ? Number(value) / 100 : value;
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
-    }).format(value);
+    }).format(numValue);
   }
 
-  function formatBalance(balance: number): string {
-    if (balance === 0) return '0';
+  function formatBalance(balance: number | bigint): string {
+    // Convert to number for display purposes only
+    const numBalance = typeof balance === 'bigint' ? Number(balance) : balance;
+    if (numBalance === 0) return '0';
 
-    const absBalance = Math.abs(balance);
+    const absBalance = Math.abs(numBalance);
     if (absBalance >= 1e12) {
-      return `${(balance / 1e12).toFixed(1)}T+`;
+      return `${(numBalance / 1e12).toFixed(1)}T+`;
     } else if (absBalance >= 1e9) {
-      return `${(balance / 1e9).toFixed(1)}B+`;
+      return `${(numBalance / 1e9).toFixed(1)}B+`;
     } else if (absBalance >= 1e6) {
-      return `${(balance / 1e6).toFixed(1)}M+`;
+      return `${(numBalance / 1e6).toFixed(1)}M+`;
     } else if (absBalance >= 1e3) {
-      return `${(balance / 1e3).toFixed(1)}K+`;
+      return `${(numBalance / 1e3).toFixed(1)}K+`;
     } else if (absBalance < 0.0001) {
-      return balance.toExponential(4);
+      return numBalance.toExponential(4);
     } else if (absBalance < 1) {
-      return balance.toFixed(6);
+      return numBalance.toFixed(6);
     } else if (absBalance < 1000) {
-      return balance.toFixed(4);
+      return numBalance.toFixed(4);
     }
 
-    return balance.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    return numBalance.toLocaleString('en-US', { maximumFractionDigits: 2 });
   }
 
-  function formatBalanceFull(balance: number): string {
-    if (balance === 0) return '0';
-    if (balance < 0.0001) return balance.toExponential(4);
-    if (balance < 1) return balance.toFixed(6);
-    return balance.toLocaleString('en-US', { maximumFractionDigits: 6 });
+  function formatBalanceFull(balance: number | bigint): string {
+    const numBalance = typeof balance === 'bigint' ? Number(balance) : balance;
+    if (numBalance === 0) return '0';
+    if (numBalance < 0.0001) return numBalance.toExponential(4);
+    if (numBalance < 1) return numBalance.toFixed(6);
+    return numBalance.toLocaleString('en-US', { maximumFractionDigits: 6 });
   }
 
   interface Props {
@@ -127,13 +134,18 @@
         groups.set(token.chainId, group);
       }
 
-      group.totalValue += typeof token.value === 'number' ? token.value : BigNumberishUtils.toNumber(token.value || 0);
+      // Use BigNumber arithmetic for accuracy
+      const tokenValue = BigNumberishUtils.toBigInt(token.value || 0);
+      const currentTotal = BigNumberishUtils.toBigInt(group.totalValue);
+      group.totalValue = Number(BigNumberishUtils.add(currentTotal, tokenValue));
       group.tokenCount++;
       group.tokens.push(token);
     }
 
-    // Sort by total value descending
-    return Array.from(groups.values()).sort((a, b) => b.totalValue - a.totalValue);
+    // Sort by total value descending using BigNumber comparison
+    return Array.from(groups.values()).sort((a, b) =>
+      BigNumberishUtils.compare(b.totalValue, a.totalValue)
+    );
   });
 
   let totalValue = $derived(
@@ -230,7 +242,7 @@
                     </tr>
                   </thead>
                   <tbody>
-                    {#each network.tokens.sort((a, b) => Number(b.value || 0) - Number(a.value || 0)) as token}
+                    {#each network.tokens.sort((a, b) => BigNumberishUtils.compare(b.value || 0, a.value || 0)) as token}
                       <tr class="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                         <td class="px-3 py-3">
                           <div class="flex items-center gap-2">

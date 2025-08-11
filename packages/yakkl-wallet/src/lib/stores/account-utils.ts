@@ -2,10 +2,14 @@
 // This file contains functions that are used by both account.store.ts and common/stores.ts
 
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from '$lib/common/storage';
+import { getFromStorage, setInStorage } from '$lib/common/storage-context';
 import type { YakklCurrentlySelected } from '$lib/common/interfaces';
 import { STORAGE_YAKKL_CURRENTLY_SELECTED } from '$lib/common/constants';
 import { log } from '$lib/common/logger-wrapper';
 import { AccountTypeCategory, NetworkType } from '$lib/common/types';
+import { detectBrowserContext } from '$lib/common/browserContext';
+
+// Mainly for client context, not used in background
 
 /**
  * Get the currently selected account data
@@ -18,9 +22,11 @@ export async function getYakklCurrentlySelected(
 	persona?: string
 ): Promise<YakklCurrentlySelected> {
 	try {
-		const value = await getObjectFromLocalStorage<YakklCurrentlySelected>(
-			STORAGE_YAKKL_CURRENTLY_SELECTED
-		);
+		// Use context-aware storage for background context
+		const isBackground = detectBrowserContext() === 'background';
+		const value = isBackground
+			? await getFromStorage<YakklCurrentlySelected>(STORAGE_YAKKL_CURRENTLY_SELECTED)
+			: await getObjectFromLocalStorage<YakklCurrentlySelected>(STORAGE_YAKKL_CURRENTLY_SELECTED);
 
 		if (id && persona) {
 			// TODO: Implement this later
@@ -117,8 +123,13 @@ export async function setYakklCurrentlySelectedStorage(
 		// TODO: Move verification logic to a separate utility module
 		const newValues = values;
 
-		// Update localStorage
-		await setObjectInLocalStorage('yakklCurrentlySelected', newValues);
+		// Update localStorage using context-aware storage
+		const isBackground = detectBrowserContext() === 'background';
+		if (isBackground) {
+			await setInStorage(STORAGE_YAKKL_CURRENTLY_SELECTED, newValues);
+		} else {
+			await setObjectInLocalStorage(STORAGE_YAKKL_CURRENTLY_SELECTED, newValues);
+		}
 	} catch (error) {
 		log.error('Error in setYakklCurrentlySelectedStorage:', false, error);
 		throw error;

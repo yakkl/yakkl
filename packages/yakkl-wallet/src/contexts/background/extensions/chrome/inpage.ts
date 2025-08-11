@@ -55,9 +55,9 @@ declare namespace chrome {
 
 // Window declarations
 declare global {
-	var yakkl: EIP6963ProviderDetail;
 	interface Window {
 		ethereum: EIP6963Provider;
+		yakkl?: EIP6963ProviderDetail & { isConnected?: boolean };
 	}
 }
 
@@ -649,25 +649,42 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 	private rejectPendingRequests(reason: string) {
 		log.debug('Rejecting pending requests:', false, { count: this.pendingRequests.size, reason });
 
-		this.pendingRequests.forEach((request) => {
-			request.reject(ProviderRpcError.disconnected({ reason }));
-		});
-		this.pendingRequests.clear();
+		try {
+			this.pendingRequests.forEach((request) => {
+				try {
+					request.reject(ProviderRpcError.disconnected({ reason }));
+				} catch (error) {
+					log.warn('Error rejecting request:', false, error);
+				}
+			});
+			this.pendingRequests.clear();
+		} catch (error) {
+			log.warn('Error clearing pending requests:', false, error);
+		}
 
 		// Clear all timeouts
-		this.requestTimeouts.forEach((timeoutId) => {
-			clearTimeout(timeoutId);
-		});
-		this.requestTimeouts.clear();
+		try {
+			this.requestTimeouts.forEach((timeoutId) => {
+				try {
+					clearTimeout(timeoutId);
+				} catch (error) {
+					log.warn('Error clearing timeout:', false, error);
+				}
+			});
+			this.requestTimeouts.clear();
+		} catch (error) {
+			log.warn('Error clearing request timeouts:', false, error);
+		}
 	}
 
 	// Start connection watchdog with less aggressive checking
 	private startConnectionWatchdog() {
-		if (this.connectionWatchdog) {
-			clearInterval(this.connectionWatchdog);
-		}
+		try {
+			if (this.connectionWatchdog) {
+				clearInterval(this.connectionWatchdog);
+			}
 
-		this.connectionWatchdog = window.setInterval(async () => {
+			this.connectionWatchdog = window.setInterval(async () => {
 			// Only check if we think we're connected
 			if (this.state.isConnected) {
 				try {
@@ -691,6 +708,9 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 				}
 			}
 		}, this.CONNECTION_CHECK_INTERVAL);
+		} catch (error) {
+			log.warn('Failed to set up connection watchdog:', false, error);
+		}
 	}
 
 	// Update cached state
@@ -851,18 +871,46 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 
 	// Send request to content script using safe postMessage
 	private sendRequest(id: string, method: string, params: any[]) {
-		const message = {
-			type: 'YAKKL_REQUEST:EIP6963',
-			id,
-			method,
-			params,
-			requiresApproval: this.requiresApproval(method),
-			timestamp: Date.now()
-		};
+		try {
+			const message = {
+				type: 'YAKKL_REQUEST:EIP6963',
+				id,
+				method,
+				params,
+				requiresApproval: this.requiresApproval(method),
+				timestamp: Date.now()
+			};
 
-		log.debug('Sending request to content script:', false, { method, id });
+			log.debug('Sending request to content script:', false, { method, id });
 
-		safePostMessage(message, 'provider-request');
+			if (!safePostMessage(message, 'provider-request')) {
+				log.warn('Failed to send request via postMessage:', false, { id, method });
+				// Reject the pending request if we couldn't send it
+				const pendingRequest = this.pendingRequests.get(id);
+				if (pendingRequest) {
+					this.pendingRequests.delete(id);
+					const timeoutId = this.requestTimeouts.get(id);
+					if (timeoutId) {
+						clearTimeout(timeoutId);
+						this.requestTimeouts.delete(id);
+					}
+					pendingRequest.reject(ProviderRpcError.internalError('Failed to send request'));
+				}
+			}
+		} catch (error) {
+			log.warn('Error in sendRequest:', false, { error, id, method });
+			// Clean up pending request
+			const pendingRequest = this.pendingRequests.get(id);
+			if (pendingRequest) {
+				this.pendingRequests.delete(id);
+				const timeoutId = this.requestTimeouts.get(id);
+				if (timeoutId) {
+					clearTimeout(timeoutId);
+					this.requestTimeouts.delete(id);
+				}
+				pendingRequest.reject(ProviderRpcError.internalError('Extension context invalidated'));
+			}
+		}
 	}
 
 	// Get cached result if available
@@ -921,18 +969,34 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 
 	// Clean up resources
 	public destroy() {
-		if (this.connectionWatchdog) {
-			clearInterval(this.connectionWatchdog);
+		try {
+			if (this.connectionWatchdog) {
+				clearInterval(this.connectionWatchdog);
+			}
+		} catch (error) {
+			log.warn('Error clearing connection watchdog:', false, error);
 		}
 
-		if (this.messageListener) {
-			window.removeEventListener('message', this.messageListener);
+		try {
+			if (this.messageListener) {
+				window.removeEventListener('message', this.messageListener);
+			}
+		} catch (error) {
+			log.warn('Error removing message listener:', false, error);
 		}
 
 		// Clear all pending requests and their timeouts
-		this.rejectPendingRequests('Provider destroyed');
+		try {
+			this.rejectPendingRequests('Provider destroyed');
+		} catch (error) {
+			log.warn('Error rejecting pending requests:', false, error);
+		}
 
-		this.removeAllListeners();
+		try {
+			this.removeAllListeners();
+		} catch (error) {
+			log.warn('Error removing event listeners:', false, error);
+		}
 	}
 }
 
@@ -1035,16 +1099,26 @@ async function initializeInpageScript() {
 		window.yakkl = providerDetail;
 
 		// Set up visibility change handler to handle tab switches
-		document.addEventListener('visibilitychange', handleVisibilityChange);
+		try {
+			document.addEventListener('visibilitychange', handleVisibilityChange);
+		} catch (error) {
+			log.warn('Failed to add visibilitychange listener:', false, error);
+		}
 
 		// Announce the provider when the document is ready
 		if (document.readyState === 'complete' || document.readyState === 'interactive') {
 			announceProvider();
 		} else {
 			// If document isn't ready yet, wait for it
-			document.addEventListener('DOMContentLoaded', () => {
+			try {
+				document.addEventListener('DOMContentLoaded', () => {
+					announceProvider();
+				});
+			} catch (error) {
+				log.warn('Failed to add DOMContentLoaded listener:', false, error);
+				// Try to announce anyway
 				announceProvider();
-			});
+			}
 		}
 
 		// Also announce immediately for single-page applications

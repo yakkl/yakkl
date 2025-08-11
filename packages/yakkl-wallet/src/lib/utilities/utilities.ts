@@ -18,10 +18,18 @@ import type { BigNumberish } from '$lib/common/bignumber';
 import { yakklVersionStore } from '$lib/common/stores';
 import { Utils } from 'alchemy-sdk';
 import { ethers as ethersv6 } from 'ethers-v6';
-import { browserSvelte, browser_ext } from '$lib/common/environment';
+import { browserSvelte } from '$lib/common/environment';
 import { log } from '$lib/managers/Logger';
 import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
+import type { Browser } from 'webextension-polyfill';
+
+let browser: Browser | null = null;
+if (typeof window === 'undefined') {
+  browser = await import('webextension-polyfill');
+} else {
+  browser = await import('$lib/common/environment').then(e => e.browser_ext);
+}
 
 export function getTokenChange(changeArray: TokenChange[], timeline: string): number | null {
 	if (!changeArray) {
@@ -249,6 +257,8 @@ export function setDefinedProperty<T extends object, K extends keyof T>(
 }
 
 export function blockContextMenu() {
+  if (typeof window === 'undefined') return;
+
 	// Blocks the context menu from popping up
 	window.addEventListener('contextmenu', function (e) {
 		log.debug('Context menu blocked');
@@ -295,19 +305,21 @@ export function blockContextMenu() {
 const timerManager = UnifiedTimerManager.getInstance();
 
 export function blockWindowResize(width: number, height: number) {
-	window.addEventListener('resize', function () {
-		timerManager.stopTimeout('resize-debounce');
-		timerManager.removeTimeout('resize-debounce');
-		timerManager.addTimeout(
-			'resize-debounce',
-			() => {
-				console.log('🔲 Resizing window');
-				window.resizeTo(width, height);
-			},
-			500
-		);
-		timerManager.startTimeout('resize-debounce');
-	});
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', function () {
+      timerManager.stopTimeout('resize-debounce');
+      timerManager.removeTimeout('resize-debounce');
+      timerManager.addTimeout(
+        'resize-debounce',
+        () => {
+          console.log('🔲 Resizing window');
+          window.resizeTo(width, height);
+        },
+        500
+      );
+        timerManager.startTimeout('resize-debounce');
+      });
+	}
 }
 
 export function extractFQDN(url: string) {
@@ -337,9 +349,9 @@ export function checkUpgrade() {
  * @param {number} chainId
  */
 export function getNetworkInfo(chainId: number) {
-	let blockchain;
-	let type;
-	let explorer;
+	let blockchain: string;
+	let type: string;
+	let explorer: string;
 
 	switch (chainId) {
 		case 1301:
@@ -520,7 +532,7 @@ export function splitWords(str: string, delimiter = ' '): string[] {
 // Opens a tab in the browser
 export function handleOpenInTab(url: string): void {
 	if (browserSvelte) {
-		browser_ext.tabs.create({ url: url });
+		browser.tabs.create({ url });
 	}
 }
 
@@ -575,7 +587,7 @@ export function timeoutClipboard(ms: number, redactText: string = '<redacted>') 
 export async function setIconLock() {
 	try {
 		if (browserSvelte) {
-			await browser_ext.action.setIcon({
+			await browser.action.setIcon({
 				path: {
 					16: '/images/logoBullLock16x16.png',
 					32: '/images/logoBullLock32x32.png',
@@ -592,7 +604,7 @@ export async function setIconLock() {
 export async function setIconUnlock() {
 	try {
 		if (browserSvelte) {
-			await browser_ext.action.setIcon({
+			await browser.action.setIcon({
 				path: {
 					16: '/images/logoBull16x16.png',
 					32: '/images/logoBull32x32.png',
@@ -609,10 +621,11 @@ export async function setIconUnlock() {
 export async function setBadgeText(text: string = '') {
 	try {
 		if (browserSvelte) {
-			await browser_ext.action.setBadgeText({ text: text });
+			// Pass empty string as '' not undefined
+			await browser.action.setBadgeText({ text: text || '' });
 		}
 	} catch (e) {
-		log.error(e);
+		log.error('setBadgeText error:', e);
 	}
 }
 
@@ -675,7 +688,7 @@ export function hexToString(str1: string, Ox = true) {
 		for (let n = 0; n < hex.length; n += 2) {
 			// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 			// @ts-ignore
-			str += String.fromCharCode(parseInt(hex.substr(n, 2), 16));
+			str += String.fromCharCode(parseInt(hex.substring(n, n + 2), 16));
 		}
 		return str;
 	} catch (e) {
@@ -714,9 +727,9 @@ export function autoscroll(node: HTMLElement) {
  *
  * @returns {Error|undefined}
  */
-export function checkForError(): Error | undefined {
+export async function checkForError(): Promise<Error | undefined> {
 	if (browserSvelte) {
-		const { lastError } = browser_ext && browser_ext.runtime ? browser_ext.runtime : null;
+		const lastError = browser.runtime.lastError;
 		if (!lastError) {
 			return undefined;
 		}

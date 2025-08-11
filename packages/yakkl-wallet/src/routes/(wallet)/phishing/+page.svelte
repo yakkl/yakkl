@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { browserSvelte } from '$lib/common/environment';
 	import { page } from '$app/stores';
+	import { onMount } from 'svelte';
 
 	// Initialize state
 	let flaggedSite = $state('https://yakkl.com'); // Default
 	let yid = $state('');
 
-	// Use $effect for URL parameter handling
-	$effect(() => {
+	// Use onMount for URL parameter handling
+	onMount(() => {
 		if (browserSvelte) {
 			try {
 				const urlFlaggedSite = $page.url.searchParams.get('flaggedSite');

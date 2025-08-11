@@ -118,6 +118,7 @@ export const STORAGE_YAKKL_TOKENDATA_CUSTOM = "yakklTokenDataCustom";
 export const STORAGE_YAKKL_COMBINED_TOKENS = "yakklCombinedTokens";
 export const STORAGE_YAKKL_ADDRESS_TOKEN_HOLDINGS = "yakklAddressTokenHoldings";
 export const STORAGE_YAKKL_TOKEN_CACHE = "yakklTokenCache";
+export const STORAGE_YAKKL_WALLET_CACHE = "yakklWalletCache";
 export const STORAGE_YAKKL_CHATS = "yakklChats";
 export const STORAGE_YAKKL_WATCHLIST = "yakklWatchList";
 export const STORAGE_YAKKL_BLOCKEDLIST = "yakklBlockedList";
@@ -131,12 +132,12 @@ export const STORAGE_YAKKL_MEMPOOL = "yakklMemPool";
 
 export const PASSKEY_HINTS_MIN = 3;
 
-export const PATH_HOME = "/";
+export const PATH_HOME = "/home";
 export const PATH_REGISTER = "/register";
 export const PATH_LOGIN = "/login";
 export const PATH_LOCK = "/lock";
 export const PATH_CONTACTS = "/contacts";
-export const PATH_WELCOME = "/";
+// export const PATH_WELCOME = "/welcome";
 export const PATH_DASHBOARD = "/dashboard";
 export const PATH_LOGOUT = "/logout";
 export const PATH_IMPORT_EMERGENCYKIT = "/import/import-emergencykit";

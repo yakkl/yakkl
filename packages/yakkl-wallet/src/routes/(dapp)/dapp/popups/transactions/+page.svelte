@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { browser_ext, browserSvelte } from '$lib/common/environment';
+	import { browserSvelte } from '$lib/common/environment';
+	import { browserAPI } from '$lib/services/browser-api.service';
 	import {
 		getYakklCurrentlySelected,
 		getMiscStore,
@@ -32,7 +33,7 @@
 	import type { Wallet } from '$lib/managers/Wallet';
 	import { log } from '$lib/common/logger-wrapper';
 	import { sessionToken, verifySessionToken } from '$lib/common/auth/session';
-	import type { BackgroundPendingRequest } from '$lib/extensions/chrome/background';
+	import type { BackgroundPendingRequest } from '$lib/common/interfaces';
 	import Confirmation from '$lib/components/Confirmation.svelte';
 	import Warning from '$lib/components/Warning.svelte';
 	import Failed from '$lib/components/Failed.svelte';
@@ -77,22 +78,24 @@
 	let stream: PortDuplexStream | null = null;
 
 	// Extract parameters from URL
-	if (browserSvelte) {
-		try {
-			requestId = page.url.searchParams.get('requestId');
-			method = page.url.searchParams.get('method') || 'eth_sendTransaction';
-			$yakklDappConnectRequestStore = requestId as string;
+	onMount(() => {
+		if (browserSvelte) {
+			try {
+				requestId = page.url.searchParams.get('requestId');
+				method = page.url.searchParams.get('method') || 'eth_sendTransaction';
+				$yakklDappConnectRequestStore = requestId as string;
 
-			if (!requestId) {
-				errorValue = 'No request ID was found. Access to YAKKL® is denied.';
+				if (!requestId) {
+					errorValue = 'No request ID was found. Access to YAKKL® is denied.';
+					showFailure = true;
+				}
+			} catch (e) {
+				log.error('Error parsing URL parameters:', false, e);
+				errorValue = 'Invalid request parameters. Access to YAKKL® is denied.';
 				showFailure = true;
 			}
-		} catch (e) {
-			log.error('Error parsing URL parameters:', false, e);
-			errorValue = 'Invalid request parameters. Access to YAKKL® is denied.';
-			showFailure = true;
 		}
-	}
+	});
 
 	// Process incoming message from background
 	async function onMessageListener(event: any) {
@@ -218,7 +221,7 @@
 				);
 
 				// Request session port
-				const sessionInfo = (await browser_ext.runtime.sendMessage({
+				const sessionInfo = (await browserAPI.runtimeSendMessage({
 					type: 'REQUEST_SESSION_PORT',
 					requestId
 				})) as SessionInfo;

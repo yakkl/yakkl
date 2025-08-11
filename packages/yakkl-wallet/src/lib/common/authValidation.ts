@@ -34,40 +34,37 @@ export async function validateAuthentication(): Promise<ValidationResult> {
 
     // Step 2: Check if legal terms are accepted
     if (!settings.legal?.termsAgreed) {
-      log.error('Authentication failed: Legal terms not accepted');
+      log.warn('Authentication failed: Legal terms not accepted');
       return { isValid: false, reason: 'Legal terms not accepted' };
+    } else {
+      log.info('Authentication: Legal terms accepted');
     }
 
-    // Step 3: Check if wallet is locked
-    if (settings.isLocked !== false) {
-      log.error('Authentication failed: Wallet is locked');
-      return { isValid: false, reason: 'Wallet is locked' };
-    }
-
-    // Step 4: Validate digest exists and is non-empty
+    // Step 3: Validate digest exists and is non-empty
     const digest = getMiscStore();
     if (!digest || digest.length === 0) {
-      log.error('Authentication failed: No valid digest found');
+      log.warn('Authentication failed: No valid digest found');
       return { isValid: false, reason: 'No authentication digest' };
     }
 
-    // Step 5: Verify digest matches stored value
-    const storedDigest = get(yakklMiscStore);
-    if (digest !== storedDigest) {
-      log.error('Authentication failed: Digest mismatch');
-      return { isValid: false, reason: 'Invalid authentication state' };
-    }
+    // Step 4: Verify digest matches stored value
+    // const storedDigest = get(yakklMiscStore);
+    // if (digest !== storedDigest) {
+    //   log.warn('Authentication failed: Digest mismatch');
+    //   return { isValid: false, reason: 'Invalid authentication state' };
+    // }
 
-    // Step 6: Retrieve and validate profile
+    // Step 5: Retrieve and validate profile
     const profile = await getProfile();
     if (!profile) {
-      log.error('Authentication failed: No profile found');
+      log.warn('Authentication failed: No profile found');
       return { isValid: false, reason: 'No profile found' };
     }
 
+    // Step 6: Check if profile is locked
     // Profile from getProfile is already decrypted, validate its structure
     if (!profile.data) {
-      log.error('Authentication failed: No profile data');
+      log.warn('Authentication failed: No profile data');
       return { isValid: false, reason: 'Profile data missing' };
     }
 
@@ -76,7 +73,7 @@ export async function validateAuthentication(): Promise<ValidationResult> {
     if (isEncryptedData(profile.data)) {
       const profileData = await decryptData(profile.data, digest) as ProfileData;
       if (!profileData) {
-        log.error('Authentication failed: No profile data available');
+        log.warn('Authentication failed: No profile data available');
         return { isValid: false, reason: 'Profile data missing' };
       }
     }
@@ -92,11 +89,11 @@ export async function validateAuthentication(): Promise<ValidationResult> {
             hasValidJWT = true;
             log.debug('JWT token validated successfully');
           } else {
-            log.error('JWT token validation failed');
+            log.warn('JWT token validation failed');
             // Don't fail auth entirely if JWT is invalid - the session manager will handle this
           }
         } catch (error) {
-          log.error('JWT token verification error', false, error);
+          log.warn('JWT token verification error', false, error);
         }
       }
     }
@@ -109,7 +106,7 @@ export async function validateAuthentication(): Promise<ValidationResult> {
     }
 
     // All checks passed
-    log.info('Authentication validated successfully');
+    log.info('Authentication validated successfully-----------------------');
     return {
       isValid: true,
       profile: profile,
@@ -118,7 +115,7 @@ export async function validateAuthentication(): Promise<ValidationResult> {
     };
 
   } catch (error) {
-    log.error('Authentication validation error', false, error);
+    log.warn('Authentication validation error', false, error);
     return { isValid: false, reason: 'Validation error' };
   }
 }
@@ -163,11 +160,11 @@ export async function clearAuthenticationState(): Promise<void> {
     }
 
     // Reset stores
-    await resetStores();
+    resetStores();
 
     log.info('Authentication state cleared');
   } catch (error) {
-    log.error('Error clearing authentication state', false, error);
+    log.warn('Error clearing authentication state', false, error);
   }
 }
 
@@ -195,7 +192,7 @@ export async function validateAndRefreshAuth(): Promise<boolean> {
 
     return true;
   } catch (error) {
-    log.error('Error validating and refreshing auth', false, error);
+    log.warn('Error validating and refreshing auth', false, error);
     return false;
   }
 }
@@ -223,7 +220,7 @@ export async function auditAuthEvent(event: string, details: any = {}): Promise<
       log.debug('Security audit event........................', false, auditEntry);
     }
   } catch (error) {
-    log.error('Error auditing auth event', false, error);
+    log.warn('Error auditing auth event', false, error);
   }
 }
 

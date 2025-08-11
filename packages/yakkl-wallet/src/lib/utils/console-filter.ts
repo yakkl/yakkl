@@ -6,7 +6,7 @@ export function setupConsoleFilters() {
   const originalError = console.error;
   const originalWarn = console.warn;
   const originalLog = console.log;
-  
+
   // Track if we've already patched to avoid double-patching
   if ((console as any).__filtered) return;
   (console as any).__filtered = true;
@@ -17,26 +17,26 @@ export function setupConsoleFilters() {
     /hydration_mismatch/i,
     /node_invalid_placement_ssr/i,
     /cannot be a child of/i,
-    
+
     // CSP warnings that are expected in extension context
     /Refused to execute inline script/i,
     /Content Security Policy/i,
-    
+
     // Bits UI specific warnings
     /bits-ui.*floating-layer/i,
-    
+
     // Other common extension warnings
     /Extension context invalidated/i,
     /Unchecked runtime.lastError/i
   ];
 
-  // Override console.error
-  console.error = (...args) => {
+  // Override console.warn
+  console.warn = (...args) => {
     const message = args.join(' ');
-    
+
     // Check if this error should be filtered
     const shouldFilter = filterPatterns.some(pattern => pattern.test(message));
-    
+
     if (!shouldFilter) {
       originalError.apply(console, args);
     } else {
@@ -50,9 +50,9 @@ export function setupConsoleFilters() {
   // Override console.warn
   console.warn = (...args) => {
     const message = args.join(' ');
-    
+
     const shouldFilter = filterPatterns.some(pattern => pattern.test(message));
-    
+
     if (!shouldFilter) {
       originalWarn.apply(console, args);
     } else {
@@ -66,21 +66,21 @@ export function setupConsoleFilters() {
   // for monitoring purposes
   if (import.meta.env.PROD) {
     window.addEventListener('error', (event) => {
-      const shouldFilter = filterPatterns.some(pattern => 
+      const shouldFilter = filterPatterns.some(pattern =>
         pattern.test(event.message) || pattern.test(event.error?.stack || '')
       );
-      
+
       if (shouldFilter) {
         event.preventDefault(); // Prevent the default error handling
       }
     });
 
     window.addEventListener('unhandledrejection', (event) => {
-      const shouldFilter = filterPatterns.some(pattern => 
-        pattern.test(event.reason?.message || '') || 
+      const shouldFilter = filterPatterns.some(pattern =>
+        pattern.test(event.reason?.message || '') ||
         pattern.test(event.reason?.stack || '')
       );
-      
+
       if (shouldFilter) {
         event.preventDefault();
       }
@@ -91,8 +91,8 @@ export function setupConsoleFilters() {
 // Restore original console methods (useful for debugging)
 export function restoreConsole() {
   if (typeof window === 'undefined') return;
-  
+
   // Note: This requires storing the originals in a broader scope
   // For now, just reload the page to restore
-  window.location.reload();
+  // window.location.reload();
 }

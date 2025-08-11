@@ -1,7 +1,7 @@
 import { log } from '$lib/managers/Logger';
 import browser from 'webextension-polyfill';
 import type { Runtime } from 'webextension-polyfill';
-import type { SessionToken } from '$lib/common/interfaces';
+import type { SessionToken, StoreHashResponse } from '$lib/common/interfaces';
 import type { YakklResponse } from '$lib/common/interfaces';
 import { getSafeUUID } from '$lib/common/uuid';
 import { requestManager } from '$contexts/background/extensions/chrome/requestManager';
@@ -19,6 +19,16 @@ import { handleBrowserAPIMessage } from '$contexts/background/handlers/browser-a
 import { handleMessage as handleMessageFromHandler } from '$contexts/background/handlers/MessageHandler';
 
 // NOTE: This can only be used in the background context
+// Simple in-memory session state for background context
+const SESSION_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
+let bgSessionToken: { token: string; expiresAt: number } | null = null;
+let bgMemoryHash: string | null = null;
+
+function generateSessionToken(): { token: string; expiresAt: number } {
+  const token = getSafeUUID();
+  const expiresAt = Date.now() + SESSION_TIMEOUT_MS;
+  return { token, expiresAt };
+}
 
 interface ActiveTab {
   tabId: number;
@@ -38,22 +48,14 @@ export const SECURITY_MESSAGE = 'SECURITY_MESSAGE';
 export const RUNTIME_MESSAGE = 'RUNTIME_MESSAGE';
 
 // Session management
-const SESSION_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 let isClientReady = false; // Flag to check if the client is ready before sending messages from background to client
-let sessionToken: SessionToken | null = null;
-let memoryHash: string | null = null;
+// let sessionToken: SessionToken | null = null;
 const sessionPorts = new Map<string, Runtime.Port>();
 const memoryHashes = new Map<string, string>();
 
-function generateSessionToken(): SessionToken {
-  const token = getSafeUUID();
-  const expiresAt = Date.now() + SESSION_TIMEOUT_MS;
-  return { token, expiresAt };
-}
-
 function clearSession(reason: string) {
-  sessionToken = null;
-  memoryHash = null;
+  bgSessionToken = null;
+  bgMemoryHash = null;
 }
 
 // Add port registration function
@@ -108,23 +110,23 @@ function registerSessionPort(port: Runtime.Port, requestId: string) {
 
 function validateSession(token: string, scope: string): void {
   try {
-    if (!sessionToken || Date.now() > sessionToken.expiresAt) {
+    if (!bgSessionToken || Date.now() > bgSessionToken.expiresAt) {
       log.warn('Session validation failed', false, {
-        reason: !sessionToken ? 'No session token' : 'Token expired',
-        expiresAt: sessionToken?.expiresAt,
+        reason: !bgSessionToken ? 'No session token' : 'Token expired',
+        expiresAt: bgSessionToken?.expiresAt,
         currentTime: Date.now()
       });
       clearSession('Token expired or missing');
       throw new Error('Session expired');
     }
-    if (sessionToken.token !== token) {
+    if (bgSessionToken.token !== token) {
       log.warn(`Unauthorized access to ${scope}`, false, {
         providedToken: token,
-        expectedToken: sessionToken.token
+        expectedToken: bgSessionToken.token
       });
       throw new Error('Unauthorized');
     }
-    if (!memoryHash) {
+    if (!bgMemoryHash) {
       log.warn('Memory hash missing during session validation', false);
       throw new Error('Memory hash missing');
     }
@@ -149,7 +151,7 @@ export async function decryptDataBackground(payload: any, token: string): Promis
     log.warn('Invalid encrypted data structure');
     throw new Error('Decryption failed');
   }
-  return await decryptData(payload, memoryHash!);
+  return await decryptData(payload, bgMemoryHash!);
 }
 
 // Update handleRequestSessionPort to use the consolidated session ports
@@ -187,6 +189,16 @@ export async function onUnifiedMessageListener(
   sender: Runtime.MessageSender
 ): Promise<any> {
   try {
+    // Special logging for STORE_SESSION_HASH
+    if (message?.type === 'STORE_SESSION_HASH') {
+      console.log('[onUnifiedMessageListener] Top-level STORE_SESSION_HASH:', {
+        message,
+        sender,
+        hasPayload: !!message.payload,
+        payloadType: typeof message.payload
+      });
+    }
+
     const { id: requestId, method, type } = message;
 
     log.debug('Received message', false, { message, sender });
@@ -252,7 +264,21 @@ export async function onUnifiedMessageListener(
 
     // Browser API messages
     if (message.type?.startsWith('BROWSER_API_')) {
-      return await handleBrowserAPIMessage(message);
+      try {
+        const result = await handleBrowserAPIMessage(message);
+        // Ensure we always return something to prevent channel closing error
+        return result !== undefined ? result : { success: true };
+      } catch (error) {
+        log.error('[UnifiedListener] Error handling browser API message', false, {
+          messageType: message.type,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        // Return error response instead of throwing
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to handle browser API message'
+        };
+      }
     }
 
     // Signing messages
@@ -278,7 +304,7 @@ export async function onUnifiedMessageListener(
         log.error('Error routing to MessageHandler', false, error);
       }
     }
-    
+
     log.warn('Unknown message type', false, { message });
     return { success: false, error: 'Unknown message type' };
   } catch (error) {
@@ -352,45 +378,42 @@ async function handleSecurityMessage(message: any, sender: Runtime.MessageSender
       return { success: true };
     }
 
-    // Handle STORE_SESSION_HASH
+    // Handle STORE_SESSION_HASH (delegated)
+    // if (message?.type === 'STORE_SESSION_HASH') {
+      // Delegate handling to the background service handler registered in
+      // `contexts/background/index.ts` to avoid multiple responders.
+      // log.debug('[unifiedMessageListener] Delegating STORE_SESSION_HASH to background/index handler', false);
+      // return undefined;
+    // }
+
     if (message?.type === 'STORE_SESSION_HASH') {
-      if (!message.payload || typeof message.payload !== 'string') {
-        log.error('Invalid payload for STORE_SESSION_HASH', false);
-        return { success: false, error: 'Invalid payload' };
-      }
-
-      memoryHash = message.payload;
-      sessionToken = generateSessionToken();
-
-      // Send broadcast after returning response
-      setTimeout(async () => {
-        await browser.runtime.sendMessage({
-          type: 'SESSION_TOKEN_BROADCAST',
-          token: sessionToken.token,
-          expiresAt: sessionToken.expiresAt
+      try {
+        log.info('[Background] Handling STORE_SESSION_HASH', false, {
+          hasPayload: !!message?.payload,
+          payloadType: typeof message?.payload,
+          payloadLength: message?.payload?.length
         });
-      }, 0);
 
-      return {
-        success: true,
-        token: sessionToken.token,
-        expiresAt: sessionToken.expiresAt
-      };
+        if (!message?.payload || typeof message.payload !== 'string') {
+          log.warn('[Background] Invalid payload for STORE_SESSION_HASH', false);
+          return { success: false, error: 'Invalid payload' };
+        }
+
+        return await handleStoreSessionHash(message.payload);
+      } catch (error) {
+        log.error('[Background] Error handling STORE_SESSION_HASH', false, error);
+        return { success: false, error: 'Failed to store session hash' };
+      }
     }
 
-    // Handle REFRESH_SESSION
+    // Handle REFRESH_SESSION (delegated)
     if (message?.type === 'REFRESH_SESSION') {
-      if (sessionToken && message.token === sessionToken.token) {
-        sessionToken.expiresAt = Date.now() + SESSION_TIMEOUT_MS;
-        return {
-          success: true,
-          token: sessionToken.token,
-          expiresAt: sessionToken.expiresAt
-        };
-      } else {
-        clearSession('Invalid or expired refresh request');
-        return { success: false, error: 'Unauthorized' };
-      }
+      try {
+        return await handleRefreshSession(message);
+			} catch (error) {
+				log.error('[Background] Error handling REFRESH_SESSION', false, error);
+				return { success: false, error: 'Failed to refresh session' };
+			}
     }
 
     // Handle SESSION_TOKEN_BROADCAST
@@ -726,30 +749,30 @@ async function handleStoreSessionHash(payload: any) {
       return { success: false, error: 'Invalid payload' };
     }
 
-    memoryHash = payload;
-    sessionToken = generateSessionToken();
+    bgMemoryHash = payload;
+    bgSessionToken = generateSessionToken();
 
     // Broadcast the new session token
     try {
       await browser.runtime.sendMessage({
         type: 'SESSION_TOKEN_BROADCAST',
-        token: sessionToken.token,
-        expiresAt: sessionToken.expiresAt
+        token: bgSessionToken.token,
+        expiresAt: bgSessionToken.expiresAt
       });
     } catch (error) {
       log.warn('Failed to broadcast session token', false, { error });
     }
 
     log.info('Session hash stored and token generated', false, {
-      token: sessionToken.token,
-      expiresAt: sessionToken.expiresAt
+      token: bgSessionToken.token,
+      expiresAt: bgSessionToken.expiresAt
     });
 
     return {
       success: true,
-      token: sessionToken.token,
-      expiresAt: sessionToken.expiresAt
-    };
+      token: bgSessionToken.token,
+      expiresAt: bgSessionToken.expiresAt
+    } as StoreHashResponse;
   } catch (error) {
     log.error('Error storing session hash', false, {
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -759,56 +782,40 @@ async function handleStoreSessionHash(payload: any) {
   }
 }
 
-export async function handleRefreshSession(token: string) {
+export async function handleRefreshSession(message: any) {
   try {
-    // Verify this is being called from the background context
-    if (!isBackgroundContext()) {
-      log.warn('Attempt to refresh session from non-background context');
-      return { success: false, error: 'Unauthorized context' };
-    }
+    const providedToken = message?.token as string | undefined;
+    if (bgSessionToken && providedToken === bgSessionToken.token) {
+      bgSessionToken.expiresAt = Date.now() + SESSION_TIMEOUT_MS;
 
-    if (!token) {
-      log.warn('No token provided for session refresh', false);
-      return { success: false, error: 'No token provided' };
-    }
-
-    // Check if the token matches and is not expired
-    if (sessionToken && token === sessionToken.token) {
-      // Extend the session
-      sessionToken.expiresAt = Date.now() + SESSION_TIMEOUT_MS;
-      log.info('Session refreshed', false, {
-        expiresAt: sessionToken.expiresAt,
-        token: sessionToken.token
-      });
-
-      // Broadcast the new session token - client context will handle storing it
-      try {
-        await browser.runtime.sendMessage({
-          type: 'SESSION_TOKEN_BROADCAST',
-          token: sessionToken.token,
-          expiresAt: sessionToken.expiresAt
-        });
-      } catch (error) {
-        log.warn('Failed to broadcast session token', false, { error });
-      }
+      // Broadcast updated token expiry after responding
+      setTimeout(async () => {
+        try {
+          await browser.runtime.sendMessage({
+            type: 'SESSION_TOKEN_BROADCAST',
+            token: bgSessionToken!.token,
+            expiresAt: bgSessionToken!.expiresAt
+          });
+        } catch (error) {
+          log.error('[Background] Failed to broadcast refreshed session token', false, error);
+        }
+      }, 0);
 
       return {
         success: true,
-        token: sessionToken.token,
-        expiresAt: sessionToken.expiresAt
+        token: bgSessionToken.token,
+        expiresAt: bgSessionToken.expiresAt
       };
     } else {
-      log.warn('Invalid or expired refresh request', false, {
-        providedToken: token,
-        currentToken: sessionToken?.token
-      });
-      clearSession('Invalid refresh token');
-      return { success: false, error: 'Invalid or expired token' };
+      // Clear on invalid token
+      bgSessionToken = null;
+      bgMemoryHash = null;
+      return { success: false, error: 'Unauthorized' };
     }
   } catch (error) {
     log.error('Error refreshing session', false, {
       error: error instanceof Error ? error.message : 'Unknown error',
-      token
+      token: message?.token
     });
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
@@ -1040,19 +1047,19 @@ export function getBackgroundSessionToken(): SessionToken | null {
     }
 
 
-    if (!sessionToken) {
+    if (!bgSessionToken) {
       log.debug('No active session token found');
       return null;
     }
 
     // Verify the token hasn't expired
-    if (Date.now() > sessionToken.expiresAt) {
+    if (Date.now() > bgSessionToken.expiresAt) {
       log.debug('Session token has expired');
       clearSession('Token expired');
       return null;
     }
 
-    return sessionToken;
+    return bgSessionToken;
   } catch (error) {
     log.error('Error accessing session token:', false, error);
     return null;

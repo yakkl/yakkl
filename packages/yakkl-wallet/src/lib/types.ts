@@ -49,7 +49,7 @@ export interface ChainDisplay {
     name: string;
     symbol: string;
     decimals: number;
-    price?: BigNumberish;         // Changed from number
+    price?: number;         // Changed from number
   };
 }
 
@@ -62,13 +62,13 @@ export interface TokenDisplay {
   decimals: number;               // Stay number (decimal places count)
   logo?: string;
   quantity?: string;              // Keep as string - good for display
-  balance?: string | BigNumberish; // Accept both for compatibility, prefer BigNumberish
-  value?: string | BigNumberish;   // Accept both for compatibility, prefer BigNumberish
-  price?: BigNumberish;           // Changed from number - CRITICAL
+  balance?: BigNumberish; // Accept both for compatibility, prefer BigNumberish
+  value?: BigNumberish;   // Accept both for compatibility, prefer BigNumberish
+  price?: number;
   chainName?: string;
   icon?: string;
   qty?: BigNumberish;             // Changed from number - CRITICAL
-  change24h?: BigNumberish;       // Changed from number for precision
+  change24h?: number;       // Changed from number for precision
   color?: string;
 }
 
@@ -99,6 +99,7 @@ export interface TransactionDisplay {
   methodId?: string;
   txreceipt_status?: string;
   chainId?: number; // Added for multi-chain support
+  symbol?: string; // Empty defaults to ETH
 }
 
 export interface UserPlan {
