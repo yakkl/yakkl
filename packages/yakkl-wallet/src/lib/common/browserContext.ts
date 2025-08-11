@@ -1,12 +1,14 @@
 /**
  * Browser Context Detection and Direct API Access
  * 
- * This module provides utilities for detecting the browser extension context
- * and accessing browser APIs directly when possible, bypassing message passing
- * for better performance in privileged contexts.
+ * With the unified browser polyfill, this module now primarily provides
+ * context detection utilities. Direct API access is available through
+ * browser_ext in all contexts.
  */
 
 import { browser_ext } from './environment';
+// Static import for browser API service (for fallback)
+import { browserAPI } from '$lib/services/browser-api.service';
 
 export type BrowserContext = 
   | 'content-script'    // Injected into web pages, requires message passing
@@ -46,62 +48,56 @@ export function detectBrowserContext(): BrowserContext {
 
 /**
  * Check if the current context has direct access to browser APIs
+ * With unified polyfill, all contexts now have access
  */
 export function hasDirectBrowserAccess(): boolean {
-  const context = detectBrowserContext();
-  return context !== 'content-script' && context !== 'unknown';
+  return !!browser_ext?.storage?.local;
 }
 
 /**
- * Get browser storage API directly if available
+ * Get browser storage API directly
+ * With unified polyfill, this should always work
  */
 export function getDirectStorageAPI() {
-  if (hasDirectBrowserAccess() && browser_ext?.storage?.local) {
-    return browser_ext.storage.local;
-  }
-  return null;
+  return browser_ext?.storage?.local || null;
 }
 
 /**
- * Performance-optimized storage getter that uses direct access when possible
+ * Performance-optimized storage getter
+ * With unified polyfill, this always uses direct access
  */
 export async function fastStorageGet<T = any>(keys?: string | string[] | null): Promise<Record<string, T>> {
-  const directStorage = getDirectStorageAPI();
-  
-  if (directStorage) {
-    // Direct access - no message passing needed
+  if (browser_ext?.storage?.local) {
     try {
-      const result = await directStorage.get(keys);
+      const result = await browser_ext.storage.local.get(keys);
       return result as Record<string, T>;
     } catch (error) {
-      console.error('[fastStorageGet] Direct storage access failed:', error);
-      throw error;
+      console.error('[fastStorageGet] Storage access failed:', error);
+      // Fallback to browserAPI
+      return browserAPI.storageGet(keys);
     }
   }
   
-  // Fallback to browserAPI for content scripts
-  const { browserAPI } = await import('$lib/services/browser-api.service');
+  // Fallback to browserAPI if browser_ext not available
   return browserAPI.storageGet(keys);
 }
 
 /**
- * Performance-optimized storage setter that uses direct access when possible
+ * Performance-optimized storage setter
+ * With unified polyfill, this always uses direct access
  */
 export async function fastStorageSet(items: Record<string, any>): Promise<void> {
-  const directStorage = getDirectStorageAPI();
-  
-  if (directStorage) {
-    // Direct access - no message passing needed
+  if (browser_ext?.storage?.local) {
     try {
-      await directStorage.set(items);
+      await browser_ext.storage.local.set(items);
       return;
     } catch (error) {
-      console.error('[fastStorageSet] Direct storage access failed:', error);
-      throw error;
+      console.error('[fastStorageSet] Storage access failed:', error);
+      // Fallback to browserAPI
+      return browserAPI.storageSet(items);
     }
   }
   
-  // Fallback to browserAPI for content scripts
-  const { browserAPI } = await import('$lib/services/browser-api.service');
+  // Fallback to browserAPI if browser_ext not available
   return browserAPI.storageSet(items);
 }

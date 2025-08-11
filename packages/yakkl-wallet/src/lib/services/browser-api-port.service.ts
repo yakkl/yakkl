@@ -305,6 +305,19 @@ class BrowserAPIPortService {
   }
   
   // ... rest of the API methods using sendPortRequest
+  
+  /**
+   * Send a runtime message to the background
+   */
+  async runtimeSendMessage(message: any): Promise<any> {
+    if (typeof window === 'undefined') {
+      throw new Error('[BrowserAPIPort] runtimeSendMessage() cannot be called in SSR environment');
+    }
+    return this.sendPortRequest(
+      BrowserAPIMessageType.BROWSER_API_RUNTIME_SEND_MESSAGE,
+      { message }
+    );
+  }
 }
 
 // Export singleton instance

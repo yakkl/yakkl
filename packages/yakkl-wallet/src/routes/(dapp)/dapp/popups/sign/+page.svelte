@@ -95,20 +95,22 @@
 	let portManager: PortManagerWithStream | null = null;
 	let stream: PortDuplexStream | null = null;
 
-	if (browserSvelte) {
-		try {
-			requestId = page.url.searchParams.get('requestId');
-			method = (page.url.searchParams.get('method') as string) ?? '';
-			$yakklDappConnectRequestStore = requestId as string;
+	onMount(() => {
+		if (browserSvelte) {
+			try {
+				requestId = page.url.searchParams.get('requestId');
+				method = (page.url.searchParams.get('method') as string) ?? '';
+				$yakklDappConnectRequestStore = requestId as string;
 
-			if (requestId) {
-				pass = true;
+				if (requestId) {
+					pass = true;
+				}
+			} catch (e) {
+				log.error(e);
+				handleReject('No requestId or method was found. Access to YAKKL® is denied.');
 			}
-		} catch (e) {
-			log.error(e);
-			handleReject('No requestId or method was found. Access to YAKKL® is denied.');
 		}
-	}
+	});
 
 	// Format transaction for user-friendly display
 	async function formatTransactionForDisplay() {

@@ -110,6 +110,9 @@ Located in `yakkl-wallet/src/routes/`:
 ### Rule 0: Compilation Must Succeed
 **ABSOLUTE REQUIREMENT**: No task is complete until `pnpm run dev:wallet` runs with zero errors from the root directory. This is non-negotiable.
 
+### Rule .5: We build for multi-chain
+- Do not name properties or variables with something `eth<whatever>` but keep it more generic but relatable to its purpose
+
 ### Rule 1: File Change Limits
 Do not make changes to more than 10 source code files without prompting and explaining:
 - Files to be altered
@@ -163,13 +166,22 @@ const browser = await import('webextension-polyfill');
 
 ### Rule 9: Import Strategy
 - Prefer static imports for non-conflicting modules
-- Use dynamic imports ONLY for SSR conflicts
+- NEVER use dynamic imports UNLESS for SSR conflicts or some other conflict where this is the only way around it
 - Resolve issues at compile time when possible
 
 ### Rule 10: Environment Variables
+- NEVER alter .env, .env.mustache, or any .env like file. Let me know what I should change there and I will do it so I know what is happening
 - Client context: `import.meta.env.VARIABLE_NAME` (Vite)
 - Background context: `process.env.VARIABLE_NAME` (Webpack)
 - NEVER expose private data in inpage.ts or anywhere the user can see
+- If a environment variable is to be used in the background context it must use `process.env.<variable>` and if used in the client context use `import.meta.env.<variable>`. Add a condition like the following if needed:
+```typescript
+if (typeof window === 'undefined') {
+  return process.env.<whatever>;
+} else {
+  return import.meta.env.<whatever>;
+}
+```
 
 ### Rule 11: Naming Conventions
 - Examine existing code patterns
@@ -196,6 +208,7 @@ const browser = await import('webextension-polyfill');
 - Include usage examples for complex functions
 
 ### Rule 15: Message Abstraction
+- These should already be done for most everything but if not then:
 - NEVER use `browser.runtime.send*` directly
 - Create abstracted wrapper functions
 - Centralize all messaging abstractions
@@ -229,10 +242,15 @@ const browser = await import('webextension-polyfill');
 
 ### Rule 20: Svelte-Specific Rules
 
+#### 20.05: Static files
+- Browser extension require statically created html files
+- Do not create SPA related files
+
 #### 20.1: Store Access
 - Background context CANNOT access Svelte stores
-- Use extension storage APIs for persistence
-- Session storage is visible - encrypt if private
+- Use extension storage APIs for persistence ONLY on data that is not sensitive
+- In background context files (where a given listener is that you need to use) create a variable to hold the sensitive value in memory in the background service worker namespace. If the value is needed then a port connection from the client side can send a secure message to retrieve the data and then after use, immediately clear the client side data (var) holding the sensitive value
+- Another great option is - Session storage is visible - encrypt if private
 
 #### 20.2: Private Data Storage
 - Verify encryption before storing private data

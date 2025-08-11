@@ -6,6 +6,7 @@ import { TransactionCacheManager } from '../managers/TransactionCacheManager';
 import { currentAccount } from './account.store';
 import { currentChain } from './chain.store';
 import { get } from 'svelte/store';
+import { walletCacheStore } from './wallet-cache.store';
 
 import { log } from '$lib/common/logger-wrapper';
 
@@ -20,9 +21,23 @@ interface TransactionState {
 }
 
 function createTransactionStore() {
-  const txService = TransactionService.getInstance();
-  const txMonitor = TransactionMonitorService.getInstance();
-  const cacheManager = TransactionCacheManager.getInstance();
+  // Lazy initialization to avoid circular dependencies
+  let txService: TransactionService | null = null;
+  let txMonitor: TransactionMonitorService | null = null;
+  let cacheManager: TransactionCacheManager | null = null;
+  
+  // Helper function to ensure services are initialized
+  const ensureServicesInitialized = () => {
+    if (!txService) {
+      txService = TransactionService.getInstance();
+    }
+    if (!txMonitor) {
+      txMonitor = TransactionMonitorService.getInstance();
+    }
+    if (!cacheManager) {
+      cacheManager = TransactionCacheManager.getInstance();
+    }
+  };
 
   const { subscribe, set, update } = writable<TransactionState>({
     transactions: [],
@@ -58,8 +73,9 @@ function createTransactionStore() {
       // First try to load from cache for immediate display
       const chain = get(currentChain);
       if (chain?.chainId) {
+        ensureServicesInitialized();
         const currentState = get({ subscribe });
-        const cachedTransactions = await cacheManager.getCachedTransactions(
+        const cachedTransactions = await cacheManager!.getCachedTransactions(
           account.address,
           chain.chainId,
           currentState.sortOrder
@@ -97,8 +113,9 @@ function createTransactionStore() {
         log.info('TransactionStore: Chain changed to', false, chain.name, 'chainId:', chain.chainId, ', reloading transactions');
 
         // First try to load from cache for immediate display
+        ensureServicesInitialized();
         const currentState = get({ subscribe });
-        const cachedTransactions = await cacheManager.getCachedTransactions(
+        const cachedTransactions = await cacheManager!.getCachedTransactions(
           account.address,
           chain.chainId,
           currentState.sortOrder
@@ -144,16 +161,64 @@ function createTransactionStore() {
         isTestnet: chain.isTestnet
       });
 
-      // First, try to load from cache for immediate display
+      // First, try to load from the unified wallet cache (using static import)
+      const cache = await walletCacheStore.getCache();
+      
+      // Check if we have transactions in the wallet cache
+      const accountCache = cache?.chainAccountCache?.[chain.chainId]?.[address.toLowerCase()];
+      const walletCacheTransactions = accountCache?.transactions?.transactions || [];
+      
+      if (walletCacheTransactions.length > 0) {
+        log.info('TransactionStore: Loading from wallet cache:', false, walletCacheTransactions.length, 'transactions');
+        
+        // Convert to TransactionDisplay format
+        const displayTransactions: TransactionDisplay[] = walletCacheTransactions.map((tx: any) => ({
+          hash: tx.hash,
+          from: tx.from,
+          to: tx.to,
+          value: tx.value,
+          timestamp: tx.timestamp,
+          status: tx.status || 'success',
+          chainId: chain.chainId,
+          nonce: tx.nonce,
+          gas: tx.gas,
+          gasPrice: tx.gasPrice,
+          blockNumber: tx.blockNumber,
+          confirmations: tx.confirmations,
+          type: tx.from.toLowerCase() === address.toLowerCase() ? 'send' : 'receive'
+        }));
+        
+        // Sort according to current sort order
+        const currentState = get({ subscribe });
+        const sortOrder = currentState.sortOrder;
+        if (sortOrder === 'oldest') {
+          displayTransactions.sort((a, b) => a.timestamp - b.timestamp);
+        } else {
+          displayTransactions.sort((a, b) => b.timestamp - a.timestamp);
+        }
+        
+        // Show wallet cache data immediately
+        update(state => ({
+          ...state,
+          transactions: displayTransactions,
+          loading: { isLoading: false },
+          error: { hasError: false }
+        }));
+        
+        // Don't return early - still try to fetch fresh data
+      }
+
+      // Fall back to old cache manager if wallet cache is empty
+      ensureServicesInitialized();
       const currentState = get({ subscribe });
-      const cachedTransactions = await cacheManager.getCachedTransactions(
+      const cachedTransactions = await cacheManager!.getCachedTransactions(
         address,
         chain.chainId,
         currentState.sortOrder
       );
 
-      if (cachedTransactions && cachedTransactions.length > 0) {
-        log.info('TransactionStore: Loading from cache:', false, cachedTransactions.length, 'transactions');
+      if (!walletCacheTransactions.length && cachedTransactions && cachedTransactions.length > 0) {
+        log.info('TransactionStore: Loading from old cache:', false, cachedTransactions.length, 'transactions');
 
         // Show cached data immediately
         update(state => ({
@@ -162,7 +227,7 @@ function createTransactionStore() {
           loading: { isLoading: false },
           error: { hasError: false }
         }));
-      } else {
+      } else if (!walletCacheTransactions.length) {
         // No cache, show loading state
         update(state => ({
           ...state,
@@ -173,7 +238,8 @@ function createTransactionStore() {
       // Now fetch fresh data from service
       let response;
       try {
-        response = await txService.getTransactionHistory(address);
+        ensureServicesInitialized();
+        response = await txService!.getTransactionHistory(address);
         log.info('TransactionStore: Got response:', false, {
           success: response.success,
           hasData: !!response.data,
@@ -202,7 +268,8 @@ function createTransactionStore() {
 
         // Update cache with new transactions
         try {
-          await cacheManager.updateCache(address, chain.chainId, response.data);
+          ensureServicesInitialized();
+          await cacheManager!.updateCache(address, chain.chainId, response.data);
         } catch (error) {
           log.warn('TransactionStore: Failed to update cache:', false, error);
         }
@@ -234,20 +301,23 @@ function createTransactionStore() {
           return newState;
         });
       } else {
-        // If no fresh data, keep cached data if available, otherwise show empty
-        log.info('TransactionStore: No fresh transaction data available');
-        if (!cachedTransactions || cachedTransactions.length === 0) {
-          update(state => ({
-            ...state,
-            transactions: [],
-            loading: { isLoading: false },
-            error: { hasError: false }
-          }));
-        } else {
+        // If no fresh data, keep cached data if available
+        log.info('TransactionStore: No fresh transaction data available, keeping cached data');
+        if (cachedTransactions && cachedTransactions.length > 0) {
           // Keep cached data
           log.info('TransactionStore: Keeping cached data:', false, cachedTransactions.length, 'transactions');
           update(state => ({
             ...state,
+            transactions: cachedTransactions,
+            loading: { isLoading: false },
+            error: { hasError: false }
+          }));
+        } else {
+          // Only clear if we have no cached data at all
+          log.info('TransactionStore: No cached data available, showing empty state');
+          update(state => ({
+            ...state,
+            transactions: [],
             loading: { isLoading: false },
             error: { hasError: false }
           }));
@@ -265,53 +335,6 @@ function createTransactionStore() {
     }
   }
 
-  // REMOVE MOCK DATA - keeping original code as comment for reference
-  /*
-  async function loadTransactionsMockData(address: string) {
-        const mockTransactions: TransactionDisplay[] = [
-          {
-            hash: '0x' + Math.random().toString(16).substr(2, 64),
-            from: address,
-            to: '0x742d35Cc6634C0532925a3b844Bc9e7595f7E123',
-            value: '0.15',
-            timestamp: Date.now() - 1000 * 60 * 30, // 30 minutes ago
-            status: 'confirmed',
-            type: 'send',
-            gas: '21000',
-            gasPrice: '20000000000'
-          },
-          {
-            hash: '0x' + Math.random().toString(16).substr(2, 64),
-            from: '0x742d35Cc6634C0532925a3b844Bc9e7595f7E456',
-            to: address,
-            value: '0.25',
-            timestamp: Date.now() - 1000 * 60 * 60 * 2, // 2 hours ago
-            status: 'confirmed',
-            type: 'receive',
-            gas: '21000',
-            gasPrice: '20000000000'
-          },
-          {
-            hash: '0x' + Math.random().toString(16).substr(2, 64),
-            from: address,
-            to: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984', // UNI token
-            value: '0',
-            timestamp: Date.now() - 1000 * 60 * 60 * 24, // 1 day ago
-            status: 'confirmed',
-            type: 'contract',
-            gas: '100000',
-            gasPrice: '20000000000'
-          }
-        ];
-
-        update(state => ({
-          ...state,
-          transactions: mockTransactions,
-          loading: { isLoading: false },
-          error: { hasError: false }
-        }));
-  }
-  */
 
   return {
     subscribe,
@@ -323,7 +346,8 @@ function createTransactionStore() {
         error: { hasError: false }
       }));
 
-      const response = await txService.sendTransaction({
+      ensureServicesInitialized();
+      const response = await txService!.sendTransaction({
         to,
         value,
         tokenAddress
@@ -357,7 +381,8 @@ function createTransactionStore() {
     },
 
     async estimateGas(to: string, value: string, tokenAddress?: string) {
-      const response = await txService.estimateGas({
+      ensureServicesInitialized();
+      const response = await txService!.estimateGas({
         to,
         value,
         tokenAddress
@@ -367,7 +392,8 @@ function createTransactionStore() {
     },
 
     async updateGasPrice() {
-      const response = await txService.getGasPrice();
+      ensureServicesInitialized();
+      const response = await txService!.getGasPrice();
 
       if (response.success && response.data) {
         update(state => ({
@@ -447,24 +473,28 @@ function createTransactionStore() {
 
     // Start transaction monitoring
     async startMonitoring(pollingInterval?: number) {
-      await txMonitor.start(pollingInterval);
+      ensureServicesInitialized();
+      await txMonitor!.start(pollingInterval);
       update(state => ({ ...state, isMonitoring: true }));
     },
 
     // Stop transaction monitoring
     stopMonitoring() {
-      txMonitor.stop();
+      ensureServicesInitialized();
+      txMonitor!.stop();
       update(state => ({ ...state, isMonitoring: false }));
     },
 
     // Configure monitoring settings
     configureMonitoring(config: { pollingInterval?: number; notificationEnabled?: boolean }) {
-      txMonitor.configure(config);
+      ensureServicesInitialized();
+      txMonitor!.configure(config);
     },
 
     // Get monitoring status
     getMonitoringStatus() {
-      return txMonitor.getStatus();
+      ensureServicesInitialized();
+      return txMonitor!.getStatus();
     },
 
     // Clear cache for current account and chain
@@ -473,7 +503,8 @@ function createTransactionStore() {
       const chain = get(currentChain);
 
       if (account?.address && chain?.chainId) {
-        await cacheManager.clearCache(account.address, chain.chainId);
+        ensureServicesInitialized();
+        await cacheManager!.clearCache(account.address, chain.chainId);
         await loadTransactions(account.address);
       }
     },
@@ -492,7 +523,8 @@ function createTransactionStore() {
       // Load from cache first for immediate display
       for (const account of accounts) {
         for (const chainId of targetChainIds) {
-          const cachedTxs = await cacheManager.getCachedTransactions(
+          ensureServicesInitialized();
+          const cachedTxs = await cacheManager!.getCachedTransactions(
             account.address,
             chainId,
             'newest'
@@ -532,35 +564,99 @@ function createTransactionStore() {
   };
 }
 
-export const transactionStore = createTransactionStore();
+// Lazy initialization of the store to avoid circular dependencies
+let _transactionStore: ReturnType<typeof createTransactionStore> | null = null;
 
-// Derived stores
-export const recentTransactions = derived(
-  transactionStore,
-  $store => $store.transactions.slice(0, 5)
-);
+function getTransactionStore() {
+  if (!_transactionStore) {
+    _transactionStore = createTransactionStore();
+  }
+  return _transactionStore;
+}
 
-export const pendingTransaction = derived(
-  transactionStore,
-  $store => $store.pendingTx
-);
+// Create a proxy that lazily initializes the store
+export const transactionStore = new Proxy({} as ReturnType<typeof createTransactionStore>, {
+  get(_target, prop) {
+    const store = getTransactionStore();
+    return (store as any)[prop];
+  }
+});
 
-export const isLoadingTx = derived(
-  transactionStore,
-  $store => $store.loading.isLoading
-);
+// Lazy derived stores
+let _recentTransactions: any = null;
+export const recentTransactions = {
+  subscribe: (fn: any) => {
+    if (!_recentTransactions) {
+      _recentTransactions = derived(
+        transactionStore,
+        ($store: TransactionState) => $store.transactions.slice(0, 5)
+      );
+    }
+    return _recentTransactions.subscribe(fn);
+  }
+};
 
-export const txError = derived(
-  transactionStore,
-  $store => $store.error
-);
+let _pendingTransaction: any = null;
+export const pendingTransaction = {
+  subscribe: (fn: any) => {
+    if (!_pendingTransaction) {
+      _pendingTransaction = derived(
+        transactionStore,
+        ($store: TransactionState) => $store.pendingTx
+      );
+    }
+    return _pendingTransaction.subscribe(fn);
+  }
+};
 
-export const txSortOrder = derived(
-  transactionStore,
-  $store => $store.sortOrder
-);
+let _isLoadingTx: any = null;
+export const isLoadingTx = {
+  subscribe: (fn: any) => {
+    if (!_isLoadingTx) {
+      _isLoadingTx = derived(
+        transactionStore,
+        ($store: TransactionState) => $store.loading.isLoading
+      );
+    }
+    return _isLoadingTx.subscribe(fn);
+  }
+};
 
-export const isMonitoringTx = derived(
-  transactionStore,
-  $store => $store.isMonitoring
-);
+let _txError: any = null;
+export const txError = {
+  subscribe: (fn: any) => {
+    if (!_txError) {
+      _txError = derived(
+        transactionStore,
+        ($store: TransactionState) => $store.error
+      );
+    }
+    return _txError.subscribe(fn);
+  }
+};
+
+let _txSortOrder: any = null;
+export const txSortOrder = {
+  subscribe: (fn: any) => {
+    if (!_txSortOrder) {
+      _txSortOrder = derived(
+        transactionStore,
+        ($store: TransactionState) => $store.sortOrder
+      );
+    }
+    return _txSortOrder.subscribe(fn);
+  }
+};
+
+let _isMonitoringTx: any = null;
+export const isMonitoringTx = {
+  subscribe: (fn: any) => {
+    if (!_isMonitoringTx) {
+      _isMonitoringTx = derived(
+        transactionStore,
+        ($store: TransactionState) => $store.isMonitoring
+      );
+    }
+    return _isMonitoringTx.subscribe(fn);
+  }
+};

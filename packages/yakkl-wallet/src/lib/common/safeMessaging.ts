@@ -1,20 +1,23 @@
 // Safe messaging utility to suppress "Receiving end does not exist" errors
 import { log } from '$lib/common/logger-wrapper';
 import { browser_ext } from '$lib/common/environment';
+import browser from '$lib/browser-polyfill-wrapper';
 
 export async function sendToExtensionUI(message: any): Promise<void> {
   try {
     if (!browser_ext) {
-      log.warn('Browser runtime not available for sendMessage');
-      return;
+      if (browser.runtime.lastError) {
+        log.warn('Browser runtime last error', false, browser.runtime.lastError);
+        return;
+      }
+      await browser.runtime.sendMessage(message);
+    } else {
+      if (browser_ext.runtime.lastError) {
+        log.warn('Browser runtime last error', false, browser_ext.runtime.lastError);
+        return;
+      }
+      await browser_ext.runtime.sendMessage(message);
     }
-
-    if (!browser_ext?.runtime?.sendMessage) {
-      log.warn('Browser runtime not available for sendMessage');
-      return;
-    }
-
-    await browser_ext.runtime.sendMessage(message);
   } catch (error: any) {
     // Suppress "Receiving end does not exist" errors
     if (error?.message?.includes('Receiving end does not exist')) {

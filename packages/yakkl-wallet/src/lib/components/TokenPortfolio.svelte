@@ -10,6 +10,7 @@
 	import { walletCacheStore } from '$lib/stores/wallet-cache.store';
 	import { log } from '$lib/common/logger-wrapper';
 	import { BigNumber } from '$lib/common/bignumber';
+	import { BrowserAPIPortService } from '$lib/services/browser-api-port.service';
 
 	let { tokens = [], className = '', maxRows = 6, loading = false } = $props();
 
@@ -204,13 +205,16 @@
 		}).format(price);
 	}
 
-	async function toggleMultiChain() {
+	function toggleMultiChain() {
 		tokenStore.toggleMultiChainView();
 
 		// Load multi-network data if switching to multi-network view
 		if (!multiChainView) {
 			// Multi-chain tokens will be loaded by the store when toggled
-			await tokenStore.refresh();
+			// Non-blocking refresh
+			tokenStore.refresh().catch(error => {
+				log.warn('[TokenPortfolio] Failed to refresh after toggle:', false, error);
+			});
 		}
 	}
 
@@ -229,7 +233,7 @@
 	}
 
 	// Refresh function with rate limiting
-	async function handleRefresh() {
+	function handleRefresh() {
 		const now = Date.now();
 
 		// Check if we're within the cooldown period
@@ -254,53 +258,41 @@
 			return;
 		}
 
-		try {
-			isRefreshing = true;
-			lastRefreshTime = now;
+		isRefreshing = true;
+		lastRefreshTime = now;
 
-			log.info('[TokenPortfolio] Starting token refresh...', false);
+		log.info('[TokenPortfolio] Sending refresh request to background...', false);
 
-			const account = $currentAccount;
-			const chain = $currentChain;
-
-			if (!account || !chain) {
-				log.warn('[TokenPortfolio] No account or chain selected', false);
-				return;
+		// Send refresh request to background service using BrowserAPIPortService
+		const browserAPI = BrowserAPIPortService.getInstance() as any;
+		if (browserAPI.runtimeSendMessage) {
+			browserAPI.runtimeSendMessage({
+				type: 'YAKKL_REFRESH_REQUEST',
+				refreshType: 'all'
+			}).then((response: any) => {
+			if (response?.success) {
+				log.info('[TokenPortfolio] Background refresh completed', false);
+			} else {
+				log.warn('[TokenPortfolio] Background refresh failed', false, response?.error);
+				// Reset the cooldown on error to allow retry sooner
+				lastRefreshTime = Date.now() - (REFRESH_COOLDOWN_MS - 2000); // Allow retry in 2 seconds
 			}
-
-			// Use CacheSyncManager to sync token balances
-			const syncManager = CacheSyncManager.getInstance();
-
-			// First sync token balances (this will fetch ETH balance for native tokens)
-			await syncManager.syncTokenBalances(chain.chainId, account.address);
-
-			// Then sync token prices
-			await syncManager.syncTokenPrices(chain.chainId);
-
-			// Add a small delay to ensure all values are calculated
-			await new Promise((resolve) => setTimeout(resolve, 100));
-
-			// CRITICAL: Force portfolio recalculation after all tokens and prices are synced
-			// This ensures accurate portfolio values even if initial calculation was skipped
-			walletCacheStore.forcePortfolioRecalculation(chain.chainId, account.address);
-
-			// Force refresh the token store to update UI
-			await tokenStore.refresh(true);
-
-			// Additional delay to ensure UI updates properly
-			await new Promise((resolve) => setTimeout(resolve, 50));
-
-			log.info(
-				'[TokenPortfolio] Token refresh completed with forced portfolio recalculation',
-				false
-			);
-		} catch (error) {
-			log.warn('[TokenPortfolio] Refresh failed:', false, error);
-			// Reset the cooldown on error to allow retry sooner
-			lastRefreshTime = now - (REFRESH_COOLDOWN_MS - 2000); // Allow retry in 2 seconds
-		} finally {
+			isRefreshing = false;
+			}).catch((error: any) => {
+				log.warn('[TokenPortfolio] Failed to send refresh request:', false, error);
+				isRefreshing = false;
+			});
+		} else {
+			log.warn('[TokenPortfolio] runtimeSendMessage not available', false);
 			isRefreshing = false;
 		}
+
+		// Also trigger a non-blocking token store refresh
+		tokenStore.refresh(true).then(() => {
+			log.info('[TokenPortfolio] Token store refresh completed', false);
+		}).catch(error => {
+			log.warn('[TokenPortfolio] Token store refresh failed:', false, error);
+		});
 	}
 </script>
 

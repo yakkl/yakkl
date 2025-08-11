@@ -1,6 +1,6 @@
 <script lang="ts">
   import { X, Twitter, Facebook, Mail, MessageCircle, Send, Link2, Check } from 'lucide-svelte';
-  import { browser } from '$lib/common/environment';
+  import { isClient } from '$lib/common/environment';
   
   interface Props {
     show?: boolean;
@@ -112,7 +112,7 @@
         const message = messages[platformId as keyof typeof messages];
         const shareUrl = platform.shareUrl(message, EXTENSION_URL, LOGO_URL);
         
-        if (browser) {
+        if (isClient) {
           window.open(shareUrl, '_blank', 'width=600,height=400');
         }
         
@@ -133,7 +133,7 @@
   }
   
   async function copyLink() {
-    if (browser && navigator.clipboard) {
+    if (isClient && navigator.clipboard) {
       await navigator.clipboard.writeText(EXTENSION_URL);
       copied = true;
       setTimeout(() => { copied = false; }, 2000);
@@ -179,7 +179,7 @@
                        ? 'border-primary bg-primary/10 dark:bg-primary/20' 
                        : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'}"
             >
-              <svelte:component this={platform.icon} class="w-5 h-5" />
+              <platform.icon class="w-5 h-5" />
               <span class="text-sm font-medium">{platform.name}</span>
               {#if selectedPlatforms.has(platform.id)}
                 <Check class="w-4 h-4 ml-auto text-primary" />

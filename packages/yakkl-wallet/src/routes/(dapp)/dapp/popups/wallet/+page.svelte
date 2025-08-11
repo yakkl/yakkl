@@ -64,21 +64,23 @@
 
 	const currentChainId = $derived(currentChainData?.shortcuts?.chainId ?? '0x1');
 
-	if (browserSvelte) {
-		try {
-			requestId = page.url.searchParams.get('requestId');
-			method = page.url.searchParams.get('method');
-			$yakklDappConnectRequestStore = requestId as string;
+	onMount(() => {
+		if (browserSvelte) {
+			try {
+				requestId = page.url.searchParams.get('requestId');
+				method = page.url.searchParams.get('method');
+				$yakklDappConnectRequestStore = requestId as string;
 
-			if (requestId) {
-				pass = true;
+				if (requestId) {
+					pass = true;
+				}
+				// NOTE: The internal check now makes sure the requestId is valid
+			} catch (e) {
+				log.error(e);
+				handleReject('No requestId or method was found. Access to YAKKL® is denied.');
 			}
-			// NOTE: The internal check now makes sure the requestId is valid
-		} catch (e) {
-			log.error(e);
-			handleReject('No requestId or method was found. Access to YAKKL® is denied.');
 		}
-	}
+	});
 
 	// We no longer need to do get_params since we can access the request data directly
 	async function onMessageListener(event: any) {

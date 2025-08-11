@@ -1,14 +1,15 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { accounts as accountsStore, currentAccount, accountStore } from '$lib/stores';
-  import { Copy, Plus, Download, Upload, MoreVertical } from 'lucide-svelte';
+  import { accounts as accountsStore, currentAccount, accountStore } from '$lib/stores/account.store';
+  import { Copy, Plus, Download, Upload, MoreVertical, Check } from 'lucide-svelte';
   import { get } from 'svelte/store';
   import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
 
   let accountsList = $derived($accountsStore);
   let selectedAccount = $derived($currentAccount);
   let showMenu = $state<string | null>(null);
+  let copiedAddress = $state<string | null>(null);
 
   onMount(() => {
     // Load accounts on mount
@@ -40,7 +41,10 @@
 
   function copyAddress(address: string) {
     navigator.clipboard.writeText(address);
-    // TODO: Show toast notification
+    copiedAddress = address;
+    setTimeout(() => {
+      copiedAddress = null;
+    }, 2000);
   }
 
   function toggleMenu(address: string) {
@@ -215,10 +219,14 @@
 
                 <button
                   onclick={() => copyAddress(account.address)}
-                  class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
-                  title="Copy Address"
+                  class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-all duration-200"
+                  title={copiedAddress === account.address ? "Copied!" : "Copy Address"}
                 >
-                  <Copy class="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                  {#if copiedAddress === account.address}
+                    <Check class="w-4 h-4 text-green-500 animate-scale-in" />
+                  {:else}
+                    <Copy class="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                  {/if}
                 </button>
 
                 <div class="relative">
@@ -295,3 +303,23 @@
     </div>
   </div>
 </div>
+
+<style>
+  @keyframes scale-in {
+    0% {
+      transform: scale(0);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.2);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  :global(.animate-scale-in) {
+    animation: scale-in 0.3s ease-out;
+  }
+</style>

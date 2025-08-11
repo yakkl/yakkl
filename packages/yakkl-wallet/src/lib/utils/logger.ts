@@ -5,8 +5,49 @@
  * - Minimal overhead
  */
 
-const isDev = import.meta.env.DEV;
-const LOG_LEVEL = (import.meta.env.VITE_LOG_LEVEL || 'warn') as 'debug' | 'info' | 'warn' | 'error';
+// Safely check for environment variables
+const isDev = (() => {
+  try {
+    // Check various development indicators
+    // @ts-ignore
+    if (typeof __DEV__ !== 'undefined') return __DEV__;
+    // @ts-ignore
+    if (typeof DEV_MODE !== 'undefined') return DEV_MODE === true || DEV_MODE === 'true';
+    // Try to check import.meta if available
+    try {
+      // @ts-ignore
+      if (import.meta && import.meta.env && import.meta.env.DEV) {
+        // @ts-ignore
+        return import.meta.env.DEV;
+      }
+    } catch {}
+    return false;
+  } catch {
+    return false;
+  }
+})();
+
+const LOG_LEVEL = (() => {
+  try {
+    // Try to check import.meta.env.VITE_LOG_LEVEL if available
+    try {
+      // @ts-ignore
+      if (import.meta && import.meta.env && import.meta.env.VITE_LOG_LEVEL) {
+        // @ts-ignore
+        return import.meta.env.VITE_LOG_LEVEL;
+      }
+    } catch {}
+    // Check for webpack-defined __LOG_LEVEL__
+    // @ts-ignore
+    if (typeof __LOG_LEVEL__ !== 'undefined') {
+      // @ts-ignore
+      return __LOG_LEVEL__.toLowerCase().replace(/['"]/g, '');
+    }
+    return 'warn';
+  } catch {
+    return 'warn';
+  }
+})() as 'debug' | 'info' | 'warn' | 'error';
 
 const LEVELS = {
   debug: 0,

@@ -94,6 +94,30 @@ export interface RequestMetadata {
 	};
 }
 
+export interface AddressTokenHolding {
+	walletAddress: string; // The wallet address that holds tokens
+	chainId: number; // Chain ID
+	tokenAddress: string; // Token contract address
+	isNative: boolean;
+	symbol: string; // Token symbol for quick reference
+	quantity: BigNumberish; // Amount held
+	lastUpdated: Date; // When balance was last fetched
+}
+
+export interface TokenCacheEntry {
+	walletAddress: string;
+	chainId: number;
+	tokenAddress: string;
+	isNative: boolean;
+	symbol: string; // For quick reference
+	quantity: BigNumberish;
+	price: number;
+	value: BigNumberish; // Changed from number
+	lastPriceUpdate: Date;
+	lastBalanceUpdate: Date;
+	priceProvider: string; // Changed from provider to priceProvider
+}
+
 // Define the pending request type
 export interface PendingRequestData {
 	id: string;
@@ -540,6 +564,8 @@ export interface TokenData extends SwapToken {
 	price?: MarketPriceData | null; // Current price of the token. Price is in PriceData but is for the provider's price
 	value?: BigNumberish; // Changed from number - CRITICAL for financial calculations
 	quantity?: EthereumBigNumber; // User's holdings
+	lastKnownQuantity?: EthereumBigNumber; // CRITICAL: Preserved quantity to prevent resetting to 0
+	quantityLastUpdated?: Date; // When the quantity was last updated
 	formattedValue?: string; // Formatted value for display
 	alias?: string; // Alias for the token
 	customDefault?: 'custom' | 'default'; // If 'custom' then it's a custom token and if 'default' then it's a default token
@@ -897,6 +923,12 @@ export interface Settings {
 	// Sound settings for notifications
 	soundEnabled?: boolean; // Default true
 	sound?: string; // Sound file name or data URI
+	// Data refresh intervals in milliseconds
+	dataRefreshIntervals?: {
+		transactions?: number; // Default: 15 minutes
+		prices?: number;       // Default: 5 minutes
+		portfolio?: number;    // Default: 2.5 minutes
+	};
 }
 
 export interface YakklChat {
@@ -1004,6 +1036,7 @@ export interface YakklAccount {
 	class?: string; // Used for enterprise environments
 	level?: string; // L1
 	isSigner?: boolean;
+	isActive?: boolean; // Set to false if the account is not active - this is used to determine if the account is active or not - default is true on creation
 	avatar?: string; // Default is identityicon but can be changed to user/account avatar
 	tags?: string[];
 	chainIds?: number[]; // 1 will be the default for all accounts

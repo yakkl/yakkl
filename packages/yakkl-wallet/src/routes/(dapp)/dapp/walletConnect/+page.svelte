@@ -29,10 +29,12 @@
 	let message; // This gets passed letting the user know what the intent is
 	let context;
 
-	if (browserSvelte) {
-		requestId = $page.url.searchParams.get('requestId');
-		$yakklDappConnectRequestStore = requestId as string;
-	}
+	onMount(() => {
+		if (browserSvelte) {
+			requestId = $page.url.searchParams.get('requestId');
+			$yakklDappConnectRequestStore = requestId as string;
+		}
+	});
 
 	// NOTE: domains will be added (if not already there at the next step - accounts)
 	async function handleIsLocked() {

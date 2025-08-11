@@ -71,8 +71,7 @@
 
       if (!extension) {
         console.warn(`Extension ${extensionId} not found in registry`);
-        errorMessage = `Extension ${extensionId} not found or failed to load`;
-        hasError = true;
+        error = `Extension ${extensionId} not found or failed to load`;
         loading = false;
         return;
       }
@@ -82,8 +81,7 @@
       
       if (!component) {
         console.warn(`Component ${componentId} not found in extension ${extensionId}`);
-        errorMessage = `Component ${componentId} not found in extension ${extensionId}`;
-        hasError = true;
+        error = `Component ${componentId} not found in extension ${extensionId}`;
         loading = false;
         return;
       }

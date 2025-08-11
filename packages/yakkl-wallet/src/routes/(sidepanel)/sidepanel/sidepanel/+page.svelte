@@ -2,7 +2,9 @@
 <script lang="ts">
 	import TokenComponentList from '$lib/components/TokenComponentList.svelte';
 	// import RotatingBanner from '$lib/components/RotatingBanner.svelte';
+  console.log('browserSvelte', browserSvelte);
 	import { browserSvelte, browser_ext } from '$lib/common/environment';
+  console.log('browser_ext', browser_ext);
 	import { browserAPI } from '$lib/services/browser-api.service';
 	import WalletIcon from '$lib/components/icons/WalletIcon.svelte';
 	import TokenIcon from '$lib/components/icons/TokenIcon.svelte';

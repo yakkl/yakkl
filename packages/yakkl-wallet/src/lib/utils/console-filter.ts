@@ -94,5 +94,5 @@ export function restoreConsole() {
 
   // Note: This requires storing the originals in a broader scope
   // For now, just reload the page to restore
-  window.location.reload();
+  // window.location.reload();
 }

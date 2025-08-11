@@ -1,6 +1,5 @@
 <script lang="ts">
   import { Star, Send } from 'lucide-svelte';
-  import { browser } from '$lib/common/environment';
   
   interface Props {
     show?: boolean;

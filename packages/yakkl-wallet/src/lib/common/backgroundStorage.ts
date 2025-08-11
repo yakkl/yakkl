@@ -1,6 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { log } from '$lib/managers/Logger';
-import browser from 'webextension-polyfill';
+// import { browser_ext as browser } from './environment';
+import type { Browser } from 'webextension-polyfill';
+
+let browser: Browser;
+
+if (typeof window === 'undefined') {
+  browser = await import ('webextension-polyfill');
+} else {
+  browser = await import ('./environment').then(m => m.browser_ext);
+}
+
+// Note: This file is used for background contexts.
+// With the unified browser polyfill, browser_ext now works consistently in all contexts.
 
 export const clearObjectsFromLocalStorage = async (): Promise<void> => {
 	try {
@@ -10,21 +22,6 @@ export const clearObjectsFromLocalStorage = async (): Promise<void> => {
 		throw error;
 	}
 };
-
-// This had two arguments, but I removed the second one since we only want to return objects
-// export const getObjectFromLocalStorage = async <T>(key: string): Promise<T | null> => {
-//   try {
-//     if (!browser_ext) {
-//       console.log('Browser extension is not available. Returning null.');
-//       return null;
-//     }
-//     const result = await browser_ext.storage.local.get(key);
-//     return result[key] as T;
-//   } catch (error) {
-//     console.log('Error getting object from local storage', false, error);
-//     throw error;
-//   }
-// };
 
 export const getObjectFromLocalStorage = async <T>(
 	key: string,

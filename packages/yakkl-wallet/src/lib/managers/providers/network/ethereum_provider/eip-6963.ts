@@ -129,7 +129,7 @@ export function getEIP6963ProviderDetail(): EIP6963ProviderDetail {
 // Declare global interfaces for TypeScript
 declare global {
 	interface Window {
-		yakkl?: EIP6963ProviderDetail;
+		yakkl?: EIP6963ProviderDetail & { isConnected?: boolean };
 	}
 	interface WindowEventMap {
 		'eip6963:announceProvider': CustomEvent<EIP6963ProviderDetail>;

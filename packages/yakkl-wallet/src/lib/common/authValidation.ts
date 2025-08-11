@@ -36,34 +36,32 @@ export async function validateAuthentication(): Promise<ValidationResult> {
     if (!settings.legal?.termsAgreed) {
       log.warn('Authentication failed: Legal terms not accepted');
       return { isValid: false, reason: 'Legal terms not accepted' };
+    } else {
+      log.info('Authentication: Legal terms accepted');
     }
 
-    // Step 3: Check if wallet is locked - this is a security check to prevent unauthorized access and valid.
-    if (settings.isLocked !== false) {
-      return { isValid: false, reason: 'Wallet is locked' };
-    }
-
-    // Step 4: Validate digest exists and is non-empty
+    // Step 3: Validate digest exists and is non-empty
     const digest = getMiscStore();
     if (!digest || digest.length === 0) {
       log.warn('Authentication failed: No valid digest found');
       return { isValid: false, reason: 'No authentication digest' };
     }
 
-    // Step 5: Verify digest matches stored value
-    const storedDigest = get(yakklMiscStore);
-    if (digest !== storedDigest) {
-      log.warn('Authentication failed: Digest mismatch');
-      return { isValid: false, reason: 'Invalid authentication state' };
-    }
+    // Step 4: Verify digest matches stored value
+    // const storedDigest = get(yakklMiscStore);
+    // if (digest !== storedDigest) {
+    //   log.warn('Authentication failed: Digest mismatch');
+    //   return { isValid: false, reason: 'Invalid authentication state' };
+    // }
 
-    // Step 6: Retrieve and validate profile
+    // Step 5: Retrieve and validate profile
     const profile = await getProfile();
     if (!profile) {
       log.warn('Authentication failed: No profile found');
       return { isValid: false, reason: 'No profile found' };
     }
 
+    // Step 6: Check if profile is locked
     // Profile from getProfile is already decrypted, validate its structure
     if (!profile.data) {
       log.warn('Authentication failed: No profile data');
@@ -108,7 +106,7 @@ export async function validateAuthentication(): Promise<ValidationResult> {
     }
 
     // All checks passed
-    log.info('Authentication validated successfully');
+    log.info('Authentication validated successfully-----------------------');
     return {
       isValid: true,
       profile: profile,
@@ -117,7 +115,7 @@ export async function validateAuthentication(): Promise<ValidationResult> {
     };
 
   } catch (error) {
-    log.error('Authentication validation error', false, error);
+    log.warn('Authentication validation error', false, error);
     return { isValid: false, reason: 'Validation error' };
   }
 }
@@ -162,7 +160,7 @@ export async function clearAuthenticationState(): Promise<void> {
     }
 
     // Reset stores
-    await resetStores();
+    resetStores();
 
     log.info('Authentication state cleared');
   } catch (error) {

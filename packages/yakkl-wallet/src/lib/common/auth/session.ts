@@ -1,9 +1,19 @@
 // File: src/lib/auth/session.ts
 import { writable, get } from 'svelte/store';
 import { log } from '$lib/common/logger-wrapper';
-import { browser_ext, browserSvelte } from '../environment';
+// import { getBrowserExtFromGlobal } from '../environment';
 import type { SessionToken } from '../interfaces';
 import type { StoreHashResponse } from '../interfaces';
+
+import type { Browser } from 'webextension-polyfill';
+
+let browser: Browser | null = null;
+
+if (typeof window === 'undefined') {
+	browser = await import('webextension-polyfill');
+} else {
+	browser = await import('$lib/common/environment').then(m => m.browser_ext);
+}
 
 // This is for svelte client side only
 export const sessionToken = writable<string | null>(null);
@@ -51,59 +61,126 @@ export async function storeEncryptedHash(encryptedHash: string, profileData?: { 
 	console.log('[storeEncryptedHash] Called with:', {
 		encryptedHashLength: encryptedHash?.length,
 		profileData,
-		browserSvelte: !!browserSvelte,
-		browser_ext: !!browser_ext
+    browser: !!browser
 	});
-	
-	try {
-		if (browserSvelte) {
-			if (!encryptedHash) {
-				log.warn('No encrypted hash provided', false, { encryptedHash });
-				return null;
+
+  if (!browser) {
+    log.error('Browser API not available', false);
+    return null;
+  }
+
+	// Retry configuration
+	const MAX_RETRIES = 3;
+	const RETRY_DELAY = 1000; // 1 second
+
+  // Fallback: wait for SESSION_TOKEN_BROADCAST if direct response is missing
+  const waitForBroadcast = async (timeoutMs = 3000): Promise<SessionToken | null> => {
+    return new Promise((resolve) => {
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      const listener = (message: any) => {
+        try {
+          if (message?.type === 'SESSION_TOKEN_BROADCAST' && message?.token && message?.expiresAt) {
+            if (timeoutId) clearTimeout(timeoutId);
+            browser.runtime.onMessage.removeListener(listener as any);
+            storeSessionToken(message.token, message.expiresAt);
+            log.info('Session token stored from broadcast', false, { expiresAt: message.expiresAt });
+            resolve({ token: message.token, expiresAt: message.expiresAt });
+          }
+        } catch {
+          // ignore
+        }
+      };
+      browser.runtime.onMessage.addListener(listener as any);
+      timeoutId = setTimeout(() => {
+        try { browser.runtime.onMessage.removeListener(listener as any); } catch {}
+        resolve(null);
+      }, timeoutMs);
+    });
+  };
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+		try {
+      if (!encryptedHash) {
+        log.warn('No encrypted hash provided', false, { encryptedHash });
+        return null;
+      }
+
+      // Add timeout to prevent hanging
+      const messagePromise = browser.runtime.sendMessage({
+        type: 'STORE_SESSION_HASH',
+        payload: encryptedHash,
+        profileData: profileData
+      }) as Promise<StoreHashResponse>;
+
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Message timeout')), 10000)
+      );
+
+      console.log('messagePromise', messagePromise);
+      console.log('timeoutPromise', timeoutPromise);
+      const res = await Promise.race([messagePromise, timeoutPromise]);
+
+      console.log(`[storeEncryptedHash] Attempt ${attempt} - Background response:`, res, await messagePromise);
+
+      if (res && (res as any).token && (res as any).expiresAt) {
+        storeSessionToken(res.token, res.expiresAt);
+        log.info('Session token stored', false, res);
+        console.log(`[storeEncryptedHash] Attempt ${attempt} - Session token stored successfully`);
+        return { token: res.token, expiresAt: res.expiresAt };
+      } else {
+        log.warn(`Session token storage failed on attempt ${attempt} (trying broadcast fallback)`, false, res);
+
+        // Try fallback: listen for broadcast sent by background after handling STORE_SESSION_HASH
+        const broadcastToken = await waitForBroadcast(3000);
+        if (broadcastToken) {
+          return broadcastToken;
+        }
+
+        // If this isn't the last attempt, continue to retry
+        if (attempt < MAX_RETRIES) {
+          console.log(`[storeEncryptedHash] Retrying in ${RETRY_DELAY}ms...`);
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+          continue;
+        }
+        return null;
+      }
+		} catch (error) {
+			log.error(`Error storing encrypted hash on attempt ${attempt}`, false, error);
+
+			// If this isn't the last attempt, retry
+			if (attempt < MAX_RETRIES) {
+				console.log(`[storeEncryptedHash] Retrying in ${RETRY_DELAY}ms due to error...`);
+				await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+				continue;
 			}
-			
-			console.log('[storeEncryptedHash] Sending STORE_SESSION_HASH message to background');
-			
-			const res: StoreHashResponse = await browser_ext.runtime.sendMessage({
-				type: 'STORE_SESSION_HASH',
-				payload: encryptedHash,
-				profileData: profileData
-			});
-			
-			console.log('[storeEncryptedHash] Background response:', res);
-			
-			if (res && res.token && res.expiresAt) {
-				storeSessionToken(res.token, res.expiresAt);
-				log.debug('Session token stored', false, res);
-				console.log('[storeEncryptedHash] Session token stored successfully');
-				return { token: res.token, expiresAt: res.expiresAt };
-			} else {
-				log.warn('Session token storage failed', false, res);
-				console.error('[storeEncryptedHash] Failed - no token in response:', res);
-				return null;
-			}
-		} else {
-			console.warn('[storeEncryptedHash] browserSvelte is not available');
+
+			// Final attempt failed
 			return null;
 		}
-	} catch (error) {
-		log.error('Error storing encrypted hash', false, error);
-		console.error('[storeEncryptedHash] Error:', error);
-		return null;
 	}
+
+	// Should never reach here, but just in case
+	return null;
 }
 
 export async function refreshSession(currentToken: string): Promise<SessionToken | null> {
 	try {
-		if (browserSvelte) {
-			const res: StoreHashResponse = await browser_ext.runtime.sendMessage({
+		if (typeof window !== 'undefined') {
+			// Ensure browser API is initialized before use
+			// const browserApi = await getBrowserExtFromGlobal();
+			// if (!browserApi) {
+			// 	log.error('Browser API not available for refresh', false);
+			// 	return null;
+			// }
+
+			const res: StoreHashResponse = await browser.runtime.sendMessage({
 				type: 'REFRESH_SESSION',
 				token: currentToken
 			});
 
 			if (res.token && res.expiresAt) {
 				storeSessionToken(res.token, res.expiresAt);
-				log.debug('Session refreshed', false, res);
+				log.info('Session refreshed', false, res);
 				return { token: res.token, expiresAt: res.expiresAt };
 			} else {
 				log.warn('Session refresh failed or token invalid', false, res);

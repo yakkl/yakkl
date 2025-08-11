@@ -168,6 +168,13 @@ export class NativeTokenPriceService {
   isRunning(): boolean {
     return this.priceUpdateInterval !== null;
   }
+
+  /**
+   * Refresh all prices (alias for triggerUpdate for compatibility)
+   */
+  async refreshPrices(): Promise<void> {
+    await this.triggerUpdate();
+  }
 }
 
 // Export singleton instance

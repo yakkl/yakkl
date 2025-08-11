@@ -26,6 +26,7 @@
 	let selectedContact: YakklContact | null = $state(null);
 	let showEditModal = $state(false);
 	let showDeleteModal = $state(false);
+	let copiedContactId = $state<string | null>(null);
 
 	function handleEdit(contact: YakklContact) {
 		selectedContact = contact;
@@ -39,6 +40,10 @@
 
 	function handleCopy(contact: YakklContact) {
 		navigator.clipboard.writeText(contact.address);
+		copiedContactId = contact.id;
+		setTimeout(() => {
+			copiedContactId = null;
+		}, 2000);
 	}
 
 	function confirmDelete() {

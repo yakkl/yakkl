@@ -7,19 +7,25 @@
     currentPortfolioValue,
     multiChainPortfolioValue,
     portfolioByNetwork,
+    currentChainTotal,
+    grandPortfolioTotal,
+    watchListTotal,
+    primaryAccountHierarchy,
     isInitializing,
     hasEverLoaded
   } from '$lib/stores/wallet-cache.store';
   import { isMultiChainView, tokenStore } from '$lib/stores/token.store';
   import ProtectedValue from './ProtectedValue.svelte';
-  import { canUseFeature, getPlanBadgeText, getPlanBadgeColor } from '$lib/utils/features';
+  import { canUseFeature, getPlanBadgeText, getPlanBadgeColor, getCurrentPlan } from '$lib/utils/features';
+  import { planStore } from '$lib/stores/plan.store';
+  import { PlanType, type YakklCurrentlySelected } from '$lib/common';
   import { modalStore } from '$lib/stores/modal.store';
   import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
   import type { BigNumberish } from '$lib/common/bignumber';
 	import { log } from '$lib/common/logger-wrapper';
 
-  // Define view modes - same as RecentActivity
-  type ViewMode = 'current_account' | 'single_network' | 'all_networks';
+  // Define view modes - expanded to include all rollup types
+  type ViewMode = 'current_account' | 'single_network' | 'all_networks' | 'watch_list' | 'hierarchy';
 
   interface NetworkValue {
     chainId: number;
@@ -35,12 +41,14 @@
     onRefresh = () => {},
     loading = false,
     lastUpdate = null as Date | null,
-    className = ''
+    className = '',
+    currentlySelected = null as YakklCurrentlySelected | null
   } = $props<{
     onRefresh?: () => void;
     loading?: boolean;
     lastUpdate?: Date | null;
     className?: string;
+    currentlySelected?: YakklCurrentlySelected | null;
   }>();
 
   // State
@@ -51,6 +59,9 @@
   let accounts = $state<any[]>([]);
   let isFirstLoad = $state(false);
   let everLoaded = $state(false);
+  let isUserInitiatedRefresh = $state(false); // Track if refresh was user-initiated
+  let planLoaded = $state(false);
+  let hasProAccess = $state(false);
 
   // Update reactive values from stores
   $effect(() => {
@@ -69,62 +80,40 @@
     }
   });
 
-  // Check if user has Pro access
-  const hasProAccess = canUseFeature('advanced_analytics');
+  // Update Pro access check reactively when plan changes
+  $effect(() => {
+    const plan = $planStore;
+    if (plan && !plan.loading) {
+      planLoaded = true;
+      hasProAccess = canUseFeature('advanced_analytics');
+      console.log('hasProAccess updated:', hasProAccess, 'plan:', plan.plan?.type);
+    }
+  });
 
-  // Get total portfolio value based on view mode using the new architecture
+  // Log for debugging
+  $effect(() => {
+    console.log('hasProAccess check:', hasProAccess, 'planLoaded:', planLoaded);
+  });
+
+  // Get total portfolio value based on view mode using rollup stores
   const portfolioTotal = derived(
-    [walletCacheStore, currentAccount, currentChain, chainStore, accountStore],
-    ([$cache, $account, $chain, $chainStore, $accountStore]) => {
-      if (!$account || !$chain) return 0n;
-
-      const chains = $chainStore?.chains || [];
-      const allAccounts = $accountStore?.accounts || [];
-      const isCurrentChainTestnet = $chain?.isTestnet || false;
-
-      let filteredTotal = 0n;
-
+    [currentPortfolioValue, currentChainTotal, grandPortfolioTotal, watchListTotal, primaryAccountHierarchy],
+    ([$currentValue, $chainTotal, $grandTotal, $watchList, $hierarchy]) => {
+      // Ensure we always return a valid BigNumberish value
       switch (viewMode) {
-        case 'single_network':
-          // All accounts on current chain
-          const chainCache = $cache.chainAccountCache[$chain.chainId];
-          if (chainCache) {
-            Object.entries(chainCache).forEach(([address, cache]) => {
-              // Check if this address belongs to one of our accounts
-              if (allAccounts.some(a => a.address.toLowerCase() === address)) {
-                filteredTotal = BigNumberishUtils.add(filteredTotal, cache.portfolio.totalValue || 0n);
-              }
-            });
-          }
-          break;
-
-        case 'all_networks':
-          // All accounts across all networks (filtered by mainnet/testnet)
-          Object.entries($cache.chainAccountCache).forEach(([chainId, chainData]) => {
-            const chainConfig = chains.find(c => c.chainId === Number(chainId));
-            const isChainTestnet = chainConfig?.isTestnet || false;
-
-            // Only include chains of the same type
-            if (isCurrentChainTestnet === isChainTestnet) {
-              Object.entries(chainData).forEach(([address, cache]) => {
-                // Check if this address belongs to one of our accounts
-                if (allAccounts.some(a => a.address.toLowerCase() === address)) {
-                  filteredTotal = BigNumberishUtils.add(filteredTotal, cache.portfolio.totalValue || 0n);
-                }
-              });
-            }
-          });
-          break;
         case 'current_account':
+          return $currentValue || 0n;
+        case 'single_network':
+          return $chainTotal || 0n;
+        case 'all_networks':
+          return $grandTotal || 0n;
+        case 'watch_list':
+          return $watchList || 0n;
+        case 'hierarchy':
+          return $hierarchy?.totalWithDerived || $hierarchy?.totalValue || 0n;
         default:
-          // Only current account on current chain
-          const accountCache = $cache.chainAccountCache[$chain.chainId]?.[$account.address.toLowerCase()];
-          const rawValue = accountCache?.portfolio.totalValue || 0n;
-          filteredTotal = BigNumberishUtils.toBigInt(rawValue);
-          break;
+          return $currentValue || 0n;
       }
-
-      return filteredTotal; // Keep as BigInt to avoid precision loss
     }
   );
 
@@ -210,14 +199,42 @@
 
   // Debug output
   $effect(() => {
-    log.debug('[PortfolioOverview] View state:', false, {
-      viewMode,
-      isMultiChain,
-      portfolioTotal: $portfolioTotal,
-      networkValues: $networkValues,
-      chain: chain?.name,
-      currentAccount: $currentAccount?.address
-    });
+    try {
+      // Ensure portfolioTotal is ready before logging
+      const totalValue = $portfolioTotal;
+      if (totalValue === undefined || totalValue === null) {
+        return; // Skip logging if not ready
+      }
+
+      // Safely convert to string
+      let portfolioTotalStr = '0';
+      try {
+        portfolioTotalStr = BigNumberishUtils.toString(totalValue);
+      } catch (e) {
+        // Fallback if conversion fails
+        portfolioTotalStr = String(totalValue);
+      }
+
+      log.debug('[PortfolioOverview] View state:', false, {
+        viewMode,
+        isMultiChain,
+        portfolioTotal: portfolioTotalStr,
+        networkValues: $networkValues?.map(nv => {
+          let valueStr = '0';
+          try {
+            valueStr = nv.value ? BigNumberishUtils.toString(nv.value) : '0';
+          } catch (e) {
+            valueStr = String(nv.value || 0);
+          }
+          return { ...nv, value: valueStr };
+        }) || [],
+        chain: chain?.name,
+        currentAccount: $currentAccount?.address
+      });
+    } catch (error) {
+      // Silently skip logging errors to avoid console spam
+      // The error is likely due to initial undefined values
+    }
   });
 
   // Get responsive font size based on value
@@ -308,29 +325,18 @@
   }
 
   function cycleViewMode() {
-    switch (viewMode) {
-      case 'single_network':
-        viewMode = 'all_networks';
-        // Enable multi-chain view
-        if (!isMultiChain) {
-          tokenStore.toggleMultiChainView();
-        }
-        break;
-      case 'all_networks':
-        viewMode = 'current_account';
-        // Disable multi-chain view
-        if (isMultiChain) {
-          tokenStore.toggleMultiChainView();
-        }
-        break;
-      case 'current_account':
-      default:
-        viewMode = 'single_network';
-        // Update wallet cache to reflect new view
-        if ($currentChain) {
-          walletCacheStore.switchChain($currentChain.chainId);
-        }
-        break;
+    // Cycle through view modes
+    const modes: ViewMode[] = ['current_account', 'single_network', 'all_networks', 'watch_list', 'hierarchy'];
+    const currentIndex = modes.indexOf(viewMode);
+    const nextIndex = (currentIndex + 1) % modes.length;
+    viewMode = modes[nextIndex];
+
+    // Update multi-chain view state based on view mode
+    const shouldBeMultiChain = viewMode === 'all_networks' || viewMode === 'watch_list';
+    if (shouldBeMultiChain && !isMultiChain) {
+      tokenStore.toggleMultiChainView();
+    } else if (!shouldBeMultiChain && isMultiChain) {
+      tokenStore.toggleMultiChainView();
     }
   }
 
@@ -340,6 +346,10 @@
         return 'Single Network';
       case 'all_networks':
         return 'All Networks';
+      case 'watch_list':
+        return 'Watch List';
+      case 'hierarchy':
+        return 'Account Hierarchy';
       case 'current_account':
       default:
         return 'Current Account';
@@ -352,18 +362,129 @@
         return chain ? `All accounts on ${chain.name}` : '';
       case 'all_networks':
         return `All accounts across ${$networkValues.length} networks`;
+      case 'watch_list':
+        const watchCount = $walletCacheStore?.accountMetadata?.watchListAccounts?.length || 0;
+        return `${watchCount} watched account${watchCount !== 1 ? 's' : ''}`;
+      case 'hierarchy':
+        const hierarchy = $primaryAccountHierarchy;
+        if (hierarchy) {
+          const derivedCount = hierarchy.derivedAccounts?.length || 0;
+          return derivedCount > 0 ? `Primary + ${derivedCount} derived` : 'Primary account';
+        }
+        return 'Account hierarchy';
       case 'current_account':
       default:
         return chain ? `on ${chain.name}` : '';
     }
   }
 
+  // Get button color classes based on current plan
+  function getButtonColorClasses(): string {
+    const plan = getCurrentPlan();
+    console.log('plan', plan);
+    switch (plan) {
+      case PlanType.FOUNDING_MEMBER:
+        return 'bg-yellow-600 text-white border-yellow-600 hover:bg-yellow-700';
+      case PlanType.EARLY_ADOPTER:
+        return 'bg-green-600 text-white border-green-600 hover:bg-green-700';
+      case PlanType.YAKKL_PRO:
+        return 'bg-teal-600 text-white border-teal-600 hover:bg-teal-700';
+      case PlanType.ENTERPRISE:
+        return 'bg-purple-600 text-white border-purple-600 hover:bg-purple-700';
+      case PlanType.EXPLORER_MEMBER:
+      default:
+        return 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700';
+    }
+  }
+
+  // Handle refresh with timeout
+  let refreshTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  async function handleRefresh() {
+    // Clear existing timeout
+    if (refreshTimeout) {
+      clearTimeout(refreshTimeout);
+    }
+
+    // Mark this as a user-initiated refresh
+    isUserInitiatedRefresh = true;
+
+    // Send message to background service to trigger refresh
+    try {
+      // Only set loading for user-initiated refreshes
+      loading = true;
+
+      // Send message to background to trigger data refresh
+      chrome.runtime.sendMessage({
+        type: 'REFRESH_PORTFOLIO_DATA',
+        viewMode: viewMode,
+        chainId: $currentChain?.chainId,
+        address: $currentAccount?.address,
+        userInitiated: true // Add flag to indicate user-initiated
+      });
+
+      // Set timeout for refresh (10 seconds)
+      refreshTimeout = setTimeout(() => {
+        loading = false;
+        isUserInitiatedRefresh = false;
+        log.warn('[PortfolioOverview] Refresh timeout - no update received', false);
+      }, 10000);
+
+    } catch (error) {
+      log.error('[PortfolioOverview] Failed to send refresh message:', false, error);
+      loading = false;
+      isUserInitiatedRefresh = false;
+    }
+  }
+
+  // Listen for refresh completion from background
+  $effect(() => {
+    const handleMessage = (message: any) => {
+      if (message.type === 'PORTFOLIO_DATA_REFRESHED') {
+        // Only update loading state if this was a user-initiated refresh
+        if (isUserInitiatedRefresh) {
+          // Clear timeout and loading state
+          if (refreshTimeout) {
+            clearTimeout(refreshTimeout);
+            refreshTimeout = null;
+          }
+          loading = false;
+          isUserInitiatedRefresh = false;
+        }
+        lastUpdate = new Date();
+        log.info('[PortfolioOverview] Portfolio data refreshed', false);
+      }
+    };
+
+    // Add listener
+    chrome.runtime.onMessage.addListener(handleMessage);
+
+    // Cleanup
+    return () => {
+      chrome.runtime.onMessage.removeListener(handleMessage);
+      if (refreshTimeout) {
+        clearTimeout(refreshTimeout);
+      }
+    };
+  });
+
   function showUpgrade() {
     modalStore.openModal('upgrade');
   }
 </script>
 
-{#if !hasProAccess}
+{#if !planLoaded}
+  <!-- Loading State while plan data loads -->
+  <div class="{className} rounded-2xl p-6 shadow-md">
+    <div class="animate-pulse space-y-3">
+      <div class="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
+      <div class="h-10 w-48 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+      <div class="text-xs text-gray-500 dark:text-gray-400">
+        Loading portfolio data...
+      </div>
+    </div>
+  </div>
+{:else if !hasProAccess}
   <!-- Basic User View -->
   <div class="{className} rounded-2xl p-6 shadow-md hover:shadow-lg transition-all duration-300" style="background-color: {getPlanBadgeColor()}20">
     <div class="space-y-3">
@@ -388,7 +509,7 @@
 
         <!-- Refresh button -->
         <button
-          onclick={onRefresh}
+          onclick={handleRefresh}
           class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors flex-shrink-0"
           aria-label="Refresh"
           disabled={loading}
@@ -400,7 +521,7 @@
       </div>
 
       <!-- Value and toggle -->
-      {#if BigNumberishUtils.toBigInt($portfolioTotal) >= 10000n}
+      {#if BigNumberishUtils.toBigInt($portfolioTotal || 0n) >= 10000n}
         <!-- Large value layout - value on its own line -->
         <div class="space-y-3">
           {#if loading || isFirstLoad}
@@ -413,8 +534,8 @@
               {/if}
             </div>
           {:else}
-            <div class="{getResponsiveFontSize($portfolioTotal)} font-bold text-gray-900 dark:text-white">
-              <ProtectedValue value={formatCurrency($portfolioTotal)} placeholder="*******" />
+            <div class="{getResponsiveFontSize($portfolioTotal || 0n)} font-bold text-gray-900 dark:text-white">
+              <ProtectedValue value={formatCurrency($portfolioTotal || 0n)} placeholder="*******" />
             </div>
           {/if}
 
@@ -441,8 +562,8 @@
               {/if}
             </div>
           {:else}
-            <div class="{getResponsiveFontSize($portfolioTotal)} font-bold text-gray-900 dark:text-white">
-              <ProtectedValue value={formatCurrency($portfolioTotal)} placeholder="*******" />
+            <div class="{getResponsiveFontSize($portfolioTotal || 0n)} font-bold text-gray-900 dark:text-white">
+              <ProtectedValue value={formatCurrency($portfolioTotal || 0n)} placeholder="*******" />
             </div>
           {/if}
 
@@ -479,6 +600,7 @@
     </div>
   </div>
 {:else}
+{console.log('hasProAccess 2', hasProAccess)}
   <!-- Pro User View -->
   <div class="{className} rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-[2px] shadow-lg hover:shadow-xl transition-all duration-300">
     <div class="rounded-2xl bg-white dark:bg-zinc-900 p-6">
@@ -518,7 +640,7 @@
         </div>
 
         <!-- Value and Controls -->
-        {#if $portfolioTotal >= 10000}
+        {#if BigNumberishUtils.toBigInt($portfolioTotal || 0n) >= 10000n}
           <!-- Large value layout - value on its own line -->
           <div class="space-y-3">
             {#if loading || isFirstLoad}
@@ -540,7 +662,7 @@
             <div class="flex justify-end gap-2">
               <button
                 onclick={cycleViewMode}
-                class="px-3 py-1.5 text-xs font-medium rounded-full border transition-all duration-200 min-w-[120px] text-center bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700"
+                class="px-3 py-1.5 text-xs font-medium rounded-full border transition-all duration-200 min-w-[120px] text-center {getButtonColorClasses()}"
                 title="Click to cycle through view modes"
               >
                 {getViewModeLabel()}
@@ -580,7 +702,7 @@
             <div class="flex items-center gap-2">
               <button
                 onclick={cycleViewMode}
-                class="px-3 py-1.5 text-xs font-medium rounded-full border transition-all duration-200 min-w-[120px] text-center bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700"
+                class="px-3 py-1.5 text-xs font-medium rounded-full border transition-all duration-200 min-w-[120px] text-center {getButtonColorClasses()}"
                 title="Click to cycle through view modes"
               >
                 {getViewModeLabel()}

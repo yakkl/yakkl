@@ -17,6 +17,8 @@ import { DEFAULT_CHAINS } from '$lib/config/chains';
 import { encryptData } from '$lib/common/encryption';
 import { browser_ext } from '$lib/common/environment';
 import { log } from '$lib/common/logger-wrapper';
+import { getInstances } from '$lib/common/wallet';
+import { ethers } from 'ethers-v6';
 
 export class WalletService extends BaseService {
   private static instance: WalletService;
@@ -45,11 +47,11 @@ export class WalletService extends BaseService {
           ens: acc.alias || null,
           username: acc.name || '',
           avatar: acc.avatar || null,
-          isActive: true,
+          isActive: acc.isActive || true,
           balance: acc.quantity?.toString() || '0',
           plan: (settings?.plan?.type || PlanType.EXPLORER_MEMBER) as PlanType,
           // Additional properties for account management
-          value: acc.quantity ? parseFloat(acc.quantity.toString()) : 0,
+          value: acc.quantity ? acc.quantity : 0n,
           createdAt: acc.createDate,
           createDate: acc.createDate,
           chainIds: acc.chainIds,
@@ -60,6 +62,7 @@ export class WalletService extends BaseService {
         }));
 
         return { success: true, data: displayAccounts };
+        
       }
 
       // No accounts found in store
@@ -87,17 +90,17 @@ export class WalletService extends BaseService {
             ens: account.alias || null,
             username: account.name || '',
             avatar: account.avatar || null,
-            isActive: true,
+            isActive: account.isActive || true,
             balance: account.quantity?.toString() || '0',
             plan: (settings?.plan?.type || PlanType.EXPLORER_MEMBER) as PlanType,
             // Additional properties for account management
-            value: account.quantity ? parseFloat(account.quantity.toString()) : 0,
+            value: account.quantity ? account.quantity : 0n,
             createdAt: account.createDate,
             createDate: account.createDate,
             chainIds: account.chainIds,
             accountType: account.accountType,
             tags: account.tags,
-            isPrimary: account.primaryAccount === null,
+            isPrimary: account.accountType === AccountTypeCategory.PRIMARY,
             connectedDomains: account.connectedDomains || []
           };
 
@@ -124,9 +127,7 @@ export class WalletService extends BaseService {
     try {
       console.log('[WalletService] Getting balance for address:', address);
 
-      // Import necessary functions
-      const { getInstances } = await import('$lib/common/wallet');
-      const { ethers } = await import('ethers-v6');
+      // Use statically imported functions
 
       // Get provider instance
       const instances = await getInstances();
@@ -138,10 +139,10 @@ export class WalletService extends BaseService {
       }
 
       const provider = instances[1];
-      
+
       // Get balance directly from provider
       const balance = await provider.getBalance(address);
-      const balanceFormatted = ethers.formatEther(balance);
+      const balanceFormatted = ethers.formatEther(balance); // Note: Will need to convert based on blockchain in the future. Now all EVM chains.
 
       console.log('[WalletService] Balance response:', {
         success: true,
@@ -278,8 +279,7 @@ export class WalletService extends BaseService {
       // Remove 0x prefix if present
       const cleanKey = privateKey.startsWith('0x') ? privateKey.slice(2) : privateKey;
 
-      // Create account from private key
-      const { ethers } = await import('ethers-v6');
+      // Create account from private key (using static import)
       const ethersWallet = new ethers.Wallet(cleanKey);
 
       // Create YakklAccount

@@ -1,5 +1,4 @@
 // src/hooks.client.ts
-// import type { BrowserAPI } from '$lib/types/browser-types';
 import { getSettings, setContextTypeStore, syncStorageToStore } from '$lib/common/stores';
 import { loadTokens } from '$lib/common/stores/tokens';
 import { BalanceCacheManager } from '$lib/managers/BalanceCacheManager';
@@ -10,7 +9,7 @@ import { addUIListeners, removeUIListeners } from '$lib/common/listeners/ui/uiLi
 import { globalListenerManager } from '$lib/managers/GlobalListenerManager';
 import { uiListenerManager } from '$lib/common/listeners/ui/uiListeners';
 import { protectedContexts } from '$lib/common/globals';
-import { initializeGlobalErrorHandlers, cleanupGlobalErrorHandlers } from '$lib/common/globalErrorHandler';
+import { initializeGlobalErrorHandlers } from '$lib/common/globalErrorHandler';
 import { browser_ext } from '$lib/common/environment';
 import { initializeMessaging, initializeUiContext } from '$lib/common/messaging';
 
@@ -52,12 +51,8 @@ if (isClient && typeof process !== 'undefined' && process.env && process.env.DEV
 		'ERROR_TRACE',
 		'TRACE'
 	]);
-	// console.log(`[${CONTEXT_ID}] Logger set to DEBUG mode`);
 } else {
 	log.setLevel('ERROR', 'CONTAINS', ['ERROR', 'ERROR_TRACE']);
-	// if (isClient) {
-	//   console.log(`[${CONTEXT_ID}] Logger set to ERROR mode`);
-	// }
 }
 
 if (isClient) {
@@ -71,33 +66,6 @@ if (isClient) {
 		};
 	}
 }
-
-// let browser_ext: BrowserAPI | null = null;
-let initializationAttempted = false;
-
-// function getBrowserExt(): BrowserAPI | null {
-// 	if (!isClient) return null;
-
-// 	// If already initialized, return the existing instance
-// 	if (browser_ext) return browser_ext;
-
-// 	// Only log once
-// 	if (!initializationAttempted) {
-// 		initializationAttempted = true;
-// 	}
-
-// 	// Use the centralized browser detection
-// 	// browser_ext = getBrowserExtFromWrapper();
-
-// 	// Log only on first failed attempt
-// 	if (!browser_ext && initializationAttempted) {
-// 		log.warn(
-// 			'Browser extension API not available - ' + 'check if browser-polyfill.js is loading correctly'
-// 		);
-// 	}
-
-// 	return browser_ext;
-// }
 
 const errorHandler = ErrorHandler.getInstance(); // Initialize error handlers
 
@@ -142,28 +110,6 @@ if (isClient) {
 		// Call the original console.error for other errors
 		originalConsoleError.apply(console, args);
 	};
-}
-
-/**
- * Load cache managers early to ensure cached data is available
- */
-async function loadCacheManagers(): Promise<void> {
-	if (!isClient) return;
-
-	try {
-		// Initialize cache managers to load their data from storage
-		// These will load cached balance and token data that needs to be available immediately
-		BalanceCacheManager.getInstance();
-		AccountTokenCacheManager.getInstance();
-
-		// Give them a moment to load from storage
-		await new Promise(resolve => setTimeout(resolve, 10));
-
-		log.debug('Cache managers loaded successfully');
-	} catch (error) {
-		log.warn('Failed to load cache managers:', false, error);
-		// Don't throw - this shouldn't block initialization
-	}
 }
 
 /**
@@ -244,11 +190,7 @@ export async function init() {
 		}
 
 		// Initialize stores first (these need to be ready before any UI rendering)
-		await syncStorageToStore();
 		await loadTokens();
-
-		// Load cache managers very early to ensure cached data is available
-		await loadCacheManagers();
 
 		// Get context type for this initialization
 		const contextType = getContextType();
@@ -398,7 +340,6 @@ async function registerWithBackgroundScript() {
 
 	try {
 		const contextType = getContextType();
-		// const browserExt = getBrowserExt();
 
 		// Function to send initialization message with retry logic
 		const sendInitMessage = async (retries = 3, delay = 100) => {
@@ -477,6 +418,3 @@ async function registerWithBackgroundScript() {
 		console.warn(`[${CONTEXT_ID}] Error registering context:`, err);
 	}
 }
-
-// Export for external use if needed
-// export { getBrowserExt };
