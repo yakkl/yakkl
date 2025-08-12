@@ -49,7 +49,10 @@ class ExtensionMessaging {
 		'IDLE_STATUS_CHANGED',
 		'LOCKDOWN_WARNING_ENHANCED',
 		'SECURITY_ALERT_ENHANCED',
-		'PLAY_URGENT_SOUND'
+		'PLAY_URGENT_SOUND',
+		'BROWSER_API_STORAGE_REMOVE', // Make storage removal fire-and-forget for faster logout
+		'closeAllWindows', // Window closing doesn't need confirmation
+		'stopActivityTracking' // Activity tracking stop doesn't need confirmation
 	];
 
 	/**
@@ -71,6 +74,7 @@ class ExtensionMessaging {
 
 		this.browserApi = browserExtensionApi;
 		this.contextId = this.getContextId();
+		console.log('[Messaging.initialize] Extension messaging initialized with contextId:', this.contextId);
 		log.debug('[Messaging - initialize] Extension messaging initialized');
 
 		// Start processing any queued messages
@@ -191,7 +195,7 @@ class ExtensionMessaging {
 			retryOnFail = true,
 			contextId = this.contextId,
 			deduplicate = true,
-			responseTimeout = 30000, // 30 second default timeout
+			responseTimeout = 15000, // 15 second default timeout
 			// If message type is in fire-and-forget list, don't wait for response
 			waitForResponse = !this.FIRE_AND_FORGET_MESSAGES.includes(type)
 		} = options;
@@ -411,34 +415,40 @@ class ExtensionMessaging {
 	 * Generate or retrieve a context ID for this UI instance
 	 */
 	private getContextId(): string {
-		// if (!isBrowser) return 'server';
+		if (!isBrowser) {
+			console.log('[Messaging.getContextId] Not in browser, returning "server"');
+			return 'server';
+		}
 
-		// // Check for an existing context ID in window storage
-		// if (typeof window !== 'undefined' &&
-		//     window.EXTENSION_INIT_STATE &&
-		//     window.EXTENSION_INIT_STATE.contextId) {
-		//   return window.EXTENSION_INIT_STATE.contextId;
-		// }
+		// Check for an existing context ID in window storage
+		if (typeof window !== 'undefined' &&
+		    window.EXTENSION_INIT_STATE &&
+		    window.EXTENSION_INIT_STATE.contextId) {
+		  console.log('[Messaging.getContextId] Found existing contextId:', window.EXTENSION_INIT_STATE.contextId);
+		  return window.EXTENSION_INIT_STATE.contextId;
+		}
 
-		// // Generate a new context ID
-		// const contextId = Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
+		// Generate a new context ID if one doesn't exist
+		const contextId = Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
+		console.log('[Messaging.getContextId] Generated new contextId:', contextId);
 
-		// // Store it in window storage if available
-		// if (typeof window !== 'undefined') {
-		//   if (!window.EXTENSION_INIT_STATE) {
-		//     window.EXTENSION_INIT_STATE = {
-		//       initialized: false,
-		//       contextId: contextId,
-		//       activityTrackingStarted: false,
-		//       startTime: Date.now()
-		//     };
-		//   } else {
-		//     window.EXTENSION_INIT_STATE.contextId = contextId;
-		//   }
-		// }
+		// Store it in window storage if available
+		if (typeof window !== 'undefined') {
+		  if (!window.EXTENSION_INIT_STATE) {
+		    window.EXTENSION_INIT_STATE = {
+		      initialized: false,
+		      contextId: contextId,
+		      activityTrackingStarted: false,
+		      startTime: Date.now()
+		    };
+		    console.log('[Messaging.getContextId] Created new EXTENSION_INIT_STATE with contextId:', contextId);
+		  } else {
+		    window.EXTENSION_INIT_STATE.contextId = contextId;
+		    console.log('[Messaging.getContextId] Updated existing EXTENSION_INIT_STATE with contextId:', contextId);
+		  }
+		}
 
-		// return contextId;
-		return this.contextId;
+		return contextId;
 	}
 
 	/**
@@ -473,6 +483,7 @@ class ExtensionMessaging {
 		if (!isBrowser || !this.browserApi) return;
 
 		const contextId = this.contextId;
+		console.log('[Messaging.registerUiContext] Registering UI context:', { contextId, contextType });
 
 		await this.sendMessage(
 			'ui_context_initialized',
@@ -509,6 +520,7 @@ class ExtensionMessaging {
 			}
 		}
 
+		console.log(`[Messaging.registerUiContext] ✓ UI context registered: ${contextId} (${contextType})`);
 		log.debug(
 			`[Messaging - registerUiContext] UI context registered: ${contextId} (${contextType})`
 		);
@@ -845,32 +857,43 @@ export async function initializeUiContext(
  * Start activity tracking after successful login (only for protected contexts)
  */
 export async function startActivityTracking(contextType?: string): Promise<void> {
-	if (!isBrowser) return;
+  let actualContextType = 'unknown';
 
-	const actualContextType = contextType || determineBestContextType();
+  try {
+    if (!isBrowser) return;
 
-	log.info(`[Messaging - startActivityTracking] 🚀 STARTING ACTIVITY TRACKING:`, false, {
-		providedContextType: contextType,
-		actualContextType,
-		isProtectedContext: contextNeedsIdleProtection(actualContextType),
-		expectedProtectedTypes: protectedContexts,
-		isBrowser: isBrowser,
-		messagingServiceExists: !!messagingService
-	});
+    actualContextType = contextType || determineBestContextType();
 
-	// Only start activity tracking for protected contexts
-	if (!contextNeedsIdleProtection(actualContextType)) {
-		log.warn(`[Messaging - startActivityTracking] ❌ SKIPPING - not a protected context:`, false, {
-			contextType: actualContextType,
-			protectedContexts,
-			reason: 'Context type not in protected contexts list'
-		});
-		return;
-	}
+    log.info(`[Messaging - startActivityTracking] 🚀 STARTING ACTIVITY TRACKING:`, false, {
+      providedContextType: contextType,
+      actualContextType,
+      isProtectedContext: contextNeedsIdleProtection(actualContextType),
+      expectedProtectedTypes: protectedContexts,
+      isBrowser: isBrowser,
+      messagingServiceExists: !!messagingService
+    });
 
-	log.info(
-		`[Messaging - startActivityTracking] 🔐 Setting login verified for protected context: ${actualContextType}`
-	);
+    // Only start activity tracking for protected contexts
+    if (!contextNeedsIdleProtection(actualContextType)) {
+      log.warn(`[Messaging - startActivityTracking] ❌ SKIPPING - not a protected context:`, false, {
+        contextType: actualContextType,
+        protectedContexts,
+        reason: 'Context type not in protected contexts list'
+      });
+      return;
+    }
+
+    log.info(
+      `[Messaging - startActivityTracking] 🔐 Setting login verified for protected context: ${actualContextType}`
+    );
+  } catch (error) {
+    log.error(
+      `[Messaging - startActivityTracking] ❌ ERROR starting activity tracking:`,
+      false,
+      error
+    );
+    throw error;
+  }
 
 	try {
 		// Verify the login - this should trigger idle detection
@@ -896,14 +919,11 @@ export async function startActivityTracking(contextType?: string): Promise<void>
 			error
 		);
 	}
-
-	log.info(
-		`[Messaging - startActivityTracking] 🎉 ACTIVITY TRACKING STARTED for protected context: ${actualContextType}`
-	);
 }
 
 /**
  * Stop activity tracking (e.g., at logout) (only for protected contexts)
+ * Fire-and-forget - doesn't wait for response
  */
 export async function stopActivityTracking(): Promise<void> {
 	if (!isBrowser) return;
@@ -918,10 +938,13 @@ export async function stopActivityTracking(): Promise<void> {
 		return;
 	}
 
-	await messagingService.setLoginVerified(false);
+	// Fire-and-forget - don't wait for response
+	messagingService.setLoginVerified(false).catch(() => {
+		// Ignore errors - we're shutting down anyway
+	});
 
 	log.info(
-		`[Messaging - stopActivityTracking] Activity tracking stopped for protected context: ${contextType}`
+		`[Messaging - stopActivityTracking] Activity tracking stop message sent for protected context: ${contextType}`
 	);
 }
 

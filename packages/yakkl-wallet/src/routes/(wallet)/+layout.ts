@@ -1,17 +1,16 @@
 // Authentication guard for all wallet routes
+// This file only handles route-level authentication and redirection
 
 import { goto } from '$app/navigation';
 import { validateAuthentication } from '$lib/common/authValidation';
-import { PATH_LOGIN, PATH_REGISTER, PATH_LEGAL, PATH_HOME } from '$lib/common/constants';
-import { log } from '$lib/common/logger-wrapper';
+import { PATH_LOGIN, PATH_REGISTER, PATH_LEGAL } from '$lib/common/constants';
 import { appStateManager } from '$lib/managers/AppStateManager';
 
 export const load = async ({ url }: any) => {
-
   if (typeof window === 'undefined') return {};
 
-  // Skip auth check for specific routes that don't require authentication
-  const publicRoutes = ['/','/login', '/register', '/legal', '/logout', '/phishing'];
+  // Skip auth check for public routes
+  const publicRoutes = ['/', '/login', '/register', '/legal', '/logout', '/phishing'];
   const currentPath = url.pathname;
 
   if (publicRoutes.some(route => currentPath.startsWith(route))) {
@@ -19,15 +18,16 @@ export const load = async ({ url }: any) => {
   }
 
   try {
-    // Wait for app to be ready instead of arbitrary timeout
+    // Wait for app to be ready before checking authentication
     await appStateManager.waitForReady();
 
-    // Perform authentication validation
+    // Validate authentication for protected routes
     const validation = await validateAuthentication();
+    
     if (!validation.isValid) {
-      // Determine where to redirect based on validation reason
+      // Determine redirect path based on validation reason
       let redirectPath = PATH_LOGIN;
-
+      
       switch (validation.reason) {
         case 'Wallet not initialized':
           redirectPath = PATH_REGISTER;
@@ -40,36 +40,23 @@ export const load = async ({ url }: any) => {
           break;
       }
 
-      console.log('Layout: Redirecting to:', redirectPath);
-      console.log('Layout: Validation:>>>>>>>>>>>>>>>>>>>', validation);
-      console.log('Layout: Current path:', currentPath);
-
+      // Redirect to appropriate page
       await goto(redirectPath, { replaceState: true });
-
-      // Return early to prevent further processing
-      return {
-        authenticated: false,
-        redirectPath,
-        validation
-      };
-    } else {
-      console.log('Layout: Authentication is valid');
+      return { authenticated: false };
     }
 
-    // Authentication is valid, allow navigation to continue
-    return {
-      authenticated: true,
-      redirectPath: PATH_HOME,
-      validation
-    };
-
+    // Authentication valid - proceed with route
+    return { authenticated: true };
+    
   } catch (error) {
-    // If it's already a redirect, re-throw it
+    // Handle redirect errors
     if (error && typeof error === 'object' && 'status' in error && 'location' in error) {
       throw error;
     }
-
+    
     // For any other error, redirect to login
     console.error('Authentication check failed:', error);
+    await goto(PATH_LOGIN, { replaceState: true });
+    return { authenticated: false };
   }
 };

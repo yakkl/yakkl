@@ -80,6 +80,26 @@ function safePostMessage(message: any, context = 'inpage'): boolean {
 	}
 }
 
+function installGlobalErrorGuards(context = 'inpage') {
+  try {
+    window.addEventListener('error', (e: ErrorEvent) => {
+      const msg = String(e.error?.message || e.message || '');
+      if (msg.includes('Extension context invalidated')) {
+        e.preventDefault();
+        log.warn(`[${context}] Caught global error: Extension context invalidated`, false, { message: msg });
+      }
+    });
+
+    window.addEventListener('unhandledrejection', (e: PromiseRejectionEvent) => {
+      const reason = e.reason instanceof Error ? e.reason.message : String(e.reason || '');
+      if (reason.includes('Extension context invalidated')) {
+        e.preventDefault();
+        log.warn(`[${context}] Caught unhandled rejection: Extension context invalidated`, false, { reason });
+      }
+    });
+  } catch {}
+}
+
 // ProviderRpcError class using standard EIP errors
 class ProviderRpcError extends Error {
 	code: number;
@@ -472,7 +492,7 @@ class EIP1193Provider extends EventEmitter implements EIP6963Provider {
 				} else if (error.message && error.message.includes('not initialized')) {
 					log.debug('Wallet not initialized, request rejected:', false, { method, id });
 				}
-				
+
 				const rpcError = new ProviderRpcError(error.code, error.message, error.data);
 				pendingRequest.reject(rpcError);
 			} else {
@@ -1169,10 +1189,11 @@ try {
 }
 
 try {
-	// Start the initialization process
-	initializeInpageScript();
+    // Install guards and start the initialization process
+    installGlobalErrorGuards('inpage');
+    initializeInpageScript();
 } catch (e: any) {
-	log.debug(`Failed to initialize inpage script:`, false, e);
+    log.debug(`Failed to initialize inpage script:`, false, e);
 }
 
 // Export the provider for use in other modules if needed
