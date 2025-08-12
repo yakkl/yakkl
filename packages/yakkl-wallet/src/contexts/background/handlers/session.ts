@@ -81,20 +81,8 @@ export const sessionHandlers = new Map<string, MessageHandlerFunc>([
       const { reason = 'user-logout' } = payload || {};
       log.info('[SessionHandler] Logout request received:', false, { reason });
 
-      // Lock the wallet (this handles all cleanup)
+      // Lock the wallet (this handles all cleanup including window closing)
       await lockWalletBackground(reason);
-
-      // Close all extension windows
-      const windows = await browser.windows.getAll({ windowTypes: ['popup'] });
-      for (const window of windows) {
-        if (window.id) {
-          try {
-            await browser.windows.remove(window.id);
-          } catch (error) {
-            log.warn('[SessionHandler] Failed to close window:', false, { windowId: window.id, error });
-          }
-        }
-      }
 
       log.info('[SessionHandler] Logout completed successfully');
       return { success: true };

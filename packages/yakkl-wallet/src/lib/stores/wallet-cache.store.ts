@@ -24,6 +24,7 @@ import { BigNumber, type BigNumberish } from '$lib/common/bignumber';
 // import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
 import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
 import { PortfolioRollupService } from '$lib/services/portfolio-rollup.service';
+import { toSmallestUnit, DEFAULT_CURRENCY } from '$lib/config/currencies';
 
 // Cache version for migrations
 const CACHE_VERSION = VERSION;
@@ -651,9 +652,10 @@ function createWalletCacheStore() {
 					const price = token.price || 0;
 
 					// Calculate expected value (balance * price) using precision-safe arithmetic
+					// toFiat now correctly handles wei balance and USD price
 					const fiatValue = EthereumBigNumber.toFiat(balance, price);
-					// Use Math.round instead of Math.floor to prevent losing precision
-					const expectedValue = BigInt(Math.round(fiatValue * 100)); // Store as cents
+					// Store as smallest unit for the currency (cents for USD)
+					const expectedValue = toSmallestUnit(fiatValue, DEFAULT_CURRENCY);
 
 					// CRITICAL: value should be in USD, not wei
 					// Always calculate value from balance * price
@@ -750,11 +752,12 @@ function createWalletCacheStore() {
 					if (token.isNative) {
 						const balance = BigNumber.toBigInt(token.balance) || 0n;
 						updated = true;
+						const fiatValue = EthereumBigNumber.toFiat(balance, price);
 						return {
 							...token,
 							price: price,
 							priceLastUpdated: new Date(),
-							value: BigInt(Math.round(EthereumBigNumber.toFiat(balance, price) * 100))
+							value: toSmallestUnit(fiatValue, DEFAULT_CURRENCY)
 						};
 					}
 					return token;
@@ -795,7 +798,8 @@ function createWalletCacheStore() {
 							const balance = BigNumber.toBigInt(token.balance) || 0n;
 							// Use precision-safe calculation for value
 							const fiatValue = EthereumBigNumber.toFiat(balance, newPrice);
-							let value = BigInt(Math.round(fiatValue * 100)); // Store as cents
+							// Store as smallest unit for the currency
+							let value = toSmallestUnit(fiatValue, DEFAULT_CURRENCY);
 
 							return {
 								...token,
@@ -1128,8 +1132,10 @@ function createWalletCacheStore() {
 							// Update to new non-zero balance
 							const balanceStr = newBalanceBigInt.toString();
 							const price = token.price || 0;
+							// toFiat now correctly handles wei balance and USD price
 							const fiatValue = EthereumBigNumber.toFiat(newBalanceBigInt, price);
-							const value = BigInt(Math.round(fiatValue * 100)); // Store as cents
+							// Store as smallest unit for the currency
+							const value = toSmallestUnit(fiatValue, DEFAULT_CURRENCY);
 
 							return {
 								...token,

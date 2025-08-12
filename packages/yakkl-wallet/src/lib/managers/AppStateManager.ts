@@ -81,20 +81,43 @@ function createAppStateManager() {
     }
   }
   
-  async function waitForExtension(maxAttempts = 10): Promise<boolean> {
+  async function waitForExtension(maxAttempts = 30): Promise<boolean> {
     if (!browser) return false;
     
+    console.log('[AppStateManager] Waiting for extension connection...');
+    
+    // Check immediately if already connected
+    if (window.yakkl?.isConnected) {
+      console.log('[AppStateManager] Extension already connected');
+      state.update(s => ({ ...s, extensionConnected: true }));
+      return true;
+    }
+    
+    // Wait with exponential backoff
+    let delay = 100; // Start with 100ms
+    
     for (let i = 0; i < maxAttempts; i++) {
+      // Check connection status
       if (window.yakkl?.isConnected) {
+        console.log(`[AppStateManager] Extension connected after ${i + 1} attempts`);
         state.update(s => ({ ...s, extensionConnected: true }));
         return true;
       }
       
+      // Log progress every 5 attempts
+      if ((i + 1) % 5 === 0) {
+        console.log(`[AppStateManager] Still waiting for extension... (${i + 1}/${maxAttempts})`);
+      }
+      
+      // Wait before next attempt (except on last iteration)
       if (i < maxAttempts - 1) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, delay));
+        // Increase delay but cap at 1 second
+        delay = Math.min(delay * 1.5, 1000);
       }
     }
     
+    console.error(`[AppStateManager] Extension connection timeout after ${maxAttempts} attempts`);
     return false;
   }
   

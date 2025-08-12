@@ -8,7 +8,7 @@
 
   let {
     account = { username: '', address: '', ens: null, avatar: null },
-    onManage = null, onTheme = null, onSettings = null, onLogout = null, onEmergencyKit = null, onManageAccounts = null,
+    onManage = null, onTheme = null, onSettings = null, onLogout = null, onExit = null, onEmergencyKit = null, onManageAccounts = null,
     className = ''
   } = $props();
 
@@ -251,11 +251,27 @@
           Toggle Theme
         </button>
         <div class="border-t border-zinc-200 dark:border-zinc-700 my-1"></div>
-        <button class="yakkl-dropdown-item text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 flex items-center gap-2" onclick={() => {menuOpen = false; onLogout && onLogout();}}>
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
-          Logout
+        <button class="yakkl-dropdown-item text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 flex items-center justify-between" onclick={() => {menuOpen = false; onLogout && onLogout();}}>
+          <span class="flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Logout
+          </span>
+          <kbd class="text-xs px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-700 font-mono">
+            {navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}+Shift+L
+          </kbd>
+        </button>
+        <button class="yakkl-dropdown-item text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 flex items-center justify-between" onclick={() => {menuOpen = false; onExit && onExit();}}>
+          <span class="flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Exit
+          </span>
+          <kbd class="text-xs px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-700 font-mono">
+            {navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}+Shift+X
+          </kbd>
         </button>
       </div>
     </div>

@@ -115,6 +115,17 @@ const safeMessageHandler = createSafeMessageHandler(
     // }
 
 
+    // Special handling for closeAllWindows message (for backwards compatibility)
+    if (request.type === 'closeAllWindows') {
+      console.log('Background: Handling closeAllWindows message');
+      // Import the session handler and call it directly
+      const { sessionHandlers } = await import('./handlers/session');
+      const handler = sessionHandlers.get('closeAllWindows');
+      if (handler) {
+        return handler(request.payload || request);
+      }
+    }
+    
     // Handle all other messages through the standard handler
     console.log('Background: Received message:', {
       type: request.type,

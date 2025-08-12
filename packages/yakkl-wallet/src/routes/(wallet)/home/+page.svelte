@@ -113,11 +113,11 @@
           console.log('onMount: Core services initializing automatically');
 
           // Non-blocking token store refresh
-          tokenStore.refresh().then(() => {
-            console.log('onMount: Token store refreshed');
-          }).catch(error => {
-            handleError(error, 'token store refresh');
-          });
+          // tokenStore.refresh().then(() => {
+          //   console.log('onMount: Token store refreshed');
+          // }).catch(error => {
+          //   handleError(error, 'token store refresh');
+          // });
 
           // The background interval service handles price and balance updates
           // We just need to ensure the stores are reactive to storage changes
@@ -193,9 +193,9 @@
 
         // Non-blocking refresh - stores will update reactively
         console.log('Account changed, stores will update reactively', account.address);
-        tokenStore.refresh(false).catch(error => {
-          console.log('Token refresh failed', error);
-        });
+        // tokenStore.refresh(false).catch(error => {
+        //   console.log('Token refresh failed', error);
+        // });
       }
     } catch (error) {
       handleError(error, 'account change effect');
@@ -343,26 +343,26 @@
   });
 
   // Debug native token price
-  $effect(() => {
-    try {
-      if (nativeToken) {
-        console.log('Native token debug:', {
-          symbol: nativeToken.symbol,
-          price: nativeToken.price,
-          value: nativeToken.value,
-          qty: (nativeToken as any).qty || new BigNumber((nativeToken as any).balance || '0').toNumber() || 0,
-          chainId: nativeToken.chainId
-        });
+  // $effect(() => {
+  //   try {
+  //     if (nativeToken) {
+  //       console.log('Native token debug:', {
+  //         symbol: nativeToken.symbol,
+  //         price: nativeToken.price,
+  //         value: nativeToken.value,
+  //         qty: (nativeToken as any).qty || new BigNumber((nativeToken as any).balance || '0').toNumber() || 0,
+  //         chainId: nativeToken.chainId
+  //       });
 
         // Check if the price looks like a portfolio value
-        if (nativeToken.price && BigNumberishUtils.compare(nativeToken.price, 10000) > 0) {
-          console.log('WARNING: Native token price looks like portfolio value!', BigNumberishUtils.toNumber(nativeToken.price));
-        }
-      }
-    } catch (error) {
-      handleError(error, 'native token debug effect');
-    }
-  });
+        // if (nativeToken.price && BigNumberishUtils.compare(nativeToken.price, 10000) > 0) {
+        //   console.log('WARNING: Native token price looks like portfolio value!', BigNumberishUtils.toNumber(nativeToken.price));
+        // }
+  //     }
+  //   } catch (error) {
+  //     handleError(error, 'native token debug effect');
+  //   }
+  // });
 
   // Calculate native token value for account display using BigNumber for precision
   let accountNativeValue = $derived.by(() => {
@@ -479,11 +479,11 @@
       }
 
       // Always do token store refresh as primary refresh mechanism
-      tokenStore.refresh(forceRefresh).then(() => {
-        console.log('refreshAllData: Token store refreshed');
-      }).catch(error => {
-        console.log('refreshAllData: Token store refresh failed', error);
-      });
+      // tokenStore.refresh(forceRefresh).then(() => {
+      //   console.log('refreshAllData: Token store refreshed');
+      // }).catch(error => {
+      //   console.log('refreshAllData: Token store refresh failed', error);
+      // });
 
     } catch (error) {
       handleError(error, 'refreshAllData');

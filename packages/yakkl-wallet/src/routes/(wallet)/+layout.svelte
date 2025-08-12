@@ -24,22 +24,13 @@
     getYakklAccounts,
     getProfile,
     getMiscStore,
-    resetStores,
-    setMiscStore,
   } from '$lib/common/stores';
   import type { ChainDisplay } from '$lib/types';
   import { setupConsoleFilters } from '$lib/utils/console-filter';
-  import { validateAndRefreshAuth } from '$lib/common/authValidation';
   import { goto } from '$app/navigation';
   import { decryptData, isEncryptedData, type ProfileData } from '$lib/common';
   import { log } from '$lib/common/logger-wrapper';
-  import { setBadgeText, setIconLock } from '$lib/utilities/utilities';
-  import { removeTimers } from '$lib/common/timers';
-  import { removeListeners } from '$lib/common/listeners';
-  import { setLocks } from '$lib/common/locks';
-  import { resetTokenDataStoreValues } from '$lib/common/resetTokenDataStoreValues';
-  import { stopActivityTracking } from '$lib/common/messaging';
-	import { lockWallet } from '$lib/common/lockWallet';
+  import { lockWallet } from '$lib/common/lockWallet';
   import { appStateManager, AppPhase } from '$lib/managers/AppStateManager';
 
   interface Props {
@@ -59,6 +50,8 @@
   let showNetworkMismatch = $state(false);
   let isAuthenticated = $state(false);
   let pendingChain = $state<ChainDisplay | null>(null);
+  let isLoggingOut = $state(false);
+  let logoutMessage = $state('');
 
   // --- Derived values ---
   let account = $derived($currentAccount || { address: '', ens: null });
@@ -86,40 +79,37 @@
         // Wait for app to be ready (extension connected, stores loaded, cache initialized)
         await appStateManager.waitForReady();
         
-        // Now perform authentication validation
-        const authResult = await validateAndRefreshAuth();
-        isAuthenticated = authResult;
+        // Authentication has already been validated in +layout.ts
+        // We can assume we're authenticated if we reach this component
+        isAuthenticated = true;
 
-        if (authResult) {
-          // Load remaining stores that aren't critical for initialization
-          await Promise.all([
-            accountStore.loadAccounts(),
-            chainStore.loadChains(),
-            planStore.loadPlan()
-          ]);
+        // Load remaining stores that aren't critical for initialization
+        await Promise.all([
+          accountStore.loadAccounts(),
+          chainStore.loadChains(),
+          planStore.loadPlan()
+        ]);
 
-          const profile = await getProfile();
-          const miscStore = getMiscStore();
-          if (profile && profile.data && miscStore) {
-            if (isEncryptedData(profile.data)) {
-              const profileData = await decryptData(profile.data, miscStore) as ProfileData;
-              log.info('Layout: Starting session with JWT', false, profileData);
-              await sessionManager.startSession(
-                profile.id,
-                profile.username || 'user',
-                profile.id,
-                profileData.planType || 'explorer_member'
-              );
-              if (profile.preferences?.showTestNetworks) {
-                showTestnets = true;
-                chainStore.setShowTestnets(true);
-              }
+        // Setup session and user preferences
+        const profile = await getProfile();
+        const miscStore = getMiscStore();
+        if (profile && profile.data && miscStore) {
+          if (isEncryptedData(profile.data)) {
+            const profileData = await decryptData(profile.data, miscStore) as ProfileData;
+            log.info('Layout: Starting session with JWT', false, profileData);
+            await sessionManager.startSession(
+              profile.id,
+              profile.username || 'user',
+              profile.id,
+              profileData.planType || 'explorer_member'
+            );
+            if (profile.preferences?.showTestNetworks) {
+              showTestnets = true;
+              chainStore.setShowTestnets(true);
             }
           }
-          console.log('Layout: Transaction monitoring handled by background context');
-        } else {
-          console.log('Layout: User not authenticated, skipping store sync', authResult);
         }
+        console.log('Layout: Transaction monitoring handled by background context');
       } catch (error) {
         console.error('Layout: Error during initialization:', error);
         // Show error state to user
@@ -131,9 +121,26 @@
       }
     })();
 
+    // Add keyboard shortcuts
+    function handleKeyboardShortcuts(e: KeyboardEvent) {
+      // Ctrl+Shift+L for Logout (Cmd+Shift+L on Mac)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'L') {
+        e.preventDefault();
+        handleLogout();
+      }
+      // Ctrl+Shift+X for Exit (Cmd+Shift+X on Mac)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'X') {
+        e.preventDefault();
+        handleExit();
+      }
+    }
+    
+    document.addEventListener('keydown', handleKeyboardShortcuts);
+
     // Cleanup on unmount
     return () => {
       unsubscribe();
+      document.removeEventListener('keydown', handleKeyboardShortcuts);
     };
   });
 
@@ -196,12 +203,59 @@
     document.documentElement.classList.toggle('dark');
   }
 
+  // Service cleanup function
+  async function stopAllClientServices() {
+    console.log('[stopAllClientServices] Quick service cleanup...');
+    
+    // Stop TokenService (fire-and-forget)
+    import('$lib/services/token.service').then(({ TokenService }) => {
+      const tokenService = TokenService.getInstance();
+      if (tokenService && typeof tokenService.stop === 'function') {
+        tokenService.stop().catch(() => {});
+      }
+    }).catch(() => {});
+    
+    // Stop all timers (fire-and-forget)
+    import('$lib/managers/TimerManager').then(({ TimerManager }) => {
+      const timerManager = TimerManager.getInstance();
+      if (timerManager && typeof timerManager.stopAll === 'function') {
+        timerManager.stopAll();
+      }
+    }).catch(() => {});
+    
+    // Clear all intervals/timeouts
+    if (typeof window !== 'undefined') {
+      const highestId = setTimeout(() => {}, 0) as unknown as number;
+      for (let i = 0; i < highestId; i++) {
+        clearTimeout(i);
+        clearInterval(i);
+      }
+      console.log('[stopAllClientServices] ✓ All intervals/timeouts cleared');
+    }
+  }
+
   async function handleLogout() {
     const skipConfirmation = localStorage.getItem('yakkl:skip-logout-confirmation') === 'true';
     if (skipConfirmation) {
-      await performLogout();
+      performLogout('logout'); // Don't await - let it run
     } else {
       showLogoutConfirm = true;
+    }
+  }
+
+  async function handleExit() {
+    isLoggingOut = true;
+    logoutMessage = 'Closing wallet...';
+    
+    // Start cleanup (fire-and-forget)
+    stopAllClientServices();
+    
+    // Perform exit (fire-and-forget)
+    performLogout('exit');
+    
+    // Close window immediately
+    if (typeof window !== 'undefined' && window.close) {
+      setTimeout(() => window.close(), 100); // Small delay to ensure cleanup starts
     }
   }
 
@@ -209,66 +263,69 @@
     if (dontShowAgain) {
       localStorage.setItem('yakkl:skip-logout-confirmation', 'true');
     }
-    await performLogout();
+    await performLogout('logout');
   }
 
-  async function performLogout() {
+  async function performLogout(mode: 'logout' | 'exit' = 'logout') {
+    console.log(`[performLogout] FAST ${mode.toUpperCase()} STARTED`);
+    const startTime = Date.now();
+    
+    // Show loading overlay for logout
+    if (mode === 'logout') {
+      isLoggingOut = true;
+      logoutMessage = 'Logging out...';
+    }
+    
     try {
-      console.log('Layout: Starting logout process');
-
-      // Send logout message to background
-      try {
-        const { getBrowserExtFromGlobal } = await import('$lib/common/environment');
-        const browserApi = await getBrowserExtFromGlobal();
-        if (browserApi && browserApi.runtime) {
-          await browserApi.runtime.sendMessage({ type: 'logout', reason: 'user-logout' });
-          console.log('Layout: Sent logout message to background');
-        } else {
-          console.error('Layout: Could not send logout message to background: browserApi is undefined');
-        }
-      } catch (error) {
-        console.error('Layout: Could not send logout message to background:', error);
+      // Start service cleanup (fire-and-forget)
+      stopAllClientServices();
+      
+      // Call lockWallet - now optimized to be < 1 second
+      console.log('[performLogout] Calling fast lockWallet...');
+      await lockWallet(mode === 'exit' ? 'user-exit' : 'user-logout');
+      
+      // Clear session storage (synchronous, instant)
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.clear();
       }
-
-      // Perform local cleanup
-      await stopActivityTracking();
-      await setBadgeText('');
-      await setIconLock();
-      await setLocks(true);
-      removeTimers();
-      removeListeners();
-      setMiscStore('');
-      resetTokenDataStoreValues();
-      // setYakklTokenDataCustomStorage(get(yakklTokenDataCustomStore));
-      resetStores();
-
-      if (accountStore && typeof accountStore.reset === 'function') accountStore.reset();
-      if (chainStore && typeof chainStore.reset === 'function') chainStore.reset();
-      if (planStore && typeof planStore.reset === 'function') planStore.reset();
-
-      sessionStorage.removeItem('wallet-authenticated');
-      console.log('Logout completed successfully');
-
-      // Navigate to logout page - wrap in try/catch to prevent errors
-      try {
-        // await goto('/logout');
-        await lockWallet('user-logout');
-        window.close();
-      } catch (navError) {
-        console.error('Layout: Navigation to logout page failed:', navError);
-        // If navigation fails, try to close the window
-        try {
-          window.close();
-        } catch (closeError) {
-          console.error('Layout: Could not close window:', closeError);
-        }
+      
+      const elapsed = Date.now() - startTime;
+      console.log(`[performLogout] ✓ FAST ${mode.toUpperCase()} completed in ${elapsed}ms`);
+      
+      // Navigate to login page for logout only
+      if (mode === 'logout') {
+        await goto('/login', { replaceState: true });
       }
+      
     } catch (error) {
-      console.error('Logout failed:', error);
-      alert('Logout encountered an error. Please try again.');
+      console.error(`[performLogout] ${mode} error:`, error?.message);
+      
+      // Even on error, navigate to login for logout
+      if (mode === 'logout') {
+        try {
+          await goto('/login', { replaceState: true });
+        } catch (navError) {
+          // Ignore navigation errors
+        }
+      }
+    } finally {
+      isLoggingOut = false;
     }
   }
 </script>
+
+<!-- Loading overlay for logout/exit -->
+{#if isLoggingOut}
+  <div class="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center">
+    <div class="bg-white dark:bg-zinc-800 rounded-lg p-6 shadow-2xl">
+      <div class="flex items-center gap-3">
+        <div class="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full"></div>
+        <span class="text-lg font-medium">{logoutMessage}</span>
+      </div>
+      <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-2">Please wait...</p>
+    </div>
+  </div>
+{/if}
 
 <!-- Wallet-specific overlays & modals -->
 <Settings bind:show={showSettings} />
@@ -309,6 +366,7 @@
   onSettings={handleSettings}
   onTheme={handleTheme}
   onLogout={handleLogout}
+  onExit={handleExit}
   onEmergencyKit={handleEmergencyKit}
   onManageAccounts={handleManageAccounts}
   className="flex-shrink-0 fixed z-[40] top-0"

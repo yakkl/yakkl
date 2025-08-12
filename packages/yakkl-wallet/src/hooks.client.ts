@@ -1,8 +1,6 @@
 // src/hooks.client.ts
-import { getSettings, setContextTypeStore, syncStorageToStore } from '$lib/common/stores';
+import { getSettings, setContextTypeStore } from '$lib/common/stores';
 import { loadTokens } from '$lib/common/stores/tokens';
-import { BalanceCacheManager } from '$lib/managers/BalanceCacheManager';
-import { AccountTokenCacheManager } from '$lib/managers/AccountTokenCacheManager';
 import { ErrorHandler } from '$lib/managers/ErrorHandler';
 import { log } from '$lib/managers/Logger';
 import { addUIListeners, removeUIListeners } from '$lib/common/listeners/ui/uiListeners';
@@ -33,7 +31,7 @@ declare global {
 // Create a unique context ID for this execution instance
 const CONTEXT_ID =
 	typeof Date !== 'undefined'
-		? Date.now().toString(36) + Math.random().toString(36).substr(2, 5)
+        ? Date.now().toString(36) + Math.random().toString(36).slice(2, 7)
 		: 'server';
 
 // Early check for window existence
@@ -157,6 +155,18 @@ export function getContextType(): string {
 	}
 }
 
+/**
+ * Initialize client-side hooks for the extension
+ * This runs early in the page lifecycle to set up:
+ * - Error handlers
+ * - UI listeners
+ * - Messaging context
+ *
+ * Note: The main initialization flow is handled by:
+ * 1. routes/+layout.ts - Port connection
+ * 2. AppStateManager - Coordinated app initialization
+ * 3. This file - UI-specific setup only
+ */
 export async function init() {
 	if (!isClient) return; // Skip initialization on server
 
@@ -202,7 +212,7 @@ export async function init() {
 			try {
 				initializeMessaging(browser_ext);
 				await initializeUiContext(browser_ext, contextType);
-				log.info('Messaging service initialized successfully');
+				log.info('UI context registered successfully with background');
 			} catch (error) {
 				log.warn('Failed to initialize messaging service:', false, error);
 			}
@@ -213,11 +223,8 @@ export async function init() {
 		// Set up UI listeners through the manager
 		await setupUIListeners();
 
-		// Register with background script after a delay to ensure it's ready
-		// This delay helps prevent the "Receiving end does not exist" error
-		setTimeout(() => {
-			registerWithBackgroundScript();
-		}, 500); // Wait 500ms to ensure background script is ready
+		// Note: Registration with background script is already handled by initializeUiContext above
+		// No need for duplicate registration
 
 		// Mark as initialized
 		window.EXTENSION_INIT_STATE.initialized = true;
@@ -334,87 +341,9 @@ if (isClient) {
 	}
 }
 
-// Function to register with background script - moved to a function so we can call it at the right time
-async function registerWithBackgroundScript() {
-	if (!isClient || !browser_ext) return;
-
-	try {
-		const contextType = getContextType();
-
-		// Function to send initialization message with retry logic
-		const sendInitMessage = async (retries = 3, delay = 100) => {
-			// Give the background script a moment to initialize
-			await new Promise(resolve => setTimeout(resolve, 50));
-			for (let i = 0; i < retries; i++) {
-				try {
-					await browser_ext?.runtime.sendMessage({
-						type: 'ui_context_initialized',
-						contextId: CONTEXT_ID,
-						contextType: contextType,
-						timestamp: Date.now()
-					});
-					console.log(`[${CONTEXT_ID}] Successfully registered context with background script`);
-					return; // Success, exit the retry loop
-				} catch (err: any) {
-					if (i === retries - 1) {
-						// Last attempt failed
-						console.warn(`[${CONTEXT_ID}] Failed to register context after ${retries} attempts:`, err);
-					} else {
-						// Wait before retrying
-						console.log(`[${CONTEXT_ID}] Retrying context registration (attempt ${i + 2}/${retries})...`);
-						await new Promise(resolve => setTimeout(resolve, delay * (i + 1))); // Exponential backoff
-					}
-				}
-			}
-		};
-
-		// Send initialization message with retry logic
-		sendInitMessage().catch(err => {
-			// Silently ignore - we already logged the error in sendInitMessage
-			// This prevents uncaught promise rejection
-		});
-
-		// Only set up idle status listener for protected contexts
-		if (contextNeedsIdleProtection(contextType)) {
-			// Set up idle status listener
-			browser_ext?.runtime.onMessage.addListener(
-				(message: any, _sender: any, _sendResponse: any): any => {
-					if (message.type === 'IDLE_STATUS_CHANGED') {
-						// Check if message is targeted to this context type
-						if (
-							message.targetContextTypes &&
-							Array.isArray(message.targetContextTypes) &&
-							!message.targetContextTypes.includes(contextType)
-						) {
-							return undefined;
-						}
-
-						// Dispatch event for UI components
-						window.dispatchEvent(
-							new CustomEvent('yakklIdleStateChanged', {
-								detail: {
-									state: message.state,
-									timestamp: message.timestamp
-								}
-							})
-						);
-
-						return undefined; // Allow other listeners to process this message
-					}
-					return undefined;
-				}
-			);
-		}
-
-		window.addEventListener('beforeunload', () => {
-			browser_ext?.runtime
-				.sendMessage({
-					type: 'ui_context_closing',
-					contextId: CONTEXT_ID
-				})
-				.catch((err: any) => console.warn('Failed to send context closing message', err));
-		});
-	} catch (err) {
-		console.warn(`[${CONTEXT_ID}] Error registering context:`, err);
-	}
-}
+// Note: The registerWithBackgroundScript functionality has been consolidated into initializeUiContext
+// which is called above. This includes:
+// - Sending ui_context_initialized message (handled by messagingService.registerUiContext)
+// - Setting up idle status listeners (handled by messagingService.setupActivityTracking)
+// - Registering beforeunload handler (handled inside messagingService.registerUiContext)
+// This prevents duplicate messages and race conditions.
