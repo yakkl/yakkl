@@ -10,6 +10,7 @@
   import SessionWarning from '$lib/components/SessionWarning.svelte';
   import JWTValidationModalProvider from '$lib/components/JWTValidationModalProvider.svelte';
   import EmergencyKit from '$lib/components/EmergencyKit.svelte';
+  import IdleCountdownModal from '$lib/components/IdleCountdownModal.svelte';
   import ManageAccounts from '$lib/components/ManageAccounts.svelte';
   import NetworkMismatchModal from '$lib/components/NetworkMismatchModal.svelte';
   import ScrollIndicator from '$lib/components/ScrollIndicator.svelte';
@@ -344,6 +345,7 @@
 {#if isAuthenticated}
   <SessionWarning />
   <JWTValidationModalProvider />
+  <IdleCountdownModal />
 {/if}
 {#if pendingChain}
   <NetworkMismatchModal

@@ -115,6 +115,34 @@ module.exports = {
 		}
 	},
 	plugins: [
+		// Add error guards at the beginning of content.js and inpage.js bundles
+		new webpack.BannerPlugin({
+			banner: `(function(){
+				if(typeof window!=='undefined'){
+					window.addEventListener('error',function(e){
+						var msg=String(e.error&&e.error.message||e.message||'');
+						if(msg.includes('Extension context invalidated')||
+						   msg.includes('Receiving end does not exist')||
+						   msg.includes('Cannot access a chrome://')){
+							e.preventDefault();
+							console.warn('[YAKKL] Extension error silently handled:',msg);
+						}
+					});
+					window.addEventListener('unhandledrejection',function(e){
+						var reason=e.reason instanceof Error?e.reason.message:String(e.reason||'');
+						if(reason.includes('Extension context invalidated')||
+						   reason.includes('Receiving end does not exist')||
+						   reason.includes('Cannot access a chrome://')){
+							e.preventDefault();
+							console.warn('[YAKKL] Unhandled rejection silently handled:',reason);
+						}
+					});
+				}
+			})();`,
+			raw: true,
+			entryOnly: false,
+			include: ['content.js', 'inpage.js']
+		}),
 		new webpack.DefinePlugin({
 			...getEnvKeys(),
 			DEV_MODE: JSON.stringify(process.env.NODE_ENV !== 'production'),

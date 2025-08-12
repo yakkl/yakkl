@@ -70,11 +70,11 @@ export async function storeEncryptedHash(encryptedHash: string, profileData?: { 
   }
 
 	// Retry configuration
-	const MAX_RETRIES = 3;
-	const RETRY_DELAY = 1000; // 1 second
+	const MAX_RETRIES = 2;
+	const RETRY_DELAY = 500; // 500ms
 
   // Fallback: wait for SESSION_TOKEN_BROADCAST if direct response is missing
-  const waitForBroadcast = async (timeoutMs = 3000): Promise<SessionToken | null> => {
+  const waitForBroadcast = async (timeoutMs = 1000): Promise<SessionToken | null> => {
     return new Promise((resolve) => {
       let timeoutId: ReturnType<typeof setTimeout> | null = null;
       const listener = (message: any) => {
@@ -113,7 +113,7 @@ export async function storeEncryptedHash(encryptedHash: string, profileData?: { 
       }) as Promise<StoreHashResponse>;
 
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Message timeout')), 10000)
+        setTimeout(() => reject(new Error('Message timeout')), 3000)
       );
 
       console.log('messagePromise', messagePromise);
@@ -131,7 +131,7 @@ export async function storeEncryptedHash(encryptedHash: string, profileData?: { 
         log.warn(`Session token storage failed on attempt ${attempt} (trying broadcast fallback)`, false, res);
 
         // Try fallback: listen for broadcast sent by background after handling STORE_SESSION_HASH
-        const broadcastToken = await waitForBroadcast(3000);
+        const broadcastToken = await waitForBroadcast(1000);
         if (broadcastToken) {
           return broadcastToken;
         }

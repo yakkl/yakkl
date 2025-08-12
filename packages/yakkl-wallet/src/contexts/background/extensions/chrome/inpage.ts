@@ -1,4 +1,29 @@
 // inpage.ts - Complete implementation with safe postMessage and extension context handling
+
+// Global error guards - MUST be first before any imports or code
+(function() {
+  if (typeof window !== 'undefined') {
+    window.addEventListener('error', function(e) {
+      const msg = String(e.error?.message || e.message || '');
+      if (msg.includes('Extension context invalidated') || 
+          msg.includes('Receiving end does not exist') ||
+          msg.includes('Cannot access a chrome://')) {
+        e.preventDefault();
+        console.warn('[inpage] Extension error silently handled:', msg);
+      }
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      const reason = e.reason instanceof Error ? e.reason.message : String(e.reason || '');
+      if (reason.includes('Extension context invalidated') || 
+          reason.includes('Receiving end does not exist') ||
+          reason.includes('Cannot access a chrome://')) {
+        e.preventDefault();
+        console.warn('[inpage] Unhandled rejection silently handled:', reason);
+      }
+    });
+  }
+})();
+
 import { log } from '$lib/managers/Logger';
 import {
 	type EIP6963ProviderDetail,
@@ -36,22 +61,6 @@ interface ProviderState {
 	selectedAddress: string | null;
 }
 
-// Chrome type declarations remain the same
-declare namespace chrome {
-	export namespace runtime {
-		interface Port {
-			name: string;
-			onMessage: {
-				addListener: (callback: (message: any) => void) => void;
-			};
-			onDisconnect: {
-				addListener: (callback: () => void) => void;
-			};
-			postMessage: (message: any) => void;
-		}
-		function connect(connectInfo?: { name: string }): Port;
-	}
-}
 
 // Window declarations
 declare global {
@@ -80,25 +89,6 @@ function safePostMessage(message: any, context = 'inpage'): boolean {
 	}
 }
 
-function installGlobalErrorGuards(context = 'inpage') {
-  try {
-    window.addEventListener('error', (e: ErrorEvent) => {
-      const msg = String(e.error?.message || e.message || '');
-      if (msg.includes('Extension context invalidated')) {
-        e.preventDefault();
-        log.warn(`[${context}] Caught global error: Extension context invalidated`, false, { message: msg });
-      }
-    });
-
-    window.addEventListener('unhandledrejection', (e: PromiseRejectionEvent) => {
-      const reason = e.reason instanceof Error ? e.reason.message : String(e.reason || '');
-      if (reason.includes('Extension context invalidated')) {
-        e.preventDefault();
-        log.warn(`[${context}] Caught unhandled rejection: Extension context invalidated`, false, { reason });
-      }
-    });
-  } catch {}
-}
 
 // ProviderRpcError class using standard EIP errors
 class ProviderRpcError extends Error {
@@ -1190,7 +1180,7 @@ try {
 
 try {
     // Install guards and start the initialization process
-    installGlobalErrorGuards('inpage');
+    // Error guards already installed at the top of the file
     initializeInpageScript();
 } catch (e: any) {
     log.debug(`Failed to initialize inpage script:`, false, e);
@@ -1231,22 +1221,6 @@ export { provider };
 //   selectedAddress: string | null;
 // }
 
-// // Chrome type declarations remain the same
-// declare namespace chrome {
-//   export namespace runtime {
-//     interface Port {
-//       name: string;
-//       onMessage: {
-//         addListener: (callback: (message: any) => void) => void;
-//       };
-//       onDisconnect: {
-//         addListener: (callback: () => void) => void;
-//       };
-//       postMessage: (message: any) => void;
-//     }
-//     function connect(connectInfo?: { name: string }): Port;
-//   }
-// }
 
 // // Window declarations
 // declare global {

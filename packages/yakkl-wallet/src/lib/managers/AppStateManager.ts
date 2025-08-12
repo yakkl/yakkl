@@ -170,7 +170,7 @@ function createAppStateManager() {
     initPromise = null;
   }
   
-  async function waitForReady(): Promise<void> {
+  async function waitForReady(timeoutMs: number = 30000): Promise<void> {
     const currentState = get(state);
     if (currentState.phase === AppPhase.READY) return;
     if (currentState.phase === AppPhase.ERROR) {
@@ -178,15 +178,25 @@ function createAppStateManager() {
     }
     
     return new Promise((resolve, reject) => {
+      let timeoutId: NodeJS.Timeout;
+      
       const unsubscribe = state.subscribe($state => {
         if ($state.phase === AppPhase.READY) {
+          clearTimeout(timeoutId);
           unsubscribe();
           resolve();
         } else if ($state.phase === AppPhase.ERROR) {
+          clearTimeout(timeoutId);
           unsubscribe();
           reject(new Error($state.error || 'Initialization failed'));
         }
       });
+      
+      // Set timeout
+      timeoutId = setTimeout(() => {
+        unsubscribe();
+        reject(new Error(`AppStateManager initialization timeout after ${timeoutMs}ms`));
+      }, timeoutMs);
     });
   }
   

@@ -35,12 +35,16 @@ class PortManager {
 	}
 	
 	async connect(): Promise<boolean> {
+		console.log('[PortManager] connect() called');
+		
 		if (typeof window === 'undefined') {
+			console.log('[PortManager] No window object, returning false');
 			return false;
 		}
 		
 		// Return true if already connected and port is alive
 		if (this.isConnected && this.port) {
+			console.log('[PortManager] Already connected, verifying port...');
 			// Verify port is still alive
 			try {
 				// Test the port by checking if we can access it
@@ -187,16 +191,22 @@ async function connectPort(): Promise<boolean> {
 
 // This function will only be called during load, not during SSR
 async function initializeExtension() {
+	console.log('[initializeExtension] Starting...');
+	
 	try {
     if (typeof window === 'undefined') {
+      console.log('[initializeExtension] No window object, skipping');
       return;
     }
 
+		console.log('[initializeExtension] Attempting to connect port...');
 		// Try connecting immediately, no arbitrary delay
 		let connected = await connectPort();
+		console.log('[initializeExtension] Initial connection result:', connected);
 		
 		// If initial connection fails, retry with exponential backoff
 		if (!connected) {
+			console.log('[initializeExtension] Initial connection failed, starting retries...');
 			const maxRetries = 5;
 			let retryDelay = 100; // Start with 100ms
 			
@@ -219,18 +229,28 @@ async function initializeExtension() {
 
 // Move the initialization to the load function to prevent SSR issues
 export const load = async () => {
+	console.log('[Root Layout] Load function called');
+	
 	// Skip extension initialization during SSR
 	if (typeof window === 'undefined') {
+		console.log('[Root Layout] SSR context, skipping initialization');
 		return {};
 	}
 
+	console.log('[Root Layout] Browser context, starting initialization');
+	
 	try {
 		// First establish port connection for extension
+		console.log('[Root Layout] Initializing extension connection...');
 		await initializeExtension();
+		console.log('[Root Layout] Extension connection established');
 		
 		// Then initialize the entire app state in coordinated manner
+		console.log('[Root Layout] Initializing AppStateManager...');
 		await appStateManager.initialize();
+		console.log('[Root Layout] AppStateManager initialized successfully');
 	} catch (error) {
+		console.error('[Root Layout] Error during app initialization:', error);
 		log.error('Error during app initialization:', false, error);
 		// App will show error state via AppStateManager
 	}

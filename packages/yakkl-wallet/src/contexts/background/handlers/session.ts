@@ -2,6 +2,18 @@ import type { MessageHandlerFunc, MessageResponse } from './MessageHandler';
 import browser from 'webextension-polyfill';
 import { log } from '$lib/common/logger-wrapper';
 import { lockWalletBackground } from '../utils/lockWalletBackground';
+import type { SessionToken, StoreHashResponse } from '$lib/common/interfaces';
+
+// Session token management
+let bgMemoryHash: string | null = null;
+let bgSessionToken: SessionToken | null = null;
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+
+function generateSessionToken(): SessionToken {
+  const token = `yakkl_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+  const expiresAt = Date.now() + SESSION_TIMEOUT_MS;
+  return { token, expiresAt };
+}
 
 // Session state management
 const sessionState = {
@@ -34,8 +46,111 @@ function getIdleStatus() {
 }
 
 export const sessionHandlers = new Map<string, MessageHandlerFunc>([
+  ['STORE_SESSION_HASH', async (payload): Promise<MessageResponse> => {
+    try {
+      console.log('[SessionHandler] STORE_SESSION_HASH called with:', {
+        payloadType: typeof payload,
+        payloadLength: payload?.length
+      });
+
+      if (!payload || typeof payload !== 'string') {
+        log.warn('[SessionHandler] Invalid payload for STORE_SESSION_HASH', false);
+        return { success: false, error: 'Invalid payload' };
+      }
+
+      bgMemoryHash = payload;
+      bgSessionToken = generateSessionToken();
+
+      // Broadcast token after storing
+      setTimeout(async () => {
+        try {
+          await browser.runtime.sendMessage({
+            type: 'SESSION_TOKEN_BROADCAST',
+            token: bgSessionToken!.token,
+            expiresAt: bgSessionToken!.expiresAt
+          });
+        } catch (error) {
+          log.warn('[SessionHandler] Failed to broadcast session token', false, error);
+        }
+      }, 0);
+
+      // Return token and expiresAt in data field for MessageResponse compatibility
+      // But also include at top level for backward compatibility
+      const response: MessageResponse = {
+        success: true,
+        data: {
+          token: bgSessionToken.token,
+          expiresAt: bgSessionToken.expiresAt
+        }
+      };
+
+      // Add token and expiresAt at top level for the client expectation
+      (response as any).token = bgSessionToken.token;
+      (response as any).expiresAt = bgSessionToken.expiresAt;
+
+      log.info('[SessionHandler] STORE_SESSION_HASH successful', false, response);
+      return response;
+    } catch (error) {
+      log.error('[SessionHandler] Error handling STORE_SESSION_HASH', false, error);
+      return { success: false, error: 'Failed to store session hash' };
+    }
+  }],
+
+  ['REFRESH_SESSION', async (payload): Promise<MessageResponse> => {
+    try {
+      const providedToken = payload?.token as string | undefined;
+      if (bgSessionToken && providedToken === bgSessionToken.token) {
+        bgSessionToken.expiresAt = Date.now() + SESSION_TIMEOUT_MS;
+
+        // Broadcast updated token expiry
+        setTimeout(async () => {
+          try {
+            await browser.runtime.sendMessage({
+              type: 'SESSION_TOKEN_BROADCAST',
+              token: bgSessionToken!.token,
+              expiresAt: bgSessionToken!.expiresAt
+            });
+          } catch (error) {
+            log.warn('[SessionHandler] Failed to broadcast refreshed session token', false, error);
+          }
+        }, 0);
+
+        const response: MessageResponse = {
+          success: true,
+          data: {
+            token: bgSessionToken.token,
+            expiresAt: bgSessionToken.expiresAt
+          }
+        };
+        
+        // Add at top level for backward compatibility
+        (response as any).token = bgSessionToken.token;
+        (response as any).expiresAt = bgSessionToken.expiresAt;
+        
+        return response;
+      } else {
+        // Clear on invalid token
+        bgSessionToken = null;
+        bgMemoryHash = null;
+        return { success: false, error: 'Unauthorized' };
+      }
+    } catch (error) {
+      log.error('[SessionHandler] Error handling REFRESH_SESSION', false, error);
+      return { success: false, error: 'Failed to refresh session' };
+    }
+  }],
+
   ['yakkl_session.verifyLogin', async (payload): Promise<MessageResponse> => {
     try {
+      // Handle undefined payload
+      if (!payload) {
+        log.warn('[SessionHandler] No payload provided for verifyLogin');
+        return {
+          success: false,
+          error: 'No payload provided'
+        };
+      }
+      
       const { verified, contextId } = payload;
       log.info('[SessionHandler] Verify login request:', false, { verified, contextId });
 

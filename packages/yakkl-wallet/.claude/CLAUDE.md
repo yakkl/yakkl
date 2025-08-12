@@ -68,6 +68,19 @@ pnpm run dev:chrome     # Run the pnpm commands from /yakkl root directory
 
 ### 🐛 Known Issues & TODOs
 
+#### Priority Bugs to Fix:
+1. **Idle Timeout System**
+   - Currently locks immediately on idle (no grace period)
+   - Missing countdown timer and notifications
+   - No badge updates during countdown
+   - Settings UI needs idle configuration fields
+
+2. **Wallet Cache & Views**
+   - Background services not properly syncing data
+   - Views not organized for different data slices
+   - RecentActivity component needs view selector
+   - Portfolio totals not updating correctly
+
 ### 🔧 Active Configuration
 
 #### Feature Flags
@@ -103,8 +116,42 @@ pnpm run dev:chrome     # Run the pnpm commands from /yakkl root directory
 
 ## Recent Architecture Improvements
 
-### 🏗️ Major Updates (2025-08-05)
+### 🏗️ Major Updates (2025-08-12)
 
+#### 🔐 Idle Timeout System Enhancement
+- Leveraging existing `IdleManager` infrastructure (SystemWide/AppWide)
+- Adding countdown timer with grace period after idle detection
+- Badge text/color updates during countdown
+- Multiple notification points with audio alerts
+- Configurable settings in UI
+- Integration with `UnifiedTimerManager` for countdown
+- Files: `IdleManagerBase.ts`, `IdleManagerSystemWide.ts`, `IdleManagerAppWide.ts`
+
+#### 📊 View-Specific Cache Architecture (Greenfield)
+- **Flat cache structures** optimized for each view type
+- **Independent stores**: `account-view.store.ts`, `network-view.store.ts`, `token-view.store.ts`, `watchlist-view.store.ts`
+- **Denormalized data** for fast UI rendering
+- **View sync service** for data transformation
+- **No migration needed** - full v2 greenfield approach
+
+#### 🎨 Enhanced Portfolio UI/UX
+- **Orbital Cards Navigation** - Beautiful animated view selector
+- **Personalization System** - User-customizable layouts and ordering
+- **Smart Sort Algorithm** - AI-powered view arrangement based on usage
+- **Gesture Support** - Swipe, drag, pinch interactions
+- **Preset Templates** - Trader, HODLer, Analyst, Minimalist modes
+- **Persistent Layout Memory** - Remembers user preferences
+
+#### 🤖 AI Integration Architecture
+- **Local SLM in Service Worker** - Using Transformers.js (all-MiniLM-L6-v2)
+- **Vector-Ready Data Structure** - Optimized for embeddings and search
+- **Hybrid AI System** - Local-first with backend fallback for Pro users
+- **Privacy-Preserving** - Differential privacy, k-anonymity options
+- **Natural Language Queries** - "Show me best performing tokens this week"
+- **Backend Integration** - Cloudflare Workers + Hono with JWT auth
+- **Tiered Service Model** - Free (local), Pro (GPT-3.5), Enterprise (GPT-4)
+
+### 🏗️ Previous Updates (2025-08-05)
 
 #### Portfolio Rollup System
 - Multi-level aggregation (account, chain, grand total)
@@ -132,6 +179,29 @@ pnpm run dev:chrome     # Run the pnpm commands from /yakkl root directory
 - Test page: `/routes/(wallet)/test-browser-api/+page.svelte`
 - Solves SSR conflicts with browser extension APIs
 
+### Implementation Plan (2025-08-12)
+
+#### Phase 1: Idle Timeout Fix (Priority)
+1. Enhance `IdleManagerBase.ts` with countdown logic
+2. Update Settings interface with idle configuration
+3. Create `IdleCountdownModal.svelte` component
+4. Wire up in background context
+5. Test countdown, reset, and lock behavior
+
+#### Phase 2: View-Specific Caches
+1. Create flat view store structures
+2. Build view sync service
+3. Create view components (AccountsView, NetworksView, TokensView, WatchlistView)
+4. Update RecentActivity with view selector
+5. Update PortfolioOverview with tabs
+
+#### Phase 3: AI Integration
+1. Setup Transformers.js in service worker
+2. Create vector-ready data structures
+3. Implement hybrid AI service
+4. Add natural language query interface
+5. Configure backend endpoints
+
 ### Key Modified Files (Last Update)
 - `/lib/services/base.service.ts` - Real messaging
 - `/lib/stores/token.store.ts` - Multi-chain support
@@ -152,6 +222,27 @@ pnpm run dev:chrome     # Run the pnpm commands from /yakkl root directory
 
 ## Privacy Note
 The YAKKL project includes both public and private repositories. When working in public repositories, do not expose internal details of private packages.
+
+## Architecture Decisions
+
+### Data Storage Strategy
+- **View-Specific Caches**: Flat, denormalized structures for each view type
+- **Vector Storage**: Hybrid approach with hot (memory), warm (IndexedDB), cold (compressed) tiers
+- **AI Embeddings**: 384-dimensional vectors using all-MiniLM-L6-v2
+- **Privacy Levels**: Full, anonymous, none - user configurable
+
+### AI Service Architecture
+- **Local Models**: ~86MB total (embeddings, classification, generation)
+- **Smart Routing**: Local for simple queries, backend for complex
+- **JWT Integration**: Existing JWT system for backend auth
+- **WebSocket Support**: Real-time AI features for Pro users
+- **Fallback Strategy**: Always fallback to local if backend unavailable
+
+### UI/UX Philosophy
+- **Beautiful First**: Orbital cards, smooth animations, glass morphism
+- **Personalization**: User-customizable layouts with smart defaults
+- **Adaptive Intelligence**: Learn from usage patterns
+- **Progressive Disclosure**: Show complexity only when needed
 
 ---
 *For comprehensive project documentation, architecture, and rules, see `.claude/PROJECT_CONTEXT.md`*
