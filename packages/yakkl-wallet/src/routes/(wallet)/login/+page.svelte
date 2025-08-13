@@ -13,7 +13,6 @@
 	import { goto } from '$app/navigation';
 	import { initNetworkSpeedMonitoring } from '$lib/common/networkSpeed';
 	import { loadCacheManagers } from '$lib/common/cacheManagers';
-	import { appStateManager, AppPhase } from '$lib/managers/AppStateManager';
 
   // State
   let showError = $state(false);
@@ -37,12 +36,7 @@
     console.log('[Login] Starting login page initialization...');
     
     try {
-      // Wait for AppStateManager to be ready first
-      console.log('[Login] Waiting for AppStateManager to be ready...');
-      await appStateManager.waitForReady();
-      console.log('[Login] AppStateManager is ready');
-      
-      // Now safe to load settings
+      // Simply load settings - the root layout handles AppStateManager initialization
       yakklSettings = await getNormalizedSettings();
       
       // Handle null settings - user might be on first launch
@@ -61,18 +55,32 @@
       
     } catch (error) {
       console.error('[Login] Initialization error:', error);
-      initError = error instanceof Error ? error.message : 'Failed to initialize wallet';
+      
+      // Provide more specific error messages
+      if (error instanceof Error) {
+        if (error.message.includes('timeout')) {
+          initError = 'Extension connection timeout. Please reload the page.';
+        } else if (error.message.includes('Extension connection failed')) {
+          initError = 'Unable to connect to wallet extension. Please ensure the extension is installed and enabled.';
+        } else {
+          initError = error.message;
+        }
+      } else {
+        initError = 'Failed to initialize wallet';
+      }
+      
       isInitializing = false;
     }
   });
 
   // Handle successful login
-  async function onSuccess(profile: Profile, digest: string, isMinimal: boolean) {
+  async function onSuccess(profile: Profile, digest: string, isMinimal: boolean, jwtToken?: string) {
     log.debug('[LOGIN onSuccess] Called with:', false, {
       profile,
       hasDigest: !!digest,
       digestLength: digest?.length,
-      isMinimal
+      isMinimal,
+      hasJWT: !!jwtToken
     });
 
     try {
@@ -190,6 +198,8 @@
           cancelButtonText="Exit"
           inputTextClass="text-zinc-900 dark:text-white"
           inputBgClass="bg-white dark:bg-zinc-800"
+          useAuthStore={true}
+          generateJWT={true}
         />
       {/if}
 

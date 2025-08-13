@@ -8,6 +8,7 @@
 	import type { Settings, Profile } from '$lib/common/interfaces';
 	import { SystemTheme, PlanType } from '$lib/common/types';
 	import SoundSettings from './SoundSettings.svelte';
+	import IdleTimeoutSettings from './IdleTimeoutSettings.svelte';
 	import { chainStore } from '$lib/stores/chain.store';
 
 	interface Props {
@@ -441,61 +442,7 @@
 				<!-- Security Settings -->
 				<div>
 					<h3 class="text-lg font-medium text-gray-900 mb-4">Security & Privacy</h3>
-					<div class="space-y-4">
-						<div>
-							<label for="idleDelayInterval" class="block text-sm font-medium text-gray-700 mb-1">
-								Auto-lock after idle time
-							</label>
-							<select
-								id="idleDelayInterval"
-								bind:value={$form.idleDelayInterval}
-								class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-							>
-								{#each idleDelayOptions as option}
-									<option value={option.value}>{option.label}</option>
-								{/each}
-							</select>
-							<p class="mt-1 text-sm text-gray-500">
-								Automatically lock the wallet after the specified time of inactivity
-							</p>
-						</div>
-
-						<div class="flex items-center">
-							<input
-								id="idleAutoLock"
-								type="checkbox"
-								bind:checked={$form.idleAutoLock}
-								class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-							/>
-							<label for="idleAutoLock" class="ml-2 block text-sm text-gray-900">
-								Enable automatic idle lock
-							</label>
-						</div>
-
-						{#if $form.idleAutoLock}
-							<div>
-								<label for="idleAutoLockCycle" class="block text-sm font-medium text-gray-700 mb-1">
-									Auto-lock cycle (seconds)
-								</label>
-								<input
-									id="idleAutoLockCycle"
-									type="number"
-									bind:value={$form.idleAutoLockCycle}
-									min="60"
-									max="3600"
-									step="60"
-									class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-									class:border-red-500={$errors.idleAutoLockCycle && $touched.idleAutoLockCycle}
-								/>
-								{#if $errors.idleAutoLockCycle && $touched.idleAutoLockCycle}
-									<p class="mt-1 text-sm text-red-600">{$errors.idleAutoLockCycle}</p>
-								{/if}
-								<p class="mt-1 text-sm text-gray-500">
-									How often to check for idle activity (minimum 60 seconds)
-								</p>
-							</div>
-						{/if}
-					</div>
+					<IdleTimeoutSettings />
 				</div>
 
 				<!-- Notification Settings -->

@@ -1,4 +1,29 @@
 // content.ts - Complete unified port implementation with safe browser API usage
+
+// Global error guards - MUST be first before any imports or code
+(function() {
+  if (typeof window !== 'undefined') {
+    window.addEventListener('error', function(e) {
+      const msg = String(e.error?.message || e.message || '');
+      if (msg.includes('Extension context invalidated') || 
+          msg.includes('Receiving end does not exist') ||
+          msg.includes('Cannot access a chrome://')) {
+        e.preventDefault();
+        console.warn('[content] Extension error silently handled:', msg);
+      }
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      const reason = e.reason instanceof Error ? e.reason.message : String(e.reason || '');
+      if (reason.includes('Extension context invalidated') || 
+          reason.includes('Receiving end does not exist') ||
+          reason.includes('Cannot access a chrome://')) {
+        e.preventDefault();
+        console.warn('[content] Unhandled rejection silently handled:', reason);
+      }
+    });
+  }
+})();
+
 import { ensureProcessPolyfill } from '$lib/common/process';
 ensureProcessPolyfill();
 
@@ -27,23 +52,6 @@ import {
 //   safePostMessage as safePostMessageAPI
 // } from '$lib/common/safe-browser-api';
 
-// Chrome types for compatibility
-declare namespace chrome {
-	export namespace runtime {
-		interface Port {
-			name: string;
-			onMessage: {
-				addListener: (callback: (message: any) => void) => void;
-			};
-			onDisconnect: {
-				addListener: (callback: () => void) => void;
-			};
-			postMessage: (message: any) => void;
-			disconnect: () => void;
-		}
-		function connect(connectInfo?: { name: string }): Port;
-	}
-}
 
 // Type definitions
 type RuntimePort = Runtime.Port;
@@ -252,7 +260,17 @@ class ContentScriptManager {
 				// Add a small delay to ensure background is ready
 				await new Promise(resolve => setTimeout(resolve, 100));
 
-				this.port = browser.runtime.connect({ name: YAKKL_DAPP });
+				try {
+					this.port = browser.runtime.connect({ name: YAKKL_DAPP });
+				} catch (connectError) {
+					// Silently handle connection errors
+					if (connectError instanceof Error && 
+					    (connectError.message.includes('Extension context invalidated') ||
+					     connectError.message.includes('Receiving end does not exist'))) {
+						return;
+					}
+					throw connectError;
+				}
 			} catch (error) {
 				if (error instanceof Error) {
 					if (error.message.includes('Extension context invalidated') ||
@@ -435,7 +453,8 @@ class ContentScriptManager {
 
 		// Handle runtime messages with extension context check
 		try {
-				browser.runtime.onMessage.addListener(
+				if (browser?.runtime?.onMessage) {
+					browser.runtime.onMessage.addListener(
 					(
 						message: unknown,
 						sender: Runtime.MessageSender,
@@ -456,7 +475,8 @@ class ContentScriptManager {
 						// the one-off response intended for the background listener.
 						return undefined;
 					}
-				);
+					);
+				}
 		} catch (error) {
 			if (error instanceof Error && error.message.includes('Extension context invalidated')) {
 				log.warn('Extension context invalidated during onMessage.addListener', false);
@@ -1009,7 +1029,12 @@ class ContentScriptManager {
 			script.setAttribute('async', 'false');
 
 			try {
-				script.src = browser.runtime.getURL('/ext/inpage.js');
+				if (browser?.runtime?.getURL) {
+					script.src = browser.runtime.getURL('/ext/inpage.js');
+				} else {
+					log.warn('browser.runtime.getURL not available', false);
+					return;
+				}
 			} catch (error) {
 				if (error instanceof Error && error.message.includes('Extension context invalidated')) {
 					log.warn('Extension context invalidated during getURL', false);

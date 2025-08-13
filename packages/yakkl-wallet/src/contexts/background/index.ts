@@ -10,7 +10,8 @@ browser.runtime.onConnect.addListener((port) => {
   if (port.name === 'YAKKL_BROWSER_API') {
     // Handle browser API port connections with encryption support
     handleBrowserAPIPortConnection(port);
-  } else if (port.name === 'yakkl-client') {
+  } else if (port.name === 'yakkl-client' || port.name === 'yakkl-internal') {
+    // Handle both legacy 'yakkl-client' and new 'yakkl-internal' port names
     handlePortConnection(port);
   }
 });
@@ -123,6 +124,18 @@ const safeMessageHandler = createSafeMessageHandler(
       const handler = sessionHandlers.get('closeAllWindows');
       if (handler) {
         return handler(request.payload || request);
+      }
+    }
+    
+    // Special handling for STORE_SESSION_HASH to ensure immediate response
+    if (request.type === 'STORE_SESSION_HASH') {
+      console.log('Background: STORE_SESSION_HASH received, routing directly to handler');
+      const { sessionHandlers } = await import('./handlers/session');
+      const handler = sessionHandlers.get('STORE_SESSION_HASH');
+      if (handler) {
+        const response = await handler(request.payload);
+        console.log('Background: STORE_SESSION_HASH response:', response);
+        return response;
       }
     }
     
