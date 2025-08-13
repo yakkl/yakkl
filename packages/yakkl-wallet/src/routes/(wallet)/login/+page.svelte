@@ -19,6 +19,8 @@
   let errorValue = $state('');
   let planType = $state(PlanType.EXPLORER_MEMBER);
   let yakklSettings: Settings | null = $state(null);
+  let isInitializing = $state(true);
+  let initError = $state<string | null>(null);
 
   // Format plan type for display (remove underscores and capitalize)
   function formatPlanType(plan: string): string {
@@ -31,25 +33,54 @@
   }
 
   onMount(async () => {
-    yakklSettings = await getNormalizedSettings();
-    // Handle null settings - user might be on first launch
-    if (!yakklSettings || !yakklSettings.init || !yakklSettings.legal?.termsAgreed) {
-      console.warn('[Login] No settings found, redirecting to legal page for initial setup');
-      // Redirect to legal page which starts the registration flow
-      await goto('/legal');
-      return;
-    }
+    console.log('[Login] Starting login page initialization...');
+    
+    try {
+      // Simply load settings - the root layout handles AppStateManager initialization
+      yakklSettings = await getNormalizedSettings();
+      
+      // Handle null settings - user might be on first launch
+      if (!yakklSettings || !yakklSettings.init || !yakklSettings.legal?.termsAgreed) {
+        console.warn('[Login] No settings found, redirecting to legal page for initial setup');
+        // Redirect to legal page which starts the registration flow
+        await goto('/legal');
+        return;
+      }
 
-    planType = yakklSettings?.plan?.type ?? PlanType.EXPLORER_MEMBER;
+      planType = yakklSettings?.plan?.type ?? PlanType.EXPLORER_MEMBER;
+      
+      // Everything initialized successfully
+      isInitializing = false;
+      console.log('[Login] Login page initialization complete');
+      
+    } catch (error) {
+      console.error('[Login] Initialization error:', error);
+      
+      // Provide more specific error messages
+      if (error instanceof Error) {
+        if (error.message.includes('timeout')) {
+          initError = 'Extension connection timeout. Please reload the page.';
+        } else if (error.message.includes('Extension connection failed')) {
+          initError = 'Unable to connect to wallet extension. Please ensure the extension is installed and enabled.';
+        } else {
+          initError = error.message;
+        }
+      } else {
+        initError = 'Failed to initialize wallet';
+      }
+      
+      isInitializing = false;
+    }
   });
 
   // Handle successful login
-  async function onSuccess(profile: Profile, digest: string, isMinimal: boolean) {
+  async function onSuccess(profile: Profile, digest: string, isMinimal: boolean, jwtToken?: string) {
     log.debug('[LOGIN onSuccess] Called with:', false, {
       profile,
       hasDigest: !!digest,
       digestLength: digest?.length,
-      isMinimal
+      isMinimal,
+      hasJWT: !!jwtToken
     });
 
     try {
@@ -58,8 +89,6 @@
 
       // KEY: Sync all storage to stores - this loads all persistent data
       await syncStorageToStore();
-		  // Load cache managers very early to ensure cached data is available
-		  await loadCacheManagers();
 
       // Unlock the wallet using setLocks function - this updates both storage and stores
       await setLocks(false, yakklSettings?.plan?.type || PlanType.EXPLORER_MEMBER);
@@ -84,9 +113,7 @@
       await new Promise(resolve => setTimeout(resolve, 300));
 
       try {
-        console.log('[LOGIN] Navigating to home page...');
-        await goto('/home', { replaceState: true });
-        console.log('[LOGIN] Navigation successful');
+        await goto('/home');
       } catch (error) {
         console.error('[LOGIN] Navigation failed:', error);
         // Fallback to login page on navigation error
@@ -137,19 +164,48 @@
         <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Preview 2.0</p>
       </div>
 
-      <!-- Login Form -->
-      <Login
-        {onSuccess}
-        {onError}
-        {onCancel}
-        loginButtonText="Unlock Wallet"
-        cancelButtonText="Exit"
-        inputTextClass="text-zinc-900 dark:text-white"
-        inputBgClass="bg-white dark:bg-zinc-800"
-      />
+      {#if isInitializing}
+        <!-- Loading state while extension initializes -->
+        <div class="py-8">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p class="text-zinc-600 dark:text-zinc-400">Connecting to extension...</p>
+          <p class="text-xs text-zinc-500 dark:text-zinc-500 mt-2">Please wait while we initialize the wallet</p>
+        </div>
+      {:else if initError}
+        <!-- Error state if initialization fails -->
+        <div class="py-8">
+          <div class="text-red-600 dark:text-red-400 mb-4">
+            <svg class="w-12 h-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <p class="text-red-600 dark:text-red-400 font-medium">Initialization Failed</p>
+          <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">{initError}</p>
+          <button 
+            onclick={() => window.location.reload()} 
+            class="btn btn-primary btn-sm mt-4"
+          >
+            Reload Wallet
+          </button>
+        </div>
+      {:else}
+        <!-- Login Form - only shown when fully initialized -->
+        <Login
+          {onSuccess}
+          {onError}
+          {onCancel}
+          loginButtonText="Unlock Wallet"
+          cancelButtonText="Exit"
+          inputTextClass="text-zinc-900 dark:text-white"
+          inputBgClass="bg-white dark:bg-zinc-800"
+          useAuthStore={true}
+          generateJWT={true}
+        />
+      {/if}
 
-      <!-- Plan Info -->
-      <div class="mt-8 p-4 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900 dark:to-purple-900 rounded-xl">
+      <!-- Plan Info - only show when not initializing -->
+      {#if !isInitializing && !initError}
+        <div class="mt-8 p-4 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900 dark:to-purple-900 rounded-xl">
         {#if planType.toLowerCase() === PlanType.YAKKL_PRO.toLowerCase()}
           <h3 class="font-semibold text-indigo-900 dark:text-indigo-100">{formatPlanType(PlanType.YAKKL_PRO)}</h3>
           <p class="text-sm text-indigo-700 dark:text-indigo-200 mt-1">
@@ -171,7 +227,8 @@
             Core wallet features with option to upgrade
           </p>
         {/if}
-      </div>
+        </div>
+      {/if}
 
     </div>
   </div>

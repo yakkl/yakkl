@@ -4,10 +4,6 @@
 	import { tokenStore, isMultiChainView } from '$lib/stores/token.store';
 	import { canUseFeature } from '$lib/utils/features';
 	import ProtectedValue from './ProtectedValue.svelte';
-	import { CacheSyncManager } from '$lib/services/cache-sync.service';
-	import { currentAccount } from '$lib/stores/account.store';
-	import { currentChain } from '$lib/stores/chain.store';
-	import { walletCacheStore } from '$lib/stores/wallet-cache.store';
 	import { log } from '$lib/common/logger-wrapper';
 	import { BigNumber } from '$lib/common/bignumber';
 	import { BrowserAPIPortService } from '$lib/services/browser-api-port.service';

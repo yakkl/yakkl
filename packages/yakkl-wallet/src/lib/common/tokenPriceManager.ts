@@ -51,17 +51,24 @@ export async function updateTokenPrices() {
 				);
 
 				if (updatedToken && updatedToken.price?.price) {
-					// Use EthereumBigNumber for precise calculations
-					const quantityBN = EthereumBigNumber.from(entry.quantity);
-					const priceBN = EthereumBigNumber.from(updatedToken.price.price);
-
-					// Calculate value = quantity * price with full precision
-					const valueBN = quantityBN.mul(priceBN);
+					// CRITICAL FIX: Handle token quantity (wei) and USD price separately
+					// entry.quantity is in wei (18 decimals), price is in USD (2 decimals)
+					const quantityStr = String(entry.quantity);
+					const quantityWei = BigInt(quantityStr);
+					const priceUSD = Number(updatedToken.price.price);
+					
+					// Calculate value in USD using proper decimal handling
+					// Convert wei to ETH, then multiply by USD price
+					const ethAmount = Number(quantityWei) / 1e18;
+					const valueUSD = ethAmount * priceUSD;
+					
+					// Store as cents (bigint) to maintain precision
+					const valueCents = BigInt(Math.round(valueUSD * 100));
 
 					return {
 						...entry,
 						price: updatedToken.price.price,
-						value: valueBN.toBigInt(),
+						value: valueCents,  // Store as cents (bigint)
 						lastPriceUpdate: new Date(),
 						priceProvider: updatedToken.price.provider || 'unknown'
 					};
@@ -76,24 +83,24 @@ export async function updateTokenPrices() {
 			log.error('[tokenPriceManager] Failed to update token cache:', false, error);
 		}
 
-		// Update cached balances with new token prices using BigNumber comparison
+		// Update cached balances with new token prices using proper USD handling
 		const ethToken = updatedTokens.find((token) => token.isNative && token.symbol === 'ETH');
 		if (ethToken && ethToken.price?.price) {
-			// Use BigNumber for precise price comparison
-			const ethPriceBN = EthereumBigNumber.from(ethToken.price.price);
-			const zeroBN = EthereumBigNumber.from(0);
-
-			if (ethPriceBN.compare(zeroBN) > 0) {
-				// Convert price to number for legacy balanceCacheManager (until we update it)
-				const ethPriceNumber = ethPriceBN.toNumber();
-				if (ethPriceNumber && ethPriceNumber > 0) {
-					balanceCacheManager.updatePriceForAllEntries(ethPriceNumber);
-					log.debug('[updateTokenPrices] Updated cached entries with ETH price:', false, {
-						newPrice: ethPriceNumber,
-						newPriceBN: ethPriceBN.toString(),
-						ethTokenValue: ethToken.value?.toString()
-					});
-				}
+			// CRITICAL FIX: ethToken.price.price is a USD value (e.g., 4381.26), NOT wei!
+			// Do NOT use EthereumBigNumber.from() which assumes 18 decimals
+			const ethPriceUSD = Number(ethToken.price.price);
+			
+			if (ethPriceUSD && ethPriceUSD > 0) {
+				// Store price as integer cents to avoid floating-point errors
+				const ethPriceCents = Math.round(ethPriceUSD * 100);
+				
+				// Update balance cache with the USD price
+				balanceCacheManager.updatePriceForAllEntries(ethPriceUSD);
+				log.debug('[updateTokenPrices] Updated cached entries with ETH price:', false, {
+					newPriceUSD: ethPriceUSD,
+					newPriceCents: ethPriceCents,
+					ethTokenValue: ethToken.value?.toString()
+				});
 			}
 		}
 

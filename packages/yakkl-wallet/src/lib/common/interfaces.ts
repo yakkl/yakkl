@@ -929,6 +929,19 @@ export interface Settings {
 		prices?: number;       // Default: 5 minutes
 		portfolio?: number;    // Default: 2.5 minutes
 	};
+	// Idle timeout settings
+	idleSettings?: {
+		enabled: boolean;              // Enable/disable idle timeout
+		detectionMinutes: number;      // Minutes before idle detection (default: 5)
+		graceMinutes: number;          // Minutes after idle before lock (default: 2)
+		countdownSeconds: number;      // Final countdown in seconds (default: 30)
+		warningSound?: string;         // Audio file/data URI for warnings
+		warningVolume?: number;        // Volume 0-1 (default: 0.7)
+		soundPoints?: number[];        // Seconds remaining for sound alerts [30, 10, 5]
+		showNotifications: boolean;    // Show browser notifications
+		showCountdownModal: boolean;   // Show countdown modal dialog
+		autoDismissOnActivity: boolean; // Auto dismiss warnings on activity
+	};
 }
 
 export interface YakklChat {

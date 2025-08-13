@@ -68,6 +68,18 @@ export async function handleMessage(request: MessageRequest, sender: Runtime.Mes
 
     // Handle both payload structure and top-level data structure
     let payload = request.payload;
+    
+    // Special handling for session messages that might have data at top level
+    if (!payload && (request.type.startsWith('yakkl_session.') || 
+                     request.type === 'STORE_SESSION_HASH' || 
+                     request.type === 'REFRESH_SESSION')) {
+      // Extract all properties except type and requestId as payload
+      const { type, requestId, ...rest } = request;
+      if (Object.keys(rest).length > 0) {
+        payload = rest;
+      }
+    }
+    
     if (!payload && request.type === 'yakkl_getTransactionHistory') {
       // If no payload but we have the data at top level, use the request itself as payload
       payload = {

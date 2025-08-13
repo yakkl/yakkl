@@ -478,4 +478,14 @@ export class TokenService extends BaseService {
 			? BigNumberishUtils.toNumber(change24h.percentChange)
 			: undefined;
 	}
+
+	/**
+	 * Stop the token service and cleanup resources
+	 */
+	async stop(): Promise<void> {
+		console.log('[TokenService] Stopping service...');
+		// Add any cleanup logic here if needed
+		// For now, just log that we're stopping
+		// In the future, could clear intervals, subscriptions, etc.
+	}
 }

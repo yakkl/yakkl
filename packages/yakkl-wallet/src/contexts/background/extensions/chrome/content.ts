@@ -1,4 +1,29 @@
 // content.ts - Complete unified port implementation with safe browser API usage
+
+// Global error guards - MUST be first before any imports or code
+(function() {
+  if (typeof window !== 'undefined') {
+    window.addEventListener('error', function(e) {
+      const msg = String(e.error?.message || e.message || '');
+      if (msg.includes('Extension context invalidated') || 
+          msg.includes('Receiving end does not exist') ||
+          msg.includes('Cannot access a chrome://')) {
+        e.preventDefault();
+        console.warn('[content] Extension error silently handled:', msg);
+      }
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      const reason = e.reason instanceof Error ? e.reason.message : String(e.reason || '');
+      if (reason.includes('Extension context invalidated') || 
+          reason.includes('Receiving end does not exist') ||
+          reason.includes('Cannot access a chrome://')) {
+        e.preventDefault();
+        console.warn('[content] Unhandled rejection silently handled:', reason);
+      }
+    });
+  }
+})();
+
 import { ensureProcessPolyfill } from '$lib/common/process';
 ensureProcessPolyfill();
 
@@ -27,23 +52,6 @@ import {
 //   safePostMessage as safePostMessageAPI
 // } from '$lib/common/safe-browser-api';
 
-// Chrome types for compatibility
-declare namespace chrome {
-	export namespace runtime {
-		interface Port {
-			name: string;
-			onMessage: {
-				addListener: (callback: (message: any) => void) => void;
-			};
-			onDisconnect: {
-				addListener: (callback: () => void) => void;
-			};
-			postMessage: (message: any) => void;
-			disconnect: () => void;
-		}
-		function connect(connectInfo?: { name: string }): Port;
-	}
-}
 
 // Type definitions
 type RuntimePort = Runtime.Port;
@@ -84,6 +92,29 @@ function safeWindowPostMessage(message: any, context = 'content'): boolean {
 		});
 		return false;
 	}
+}
+
+// Install global guards to prevent uncaught exceptions during extension reloads
+function installGlobalErrorGuards(context = 'content') {
+    try {
+        window.addEventListener('error', (e: ErrorEvent) => {
+            const msg = String(e.error?.message || e.message || '');
+            if (msg.includes('Extension context invalidated')) {
+                e.preventDefault();
+                log.warn(`[${context}] Caught global error: Extension context invalidated`, false, { message: msg });
+            }
+        });
+
+        window.addEventListener('unhandledrejection', (e: PromiseRejectionEvent) => {
+            const reason = e.reason instanceof Error ? e.reason.message : String(e.reason || '');
+            if (reason.includes('Extension context invalidated')) {
+                e.preventDefault();
+                log.warn(`[${context}] Caught unhandled rejection: Extension context invalidated`, false, { reason });
+            }
+        });
+    } catch {
+        // no-op
+    }
 }
 
 // PortDuplexStream class for bidirectional communication
@@ -229,7 +260,17 @@ class ContentScriptManager {
 				// Add a small delay to ensure background is ready
 				await new Promise(resolve => setTimeout(resolve, 100));
 
-				this.port = browser.runtime.connect({ name: YAKKL_DAPP });
+				try {
+					this.port = browser.runtime.connect({ name: YAKKL_DAPP });
+				} catch (connectError) {
+					// Silently handle connection errors
+					if (connectError instanceof Error && 
+					    (connectError.message.includes('Extension context invalidated') ||
+					     connectError.message.includes('Receiving end does not exist'))) {
+						return;
+					}
+					throw connectError;
+				}
 			} catch (error) {
 				if (error instanceof Error) {
 					if (error.message.includes('Extension context invalidated') ||
@@ -253,7 +294,11 @@ class ContentScriptManager {
 
 			// Handle disconnection
 			this.port.onDisconnect.addListener(() => {
-				this.handleDisconnection();
+				try {
+					this.handleDisconnection();
+				} catch (error) {
+					log.warn('Error during handleDisconnection', false, error);
+				}
 			});
 
 			this.isConnected = true;
@@ -408,18 +453,30 @@ class ContentScriptManager {
 
 		// Handle runtime messages with extension context check
 		try {
-            browser.runtime.onMessage.addListener(
-                (
-                    message: unknown,
-                    sender: Runtime.MessageSender,
-                    sendResponse: (response?: any) => void
-                ): any => {
-                    this.handleRuntimeMessage(message, sender, sendResponse);
-                    // Return undefined so this content-script listener does NOT hijack
-                    // the one-off response intended for the background listener.
-                    return undefined;
-                }
-            );
+				if (browser?.runtime?.onMessage) {
+					browser.runtime.onMessage.addListener(
+					(
+						message: unknown,
+						sender: Runtime.MessageSender,
+						sendResponse: (response?: any) => void
+					): any => {
+						try {
+							this.handleRuntimeMessage(message, sender, sendResponse);
+						} catch (callbackError) {
+							const msg = callbackError instanceof Error ? callbackError.message : String(callbackError);
+							if (msg.includes('Extension context invalidated')) {
+								log.warn('onMessage listener callback failed: context invalidated', false);
+								this.isConnected = false;
+							} else {
+								log.warn('onMessage listener callback failed', false, callbackError);
+							}
+						}
+						// Return undefined so this content-script listener does NOT hijack
+						// the one-off response intended for the background listener.
+						return undefined;
+					}
+					);
+				}
 		} catch (error) {
 			if (error instanceof Error && error.message.includes('Extension context invalidated')) {
 				log.warn('Extension context invalidated during onMessage.addListener', false);
@@ -532,31 +589,41 @@ class ContentScriptManager {
 	}
 
 	// Handle runtime messages (security updates, etc.)
-    private handleRuntimeMessage(
+	private handleRuntimeMessage(
 		message: unknown,
 		sender: Runtime.MessageSender,
 		sendResponse: (response?: any) => void
 	): any {
-		const typedMessage = message as any;
+		try {
+			const typedMessage = message as any;
 
-		// Handle security configuration updates
-		if (typedMessage.type === 'YAKKL_SECURITY_CONFIG_UPDATE') {
-			this.securityLevel = typedMessage.securityLevel;
-			this.injectIframes = typedMessage.injectIframes;
-			log.debug('Security configuration updated:', false, {
-				securityLevel: this.securityLevel,
-				injectIframes: this.injectIframes
-			});
+			// Handle security configuration updates
+			if (typedMessage.type === 'YAKKL_SECURITY_CONFIG_UPDATE') {
+				this.securityLevel = typedMessage.securityLevel;
+				this.injectIframes = typedMessage.injectIframes;
+				log.debug('Security configuration updated:', false, {
+					securityLevel: this.securityLevel,
+					injectIframes: this.injectIframes
+				});
+			}
+
+			// Handle EIP-6963 events
+			if (typedMessage.type === 'YAKKL_EVENT:EIP6963') {
+				this.handleProviderEvent(typedMessage);
+			}
+		} catch (error) {
+			const msg = error instanceof Error ? error.message : String(error);
+			if (msg.includes('Extension context invalidated')) {
+				log.warn('Runtime message handling failed: context invalidated', false);
+				this.isConnected = false;
+			} else {
+				log.warn('Runtime message handling failed', false, error);
+			}
 		}
 
-		// Handle EIP-6963 events
-		if (typedMessage.type === 'YAKKL_EVENT:EIP6963') {
-			this.handleProviderEvent(typedMessage);
-		}
-
-        // Do not provide a synchronous return value to avoid hijacking the
-        // browser.runtime.sendMessage response resolution. Let background handle it.
-        return undefined;
+		// Do not provide a synchronous return value to avoid hijacking the
+		// browser.runtime.sendMessage response resolution. Let background handle it.
+		return undefined;
 	}
 
 	// Forward request to background
@@ -585,7 +652,14 @@ class ContentScriptManager {
 		};
 
 		// Forward to background
-		this.contentStream.write(messageWithOrigin);
+		try {
+			this.contentStream.write(messageWithOrigin);
+		} catch (error) {
+			log.warn('Stream write failed', false, error);
+			this.pendingRequests.delete(message.id);
+			this.sendErrorResponse(message.id, message.method, 'Not connected');
+			return;
+		}
 
 		// Set timeout for pending request
 		setTimeout(() => {
@@ -955,7 +1029,12 @@ class ContentScriptManager {
 			script.setAttribute('async', 'false');
 
 			try {
-				script.src = browser.runtime.getURL('/ext/inpage.js');
+				if (browser?.runtime?.getURL) {
+					script.src = browser.runtime.getURL('/ext/inpage.js');
+				} else {
+					log.warn('browser.runtime.getURL not available', false);
+					return;
+				}
 			} catch (error) {
 				if (error instanceof Error && error.message.includes('Extension context invalidated')) {
 					log.warn('Extension context invalidated during getURL', false);
@@ -982,6 +1061,9 @@ class ContentScriptManager {
 function initializeContentScript() {
 	try {
 		log.debug('Content script starting...', false);
+
+		// Install global guards to demote invalidation errors to warnings
+		installGlobalErrorGuards('content');
 
 		// Initialize safe browser API first
 		// initSafeBrowserAPI();

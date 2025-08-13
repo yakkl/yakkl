@@ -158,7 +158,7 @@
         </span>
         <div class="flex items-center gap-1">
           <span class="font-bold text-lg dark:text-white">{txType}</span>
-          <TransactionStatusTooltip txType={transaction.type} placement="auto" />
+          <TransactionStatusTooltip txType={transaction.type} placement="bottom-right" />
         </div>
         <div class="ml-auto flex items-center gap-1">
           <span class="px-2 py-0.5 rounded-full text-xs {
@@ -168,7 +168,7 @@
           }">
             {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
           </span>
-          <TransactionStatusTooltip status={transaction.status} placement="auto" />
+          <TransactionStatusTooltip status={transaction.status} placement="bottom-left" />
         </div>
       </div>
 

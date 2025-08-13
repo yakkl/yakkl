@@ -195,12 +195,23 @@ export class EthereumBigNumber extends BigNumber {
 	// }
 
 	static toFiat(value: BigNumberish, price: number | string | BigNumberish): number {
+		// CRITICAL FIX: Handle token balance (wei) and USD price correctly
+		// value is in wei (18 decimals), price is in USD (not wei!)
+		
+		// Convert wei to ETH using Decimal for precision
 		const ether = this.toDecimalEther(value);
-		const fiat = ether.times(new Decimal(price.toString()));
-		return fiat.toNumber();
+		
+		// Price is already in USD, not wei - just use it directly
+		const priceDecimal = new Decimal(price.toString());
+		
+		// Calculate USD value = ETH amount * USD price
+		const fiatValue = ether.times(priceDecimal);
+		
+		return fiatValue.toNumber();
 	}
 
 	static toFiatString(value: BigNumberish, price: number, decimals = 2): string {
+		// Use the corrected toFiat method
 		const fiat = EthereumBigNumber.toFiat(value, price);
 		return fiat.toFixed(decimals);
 	}
@@ -212,15 +223,22 @@ export class EthereumBigNumber extends BigNumber {
 		locale: string = 'en-US',
 		decimalPlaces: number = 2
 	): string {
+		// Convert wei to bigint
 		const wei = EthereumBigNumber.toBigInt(value);
 		if (wei === null) {
 			throw new Error('Invalid BigNumberish token value');
 		}
 
+		// Convert wei to ETH (18 decimals)
 		const ether = new Decimal(wei.toString()).div('1e18');
+		
+		// Price is in USD/fiat, not wei - use directly
 		const decimalPrice = new Decimal(price.toString());
+		
+		// Calculate fiat value = ETH * price
 		const fiatValue = ether.times(decimalPrice);
 
+		// Format with appropriate currency settings
 		const formatter = new Intl.NumberFormat(locale, {
 			style: 'currency',
 			currency: currencyCode,

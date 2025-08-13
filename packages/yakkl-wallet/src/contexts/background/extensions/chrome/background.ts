@@ -28,6 +28,8 @@ import { getAddressesForDomain, verifyDomainConnected } from './verifyDomainConn
 import { onDappListener } from './dapp';
 import { getCurrentlySelectedData } from '$lib/common/shortcuts';
 import { BackgroundIntervalService } from '$lib/services/background-interval.service';
+import { IdleManager } from '$lib/managers/IdleManager';
+import { getSettings } from '$lib/common/stores';
 
 type RuntimeSender = Runtime.MessageSender;
 type RuntimePort = Runtime.Port;
@@ -754,6 +756,26 @@ async function initializeOnStartup() {
     } catch (error) {
       log.error('[Background] Failed to initialize interval service:', false, error);
     }
+    
+    // Initialize IdleManager with system-wide monitoring
+    // Wrap in setTimeout to avoid blocking initial startup
+    setTimeout(async () => {
+      try {
+        const settings = await getSettings();
+        if (settings?.idleSettings?.enabled !== false) { // Default to enabled
+          const idleManager = IdleManager.initialize({
+            width: 'system-wide',
+            threshold: (settings?.idleSettings?.detectionMinutes || 5) * 60 * 1000,
+            lockDelay: (settings?.idleSettings?.graceMinutes || 2) * 60 * 1000,
+            checkInterval: 15000
+          });
+          log.info('[Background] IdleManager initialized with system-wide monitoring');
+        }
+      } catch (error) {
+        log.error('[Background] Failed to initialize IdleManager (non-blocking):', false, error);
+        // Don't throw - let the extension continue working
+      }
+    }, 1000); // Delay by 1 second to let everything else initialize first
 
     await watchLockedState(2 * 60 * 1000);
 
@@ -774,6 +796,18 @@ async function initializeOnStartup() {
   } catch (error) {
     log.error('Failed to initialize background script', true, error);
   }
+}
+
+// Handle extension action button clicks
+if (browser.action && browser.action.onClicked) {
+  browser.action.onClicked.addListener(async () => {
+    log.info('[Background] Extension action button clicked');
+    try {
+      await showPopup('', '0', 'internal');
+    } catch (error) {
+      log.error('[Background] Failed to show popup on action click:', false, error);
+    }
+  });
 }
 
 // Ensure browser APIs are ready before initializing

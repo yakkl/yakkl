@@ -51,13 +51,47 @@ if (!isClient && typeof globalThis !== 'undefined') {
 
 // Get the browser API from unified loader
 export async function getBrowserExtFromGlobal(): Promise<BrowserAPI | null> {
-	if (!isClient) return mockBrowser;
+	console.log('[getBrowserExtFromGlobal] Called');
+	
+	if (!isClient) {
+		console.log('[getBrowserExtFromGlobal] Not in browser, returning mock');
+		return mockBrowser;
+	}
+	
+	// Return cached if available
+	if (cachedBrowserApi) {
+		console.log('[getBrowserExtFromGlobal] Returning cached API');
+		return cachedBrowserApi;
+	}
 
-	log.info('Loading browser API from unified loader', false);
 	try {
-		return await getBrowserAsync();
+		// Try direct window.chrome access first (most reliable)
+		if (typeof window !== 'undefined' && window.chrome && window.chrome.runtime) {
+			console.log('[getBrowserExtFromGlobal] Using window.chrome directly');
+			cachedBrowserApi = window.chrome as any;
+			return cachedBrowserApi;
+		}
+		
+		// Try browser_ext export
+		if (browser_ext && browser_ext.runtime) {
+			console.log('[getBrowserExtFromGlobal] Using browser_ext export');
+			cachedBrowserApi = browser_ext;
+			return cachedBrowserApi;
+		}
+		
+		// Try async loader
+		console.log('[getBrowserExtFromGlobal] Trying async loader...');
+		const api = await getBrowserAsync();
+		if (api) {
+			console.log('[getBrowserExtFromGlobal] Got API from async loader');
+			cachedBrowserApi = api;
+			return api;
+		}
+		
+		console.warn('[getBrowserExtFromGlobal] No browser API found');
+		return null;
 	} catch (err) {
-		log.warn('Error accessing browser API:', false, err);
+		console.error('[getBrowserExtFromGlobal] Error accessing browser API:', err);
 		return null;
 	}
 }
@@ -82,6 +116,9 @@ export function getBrowserExt(): BrowserAPI | null {
 // This will work synchronously if already loaded, or async if not
 export const browser_ext: BrowserAPI = isClient ? browserExtension : mockBrowser;
 export const browserSvelte = true; // Always true now since we have mock for SSR
+
+// Add cached browser API for reliable access
+let cachedBrowserApi: BrowserAPI | null = null;
 
 export function isBrowserEnv(): boolean {
 	// With unified loader, we can always return true in client

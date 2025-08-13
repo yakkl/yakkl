@@ -106,8 +106,6 @@ export class ErrorHandler {
 
 	handleError(error: Error): void {
 		if (!isBrowser) return;
-    console.trace('Error handled by ErrorHandler:', error);
-    
 		log.error('Error handled by ErrorHandler:', false, error);
 	}
 

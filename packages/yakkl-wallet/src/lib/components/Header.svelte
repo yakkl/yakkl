@@ -16,6 +16,7 @@
     onSettings,
     onTheme,
     onLogout,
+    onExit,
     onEmergencyKit,
     onManageAccounts,
     className = 'fixed top-0'
@@ -50,6 +51,7 @@
       onSettings={onSettings}
       onTheme={onTheme}
       onLogout={onLogout}
+      onExit={onExit}
       onEmergencyKit={onEmergencyKit}
       onManageAccounts={onManageAccounts}
     />

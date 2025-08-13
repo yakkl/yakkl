@@ -16,66 +16,197 @@ if (typeof window === 'undefined') {
   browser = await import ('$lib/common/environment').then(m => m.browser_ext);
 }
 
-let port: Runtime.Port | undefined;
-
-// Function to connect port - will only run in browser context during load
-async function connectPort(): Promise<boolean> {
-	if (typeof window === 'undefined') {
-		return false;
+// Singleton port management
+class PortManager {
+	private static instance: PortManager;
+	private port: Runtime.Port | undefined;
+	private connectionPromise: Promise<boolean> | null = null;
+	private isConnected = false;
+	private reconnectAttempts = 0;
+	private maxReconnectAttempts = 3;
+	
+	private constructor() {}
+	
+	static getInstance(): PortManager {
+		if (!PortManager.instance) {
+			PortManager.instance = new PortManager();
+		}
+		return PortManager.instance;
 	}
-
-	try {
-		// Added: Cast to RuntimePort to use our local type
-		port = browser.runtime.connect({ name: YAKKL_INTERNAL }) as Runtime.Port;
-		if (port) {
-			// Set extension connected flag on window for AppStateManager
+	
+	async connect(): Promise<boolean> {
+		console.log('[PortManager] connect() called');
+		
+		if (typeof window === 'undefined') {
+			console.log('[PortManager] No window object, returning false');
+			return false;
+		}
+		
+		// Return true if already connected and port is alive
+		if (this.isConnected && this.port) {
+			console.log('[PortManager] Already connected, verifying port...');
+			// Verify port is still alive
+			try {
+				// Test the port by checking if we can access it
+				if (this.port.name === YAKKL_INTERNAL) {
+					console.log('[PortManager] ✓ Port already connected and alive');
+					return true;
+				}
+			} catch (e) {
+				console.log('[PortManager] Port check failed, reconnecting...');
+				this.isConnected = false;
+				this.port = undefined;
+			}
+		}
+		
+		// Prevent concurrent connection attempts
+		if (this.connectionPromise) {
+			console.log('[PortManager] Connection already in progress, waiting...');
+			return this.connectionPromise;
+		}
+		
+		console.log('[PortManager] Initiating new connection...');
+		
+		this.connectionPromise = this.performConnection();
+		const result = await this.connectionPromise;
+		this.connectionPromise = null;
+		
+		return result;
+	}
+	
+	private async performConnection(): Promise<boolean> {
+		try {
+			// Clean up any existing port
+			if (this.port) {
+				try {
+					this.port.disconnect();
+				} catch (e) {
+					// Ignore disconnect errors
+				}
+				this.port = undefined;
+			}
+			
+			// Ensure browser API is available
+			if (!browser || !browser.runtime) {
+				console.log('[PortManager] Loading browser API...');
+				const env = await import('$lib/common/environment');
+				browser = env.browser_ext;
+			}
+			
+			if (!browser || !browser.runtime || !browser.runtime.connect) {
+				console.error('[PortManager] Browser API not available');
+				return false;
+			}
+			
+			console.log('[PortManager] Creating port connection...');
+			this.port = browser.runtime.connect({ name: YAKKL_INTERNAL }) as Runtime.Port;
+			
+			if (!this.port) {
+				console.error('[PortManager] Port creation returned null');
+				return false;
+			}
+			
+			// Set up disconnect handler BEFORE marking as connected
+			this.port.onDisconnect.addListener(() => {
+				console.log('[PortManager] Port disconnected');
+				this.handleDisconnect();
+			});
+			
+			// Mark as connected
+			this.isConnected = true;
+			this.reconnectAttempts = 0;
+			
+			// Update global state
 			if (!window.yakkl) {
 				window.yakkl = {} as any;
 			}
 			window.yakkl.isConnected = true;
 			
-			port.onDisconnect.addListener(async () => {
-				handleLockDown();
-				const disconnectPort = port; // Capture current port before clearing
-				port = undefined;
-				if (window.yakkl) {
-					window.yakkl.isConnected = false;
-				}
-
-				// Check if port has error information (Chrome specific)
-				if (disconnectPort && 'error' in disconnectPort) {
-					const error = (disconnectPort as any).error;
-					if (error) {
-						log.error('Port disconnect:', false, error.message || error);
-					}
-				}
-			});
+			console.log('[PortManager] ✓ Successfully connected');
 			return true;
-		}
-	} catch (error) {
-		// Silently handle the connection error if it's the "Receiving end does not exist" error
-		// This can happen during extension reload or when background script isn't ready yet
-		if (error instanceof Error && error.message?.includes('Receiving end does not exist')) {
-			log.debug('Background script not ready yet, port connection will be retried');
-		} else {
-			log.error('Port connection failed:', false, error);
+			
+		} catch (error) {
+			console.error('[PortManager] Connection failed:', error);
+			
+			if (error instanceof Error && error.message?.includes('Receiving end does not exist')) {
+				console.log('[PortManager] Background script not ready');
+			}
+			
+			this.isConnected = false;
+			this.port = undefined;
+			return false;
 		}
 	}
-	return false;
+	
+	private handleDisconnect(): void {
+		this.isConnected = false;
+		this.port = undefined;
+		
+		if (window.yakkl) {
+			window.yakkl.isConnected = false;
+		}
+		
+		// Check for Chrome runtime errors
+		if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.lastError) {
+			console.error('[PortManager] Chrome runtime error:', chrome.runtime.lastError);
+		}
+		
+		// Only attempt reconnect if we haven't exceeded max attempts
+		if (this.reconnectAttempts < this.maxReconnectAttempts) {
+			this.reconnectAttempts++;
+			console.log(`[PortManager] Attempting reconnect ${this.reconnectAttempts}/${this.maxReconnectAttempts}...`);
+			
+			setTimeout(() => {
+				this.connect().catch(err => {
+					console.error('[PortManager] Reconnect failed:', err);
+				});
+			}, 1000 * this.reconnectAttempts); // Exponential backoff
+		} else {
+			console.error('[PortManager] Max reconnect attempts reached, giving up');
+			handleLockDown();
+		}
+	}
+	
+	disconnect(): void {
+		if (this.port) {
+			try {
+				this.port.disconnect();
+			} catch (e) {
+				// Ignore errors
+			}
+		}
+		this.port = undefined;
+		this.isConnected = false;
+		this.connectionPromise = null;
+	}
+}
+
+// Create singleton instance
+const portManager = PortManager.getInstance();
+
+// Function to connect port - will only run in browser context during load
+async function connectPort(): Promise<boolean> {
+	return portManager.connect();
 }
 
 // This function will only be called during load, not during SSR
 async function initializeExtension() {
+	console.log('[initializeExtension] Starting...');
+	
 	try {
     if (typeof window === 'undefined') {
+      console.log('[initializeExtension] No window object, skipping');
       return;
     }
 
+		console.log('[initializeExtension] Attempting to connect port...');
 		// Try connecting immediately, no arbitrary delay
 		let connected = await connectPort();
+		console.log('[initializeExtension] Initial connection result:', connected);
 		
 		// If initial connection fails, retry with exponential backoff
 		if (!connected) {
+			console.log('[initializeExtension] Initial connection failed, starting retries...');
 			const maxRetries = 5;
 			let retryDelay = 100; // Start with 100ms
 			
@@ -98,18 +229,28 @@ async function initializeExtension() {
 
 // Move the initialization to the load function to prevent SSR issues
 export const load = async () => {
+	console.log('[Root Layout] Load function called');
+	
 	// Skip extension initialization during SSR
 	if (typeof window === 'undefined') {
+		console.log('[Root Layout] SSR context, skipping initialization');
 		return {};
 	}
 
+	console.log('[Root Layout] Browser context, starting initialization');
+	
 	try {
 		// First establish port connection for extension
+		console.log('[Root Layout] Initializing extension connection...');
 		await initializeExtension();
+		console.log('[Root Layout] Extension connection established');
 		
 		// Then initialize the entire app state in coordinated manner
+		console.log('[Root Layout] Initializing AppStateManager...');
 		await appStateManager.initialize();
+		console.log('[Root Layout] AppStateManager initialized successfully');
 	} catch (error) {
+		console.error('[Root Layout] Error during app initialization:', error);
 		log.error('Error during app initialization:', false, error);
 		// App will show error state via AppStateManager
 	}

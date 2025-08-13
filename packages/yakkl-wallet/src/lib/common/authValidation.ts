@@ -41,10 +41,33 @@ export async function validateAuthentication(): Promise<ValidationResult> {
     }
 
     // Step 3: Validate digest exists and is non-empty
-    const digest = getMiscStore();
+    // Add retry logic for race condition on initial load
+    let digest = getMiscStore();
+    
+    // If digest is not immediately available, retry a few times with short delays
+    // This handles the race condition where the digest might still be loading
     if (!digest || digest.length === 0) {
-      log.warn('Authentication failed: No valid digest found');
-      return { isValid: false, reason: 'No authentication digest' };
+      const maxRetries = 3;
+      const retryDelay = 100; // 100ms between retries
+      
+      for (let i = 0; i < maxRetries; i++) {
+        log.debug(`Authentication: Digest not found, retry ${i + 1}/${maxRetries}`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        
+        // Try to get the digest again
+        digest = getMiscStore();
+        
+        if (digest && digest.length > 0) {
+          log.debug('Authentication: Digest found after retry');
+          break;
+        }
+      }
+      
+      // After retries, if still no digest, then auth fails
+      if (!digest || digest.length === 0) {
+        log.warn('Authentication failed: No valid digest found after retries');
+        return { isValid: false, reason: 'No authentication digest' };
+      }
     }
 
     // Step 4: Verify digest matches stored value
@@ -55,10 +78,30 @@ export async function validateAuthentication(): Promise<ValidationResult> {
     // }
 
     // Step 5: Retrieve and validate profile
-    const profile = await getProfile();
+    // Also add retry logic here as profile might be loading
+    let profile = await getProfile();
+    
     if (!profile) {
-      log.warn('Authentication failed: No profile found');
-      return { isValid: false, reason: 'No profile found' };
+      // Try a couple times with short delay for profile to load
+      const maxRetries = 2;
+      const retryDelay = 100;
+      
+      for (let i = 0; i < maxRetries; i++) {
+        log.debug(`Authentication: Profile not found, retry ${i + 1}/${maxRetries}`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        
+        profile = await getProfile();
+        
+        if (profile) {
+          log.debug('Authentication: Profile found after retry');
+          break;
+        }
+      }
+      
+      if (!profile) {
+        log.warn('Authentication failed: No profile found after retries');
+        return { isValid: false, reason: 'No profile found' };
+      }
     }
 
     // Step 6: Check if profile is locked
