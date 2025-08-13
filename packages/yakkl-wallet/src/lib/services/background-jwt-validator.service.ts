@@ -1,5 +1,7 @@
 import { log } from '$lib/common/logger-wrapper';
 import { backgroundJWTManager } from '$lib/utilities/jwt-background';
+import browser from 'webextension-polyfill';
+import type { Runtime } from 'webextension-polyfill';
 
 /**
  * Background JWT Validation Service
@@ -8,7 +10,7 @@ import { backgroundJWTManager } from '$lib/utilities/jwt-background';
 export class BackgroundJWTValidatorService {
   private static instance: BackgroundJWTValidatorService | null = null;
   private validationInterval: NodeJS.Timeout | number | null = null;
-  private connectedPorts = new Map<string, chrome.runtime.Port>();
+  private connectedPorts = new Map<string, Runtime.Port>();
   private readonly VALIDATION_INTERVAL = 30000; // 30 seconds
   private readonly PORT_NAME = 'jwt-validator';
   private lastValidation = 0;
@@ -26,7 +28,7 @@ export class BackgroundJWTValidatorService {
    * Start background JWT validation service (with delayed start until JWT exists)
    */
   start(): void {
-    if (typeof chrome === 'undefined' || !chrome.runtime) {
+    if (!browser.runtime) {
       log.warn('[BackgroundJWTValidator] Not in browser extension context');
       return;
     }
@@ -142,7 +144,7 @@ export class BackgroundJWTValidatorService {
   /**
    * Register a JWT validator port (called by the main port listener system)
    */
-  registerJWTValidatorPort(port: chrome.runtime.Port): void {
+  registerJWTValidatorPort(port: Runtime.Port): void {
     try {
       log.info('[BackgroundJWTValidator] UI connected via port', false, { portId: port.sender?.tab?.id });
 
@@ -325,7 +327,7 @@ export class BackgroundJWTValidatorService {
   /**
    * Send message to specific UI port
    */
-  private sendMessageToUI(port: chrome.runtime.Port, message: any): void {
+  private sendMessageToUI(port: Runtime.Port, message: any): void {
     try {
       port.postMessage(message);
     } catch (error) {

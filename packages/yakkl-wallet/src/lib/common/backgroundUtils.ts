@@ -2,7 +2,7 @@ import { yakklStoredObjects } from '../models/dataModels';
 import browser from 'webextension-polyfill'; // This will cause a build error if not used in a background script.
 import { log } from '$lib/managers/Logger';
 import { STORAGE_YAKKL_CURRENTLY_SELECTED, STORAGE_YAKKL_SETTINGS } from './constants';
-import type { Settings, YakklCurrentlySelected } from './interfaces';
+import type { YakklSettings, YakklCurrentlySelected } from './interfaces';
 
 // Background only functions...
 
@@ -29,9 +29,9 @@ export async function initializeStorageDefaults() {
 
 export async function manageLockedState() {
 	try {
-		const yakklSettings: Settings = (await browser.storage.local.get(
+		const yakklSettings: YakklSettings = (await browser.storage.local.get(
 			STORAGE_YAKKL_SETTINGS
-		)) as unknown as Settings; //await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS) as Settings;
+		)) as unknown as YakklSettings; //await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS) as YakklSettings;
 		const yakklCurrentlySelected: YakklCurrentlySelected = (await browser.storage.local.get(
 			STORAGE_YAKKL_CURRENTLY_SELECTED
 		)) as unknown as YakklCurrentlySelected; //await getObjectFromLocalStorage(STORAGE_YAKKL_CURRENTLY_SELECTED) as YakklCurrentlySelected;

@@ -2,7 +2,7 @@ import { log } from '$lib/common/logger-wrapper';
 import { backgroundJWTManager } from '$lib/utilities/jwt-background';
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from '$lib/common/backgroundStorage';
 import { STORAGE_YAKKL_SETTINGS } from '$lib/common/constants';
-import type { Settings } from '$lib/common/interfaces';
+import type { YakklSettings } from '$lib/common/interfaces';
 import { SingletonWindowManager } from '$lib/managers/SingletonWindowManager';
 import browser from 'webextension-polyfill';
 
@@ -146,7 +146,7 @@ export class PopupSecurityManager {
   private async getSecurityState(): Promise<SecurityState> {
     try {
       // Get settings
-      const settings = await getObjectFromLocalStorage<Settings>(STORAGE_YAKKL_SETTINGS);
+      const settings = await getObjectFromLocalStorage<YakklSettings>(STORAGE_YAKKL_SETTINGS);
 
       log.debug('[PopupSecurity] Settings', false, settings);
 
@@ -260,7 +260,7 @@ export class PopupSecurityManager {
    */
   private async lockWallet(tokenToInvalidate?: string): Promise<void> {
     try {
-      const settings = await getObjectFromLocalStorage<Settings>(STORAGE_YAKKL_SETTINGS);
+      const settings = await getObjectFromLocalStorage<YakklSettings>(STORAGE_YAKKL_SETTINGS);
       if (settings) {
         settings.isLocked = true;
         await setObjectInLocalStorage(STORAGE_YAKKL_SETTINGS, settings);

@@ -6,7 +6,7 @@ import {
 	type ParsedError
 } from '$lib/common';
 import { AccessSourceType, AccountTypeCategory, PlanType } from '$lib/common/types';
-import type { Settings, YakklAccount, YakklPrimaryAccount } from '$lib/common/interfaces';
+import type { YakklSettings, YakklAccount, YakklPrimaryAccount } from '$lib/common/interfaces';
 import {
 	getYakklAccounts,
 	getYakklPrimaryAccounts,
@@ -14,8 +14,8 @@ import {
 	setYakklAccountsStorage,
 	setYakklPrimaryAccountsStorage,
 	yakklPrimaryAccountsStore,
-	getSettings,
-	setSettingsStorage
+	getYakklSettings,
+	setYakklSettingsStorage
 } from '$lib/common/stores';
 import { browser_ext } from './environment';
 import { ethers as ethersv6 } from 'ethers-v6';
@@ -99,7 +99,7 @@ export function getCurrentFunctionInfo(depth = 2): { name: string; location: str
 }
 
 export async function isProLevel(): Promise<boolean> {
-	const settings = await getSettings();
+	const settings = await getYakklSettings();
 	return (
 		settings?.plan.type === PlanType.YAKKL_PRO ||
 		settings?.plan.type === PlanType.FOUNDING_MEMBER ||
@@ -108,31 +108,31 @@ export async function isProLevel(): Promise<boolean> {
 }
 
 export async function isStandard(): Promise<boolean> {
-	const settings = await getSettings();
+	const settings = await getYakklSettings();
 	return settings?.plan.type === PlanType.EXPLORER_MEMBER;
 }
 
 export async function setRegisteredType(type: PlanType): Promise<void> {
-	const settings = await getSettings();
+	const settings = await getYakklSettings();
 	if (settings) {
 		settings.plan.type = type;
-		await setSettingsStorage(settings); // You should have something that handles both local state and extension storage sync
+		await setYakklSettingsStorage(settings); // You should have something that handles both local state and extension storage sync
 	}
 }
 
 export async function isTrialing(): Promise<boolean> {
-	const settings = await getSettings();
+	const settings = await getYakklSettings();
 	return settings.plan.source === AccessSourceType.TRIAL;
 }
 
 export async function trialExpiresSoon(): Promise<boolean> {
-	const settings = await getSettings();
+	const settings = await getYakklSettings();
 	if (!settings.plan.trialEndDate) return false;
 	return new Date(settings.plan.trialEndDate).getTime() - Date.now() < 1000 * 60 * 60 * 24; // < 1 day
 }
 
-export async function isFullyPro(providedSettings?: Settings): Promise<boolean> {
-	const settings = providedSettings ?? (await getSettings());
+export async function isFullyPro(providedSettings?: YakklSettings): Promise<boolean> {
+	const settings = providedSettings ?? (await getYakklSettings());
 
 	if (!settings) return false;
 
@@ -148,8 +148,8 @@ export async function isFullyPro(providedSettings?: Settings): Promise<boolean> 
 	);
 }
 
-export async function canUpgrade(providedSettings?: Settings): Promise<boolean> {
-	const settings = providedSettings ?? (await getSettings());
+export async function canUpgrade(providedSettings?: YakklSettings): Promise<boolean> {
+	const settings = providedSettings ?? (await getYakklSettings());
 
 	if (!settings) return false;
 
@@ -170,7 +170,7 @@ export async function canUpgrade(providedSettings?: Settings): Promise<boolean> 
 	return true;
 }
 
-export function normalizeUserPlan(settings: Settings): Settings | null {
+export function normalizeUserPlan(settings: YakklSettings): YakklSettings | null {
 	// Handle null or missing settings
 	if (!settings || !settings.plan) {
 		console.warn('[normalizeUserPlan] Settings or plan is null/undefined');
@@ -202,8 +202,8 @@ export function normalizeUserPlan(settings: Settings): Settings | null {
 	return settings;
 }
 
-export async function getNormalizedSettings(): Promise<Settings | null> {
-	const raw = await getSettings();
+export async function getNormalizedSettings(): Promise<YakklSettings | null> {
+	const raw = await getYakklSettings();
 
 	// Handle null settings - return null to let caller handle it
 	if (!raw) {
@@ -215,7 +215,7 @@ export async function getNormalizedSettings(): Promise<Settings | null> {
 
 	if (normalized && raw && normalized.plan && raw.plan &&
 	    JSON.stringify(normalized.plan) !== JSON.stringify(raw.plan)) {
-		await setSettingsStorage(normalized);
+		await setYakklSettingsStorage(normalized);
 	}
 
 	return normalized;
@@ -223,7 +223,7 @@ export async function getNormalizedSettings(): Promise<Settings | null> {
 
 // Use for messaging to let the user know that their trial has expired
 export function wasTrialExpiredRecently(
-	settings: Settings,
+	settings: YakklSettings,
 	thresholdInMs = 1000 * 60 * 60 * 24
 ): boolean {
 	if (!settings.plan.trialEndDate) return false;

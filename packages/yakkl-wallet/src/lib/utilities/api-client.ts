@@ -49,7 +49,7 @@ export class APIClient {
 		}
 
 		// Check for extension background context
-		if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local && !browser) {
+		if (typeof window === 'undefined') {
 			return true;
 		}
 

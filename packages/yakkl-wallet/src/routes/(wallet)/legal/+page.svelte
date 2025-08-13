@@ -2,20 +2,22 @@
   import { browserSvelte } from '$lib/common/environment';
   import { browserAPI } from '$lib/services/browser-api.service';
   import { PATH_REGISTER, PlanType, AccessSourceType, VERSION } from '$lib/common';
-  import type { Settings } from '$lib/common';
-  import { getSettings, setSettingsStorage } from '$lib/common/stores';
+  import type { YakklSettings } from '$lib/common';
+  import { getYakklSettings, setYakklSettingsStorage } from '$lib/common/stores';
   import { goto } from '$app/navigation';
   import { log } from '$lib/common/logger-wrapper';
   import { dateString } from '$lib/common/datetime';
   import { DEFAULT_PERSONA } from '$lib/common/constants';
 
-  let yakklSettings: Settings | null = null;
+  let yakklSettings: YakklSettings | null = null;
   let isAgreed = $state(false);
 
   async function update() {
     try {
       if (browserSvelte) {
-        yakklSettings = await getSettings();
+        yakklSettings = await getYakklSettings();
+
+        // TODO: Review this structure
         
         // If no settings exist, create default settings
         if (!yakklSettings) {
@@ -24,6 +26,7 @@
             id: '', // Will be set during registration
             persona: DEFAULT_PERSONA,
             version: VERSION,
+            isLockedHow: '',
             previousVersion: '',
             plan: {
               type: PlanType.EXPLORER_MEMBER,
@@ -41,13 +44,14 @@
             platform: {
               arch: '',
               nacl_arch: '',
-              os: ''
+              os: '',
+              osVersion: '',
+              platform: ''
             },
             init: false, // Will be set to true after registration
             isLocked: true,
-            disableNotifications: false,
-            security: {},
-            connections: [],
+            // security: {},
+            // connections: [],
             transactions: {
               retry: {
                 enabled: true,
@@ -74,8 +78,8 @@
           yakklSettings.legal.termsAgreed = true;
           yakklSettings.isLocked = true;
         }
-        
-        await setSettingsStorage(yakklSettings);
+
+        await setYakklSettingsStorage(yakklSettings);
         await goto(PATH_REGISTER);
       }
     } catch (error) {

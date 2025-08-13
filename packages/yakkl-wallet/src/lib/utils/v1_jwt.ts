@@ -228,8 +228,8 @@ export class JWTManager {
 		// For now, we'll generate a key based on the user's profile
 		if (browser) {
 			try {
-				const { getSettings } = await import('$lib/common/stores');
-				const settings = await getSettings();
+				const { getYakklSettings } = await import('$lib/common/stores');
+				const settings = await getYakklSettings();
 
 				// Create a signing key from user settings and current date (changes daily for security)
 				const today = new Date().toISOString().split('T')[0];

@@ -28,7 +28,7 @@ import type {
 	AccountData,
 	PrimaryAccountData,
 	ProfileData,
-	Settings,
+	YakklSettings,
 	ConnectedDomainPermissions,
 	AccountAddress,
 	ConnectedDomainRevoked
@@ -146,7 +146,7 @@ export const yakklPreferences: Preferences = {
 };
 
 // Settings - Mostly items that are automatically updated by the system
-export let yakklSettings: Settings = {
+export let yakklSettings: YakklSettings = {
 	id: '', // Profile id
 	persona: DEFAULT_PERSONA,
 	version: VERSION, // Uses semversion format but puts 'default' as a placeholder

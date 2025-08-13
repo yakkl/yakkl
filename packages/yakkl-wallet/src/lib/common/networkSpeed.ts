@@ -56,27 +56,35 @@ export async function testNetworkSpeed(): Promise<NetworkSpeedResult> {
     let downloadSpeed = 0;
     let speedTestError = false;
 
-    // Try to use Cloudflare SpeedTest library, but it may fail in sidepanel context
+    // Try to use Cloudflare SpeedTest library, but it may fail in extension contexts
     try {
-      // Skip Cloudflare speed test in sidepanel context to avoid transferSize errors
-      const isSidepanel = typeof window !== 'undefined' &&
-                          (window.location.pathname.includes('sidepanel') ||
-                           window.location.href.includes('sidepanel'));
+      // Skip Cloudflare speed test in extension contexts to avoid transferSize errors
+      const isExtensionContext = typeof window !== 'undefined' &&
+                                 (window.location.pathname.includes('sidepanel') ||
+                                  window.location.href.includes('sidepanel') ||
+                                  window.location.protocol === 'chrome-extension:' ||
+                                  window.location.protocol === 'moz-extension:' ||
+                                  window.location.protocol === 'webkit-extension:');
 
-      if (!isSidepanel) {
+      if (!isExtensionContext) {
         const speedTest = new SpeedTest({
           autoStart: false,
           measurements: [
-            { type: 'latency', numPackets: 10 },
-            { type: 'download', bytes: 102400, count: 3 }
+            { type: 'latency', numPackets: 5 }, // Reduced packets for faster test
+            { type: 'download', bytes: 51200, count: 2 } // Smaller download test
           ]
         });
 
         let isTestComplete = false;
+        let testTimeout: NodeJS.Timeout | null = null;
 
         // Set up event listeners with proper error handling
         speedTest.onFinish = (results) => {
           try {
+            if (testTimeout) {
+              clearTimeout(testTimeout);
+              testTimeout = null;
+            }
             isTestComplete = true;
             log.info('Speed test finished', false, results.getSummary());
           } catch (error) {
@@ -86,13 +94,34 @@ export async function testNetworkSpeed(): Promise<NetworkSpeedResult> {
         };
 
         speedTest.onError = (error) => {
+          if (testTimeout) {
+            clearTimeout(testTimeout);
+            testTimeout = null;
+          }
           log.warn('Speed test error', false, error);
           speedTestError = true;
           isTestComplete = true;
         };
 
-        // Start the test
-        speedTest.play();
+        // Set a shorter timeout to prevent hanging
+        testTimeout = setTimeout(() => {
+          log.warn('Speed test timeout after 10 seconds');
+          speedTestError = true;
+          isTestComplete = true;
+        }, 10000);
+
+        // Start the test with additional error handling
+        try {
+          speedTest.play();
+        } catch (playError) {
+          if (testTimeout) {
+            clearTimeout(testTimeout);
+            testTimeout = null;
+          }
+          log.warn('Error starting speed test', false, playError);
+          speedTestError = true;
+          isTestComplete = true;
+        }
 
         // Wait for test completion with timeout
         const waitForCompletion = new Promise<void>((resolve) => {
@@ -102,27 +131,34 @@ export async function testNetworkSpeed(): Promise<NetworkSpeedResult> {
               resolve();
             }
           }, 100);
+          
+          // Cleanup interval after timeout
+          setTimeout(() => {
+            clearInterval(checkInterval);
+            resolve();
+          }, 12000);
         });
 
-        await Promise.race([
-          waitForCompletion,
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Speed test timeout')), 15000)
-          )
-        ]);
+        await waitForCompletion;
+
+        // Clean up timeout if still active
+        if (testTimeout) {
+          clearTimeout(testTimeout);
+          testTimeout = null;
+        }
 
         // Extract results from Cloudflare speed test with error handling
         if (speedTest.results && !speedTestError) {
           try {
             const summary = speedTest.results.getSummary();
 
-            // Get latency
-            if (summary.latency) {
+            // Safely get latency with fallback
+            if (summary && summary.latency && typeof summary.latency === 'number') {
               latency = summary.latency;
             }
 
-            // Get download speed (already in Mbps)
-            if (summary.download) {
+            // Safely get download speed with fallback
+            if (summary && summary.download && typeof summary.download === 'number') {
               downloadSpeed = summary.download / 1_000_000; // Convert bps to Mbps
             }
           } catch (summaryError) {
@@ -131,11 +167,11 @@ export async function testNetworkSpeed(): Promise<NetworkSpeedResult> {
           }
         }
       } else {
-        log.info('Skipping Cloudflare SpeedTest in sidepanel context');
+        log.info('Skipping Cloudflare SpeedTest in extension context to avoid transferSize errors');
         speedTestError = true;
       }
     } catch (cfError) {
-      // Cloudflare SpeedTest failed (likely due to transferSize issue in sidepanel)
+      // Cloudflare SpeedTest failed (likely due to transferSize issue or other extension context issues)
       log.warn('Cloudflare SpeedTest failed in current context, using fallback', false, cfError);
       speedTestError = true;
     }
@@ -280,26 +316,47 @@ export async function getDynamicTimeout(messageType?: string): Promise<number> {
   return finalTimeout;
 }
 
+// Track if monitoring is already initialized to prevent multiple intervals
+let monitoringInitialized = false;
+let monitoringInterval: NodeJS.Timeout | null = null;
+
 /**
  * Initialize periodic network speed testing
  * This should be called once when the wallet starts
+ * Will only run the test once on initialization, not continuously
  */
 export function initNetworkSpeedMonitoring(): void {
   try {
-    // Test network speed immediately
+    // Prevent multiple initializations
+    if (monitoringInitialized) {
+      log.debug('Network speed monitoring already initialized, skipping');
+      return;
+    }
+
+    monitoringInitialized = true;
+
+    // Test network speed immediately (one-time)
     testNetworkSpeed().catch(error => {
       log.warn('Initial network speed test failed', false, error);
     });
 
-    // Then test every 5 minutes
-    setInterval(() => {
-      testNetworkSpeed().catch(error => {
-        log.warn('Periodic network speed test failed', false, error);
-      });
-      }, CACHE_DURATION);
-
-      log.info('Network speed monitoring initialized');
+    // Only re-test if cache expires and a test is specifically requested
+    // No automatic periodic testing to avoid performance issues
+    log.info('Network speed monitoring initialized (one-time test only)');
   } catch (error) {
     log.warn('Network speed monitoring initialization failed', false, error);
+    monitoringInitialized = false; // Reset on error to allow retry
   }
+}
+
+/**
+ * Stop network speed monitoring and cleanup
+ */
+export function stopNetworkSpeedMonitoring(): void {
+  if (monitoringInterval) {
+    clearInterval(monitoringInterval);
+    monitoringInterval = null;
+  }
+  monitoringInitialized = false;
+  log.info('Network speed monitoring stopped');
 }

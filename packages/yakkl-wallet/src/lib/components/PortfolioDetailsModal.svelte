@@ -134,18 +134,17 @@
         groups.set(token.chainId, group);
       }
 
-      // Use BigNumber arithmetic for accuracy
-      const tokenValue = BigNumberishUtils.toBigInt(token.value || 0);
-      const currentTotal = BigNumberishUtils.toBigInt(group.totalValue);
-      group.totalValue = Number(BigNumberishUtils.add(currentTotal, tokenValue));
+      // Use safe conversion for accuracy
+      const tokenValue = token.value && typeof token.value === 'number' 
+        ? token.value 
+        : (token.value ? BigNumberishUtils.toNumber(token.value) : 0);
+      group.totalValue += tokenValue;
       group.tokenCount++;
       group.tokens.push(token);
     }
 
-    // Sort by total value descending using BigNumber comparison
-    return Array.from(groups.values()).sort((a, b) =>
-      BigNumberishUtils.compare(b.totalValue, a.totalValue)
-    );
+    // Sort by total value descending using native comparison
+    return Array.from(groups.values()).sort((a, b) => b.totalValue - a.totalValue);
   });
 
   let totalValue = $derived(
@@ -242,7 +241,11 @@
                     </tr>
                   </thead>
                   <tbody>
-                    {#each network.tokens.sort((a, b) => BigNumberishUtils.compare(b.value || 0, a.value || 0)) as token}
+                    {#each network.tokens.sort((a, b) => {
+                      const aValue = a.value && typeof a.value === 'number' ? a.value : (a.value ? BigNumberishUtils.toNumber(a.value) : 0);
+                      const bValue = b.value && typeof b.value === 'number' ? b.value : (b.value ? BigNumberishUtils.toNumber(b.value) : 0);
+                      return bValue - aValue;
+                    }) as token}
                       <tr class="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                         <td class="px-3 py-3">
                           <div class="flex items-center gap-2">
@@ -282,17 +285,17 @@
                           </div>
                         </td>
                         <td class="px-3 py-3 text-right text-sm text-gray-900 dark:text-gray-100">
-                          <div class="cursor-help" title={`${formatBalanceFull(BigNumberishUtils.toNumber(token.qty || 0))} ${token.symbol}`}>
+                          <div class="cursor-help" title={`${formatBalanceFull(token.qty && typeof token.qty === 'number' ? token.qty : (token.qty ? BigNumberishUtils.toNumber(token.qty) : 0))} ${token.symbol}`}>
                             <ProtectedValue
-                              value={formatBalance(BigNumberishUtils.toNumber(token.qty || 0))}
+                              value={formatBalance(token.qty && typeof token.qty === 'number' ? token.qty : (token.qty ? BigNumberishUtils.toNumber(token.qty) : 0))}
                               placeholder="****"
                             />
                           </div>
                         </td>
                         <td class="px-3 py-3 text-right text-sm text-gray-900 dark:text-gray-100">
                           {#if token.price}
-                            <div class="cursor-help" title={formatCurrencyFull(BigNumberishUtils.toNumber(token.price))}>
-                              <ProtectedValue value={formatCurrency(BigNumberishUtils.toNumber(token.price))} placeholder="****" />
+                            <div class="cursor-help" title={formatCurrencyFull(token.price && typeof token.price === 'number' ? token.price : (token.price ? BigNumberishUtils.toNumber(token.price) : 0))}>
+                              <ProtectedValue value={formatCurrency(token.price && typeof token.price === 'number' ? token.price : (token.price ? BigNumberishUtils.toNumber(token.price) : 0))} placeholder="****" />
                             </div>
                           {:else}
                             <span class="text-gray-400">--</span>
@@ -300,8 +303,8 @@
                         </td>
                         <td class="px-3 py-3 text-right font-medium text-gray-900 dark:text-gray-100">
                           {#if token.value}
-                            <div class="cursor-help" title={formatCurrencyFull(BigNumberishUtils.toNumber(token.value))}>
-                              <ProtectedValue value={formatCurrency(BigNumberishUtils.toNumber(token.value))} placeholder="*****" />
+                            <div class="cursor-help" title={formatCurrencyFull(token.value && typeof token.value === 'number' ? token.value : (token.value ? BigNumberishUtils.toNumber(token.value) : 0))}>
+                              <ProtectedValue value={formatCurrency(token.value && typeof token.value === 'number' ? token.value : (token.value ? BigNumberishUtils.toNumber(token.value) : 0))} placeholder="*****" />
                             </div>
                           {:else}
                             <span class="text-gray-400">$0.00</span>

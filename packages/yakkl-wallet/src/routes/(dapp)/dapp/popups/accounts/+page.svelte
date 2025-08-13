@@ -8,7 +8,7 @@
 		yakklDappConnectRequestStore,
 		getYakklCurrentlySelected,
 		getYakklConnectedDomains,
-		getSettings
+		getYakklSettings
 	} from '$lib/common/stores';
 	import { YAKKL_DAPP, DEFAULT_TITLE, DEFAULT_PERSONA } from '$lib/common/constants';
 	import { onMount } from 'svelte';
@@ -455,7 +455,7 @@
 			if (browserSvelte) {
 				log.info('Dapp - accounts page mounted:', false);
 
-				const settings = await getSettings();
+				const settings = await getYakklSettings();
 				if (!settings.init || !settings.legal.termsAgreed) {
 					errorValue =
 						"You must register and agree to the terms of service before using YAKKL®. Click on 'Open Wallet' to register.";

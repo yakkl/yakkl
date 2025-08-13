@@ -2,8 +2,8 @@
 
 import { ethers as ethersv6 } from 'ethers-v6'; // Just need to call a few non-blockchain access functions
 import {
-	setSettings,
-	getSettings,
+	setYakklSettings,
+	getYakklSettings,
 	setProfileStorage,
 	setYakklCurrentlySelectedStorage,
 	getYakklPrimaryAccounts,
@@ -27,7 +27,7 @@ import type {
 	YakklPrimaryAccount,
 	Profile,
 	Preferences,
-	Settings,
+	YakklSettings,
 	YakklCurrentlySelected
 } from '$lib/common';
 import { AccountTypeCategory, NetworkType } from '$lib/common/types';
@@ -79,7 +79,7 @@ export async function createSubportfolioAccount(
 			throw 'Profile data does not appear to be encrypted. Please register or re-register. Thank you.';
 		}
 
-		let yakklSettings: Settings | null = await getSettings();
+		let yakklSettings: YakklSettings | null = await getYakklSettings();
 		if (!yakklSettings || yakklSettings?.init === false || yakklSettings?.isLocked === true) {
 			throw 'createSubportfolioAccount: The settings data has not been initialized. This could be due to not yet registered or data could be incomplete which requires registering again. If unable to re-register then uninstall and reinstall. No Blockchain data will be impacted.';
 		}
@@ -270,7 +270,7 @@ export async function createSubportfolioAccount(
 		accounts = await getYakklAccounts();
 		accounts.push(yakklAccountEnc);
 
-		await setSettings(yakklSettings);
+		await setYakklSettings(yakklSettings);
 		await setProfileStorage(profileEnc);
 		await setYakklAccountsStorage(accounts);
 		await setYakklCurrentlySelectedStorage(currentlySelected);

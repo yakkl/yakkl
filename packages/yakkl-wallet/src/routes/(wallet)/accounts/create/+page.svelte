@@ -3,8 +3,8 @@
   import { goto } from '$app/navigation';
   import { browserSvelte } from '$lib/common/environment';
   import {
-    getSettings,
-    setSettingsStorage,
+    getYakklSettings,
+    setYakklSettingsStorage,
     getYakklAccounts,
     setYakklAccountsStorage,
     getYakklPrimaryAccounts,
@@ -281,10 +281,10 @@
 
   async function continueToWallet() {
     // Ensure everything is saved
-    const settings = await getSettings();
+    const settings = await getYakklSettings();
     if (settings) {
       settings.isLocked = false;
-      await setSettingsStorage(settings);
+      await setYakklSettingsStorage(settings);
     }
 
     // Navigate to dashboard

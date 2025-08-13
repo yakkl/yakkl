@@ -16,7 +16,7 @@ import {
 const yakklUpdateStorage = [
 	'preferences',
 	'profile',
-	'settings',
+	'yakklSettings',
 	'yakklAccounts',
 	'yakklBookmarkedArticles',
 	'yakklChats',
@@ -34,8 +34,12 @@ const yakklUpdateStorage = [
 	'yakklWatchList',
   'yakklTokenCache',
 	'yakklTokenViewCache',
-  'yakklAddressTokenHoldings',
+  'yakklAddressTokenCache',
   'yakklWalletCache'
+];
+
+const yakklRenameStorage = [
+	{oldname: 'settings', newname: 'yakklSettings'},
 ];
 
 interface UpgradeMigration {
@@ -118,6 +122,16 @@ export class UpgradeMigrationManager {
 
 	private migrations: UpgradeMigration[] = [
 		{
+			version: '2.0.2',
+			description: 'Migrate settings to yakklSettings',
+			migrate: async (data: any, storageKey: string) => {
+				if (storageKey === 'settings') {
+					log.info('Migrating settings to yakklSettings');
+				}
+				return data;
+			}
+		},
+		{
 			version: '2.0.1',
 			description: 'Migrate userName to username in profile',
 			migrate: async (data: any, storageKey: string) => {
@@ -133,7 +147,7 @@ export class UpgradeMigrationManager {
 			version: '0.31.0',
 			description: 'Add plan.source, plan.promo, and trialCountdownPinned to settings',
 			migrate: async (data: any, storageKey: string) => {
-				if (storageKey === 'settings' && data) {
+				if (storageKey === 'yakklSettings' && data) {
 					let changed = false;
 
 					if (!data.plan) {
@@ -198,19 +212,29 @@ export class UpgradeMigrationManager {
 
 			log.info(`Found ${migrationsToRun.length} migrations to run`);
 
-			// Create backups first
-			await this.createBackups();
-
 			try {
+				// Run rename migrations in order - renames any old storage keys to new ones (e.g. settings to yakklSettings) - do this first to avoid conflicts
+				// 1.
+				for (const migration of migrationsToRun) {
+					await this.runRenameMigration(migration);
+				}
+
+				// Create backups first
+				// 2.
+				await this.createBackups();
+
 				// Run migrations in order
+				// 3.
 				for (const migration of migrationsToRun) {
 					await this.runMigration(migration);
 				}
 
 				// Update all versions to current
+				// 4.
 				await this.updateAllVersions(toVersion);
 
 				// Clean up backups after successful upgrade
+				// 5.
 				setTimeout(() => this.cleanupBackups(), 5000); // Cleanup after 5 seconds
 
 				log.info(`Successfully completed data structure upgrade to ${toVersion}`);
@@ -234,6 +258,28 @@ export class UpgradeMigrationManager {
 				this.isVersionNewer(migration.version, fromVersion) &&
 				!this.isVersionNewer(migration.version, toVersion)
 		);
+	}
+
+	private async runRenameMigration(migration: UpgradeMigration): Promise<void> {
+		log.info(`Running rename migration: ${migration.description} (v${migration.version})`);
+
+		let migratedCount = 0;
+
+		for (const storageKey of yakklRenameStorage) {
+			try {
+				let data = await getObjectFromLocalStorage(storageKey.oldname);
+				if (!data) continue;
+
+				await setObjectInLocalStorage(storageKey.newname, data);
+				migratedCount++;
+				log.debug(`Migrated ${storageKey.oldname} to ${storageKey.newname}`);
+			} catch (error) {
+				log.warn(`Failed to migrate ${storageKey.oldname}:`, false, error);
+				// Don't fail the entire migration for one storage key
+			}
+		}
+
+		log.info(`Migration completed. Updated ${migratedCount} storage objects.`);
 	}
 
 	/**

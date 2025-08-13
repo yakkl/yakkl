@@ -1,5 +1,5 @@
-import { getSettings } from '$lib/common/stores';
-import type { Settings } from '$lib/common/interfaces';
+import { getYakklSettings } from '$lib/common/stores';
+import type { YakklSettings } from '$lib/common/interfaces';
 
 export interface RegistrationStatus {
 	isRegistered: boolean;
@@ -10,7 +10,7 @@ export interface RegistrationStatus {
 
 export async function checkRegistrationStatus(): Promise<RegistrationStatus> {
 	try {
-		const settings = await getSettings();
+		const settings = await getYakklSettings();
 
 		const hasAgreedToTerms = settings?.legal?.termsAgreed ?? false;
 		const isInitialized = settings?.init ?? false;

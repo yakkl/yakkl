@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import AuthenticationLoader from '$lib/components/AuthenticationLoader.svelte';
   import DockLauncher from '$lib/components/DockLauncher.svelte';
   import AIHelpButton from '$lib/components/AIHelpButton.svelte';
   import Header from '$lib/components/Header.svelte';
@@ -42,6 +43,7 @@
   // --- State ---
   let appState = $state($appStateManager);
   let initializing = $state(true);
+  let isAuthenticating = $state(true);  // Show loader while authenticating
   let showTestnets = $state(false);
   let showSettings = $state(false);
   let showProfile = $state(false);
@@ -83,6 +85,7 @@
         // Authentication has already been validated in +layout.ts
         // We can assume we're authenticated if we reach this component
         isAuthenticated = true;
+        isAuthenticating = false;  // Hide loader once authenticated
 
         // Load remaining stores that aren't critical for initialization
         await Promise.all([
@@ -119,6 +122,7 @@
         }
       } finally {
         initializing = false;
+        isAuthenticating = false;  // Ensure loader is hidden
       }
     })();
 
@@ -316,6 +320,10 @@
 </script>
 
 <!-- Loading overlay for logout/exit -->
+{#if isAuthenticating}
+  <AuthenticationLoader />
+{/if}
+
 {#if isLoggingOut}
   <div class="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center">
     <div class="bg-white dark:bg-zinc-800 rounded-lg p-6 shadow-2xl">

@@ -33,7 +33,7 @@
     try {
       // Get all the necessary data
       const {
-        getPreferences, getSettings, getProfile, getYakklCurrentlySelected,
+        getPreferences, getYakklSettings, getProfile, getYakklCurrentlySelected,
         getYakklContacts, getYakklChats, getYakklAccounts, getYakklPrimaryAccounts,
         getYakklWatchList, getYakklBlockedList, getYakklConnectedDomains,
         	getYakklTokenData, getYakklTokenDataCustom, getYakklCombinedTokens,
@@ -41,7 +41,7 @@
       } = await import('$lib/common/stores');
 
       const preferences = await getPreferences();
-      const settings = await getSettings();
+      const settings = await getYakklSettings();
       const profile = await getProfile();
       const currentlySelected = await getYakklCurrentlySelected();
       const contacts = await getYakklContacts();

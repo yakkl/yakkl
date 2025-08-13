@@ -10,7 +10,7 @@ export const DEFAULT_CHAINS: ChainDisplay[] = [
     icon: '/images/eth.svg',
     isTestnet: false,
     chainId: 1,
-    rpcUrl: 'https://mainnet.infura.io/v3/YOUR_KEY',
+    rpcUrl: 'https://eth.llamarpc.com',  // Public fallback RPC, no auth required
     explorerUrl: 'https://etherscan.io',
     explorerApiUrl: 'https://api.etherscan.io/v2/api',
     explorerApiKey: 'YourEtherscanAPIKeyHere', // TODO: Move to secure config
@@ -27,7 +27,7 @@ export const DEFAULT_CHAINS: ChainDisplay[] = [
     icon: '/images/eth.svg',
     isTestnet: true,
     chainId: 11155111,
-    rpcUrl: 'https://sepolia.infura.io/v3/YOUR_KEY',
+    rpcUrl: 'https://ethereum-sepolia-rpc.publicnode.com',  // Public fallback RPC
     explorerUrl: 'https://sepolia.etherscan.io',
     explorerApiUrl: 'https://api-sepolia.etherscan.io/v2/api',
     explorerApiKey: 'YourEtherscanAPIKeyHere', // TODO: Move to secure config
@@ -44,7 +44,7 @@ export const DEFAULT_CHAINS: ChainDisplay[] = [
     icon: '/images/eth.svg',
     isTestnet: true,
     chainId: 5,
-    rpcUrl: 'https://goerli.infura.io/v3/YOUR_KEY',
+    rpcUrl: 'https://ethereum-goerli-rpc.publicnode.com',  // Public fallback RPC
     explorerUrl: 'https://goerli.etherscan.io',
     explorerApiUrl: 'https://api-goerli.etherscan.io/api',
     explorerApiKey: 'YourEtherscanAPIKeyHere', // TODO: Move to secure config

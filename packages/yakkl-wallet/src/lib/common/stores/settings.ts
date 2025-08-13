@@ -1,5 +1,5 @@
 import { derived } from 'svelte/store';
-import { yakklSettingsStore as settingsStore, getSettings, setSettings } from '$lib/common/stores';
+import { yakklSettingsStore as settingsStore, getYakklSettings, setYakklSettings } from '$lib/common/stores';
 import { AccessSourceType, PlanType } from '$lib/common/types';
 import { safeLogout } from '$lib/common/safeNavigate';
 
@@ -27,7 +27,7 @@ export const trialCountdown = derived(settingsStore, ($s) => {
 
 // Function to check if trial expired and downgrade
 export async function checkTrialExpiration(): Promise<void> {
-	const s = await getSettings();
+	const s = await getYakklSettings();
 	if (
 		s?.plan.source === AccessSourceType.TRIAL &&
 		s.plan.trialEndDate &&
@@ -35,7 +35,7 @@ export async function checkTrialExpiration(): Promise<void> {
 	) {
 		s.plan.type = PlanType.EXPLORER_MEMBER;
 		s.plan.source = AccessSourceType.STANDARD;
-		await setSettings(s);
+		await setYakklSettings(s);
 		await safeLogout();
 	}
 }

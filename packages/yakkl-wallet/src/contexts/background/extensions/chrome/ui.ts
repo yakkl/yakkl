@@ -1,5 +1,5 @@
 import { STORAGE_YAKKL_PREFERENCES, STORAGE_YAKKL_SETTINGS } from '$lib/common/constants';
-import type { Preferences, Settings } from '$lib/common/interfaces';
+import type { Preferences, YakklSettings } from '$lib/common/interfaces';
 import type { Windows } from 'webextension-polyfill';
 import browser from 'webextension-polyfill';
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from '$lib/common/storage';
@@ -7,7 +7,7 @@ import { log } from '$lib/common/logger-wrapper';
 // import type { ExtendedBrowser } from '$lib/common/types/browser-extensions';
 import { SingletonWindowManager } from '$lib/managers/SingletonWindowManager';
 import { quickAuthCheck } from '$lib/common/authValidation';
-import { getSettings } from '$lib/common/stores';
+import { getYakklSettings } from '$lib/common/stores';
 import { popupSecurityManager } from '$lib/managers/PopupSecurityManager';
 
 // NOTE: For background usage

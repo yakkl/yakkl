@@ -5,6 +5,8 @@
  * Extends the global namespace with Chrome API interfaces
  */
 
+// This should only be for sidepanel and anything specific to chrome. However, do not use chrome.runtime.sendMessage, use browser.runtime.sendMessage instead, etc.
+
 declare global {
 	interface Chrome {
 		runtime: ChromeRuntime;

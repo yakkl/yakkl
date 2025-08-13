@@ -52,7 +52,11 @@
 			isLoading = true;
 			try {
 				const result = await priceManager.getMarketPrice(fromToken.symbol);
-				price = result && typeof result === 'object' && 'price' in result ? BigNumberishUtils.toNumber(result.price) : 0;
+				price = result && typeof result === 'object' && 'price' in result 
+					? (result.price && typeof result.price === 'number' 
+						? result.price 
+						: (result.price ? BigNumberishUtils.toNumber(result.price) : 0))
+					: 0;
 			} catch (error) {
 				console.error('Failed to fetch price:', error);
 				price = 0;

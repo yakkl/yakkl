@@ -86,7 +86,36 @@
   // Get ETH price from token list
   let ethPrice = $derived.by(() => {
     const ethToken = tokenList.find(t => t.symbol === 'ETH' || t.symbol === chain?.nativeCurrency?.symbol);
-    return BigNumberishUtils.toNumber(ethToken?.price || 0);
+    // Handle the price safely - it might be undefined, null, an object, or already a number
+    let price = ethToken?.price;
+    
+    // If price is an object (like from storage), extract the actual price value
+    if (price && typeof price === 'object') {
+      // Try different possible property names
+      price = price.price || price.value || price.usd || price.USD || 0;
+    }
+    
+    if (price === undefined || price === null) {
+      return 0;
+    }
+    
+    // If it's already a number, return it directly
+    if (typeof price === 'number') {
+      return price;
+    }
+    
+    // If it's a string that looks like a number, parse it
+    if (typeof price === 'string' && !isNaN(parseFloat(price))) {
+      return parseFloat(price);
+    }
+    
+    // Otherwise try to convert it with BigNumberishUtils as last resort
+    try {
+      return BigNumberishUtils.toNumber(price);
+    } catch (error) {
+      console.warn('Failed to convert ETH price to number:', ethToken?.price, 'extracted:', price, error);
+      return 0;
+    }
   });
 
   let expanded = $state(false);
@@ -154,22 +183,19 @@
     });
   });
 
-  // Debounced refresh function - triggers background refresh
+  // Debounced refresh function - uses store methods only
   async function handleRefresh() {
     if (isRefreshing || refreshDebounceTimer) return;
     isRefreshing = true;
 
     try {
-      // Use the new refresh utility to trigger background refresh
-      const { refreshTransactions } = await import('$lib/utils/refresh');
-      await refreshTransactions();
+      // Use transaction store refresh method which handles background communication
+      await transactionStore.refresh(true);
       
-      // The background service will update the cache and stores will react
-      console.log('RecentActivity: Triggered background transaction refresh');
+      // The store will handle background service communication and updates
+      console.log('RecentActivity: Triggered transaction refresh via store');
     } catch (error) {
       console.error('RecentActivity: Failed to refresh transactions:', error);
-      // Fallback to direct store refresh if background refresh fails
-      await transactionStore.refresh(true);
     } finally {
       setTimeout(() => {
         isRefreshing = false;

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { VERSION, YEAR } from '$lib/common/constants';
-	import type { Settings } from '$lib/common';
-	import { getSettingsDirect } from '$lib/common/stores';
+	import type { YakklSettings } from '$lib/common';
+	import { getYakklSettingsDirect } from '$lib/common/stores';
 	import { onMount } from 'svelte';
 
 	interface Props {
@@ -18,8 +18,8 @@
 	let registered: string = $state('');
 
 	onMount(async () => {
-		getSettingsDirect().then(async (result) => {
-			const yakklSettings = result as Settings;
+		getYakklSettingsDirect().then(async (result) => {
+			const yakklSettings = result as YakklSettings;
 			if (yakklSettings && yakklSettings.plan) {
 				registered = yakklSettings.plan.type;
 			}
@@ -48,12 +48,12 @@
 			{displayPlan}
 		</span>
 	{/if}
-	
+
 	<!-- Copyright text with clickable YAKKL -->
 	<span class="text-[10px] opacity-70 text-gray-400 dark:text-gray-500 select-none">
-		<a 
-			href="https://yakkl.com" 
-			target="_blank" 
+		<a
+			href="https://yakkl.com"
+			target="_blank"
 			rel="noopener noreferrer"
 			class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200"
 		>

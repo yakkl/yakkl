@@ -118,9 +118,9 @@ export class SessionManager {
 
 							// Also notify about login success to start JWT validation
 			try {
-				if (typeof chrome !== 'undefined' && chrome.runtime) {
+				if (typeof window !== 'undefined' && browser_ext.runtime) {
 					// Send the JWT token to background for storage and validation
-					chrome.runtime.sendMessage({
+					browser_ext.runtime.sendMessage({
 						type: 'USER_LOGIN_SUCCESS',
 						sessionId,
 						hasJWT: !!jwtToken,
@@ -323,21 +323,21 @@ export class SessionManager {
 				if (now < stored.expiresAt) {
 					this.sessionState = stored;
 					this.startActivityTracking();
-					
+
 					// Check if the restored session is about to expire
 					const timeRemaining = stored.expiresAt - now;
 					const warningThreshold = this.config.warningMinutes * 60 * 1000;
-					
+
 					if (timeRemaining <= warningThreshold) {
 						// Session is about to expire - auto-extend it instead of showing warning immediately
 						log.debug('Restored session near expiry, auto-extending', false, {
 							sessionId: stored.sessionId,
 							timeRemaining: Math.round(timeRemaining / 1000)
 						});
-						
+
 						// Clear the warningShown flag to allow extension
 						this.sessionState.warningShown = false;
-						
+
 						// Auto-extend the session
 						try {
 							await this.extendSession(this.config.timeoutMinutes);

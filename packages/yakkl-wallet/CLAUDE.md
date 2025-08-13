@@ -1,49 +1,97 @@
-# CLAUDE.md
+# YAKKL Smart Wallet v2 - Project Overview
 
-This file provides current status and recent updates for Claude Code when working with the YAKKL Smart Wallet project. For detailed architecture and development rules, see `.claude/PROJECT_CONTEXT.md`.
+**Version**: v2.0.1  
+**Last Updated**: 2025-08-18  
+**Primary Goal**: Production-ready crypto wallet with enterprise-grade security and exceptional UX
 
-## Quick Reference
+## Project Description
+YAKKL Smart Wallet is a next-generation browser extension crypto wallet built with SvelteKit, focusing on security, performance, and user experience. The wallet features advanced AI integration, multi-chain support, and a revolutionary view-based caching architecture.
 
-### 🚀 Current Sprint Focus
-- **Version**: v2.0.1
-- **Last Review**: 2025-08-05
-- **Primary Goal**: Production-ready with enterprise-grade security
+## Code Style Guidelines
+- **Indentation**: 2 spaces (no tabs)
+- **Imports**: Static imports only (NO dynamic imports except documented exceptions)
+- **TypeScript**: Strict mode, explicit types for all public APIs
+- **Components**: SvelteKit components with TypeScript
+- **Styling**: Tailwind CSS with DaisyUI components
+- **Naming**: camelCase for variables/functions, PascalCase for components/classes
+- **File Structure**: Feature-based organization in `$lib/`
 
-### 📁 Key Documentation
-- **Architecture & Rules**: `.claude/PROJECT_CONTEXT.md`
-- **Workflow Guide**: `.claude/WORKFLOW.md`
-- **Agent Descriptions**: `.claude/agents/*.md`
-- **Commands**: `.claude/slash_commands/*.md`
-
-### 🛠️ Essential Commands
-
-- Run the pnpm commands from /yakkl-wallet project directory
+## Frequently Used Commands
 
 ```bash
-# Development
-pnpm run dev:chrome     # Run the pnpm commands from /yakkl root directory
-# pnpm test:wallet        # Run wallet tests
-# pnpm run check:wallet   # Type checking
-# pnpm run lint:wallet    # Linting
+# Development (run from /yakkl-wallet directory)
+pnpm run dev:chrome     # Start development server
+pnpm test:wallet        # Run wallet tests
+pnpm run check:wallet   # Type checking
+pnpm run lint:wallet    # Linting
+pnpm run build          # Production build
 
-# Documentation
-/doc-updater            # Update all docs
-/changelog              # Generate changelog
-/checkpoint create      # Create safety checkpoint
+# Git Operations
+git status              # Check current changes
+git diff                # Review modifications
+git commit -m "message" # Commit changes
+git push               # Push to remote
 
-# Context & Help
-/context                # Show relevant context
-/rules                  # Quick rule reference
+# Testing & Quality
+pnpm run test          # Run all tests
+pnpm run test:unit     # Unit tests only
+pnpm run test:e2e      # End-to-end tests
+pnpm run coverage      # Generate coverage report
 ```
 
-### Rework prompt given IMPORTANT
-- Rework the prompt given if the prompt:
-  - Does not provide you with enough detail
-  - Does not make sense
-  - Contains sensitive information (usually done by mistake)
-  - If you feel it could be better for you to create, enhance, or fix all code involved with the prompt
+## Project-Specific Workflows
 
-### ⚠️ CRITICAL RULES - DO NOT VIOLATE
+### Starting a New Task
+1. Use project-architect agent for initial analysis
+2. Create checkpoint before major changes
+3. Follow recommended agent sequence
+4. Run tests after implementation
+5. Update documentation
+
+### Code Review Process
+1. Run linting and type checking
+2. Security audit for sensitive changes
+3. Performance analysis for new features
+4. Documentation updates
+5. Create PR with detailed description
+
+### Deployment Procedure
+1. Ensure all tests pass
+2. Update version numbers
+3. Build production bundle
+4. Test in staging environment
+5. Deploy to production
+
+## Development Environment
+
+### Required Tools
+- Node.js v20+
+- pnpm v8+
+- Chrome/Brave browser for extension development
+- VS Code with recommended extensions
+
+### Setup Instructions
+1. Clone repository
+2. Install dependencies: `pnpm install`
+3. Copy `.env.example` to `.env`
+4. Start development: `pnpm run dev:chrome`
+
+## Team-Specific Instructions
+
+### Communication Protocols
+- Use agents for complex tasks
+- Create checkpoints before risky operations
+- Document architectural decisions
+- Update CLAUDE.md with learnings
+
+### Prompt Enhancement Guidelines
+Rework prompts if they:
+- Lack sufficient detail for implementation
+- Contain ambiguous requirements
+- Include sensitive information
+- Could benefit from architectural review
+
+## Critical Rules - DO NOT VIOLATE
 1. **NO DYNAMIC IMPORTS** - Use static imports only. Dynamic imports (`await import()`) break webpack in service worker contexts.
    - Exceptions (use ONLY when absolutely necessary):
      - `webextension-polyfill` in client context with browser environment check
@@ -58,15 +106,38 @@ pnpm run dev:chrome     # Run the pnpm commands from /yakkl root directory
    - Never display raw BigNumber objects
    - Implement responsive font sizing for large values
    - Test with extreme values (very large and very small numbers)
+4. **Never use chrome.* browser extension calls** - Use browser.* using the MDN browser APIs. For example, do not do chrome.runtime.sendMessage but instead use browser.runtime.sendMessage
 
-## Current Status (Last Updated: 2025-08-05)
+## Agent Reference
 
-### Do not touch the following - it may have been done manually
-- SimpleTooltip.svelte - I have fixed it and it looks great. Please do not touch
-- `export const pre-render = <whatever I have already>`
-- `export const ssr = <whatever I have already>  OR if I don't have it then don't create one`
+### Quick Agent Selection
+- **🔴 CRITICAL**: project-architect, security-auditor, checkpoint-manager
+- **🟠 HIGH PRIORITY**: test-runner, performance-optimizer, blockchain-integration
+- **🟢 RECOMMENDED**: documentation-updater, workflow-optimizer
+- **🔵 SPECIALIZED**: store-manager, wallet-component-builder, v2-migration
 
-### 🐛 Known Issues & TODOs
+### Agent Usage Patterns
+```
+# For new features
+parallel: [project-architect, security-auditor, test-runner]
+
+# For performance issues
+parallel: [performance-optimizer, test-runner]
+
+# For security updates
+parallel: [security-auditor, checkpoint-manager, test-runner]
+```
+
+For detailed agent descriptions and usage, see: @/docs/claude/AGENT_REFERENCE.md
+
+## Current Status & Known Issues
+
+### Protected Files - DO NOT MODIFY
+- SimpleTooltip.svelte - Manually optimized
+- `export const prerender` configurations
+- `export const ssr` configurations
+
+### Active Issues (Priority Order)
 
 #### Priority Bugs to Fix:
 1. **Idle Timeout System**
@@ -92,27 +163,12 @@ pnpm run dev:chrome     # Run the pnpm commands from /yakkl root directory
 - `founding_member` - Pro + perks
 - `enterprise` - Business features
 
-## Development Workflow
-### Starting a New Task
-1. Use project-architect for analysis: `Use the project-architect agent to analyze...`
-2. Follow recommended agent sequence
-3. Create checkpoints before major changes
-4. After completing all code then run `pnpm run dev:chrome` if running in the yakkl-wallet project. Fix all warnings and errors - continue this until all warning and errors are gone
-5. Update documentation after completion
-
-### Quick Agent Reference
-- **project-architect**: Start here for any task
-- **wallet-component-builder**: UI components
-- **blockchain-integration**: Web3/contracts
-- **store-manager**: State management
-- **security-auditor**: Security review
-- **test-runner**: Testing
-- **performance-optimizer**: Optimization
-- **v2-migration**: v1→v2 features
-
-### Finished your task and ready to return control back to a human
-- ALWAYS run `pnpm run dev:chrome` from the /yakkl-wallet project directory of the mono-repo
-- Fix any error or warnings until they are all completed and everything compiles cleaning (repeat if needed)
+### Task Completion Checklist
+1. Run `pnpm run dev:chrome` from /yakkl-wallet directory
+2. Fix all warnings and errors
+3. Run tests to ensure nothing broke
+4. Update relevant documentation
+5. Create checkpoint if significant changes were made
 
 ## Recent Architecture Improvements
 
@@ -244,5 +300,24 @@ The YAKKL project includes both public and private repositories. When working in
 - **Adaptive Intelligence**: Learn from usage patterns
 - **Progressive Disclosure**: Show complexity only when needed
 
+
 ---
-*For comprehensive project documentation, architecture, and rules, see `.claude/PROJECT_CONTEXT.md`*
+
+# Included Documentation
+
+## Core Rules & Guidelines
+@/docs/claude/RULES.md
+
+## Architecture Documentation
+@/docs/claude/WALLET_ARCHITECTURE.md
+@/docs/claude/AI_CACHING_SYSTEM.md
+@/docs/claude/DATA_ROLLUP_SYSTEM.md
+
+## Development Resources
+@/docs/claude/DEVELOPMENT_PATTERNS.md
+@/docs/claude/CLAUDE_AGENTS_GUIDE.md
+@/docs/claude/AGENT_REFERENCE.md
+
+## Project Status
+@/docs/claude/ROUTES_STRUCTURE.md
+@/docs/claude/V2_MIGRATION_STATUS.md

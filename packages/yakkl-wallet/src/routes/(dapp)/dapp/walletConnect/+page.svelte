@@ -4,14 +4,14 @@
 	import { page } from '$app/stores';
 	import {
 		yakklConnectedDomainsStore,
-		getSettings,
+		getYakklSettings,
 		yakklDappConnectRequestStore
 	} from '$lib/common/stores';
 	import { PATH_LOGIN, YAKKL_DAPP, PATH_DAPP_ACCOUNTS } from '$lib/common/constants';
 	import { onMount, onDestroy } from 'svelte';
 
 	import type { Runtime } from 'webextension-polyfill';
-	import type { Settings } from '$lib/common';
+	import type { YakklSettings } from '$lib/common';
 
 	type RuntimePort = Runtime.Port | undefined;
 
@@ -39,7 +39,7 @@
 	// NOTE: domains will be added (if not already there at the next step - accounts)
 	async function handleIsLocked() {
 		try {
-			let yakklSettings = (await getSettings()) as Settings;
+			let yakklSettings = (await getYakklSettings()) as YakklSettings;
 
 			if (yakklSettings.init && yakklSettings.isLocked === true) {
 				goto(PATH_LOGIN + '?requestId=' + requestId); // May force login auth every time so all of the checks would not be needed!

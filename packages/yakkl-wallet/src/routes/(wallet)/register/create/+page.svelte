@@ -2,8 +2,8 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import {
-    getSettings,
-    setSettingsStorage,
+    getYakklSettings,
+    setYakklSettingsStorage,
     setProfileStorage,
     setPreferencesStorage,
     yakklUserNameStore
@@ -289,7 +289,7 @@
       };
 
       // Get current settings and update
-      const settings = await getSettings();
+      const settings = await getYakklSettings();
       if (settings) {
         settings.init = true;
         settings.legal.termsAgreed = true;
@@ -299,7 +299,7 @@
         // Save all data
         await setProfileStorage(profile);
         await setPreferencesStorage(preferences);
-        await setSettingsStorage(settings);
+        await setYakklSettingsStorage(settings);
 
         // Set username in store
         $yakklUserNameStore = fullUsername;

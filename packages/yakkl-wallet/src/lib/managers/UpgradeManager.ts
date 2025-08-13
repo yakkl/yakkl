@@ -1,6 +1,6 @@
 import { log } from './Logger';
 import { dateString } from '$lib/common/datetime';
-import { getProfile, setProfileStorage, getSettings, setSettingsStorage } from '$lib/common/stores';
+import { getProfile, setProfileStorage, getYakklSettings, setYakklSettingsStorage } from '$lib/common/stores';
 import { encryptData, decryptData } from '$lib/common/encryption';
 import { AccessSourceType, PlanType, PromoClassificationType } from '$lib/common/types';
 import { isEncryptedData } from '$lib/common/misc';
@@ -93,7 +93,7 @@ export class UpgradeManager {
 
 			// Get current profile and settings
 			const profile = await getProfile();
-			const settings = await getSettings();
+			const settings = await getYakklSettings();
 
 			if (!profile || !settings) {
 				throw new Error('Profile or settings not found');
@@ -154,7 +154,7 @@ export class UpgradeManager {
 
 			// Save changes
 			await setProfileStorage(profile);
-			await setSettingsStorage(settings);
+			await setYakklSettingsStorage(settings);
 
 			// Send completion message
 			this.sendMessage({

@@ -6,7 +6,7 @@
 import { log } from '$lib/managers/Logger';
 import { getObjectFromLocalStorage } from '$lib/common/backgroundSecuredStorage';
 import { STORAGE_YAKKL_SETTINGS, STORAGE_YAKKL_PROFILE } from '$lib/common/constants';
-import type { Settings, Profile } from '$lib/common/interfaces';
+import type { Profile, YakklSettings } from '$lib/common/interfaces';
 import { getPermission } from '$lib/permissions';
 import browser from 'webextension-polyfill';
 
@@ -80,7 +80,7 @@ export async function validateBackgroundRequest(
     // The popup will handle authentication
     if (isPopupMethod) {
       // Check if wallet is at least initialized
-      const settings = await getObjectFromLocalStorage<Settings>(STORAGE_YAKKL_SETTINGS);
+      const settings = await getObjectFromLocalStorage<YakklSettings>(STORAGE_YAKKL_SETTINGS);
 
       if (!settings || !settings.legal?.termsAgreed) {
         return {
@@ -102,7 +102,7 @@ export async function validateBackgroundRequest(
     // For protected methods, check authentication
     if (requiresAuth) {
       // Check wallet settings
-      const settings = await getObjectFromLocalStorage<Settings>(STORAGE_YAKKL_SETTINGS);
+      const settings = await getObjectFromLocalStorage<YakklSettings>(STORAGE_YAKKL_SETTINGS);
 
       if (!settings) {
         return {

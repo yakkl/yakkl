@@ -5,7 +5,7 @@ import { openWindows } from '$contexts/background/extensions/chrome/ui';
 import { showExtensionPopup } from '$contexts/background/extensions/chrome/ui';
 import { STORAGE_YAKKL_SETTINGS } from '$lib/common/constants';
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from '$lib/common/backgroundSecuredStorage';
-import type { Settings } from '$lib/common/interfaces';
+import type { YakklSettings } from '$lib/common/interfaces';
 
 // NOTE: This can only be used in the background context
 
@@ -275,7 +275,7 @@ export class SingletonWindowManager {
 				log.warn('Session storage operation failed', false, error);
 			}
 
-      const settings = await getObjectFromLocalStorage<Settings>(STORAGE_YAKKL_SETTINGS);
+      const settings = await getObjectFromLocalStorage<YakklSettings>(STORAGE_YAKKL_SETTINGS);
       if (settings) {
         settings.isLocked = true;
         await setObjectInLocalStorage(STORAGE_YAKKL_SETTINGS, settings);

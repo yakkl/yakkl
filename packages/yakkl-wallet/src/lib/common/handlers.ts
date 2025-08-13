@@ -1,12 +1,13 @@
 import { setIconLock } from '$lib/utilities/utilities';
 import { dateString } from './datetime';
-import type { Settings } from './interfaces';
+import type { YakklSettings } from './interfaces';
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from './storage';
 import { isBrowserEnv } from './environment';
 import { stopLockIconTimer } from '$contexts/background/extensions/chrome/iconTimer';
 import { yakklCurrentlySelectedStore } from './stores';
 import { get } from 'svelte/store';
 import { log } from '$lib/managers/Logger';
+import { STORAGE_YAKKL_SETTINGS } from './constants';
 
 // Handlers / Callbacks that are not used as listeners in the extension
 
@@ -17,12 +18,12 @@ export async function handleLockDown() {
 			log.info('handleLockDown: Setting icon lock...', false);
 
 			await setIconLock();
-			const yakklSettings = (await getObjectFromLocalStorage('settings')) as Settings;
+			const yakklSettings = (await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS)) as YakklSettings;
 			if (yakklSettings && !yakklSettings.isLocked) {
 				yakklSettings.isLocked = true;
 				yakklSettings.isLockedHow = 'window_exit';
 				yakklSettings.updateDate = dateString();
-				await setObjectInLocalStorage('settings', yakklSettings);
+				await setObjectInLocalStorage(STORAGE_YAKKL_SETTINGS, yakklSettings);
 				const yakklCurrentlySelected = get(yakklCurrentlySelectedStore);
 				yakklCurrentlySelected.shortcuts.isLocked = true;
 				yakklCurrentlySelectedStore.set(yakklCurrentlySelected);
