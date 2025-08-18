@@ -7,15 +7,29 @@ import { TimerManager } from '$lib/managers/TimerManager';
 import type { TokenData } from '$lib/common/interfaces';
 import { TIMER_TOKEN_PRICE_CYCLE_TIME } from './constants';
 import { balanceCacheManager } from '$lib/managers/BalanceCacheManager';
-import { EthereumBigNumber } from './bignumber-ethereum';
 
 let priceManager: PriceManager | null = null;
-let priceUpdater: any | null = null;
+let priceUpdater: { subscribe: any; fetchPrices: (tokens: TokenData[]) => Promise<TokenData[]> } | null = null;
 
 const fetchingActive = writable(false); // Prevents duplicate fetches
 
+// Initialize priceManager and priceUpdater before any usage
+function initializePriceUpdater() {
+	if (!priceManager) {
+		priceManager = new PriceManager();
+	}
+	if (!priceUpdater) {
+		priceUpdater = createPriceUpdater(priceManager);
+	}
+}
+
 // NOTE: May want to pass in priceManager as a parameter to allow for different configurations
 export async function updateTokenPrices() {
+	// Ensure priceUpdater is initialized before use
+	if (!priceUpdater) {
+		initializePriceUpdater();
+	}
+
 	if (get(fetchingActive)) return; // Prevent concurrent fetches
 	fetchingActive.set(true);
 
@@ -27,7 +41,7 @@ export async function updateTokenPrices() {
 			return;
 		}
 
-		const updatedTokens: TokenData[] = await priceUpdater.fetchPrices(tokens);
+		const updatedTokens: TokenData[] = await priceUpdater!.fetchPrices(tokens);
 		if (!updatedTokens || updatedTokens.length === 0) {
 			log.warn('updateTokenPrices: Fetched prices returned empty.');
 			return;
@@ -56,12 +70,12 @@ export async function updateTokenPrices() {
 					const quantityStr = String(entry.quantity);
 					const quantityWei = BigInt(quantityStr);
 					const priceUSD = Number(updatedToken.price.price);
-					
+
 					// Calculate value in USD using proper decimal handling
 					// Convert wei to ETH, then multiply by USD price
 					const ethAmount = Number(quantityWei) / 1e18;
 					const valueUSD = ethAmount * priceUSD;
-					
+
 					// Store as cents (bigint) to maintain precision
 					const valueCents = BigInt(Math.round(valueUSD * 100));
 
@@ -89,11 +103,11 @@ export async function updateTokenPrices() {
 			// CRITICAL FIX: ethToken.price.price is a USD value (e.g., 4381.26), NOT wei!
 			// Do NOT use EthereumBigNumber.from() which assumes 18 decimals
 			const ethPriceUSD = Number(ethToken.price.price);
-			
+
 			if (ethPriceUSD && ethPriceUSD > 0) {
 				// Store price as integer cents to avoid floating-point errors
 				const ethPriceCents = Math.round(ethPriceUSD * 100);
-				
+
 				// Update balance cache with the USD price
 				balanceCacheManager.updatePriceForAllEntries(ethPriceUSD);
 				log.debug('[updateTokenPrices] Updated cached entries with ETH price:', false, {
@@ -117,12 +131,7 @@ const timerManager = TimerManager.getInstance();
 
 if (!timerManager.hasTimer('tokenPriceUpdater')) {
 	log.info('Setting up token price updater timer');
-	if (!priceManager) {
-		priceManager = new PriceManager();
-	}
-	if (!priceUpdater) {
-		priceUpdater = createPriceUpdater(priceManager);
-	}
+	initializePriceUpdater(); // Use the new initialization function
 	// Setup a timer to call `updateTokenPrices()` every 15s
 	timerManager.addTimer(
 		'tokenPriceUpdater',

@@ -57,6 +57,63 @@ function createTransactionStore() {
 
   log.info('TransactionStore: Store created, setting up subscriptions');
 
+  // Subscribe to wallet cache changes for reactive updates
+  walletCacheStore.subscribe(async (cache) => {
+    const account = get(currentAccount);
+    const chain = get(currentChain);
+    
+    if (!account?.address || !chain?.chainId) {
+      return;
+    }
+    
+    // Get transactions from the updated cache
+    const accountCache = cache?.chainAccountCache?.[chain.chainId]?.[account.address.toLowerCase()];
+    const walletCacheTransactions = accountCache?.transactions?.transactions || [];
+    
+    // Only update if we have transactions or if they've been cleared
+    const currentState = get({ subscribe });
+    if (walletCacheTransactions.length > 0 || 
+        (currentState.transactions.length > 0 && walletCacheTransactions.length === 0)) {
+      log.debug('TransactionStore: Wallet cache updated, refreshing transactions', false, {
+        newCount: walletCacheTransactions.length,
+        oldCount: currentState.transactions.length
+      });
+      
+      // Convert to TransactionDisplay format
+      const displayTransactions: TransactionDisplay[] = walletCacheTransactions.map((tx: any) => ({
+        hash: tx.hash,
+        from: tx.from,
+        to: tx.to,
+        value: tx.value,
+        timestamp: tx.timestamp,
+        status: tx.status || 'success',
+        chainId: chain.chainId,
+        nonce: tx.nonce,
+        gas: tx.gas,
+        gasPrice: tx.gasPrice,
+        blockNumber: tx.blockNumber,
+        confirmations: tx.confirmations,
+        type: tx.from.toLowerCase() === account.address.toLowerCase() ? 'send' : 'receive'
+      }));
+      
+      // Sort according to current sort order
+      const sortOrder = currentState.sortOrder;
+      if (sortOrder === 'oldest') {
+        displayTransactions.sort((a, b) => a.timestamp - b.timestamp);
+      } else {
+        displayTransactions.sort((a, b) => b.timestamp - a.timestamp);
+      }
+      
+      // Update the store
+      update(state => ({
+        ...state,
+        transactions: displayTransactions,
+        loading: { isLoading: false },
+        error: { hasError: false }
+      }));
+    }
+  });
+
   // Auto-refresh when account changes
   currentAccount.subscribe(async (account) => {
     log.debug('TransactionStore: Account subscription triggered:', false, {
@@ -69,30 +126,8 @@ function createTransactionStore() {
     if (account && account.address && account.address !== currentAccountAddress) {
       currentAccountAddress = account.address;
       log.info('TransactionStore: Account changed, loading transactions for:', false, account.address);
-
-      // First try to load from cache for immediate display
-      const chain = get(currentChain);
-      if (chain?.chainId) {
-        ensureServicesInitialized();
-        const currentState = get({ subscribe });
-        const cachedTransactions = await cacheManager!.getCachedTransactions(
-          account.address,
-          chain.chainId,
-          currentState.sortOrder
-        );
-
-        if (cachedTransactions) {
-          log.info('TransactionStore: Using cached transactions:', false, cachedTransactions.length);
-          update(state => ({
-            ...state,
-            transactions: cachedTransactions,
-            loading: { isLoading: false },
-            error: { hasError: false }
-          }));
-        }
-      }
-
-      // Then fetch fresh data
+      
+      // Load transactions from wallet cache
       await loadTransactions(account.address);
     }
   });
@@ -109,29 +144,10 @@ function createTransactionStore() {
     if (chain && chain.chainId !== currentChainId) {
       currentChainId = chain.chainId;
       const account = get(currentAccount);
-      if (account && account.address) {
+      
+      if (account?.address) {
         log.info('TransactionStore: Chain changed to', false, chain.name, 'chainId:', chain.chainId, ', reloading transactions');
-
-        // First try to load from cache for immediate display
-        ensureServicesInitialized();
-        const currentState = get({ subscribe });
-        const cachedTransactions = await cacheManager!.getCachedTransactions(
-          account.address,
-          chain.chainId,
-          currentState.sortOrder
-        );
-
-        if (cachedTransactions) {
-          log.info('TransactionStore: Using cached transactions:', false, cachedTransactions.length);
-          update(state => ({
-            ...state,
-            transactions: cachedTransactions,
-            loading: { isLoading: false },
-            error: { hasError: false }
-          }));
-        }
-
-        // Then fetch fresh data
+        // Load transactions from wallet cache
         await loadTransactions(account.address);
       } else {
         log.info('TransactionStore: Chain changed but no account selected');
@@ -147,182 +163,72 @@ function createTransactionStore() {
   });
 
   async function loadTransactions(address: string) {
-    log.info('TransactionStore: Starting to load transactions for:', false, address);
+    log.info('TransactionStore: Loading transactions from wallet cache for:', false, address);
 
     try {
       const chain = get(currentChain);
       if (!chain?.chainId) {
-        throw new Error('No chain selected');
+        log.warn('TransactionStore: No chain selected');
+        update(state => ({
+          ...state,
+          transactions: [],
+          loading: { isLoading: false },
+          error: { hasError: false }
+        }));
+        return;
       }
 
-      log.info('TransactionStore: Chain info:', false, {
+      log.debug('TransactionStore: Chain info:', false, {
         chainId: chain.chainId,
         chainName: chain.name,
         isTestnet: chain.isTestnet
       });
 
-      // First, try to load from the unified wallet cache (using static import)
+      // Load from the unified wallet cache
+      // The wallet cache is synced with storage changes automatically
       const cache = await walletCacheStore.getCache();
       
       // Check if we have transactions in the wallet cache
       const accountCache = cache?.chainAccountCache?.[chain.chainId]?.[address.toLowerCase()];
       const walletCacheTransactions = accountCache?.transactions?.transactions || [];
       
-      if (walletCacheTransactions.length > 0) {
-        log.info('TransactionStore: Loading from wallet cache:', false, walletCacheTransactions.length, 'transactions');
-        
-        // Convert to TransactionDisplay format
-        const displayTransactions: TransactionDisplay[] = walletCacheTransactions.map((tx: any) => ({
-          hash: tx.hash,
-          from: tx.from,
-          to: tx.to,
-          value: tx.value,
-          timestamp: tx.timestamp,
-          status: tx.status || 'success',
-          chainId: chain.chainId,
-          nonce: tx.nonce,
-          gas: tx.gas,
-          gasPrice: tx.gasPrice,
-          blockNumber: tx.blockNumber,
-          confirmations: tx.confirmations,
-          type: tx.from.toLowerCase() === address.toLowerCase() ? 'send' : 'receive'
-        }));
-        
-        // Sort according to current sort order
-        const currentState = get({ subscribe });
-        const sortOrder = currentState.sortOrder;
-        if (sortOrder === 'oldest') {
-          displayTransactions.sort((a, b) => a.timestamp - b.timestamp);
-        } else {
-          displayTransactions.sort((a, b) => b.timestamp - a.timestamp);
-        }
-        
-        // Show wallet cache data immediately
-        update(state => ({
-          ...state,
-          transactions: displayTransactions,
-          loading: { isLoading: false },
-          error: { hasError: false }
-        }));
-        
-        // Don't return early - still try to fetch fresh data
-      }
-
-      // Fall back to old cache manager if wallet cache is empty
-      ensureServicesInitialized();
+      log.info('TransactionStore: Found transactions in wallet cache:', false, walletCacheTransactions.length);
+      
+      // Convert to TransactionDisplay format
+      const displayTransactions: TransactionDisplay[] = walletCacheTransactions.map((tx: any) => ({
+        hash: tx.hash,
+        from: tx.from,
+        to: tx.to,
+        value: tx.value,
+        timestamp: tx.timestamp,
+        status: tx.status || 'success',
+        chainId: chain.chainId,
+        nonce: tx.nonce,
+        gas: tx.gas,
+        gasPrice: tx.gasPrice,
+        blockNumber: tx.blockNumber,
+        confirmations: tx.confirmations,
+        type: tx.from.toLowerCase() === address.toLowerCase() ? 'send' : 'receive'
+      }));
+      
+      // Sort according to current sort order
       const currentState = get({ subscribe });
-      const cachedTransactions = await cacheManager!.getCachedTransactions(
-        address,
-        chain.chainId,
-        currentState.sortOrder
-      );
-
-      if (!walletCacheTransactions.length && cachedTransactions && cachedTransactions.length > 0) {
-        log.info('TransactionStore: Loading from old cache:', false, cachedTransactions.length, 'transactions');
-
-        // Show cached data immediately
-        update(state => ({
-          ...state,
-          transactions: cachedTransactions,
-          loading: { isLoading: false },
-          error: { hasError: false }
-        }));
-      } else if (!walletCacheTransactions.length) {
-        // No cache, show loading state
-        update(state => ({
-          ...state,
-          loading: { isLoading: true, message: 'Loading transactions...' }
-        }));
-      }
-
-      // Now fetch fresh data from service
-      let response;
-      try {
-        ensureServicesInitialized();
-        response = await txService!.getTransactionHistory(address);
-        log.info('TransactionStore: Got response:', false, {
-          success: response.success,
-          hasData: !!response.data,
-          dataLength: response.data?.length || 0,
-          firstItem: response.data?.[0] ? {
-            hash: response.data[0].hash,
-            type: response.data[0].type,
-            value: response.data[0].value,
-            timestamp: response.data[0].timestamp
-          } : null
-        });
-      } catch (error) {
-        log.warn('TransactionStore: Service call failed, using cache only:', false, error);
-        response = { success: false, data: [] };
-      }
-
-      if (response.success && response.data && response.data.length > 0) {
-        log.info('TransactionStore: Received fresh transactions:', false, response.data.length, 'items');
-        log.debug('TransactionStore: First transaction sample:', false, {
-          hash: response.data[0]?.hash,
-          type: response.data[0]?.type,
-          value: response.data[0]?.value,
-          timestamp: response.data[0]?.timestamp,
-          status: response.data[0]?.status
-        });
-
-        // Update cache with new transactions
-        try {
-          ensureServicesInitialized();
-          await cacheManager!.updateCache(address, chain.chainId, response.data);
-        } catch (error) {
-          log.warn('TransactionStore: Failed to update cache:', false, error);
-        }
-
-        // Sort according to current sort order
-        const sortedTransactions = [...response.data];
-        const currentState = get({ subscribe });
-        const sortOrder = currentState.sortOrder;
-        if (sortOrder === 'oldest') {
-          sortedTransactions.sort((a, b) => a.timestamp - b.timestamp);
-        } else {
-          sortedTransactions.sort((a, b) => b.timestamp - a.timestamp);
-        }
-
-        update(state => {
-          log.debug('TransactionStore: Updating state with fresh transactions');
-          const newState = {
-            ...state,
-            transactions: sortedTransactions,
-            loading: { isLoading: false },
-            error: { hasError: false }
-          };
-          log.debug('TransactionStore: New state transactions:', false, newState.transactions.length);
-          log.debug('TransactionStore: New state first transaction:', false, {
-            hash: newState.transactions[0]?.hash,
-            type: newState.transactions[0]?.type,
-            value: newState.transactions[0]?.value
-          });
-          return newState;
-        });
+      const sortOrder = currentState.sortOrder;
+      if (sortOrder === 'oldest') {
+        displayTransactions.sort((a, b) => a.timestamp - b.timestamp);
       } else {
-        // If no fresh data, keep cached data if available
-        log.info('TransactionStore: No fresh transaction data available, keeping cached data');
-        if (cachedTransactions && cachedTransactions.length > 0) {
-          // Keep cached data
-          log.info('TransactionStore: Keeping cached data:', false, cachedTransactions.length, 'transactions');
-          update(state => ({
-            ...state,
-            transactions: cachedTransactions,
-            loading: { isLoading: false },
-            error: { hasError: false }
-          }));
-        } else {
-          // Only clear if we have no cached data at all
-          log.info('TransactionStore: No cached data available, showing empty state');
-          update(state => ({
-            ...state,
-            transactions: [],
-            loading: { isLoading: false },
-            error: { hasError: false }
-          }));
-        }
+        displayTransactions.sort((a, b) => b.timestamp - a.timestamp);
       }
+      
+      // Update the store with wallet cache data
+      update(state => ({
+        ...state,
+        transactions: displayTransactions,
+        loading: { isLoading: false },
+        error: { hasError: false }
+      }));
+      
+      // No need to fetch from external sources - background handles that
     } catch (error) {
       log.warn('TransactionStore: Error loading transactions:', false, error);
       // Still show empty state rather than error

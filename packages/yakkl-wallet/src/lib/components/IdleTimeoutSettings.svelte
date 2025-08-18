@@ -1,14 +1,14 @@
 <script lang="ts">
-	import { getSettings, setSettingsStorage } from '$lib/common/stores';
-	import type { Settings } from '$lib/common/interfaces';
+	import { getYakklSettings, setYakklSettingsStorage } from '$lib/common/stores';
+	import type { YakklSettings } from '$lib/common/interfaces';
 	import { log } from '$lib/managers/Logger';
 	import Icon from './Icon.svelte';
 	import Button from './Button.svelte';
-	
-	let settings: Settings | null = $state(null);
+
+	let settings: YakklSettings | null = $state(null);
 	let isSaving = $state(false);
 	let showAdvanced = $state(false);
-	
+
 	// Form fields with defaults
 	let enabled = $state(true);
 	let detectionMinutes = $state(5);
@@ -19,12 +19,12 @@
 	let autoDismissOnActivity = $state(true);
 	let warningVolume = $state(0.7);
 	let soundPoints = $state([30, 10, 5]);
-	
+
 	// Sound point inputs for UI
 	let soundPoint1 = $state(30);
 	let soundPoint2 = $state(10);
 	let soundPoint3 = $state(5);
-	
+
 	// Preset configurations
 	const presets = [
 		{
@@ -55,10 +55,10 @@
 			}
 		}
 	];
-	
+
 	async function loadSettings() {
 		try {
-			settings = await getSettings();
+			settings = await getYakklSettings();
 			if (settings?.idleSettings) {
 				enabled = settings.idleSettings.enabled ?? true;
 				detectionMinutes = settings.idleSettings.detectionMinutes ?? 5;
@@ -69,7 +69,7 @@
 				autoDismissOnActivity = settings.idleSettings.autoDismissOnActivity ?? true;
 				warningVolume = settings.idleSettings.warningVolume ?? 0.7;
 				soundPoints = settings.idleSettings.soundPoints ?? [30, 10, 5];
-				
+
 				// Update sound point inputs
 				soundPoint1 = soundPoints[0] ?? 30;
 				soundPoint2 = soundPoints[1] ?? 10;
@@ -79,15 +79,15 @@
 			log.error('Failed to load idle settings:', false, error);
 		}
 	}
-	
+
 	async function saveSettings() {
 		if (!settings) return;
-		
+
 		isSaving = true;
 		try {
 			// Update sound points array from inputs
 			soundPoints = [soundPoint1, soundPoint2, soundPoint3].filter(p => p > 0).sort((a, b) => b - a);
-			
+
 			settings.idleSettings = {
 				enabled,
 				detectionMinutes,
@@ -100,10 +100,10 @@
 				soundPoints,
 				warningSound: settings.idleSettings?.warningSound
 			};
-			
-			await setSettingsStorage(settings);
+
+			await setYakklSettingsStorage(settings);
 			log.info('Idle settings saved successfully');
-			
+
 			// Reload idle manager with new settings
 			const browser = await import('webextension-polyfill');
 			await browser.default.runtime.sendMessage({
@@ -115,21 +115,21 @@
 			isSaving = false;
 		}
 	}
-	
+
 	function applyPreset(preset: typeof presets[0]) {
 		detectionMinutes = preset.config.detectionMinutes;
 		graceMinutes = preset.config.graceMinutes;
 		countdownSeconds = preset.config.countdownSeconds;
 	}
-	
+
 	// Calculate total time until lock
 	let totalMinutes = $derived(enabled ? detectionMinutes + graceMinutes + (countdownSeconds / 60) : 0);
 	let totalTimeDisplay = $derived(
-		totalMinutes > 0 
+		totalMinutes > 0
 			? `${Math.floor(totalMinutes)} min ${Math.round((totalMinutes % 1) * 60)} sec`
 			: 'Disabled'
 	);
-	
+
 	// Load settings on mount
 	$effect(() => {
 		loadSettings();
@@ -146,7 +146,7 @@
 			Configure automatic wallet locking when idle
 		</p>
 	</div>
-	
+
 	<!-- Enable/Disable Toggle -->
 	<div class="form-control mb-4">
 		<label class="label cursor-pointer">
@@ -158,18 +158,18 @@
 			/>
 		</label>
 	</div>
-	
+
 	{#if enabled}
 		<!-- Presets -->
 		<div class="presets mb-6">
-			<label class="label">
+			<div class="label">
 				<span class="label-text text-sm">Quick Presets</span>
-			</label>
+			</div>
 			<div class="grid grid-cols-3 gap-2">
 				{#each presets as preset}
 					<button
 						type="button"
-						on:click={() => applyPreset(preset)}
+						onclick={() => applyPreset(preset)}
 						class="btn btn-sm btn-outline"
 					>
 						<div class="text-left">
@@ -180,16 +180,17 @@
 				{/each}
 			</div>
 		</div>
-		
+
 		<!-- Main Settings -->
 		<div class="space-y-4">
 			<!-- Detection Time -->
 			<div class="form-control">
-				<label class="label">
+				<label for="detection-slider" class="label">
 					<span class="label-text">Idle Detection Time</span>
 					<span class="label-text-alt">{detectionMinutes} minutes</span>
 				</label>
 				<input
+					id="detection-slider"
 					type="range"
 					min="1"
 					max="30"
@@ -200,14 +201,15 @@
 					Time before detecting idle state
 				</div>
 			</div>
-			
+
 			<!-- Grace Period -->
 			<div class="form-control">
-				<label class="label">
+				<label for="grace-slider" class="label">
 					<span class="label-text">Grace Period</span>
 					<span class="label-text-alt">{graceMinutes} minutes</span>
 				</label>
 				<input
+					id="grace-slider"
 					type="range"
 					min="0"
 					max="10"
@@ -218,14 +220,15 @@
 					Additional time after idle detection before countdown
 				</div>
 			</div>
-			
+
 			<!-- Countdown Duration -->
 			<div class="form-control">
-				<label class="label">
+				<label for="countdown-slider" class="label">
 					<span class="label-text">Final Countdown</span>
 					<span class="label-text-alt">{countdownSeconds} seconds</span>
 				</label>
 				<input
+					id="countdown-slider"
 					type="range"
 					min="10"
 					max="60"
@@ -237,16 +240,16 @@
 					Final countdown before locking
 				</div>
 			</div>
-			
+
 			<!-- Total Time Display -->
 			<div class="alert alert-info">
 				<Icon name="info" class="w-4 h-4" />
 				<span>Total time until lock: <strong>{totalTimeDisplay}</strong></span>
 			</div>
-			
+
 			<!-- Notification Settings -->
 			<div class="divider">Notifications</div>
-			
+
 			<div class="space-y-2">
 				<div class="form-control">
 					<label class="label cursor-pointer">
@@ -258,7 +261,7 @@
 						/>
 					</label>
 				</div>
-				
+
 				<div class="form-control">
 					<label class="label cursor-pointer">
 						<span class="label-text">Show Countdown Modal</span>
@@ -269,7 +272,7 @@
 						/>
 					</label>
 				</div>
-				
+
 				<div class="form-control">
 					<label class="label cursor-pointer">
 						<span class="label-text">Auto-dismiss on Activity</span>
@@ -281,28 +284,29 @@
 					</label>
 				</div>
 			</div>
-			
+
 			<!-- Advanced Settings -->
 			<div class="divider">
 				<button
 					type="button"
-					on:click={() => showAdvanced = !showAdvanced}
+					onclick={() => showAdvanced = !showAdvanced}
 					class="btn btn-xs btn-ghost gap-1"
 				>
 					Advanced
 					<Icon name={showAdvanced ? 'chevron-up' : 'chevron-down'} class="w-3 h-3" />
 				</button>
 			</div>
-			
+
 			{#if showAdvanced}
 				<div class="space-y-4 p-4 bg-base-200 rounded-lg">
 					<!-- Warning Volume -->
 					<div class="form-control">
-						<label class="label">
+						<label for="volume-slider" class="label">
 							<span class="label-text">Warning Volume</span>
 							<span class="label-text-alt">{Math.round(warningVolume * 100)}%</span>
 						</label>
 						<input
+							id="volume-slider"
 							type="range"
 							min="0"
 							max="1"
@@ -311,12 +315,12 @@
 							class="range range-sm"
 						/>
 					</div>
-					
+
 					<!-- Sound Alert Points -->
 					<div class="form-control">
-						<label class="label">
+						<div class="label">
 							<span class="label-text">Sound Alert Points (seconds)</span>
-						</label>
+						</div>
 						<div class="grid grid-cols-3 gap-2">
 							<input
 								type="number"
@@ -351,11 +355,11 @@
 			{/if}
 		</div>
 	{/if}
-	
+
 	<!-- Save Button -->
 	<div class="mt-6">
 		<Button
-			on:click={saveSettings}
+			onclick={saveSettings}
 			variant="primary"
 			disabled={isSaving}
 			class="w-full"
@@ -375,11 +379,11 @@
 	.idle-timeout-settings {
 		@apply space-y-2;
 	}
-	
+
 	.presets button {
 		@apply transition-all duration-200;
 	}
-	
+
 	.presets button:hover {
 		@apply scale-105;
 	}

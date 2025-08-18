@@ -127,7 +127,7 @@ const initialState: ViewState = {
  */
 function createViewStore() {
 	const { subscribe, set, update } = writable<ViewState>(initialState);
-	
+
 	let viewCacheManager: ViewCacheManager | null = null;
 	let autoRefreshTimer: NodeJS.Timeout | null = null;
 	const updateListenerId = 'view-store';
@@ -138,17 +138,17 @@ function createViewStore() {
 	async function initialize() {
 		// Load preferences from localStorage
 		loadPreferences();
-		
+
 		// Initialize ViewCacheManager
 		viewCacheManager = ViewCacheManager.getInstance();
 		viewCacheManager.registerUpdateListener(updateListenerId, handleCacheUpdate);
-		
+
 		// Load initial data
 		await refreshAllViews();
-		
+
 		// Start auto-refresh if enabled
 		startAutoRefresh();
-		
+
 		log.info('[ViewStore] Initialized');
 	}
 
@@ -188,15 +188,15 @@ function createViewStore() {
 	function handleCacheUpdate(notification: ViewUpdateNotification) {
 		update(state => {
 			const newState = { ...state };
-			
+
 			// Update last refresh time
 			newState.lastRefresh = new Date();
-			
+
 			// Update cache timestamp for affected view
 			if (notification.viewType && notification.viewType !== 'all') {
 				newState.cache.lastUpdated[notification.viewType] = new Date();
 			}
-			
+
 			// Handle specific update types
 			switch (notification.event) {
 				case 'balances-updated':
@@ -213,10 +213,10 @@ function createViewStore() {
 					};
 					break;
 			}
-			
+
 			return newState;
 		});
-		
+
 		log.debug('[ViewStore] Cache update handled', false, notification);
 	}
 
@@ -226,12 +226,12 @@ function createViewStore() {
 	function switchView(view: ViewType) {
 		update(state => {
 			if (view === state.currentView) return state;
-			
+
 			const newHistory = [...state.viewHistory, view];
 			if (newHistory.length > 20) {
 				newHistory.shift();
 			}
-			
+
 			return {
 				...state,
 				currentView: view,
@@ -245,7 +245,7 @@ function createViewStore() {
 				}
 			};
 		});
-		
+
 		log.info('[ViewStore] Switched view', false, { to: view });
 	}
 
@@ -255,10 +255,10 @@ function createViewStore() {
 	function goBack() {
 		update(state => {
 			if (state.viewHistory.length <= 1) return state;
-			
+
 			const newHistory = state.viewHistory.slice(0, -1);
 			const previousView = newHistory[newHistory.length - 1];
-			
+
 			return {
 				...state,
 				currentView: previousView,
@@ -297,7 +297,7 @@ function createViewStore() {
 			preferences: { ...state.preferences, ...prefs }
 		}));
 		savePreferences();
-		
+
 		// Restart auto-refresh if interval changed
 		if ('autoRefreshInterval' in prefs) {
 			startAutoRefresh();
@@ -322,9 +322,9 @@ function createViewStore() {
 	 */
 	async function refreshAllViews() {
 		if (!viewCacheManager) return;
-		
+
 		update(state => ({ ...state, isRefreshing: true }));
-		
+
 		try {
 			const network = get(selectedNetwork);
 			const account = get(currentAccount);
@@ -332,14 +332,14 @@ function createViewStore() {
 				chainId: network?.chainId,
 				accountAddress: account?.address
 			};
-			
+
 			// Load all view data in parallel
 			const [accountsCache, tokensCache, transactionsCache] = await Promise.all([
 				viewCacheManager.getAccountsView(context),
 				viewCacheManager.getTokensView(context),
 				viewCacheManager.getTransactionsView(context)
 			]);
-			
+
 			update(state => ({
 				...state,
 				isRefreshing: false,
@@ -357,7 +357,7 @@ function createViewStore() {
 					}
 				}
 			}));
-			
+
 			log.info('[ViewStore] Refreshed all views');
 		} catch (error) {
 			log.error('[ViewStore] Failed to refresh views', false, error);
@@ -370,17 +370,17 @@ function createViewStore() {
 	 */
 	async function refreshView(viewType: ViewType) {
 		if (!viewCacheManager) return;
-		
+
 		const network = get(selectedNetwork);
 		const account = get(currentAccount);
 		const context = {
 			chainId: network?.chainId,
 			accountAddress: account?.address
 		};
-		
+
 		try {
 			let cache: ViewCache<any>;
-			
+
 			switch (viewType) {
 				case 'accounts':
 					cache = await viewCacheManager.getAccountsView(context);
@@ -396,7 +396,7 @@ function createViewStore() {
 						}
 					}));
 					break;
-					
+
 				case 'tokens':
 					cache = await viewCacheManager.getTokensView(context);
 					update(state => ({
@@ -411,7 +411,7 @@ function createViewStore() {
 						}
 					}));
 					break;
-					
+
 				case 'transactions':
 					cache = await viewCacheManager.getTransactionsView(context);
 					update(state => ({
@@ -427,7 +427,7 @@ function createViewStore() {
 					}));
 					break;
 			}
-			
+
 			log.info('[ViewStore] Refreshed view', false, { viewType });
 		} catch (error) {
 			log.error('[ViewStore] Failed to refresh view', false, { viewType, error });
@@ -443,15 +443,15 @@ function createViewStore() {
 			clearInterval(autoRefreshTimer);
 			autoRefreshTimer = null;
 		}
-		
+
 		const state = get({ subscribe });
 		const interval = state.preferences.autoRefreshInterval;
-		
+
 		if (interval > 0) {
 			autoRefreshTimer = setInterval(() => {
 				refreshAllViews();
 			}, interval * 1000);
-			
+
 			log.info('[ViewStore] Auto-refresh started', false, { interval });
 		}
 	}
@@ -539,7 +539,7 @@ export const filteredTokens = derived(
 	([$viewStore, $network, $account]) => {
 		let tokens = $viewStore.cache.tokens;
 		const filters = $viewStore.filters.tokens;
-		
+
 		// Apply search filter
 		if (filters.search) {
 			const query = filters.search.toLowerCase();
@@ -548,7 +548,7 @@ export const filteredTokens = derived(
 				token.name.toLowerCase().includes(query)
 			);
 		}
-		
+
 		// Filter zero balances
 		if (!filters.showZeroBalances) {
 			tokens = tokens.filter(token => {
@@ -556,11 +556,11 @@ export const filteredTokens = derived(
 				return quantity > 0;
 			});
 		}
-		
+
 		// Sort tokens
 		tokens = [...tokens].sort((a, b) => {
 			let aVal: any, bVal: any;
-			
+
 			switch (filters.sortBy) {
 				case 'name':
 					aVal = a.name.toLowerCase();
@@ -568,27 +568,27 @@ export const filteredTokens = derived(
 					return filters.sortOrder === 'asc'
 						? aVal.localeCompare(bVal)
 						: bVal.localeCompare(aVal);
-					
+
 				case 'value':
 					aVal = a.value || 0;
 					bVal = b.value || 0;
 					return filters.sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
-					
+
 				case 'price':
 					aVal = a.price || 0;
 					bVal = b.price || 0;
 					return filters.sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
-					
+
 				case 'change':
 					aVal = a.change24h || 0;
 					bVal = b.change24h || 0;
 					return filters.sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
-					
+
 				default:
 					return 0;
 			}
 		});
-		
+
 		return tokens;
 	}
 );
@@ -598,7 +598,7 @@ export const filteredTransactions = derived(
 	([$viewStore, $account]) => {
 		let transactions = $viewStore.cache.transactions;
 		const filters = $viewStore.filters.transactions;
-		
+
 		// Apply search filter
 		if (filters.search) {
 			const query = filters.search.toLowerCase();
@@ -610,7 +610,7 @@ export const filteredTransactions = derived(
 				tx.functionName?.toLowerCase().includes(query)
 			);
 		}
-		
+
 		// Apply type filter
 		if (filters.type !== 'all') {
 			transactions = transactions.filter(tx => {
@@ -630,12 +630,12 @@ export const filteredTransactions = derived(
 				}
 			});
 		}
-		
+
 		// Apply status filter
 		if (filters.status !== 'all') {
 			transactions = transactions.filter(tx => tx.status === filters.status);
 		}
-		
+
 		// Apply limit
 		return transactions.slice(0, filters.limit);
 	}
@@ -649,15 +649,15 @@ export const viewStats = derived(
 	$viewStore => {
 		const tokens = $viewStore.cache.tokens;
 		const transactions = $viewStore.cache.transactions;
-		
+
 		const totalTokenValue = tokens.reduce((sum, token) => {
 			const value = typeof token.value === 'number' ? token.value : 0;
 			return sum + value;
 		}, 0);
-		
+
 		const pendingTransactions = transactions.filter(tx => tx.status === 'pending').length;
 		const failedTransactions = transactions.filter(tx => tx.status === 'failed').length;
-		
+
 		return {
 			totalAccounts: $viewStore.cache.accounts.length,
 			totalTokens: tokens.length,
@@ -665,7 +665,7 @@ export const viewStats = derived(
 			totalTransactions: transactions.length,
 			pendingTransactions,
 			failedTransactions,
-			watchlistCount: $viewStore.cache.watchlist.length
+			watchlistCount: $viewStore.cache.watchlist.length,
 		};
 	}
 );

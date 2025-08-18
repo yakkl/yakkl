@@ -227,5 +227,105 @@ export const blockchainHandlers = new Map<string, MessageHandlerFunc>([
       log.error('Failed to check transaction ownership:', false, error);
       return { success: false, error: (error as Error).message };
     }
+  }],
+
+  ['yakkl_getTokenBalance', async (payload): Promise<MessageResponse> => {
+    try {
+      const { tokenAddress, walletAddress, chainId } = payload || {};
+      
+      if (!tokenAddress || !walletAddress) {
+        return { success: false, error: 'Token address and wallet address are required' };
+      }
+      
+      log.info('Blockchain handler: Getting token balance', false, {
+        tokenAddress,
+        walletAddress,
+        chainId: chainId || 1
+      });
+      
+      // Use ProviderRoutingManager to get the best provider with automatic failover
+      // Import dynamically to avoid circular dependencies
+      const { ProviderRoutingManager } = await import('$lib/managers/ProviderRoutingManager');
+      const providerManager = ProviderRoutingManager.getInstance();
+      
+      try {
+        // Get provider (it automatically uses the current chain from store)
+        const provider = await providerManager.getProvider();
+        
+        // Make ERC20 balanceOf call
+        const balanceOfData = `0x70a08231000000000000000000000000${walletAddress.slice(2)}`; // balanceOf(address)
+        
+        const balance = await provider.call({
+          to: tokenAddress,
+          data: balanceOfData
+        });
+        
+        log.info('Successfully fetched token balance', false, { 
+          tokenAddress, 
+          walletAddress, 
+          balance 
+        });
+        
+        return { success: true, data: balance };
+      } catch (error) {
+        log.error('Failed to fetch token balance', false, error);
+        
+        // Try failover provider if available
+        try {
+          const failoverProvider = await providerManager.handleProviderFailure('primary', error);
+          const balance = await failoverProvider.call({
+            to: tokenAddress,
+            data: `0x70a08231000000000000000000000000${walletAddress.slice(2)}`
+          });
+          
+          log.info('Successfully fetched token balance with failover provider', false, { 
+            tokenAddress, 
+            walletAddress, 
+            balance 
+          });
+          
+          return { success: true, data: balance };
+        } catch (failoverError) {
+          log.error('Failover also failed for token balance', false, failoverError);
+          return { 
+            success: false, 
+            error: `Failed to fetch token balance: ${failoverError instanceof Error ? failoverError.message : 'Unknown error'}` 
+          };
+        }
+      }
+      
+    } catch (error) {
+      log.error('Token balance handler error:', false, error);
+      return { 
+        success: false, 
+        error: (error as Error).message || 'Failed to get token balance' 
+      };
+    }
+  }],
+
+  ['yakkl_updateTokenBalances', async (payload): Promise<MessageResponse> => {
+    try {
+      const { address, chainId } = payload || {};
+      
+      log.info('Blockchain handler: Updating token balances', false, {
+        address,
+        chainId
+      });
+      
+      // Import BackgroundIntervalService dynamically to avoid circular dependencies
+      const { BackgroundIntervalService } = await import('$lib/services/background-interval.service');
+      
+      // Trigger the background interval service to update balances
+      const intervalService = BackgroundIntervalService.getInstance();
+      await intervalService.updateAllTokenBalances();
+      
+      return { success: true, data: true };
+    } catch (error) {
+      log.error('Failed to update token balances:', false, error);
+      return { 
+        success: false, 
+        error: (error as Error).message || 'Failed to update token balances' 
+      };
+    }
   }]
 ]);

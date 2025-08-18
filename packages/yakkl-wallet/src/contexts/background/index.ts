@@ -1,9 +1,50 @@
 import { handleMessage, handlePortConnection } from './handlers/MessageHandler';
 import { TransactionMonitorService } from '$lib/services/transactionMonitor.service';
+import { BackgroundIntervalService } from '$lib/services/background-interval.service';
 import { handleBrowserAPIPortConnection } from './handlers/browser-api-port.handler';
 import { createSafeMessageHandler } from '$lib/common/messageChannelValidator';
 import browser from 'webextension-polyfill';
+import { log } from '$lib/common/logger-wrapper';
 
+// Initialize background cache services on extension install/startup
+// This ensures cache services run continuously from the moment the extension is installed
+async function initializeCacheServices() {
+  try {
+    log.info('[Background] Initializing background cache services...');
+    const backgroundIntervals = BackgroundIntervalService.getInstance();
+    await backgroundIntervals.initialize();
+    backgroundIntervals.startAll();
+    log.info('[Background] Background cache services initialized and running');
+  } catch (error) {
+    log.error('[Background] Failed to initialize cache services:', error);
+  }
+}
+
+// Listen for extension install/update events
+browser.runtime.onInstalled.addListener(async (details) => {
+  log.info('[Background] Extension installed/updated:', details.reason);
+  
+  // Initialize cache services on install or update
+  if (details.reason === 'install' || details.reason === 'update') {
+    await initializeCacheServices();
+    
+    // For new installs, set up initial configuration
+    if (details.reason === 'install') {
+      log.info('[Background] New installation detected, setting up initial configuration');
+      // Initial setup can be added here if needed
+    }
+  }
+});
+
+// Listen for browser startup (when browser is opened with extension already installed)
+browser.runtime.onStartup.addListener(async () => {
+  log.info('[Background] Browser startup detected, initializing cache services');
+  await initializeCacheServices();
+});
+
+// Also initialize immediately when background script loads
+// This covers the case where the extension is already installed and enabled
+initializeCacheServices();
 
 // Initialize background context
 browser.runtime.onConnect.addListener((port) => {

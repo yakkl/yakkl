@@ -3,17 +3,17 @@
   import RegistrationOption from '$lib/components/RegistrationOption.svelte';
   import { goto } from '$app/navigation';
   import { log } from '$lib/common/logger-wrapper';
-  import { getSettings, getProfile } from '$lib/common/stores';
-  
+  import { getYakklSettings, getProfile } from '$lib/common/stores';
+
   let loading = $state(true);
   let alreadyRegistered = $state(false);
 
   onMount(async () => {
     // Check if wallet is already registered
     try {
-      const settings = await getSettings();
+      const settings = await getYakklSettings();
       const profile = await getProfile();
-      
+
       if (settings?.init && profile) {
         // Wallet is already registered - prevent re-registration
         alreadyRegistered = true;

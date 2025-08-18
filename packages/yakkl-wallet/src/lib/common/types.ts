@@ -272,7 +272,7 @@ export type DomainName = string;
 
 export type IMAGEPATH = string; // This is a path to a file or directory, URL, or base64 encoded string of an image
 
-import type { YakklCurrentlySelected, Settings, Preferences } from '$lib/common';
+import type { YakklCurrentlySelected, YakklSettings, Preferences } from '$lib/common';
 import type { Blockchain } from '$lib/managers/Blockchain';
 import type { TokenService } from '$lib/managers/blockchains/evm/TokenService';
 import type { Provider } from '$lib/managers/Provider';
@@ -280,7 +280,7 @@ import type { Wallet } from '$lib/managers/Wallet';
 
 export interface LayoutData {
 	currentlySelected: YakklCurrentlySelected | null;
-	yakklSettings: Settings | null;
+	yakklSettings: YakklSettings | null;
 	yakklMiscStore: string;
 	yakklPrimaryAccountsStore: YakklPrimaryAccount[];
 	yakklPreferences: Preferences | null;

@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Volume2, VolumeX, Play } from 'lucide-svelte';
-  import { getSettings, setSettings } from '$lib/common/stores';
-  import type { Settings } from '$lib/common/interfaces';
+  import { getYakklSettings, setYakklSettings } from '$lib/common/stores';
+  import type { YakklSettings } from '$lib/common/interfaces';
   import { log } from '$lib/common/logger-wrapper';
 
   interface Props {
@@ -12,8 +12,8 @@
 
   // Available sounds - using frequencies for built-in sounds
   const SOUND_OPTIONS = [
-    { 
-      id: 'default', 
+    {
+      id: 'default',
       name: 'Default Beep',
       value: 'beep:800:0.2' // frequency:duration
     },
@@ -39,7 +39,7 @@
     }
   ];
 
-  let settings = $state<Settings | null>(null);
+  let settings = $state<YakklSettings | null>(null);
   let soundEnabled = $state(true);
   let selectedSound = $state('default');
   let customSoundUrl = $state('');
@@ -49,7 +49,7 @@
 
   onMount(() => {
     loadSettings();
-    
+
     return () => {
       if (audioContext) {
         audioContext.close();
@@ -59,10 +59,10 @@
 
   async function loadSettings() {
     try {
-      settings = await getSettings();
+      settings = await getYakklSettings();
       if (settings) {
         soundEnabled = settings.soundEnabled !== false; // Default to true
-        
+
         // Find matching sound or set to custom
         const matchingSound = SOUND_OPTIONS.find(s => s.value === settings.sound);
         if (matchingSound) {
@@ -82,7 +82,7 @@
 
     try {
       let soundValue = '';
-      
+
       if (selectedSound === 'custom') {
         soundValue = customSoundUrl;
       } else {
@@ -92,8 +92,8 @@
 
       settings.soundEnabled = soundEnabled;
       settings.sound = soundValue;
-      
-      await setSettings(settings);
+
+      await setYakklSettings(settings);
       log.info('Sound settings saved');
     } catch (error) {
       log.error('Failed to save sound settings', false, error);
@@ -106,7 +106,7 @@
       event.preventDefault();
       event.stopPropagation();
     }
-    
+
     if (!soundEnabled || isPlaying) return;
 
     isPlaying = true;
@@ -130,24 +130,24 @@
         if (!audioContext) {
           audioContext = new AudioContext();
         }
-        
+
         const [, freq, duration] = soundData.split(':');
         const frequency = parseInt(freq) || 800;
         const durationSec = parseFloat(duration) || 0.2;
-        
+
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
-        
+
         oscillator.connect(gainNode);
         gainNode.connect(audioContext.destination);
-        
+
         oscillator.frequency.value = frequency;
         gainNode.gain.value = 0.3;
         gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + durationSec);
-        
+
         oscillator.start();
         oscillator.stop(audioContext.currentTime + durationSec);
-        
+
         oscillator.onended = () => {
           isPlaying = false;
         };
@@ -166,19 +166,19 @@
         if (!audioContext) {
           audioContext = new AudioContext();
         }
-        
+
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
-        
+
         oscillator.connect(gainNode);
         gainNode.connect(audioContext.destination);
-        
+
         oscillator.frequency.value = 800;
         gainNode.gain.value = 0.3;
-        
+
         oscillator.start();
         oscillator.stop(audioContext.currentTime + 0.2);
-        
+
         oscillator.onended = () => {
           isPlaying = false;
         };
@@ -242,7 +242,7 @@
             <option value={sound.id}>{sound.name}</option>
           {/each}
         </select>
-        
+
         <button
           onclick={(e) => playSound(e)}
           disabled={!soundEnabled || isPlaying}

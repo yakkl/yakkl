@@ -1,5 +1,5 @@
 // import browser from 'webextension-polyfill';
-import type { Settings, YakklCurrentlySelected } from '$lib/common/interfaces';
+import type { YakklSettings, YakklCurrentlySelected } from '$lib/common/interfaces';
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from '$lib/common/storage';
 import { setIconLock, setIconUnlock } from '$lib/utilities';
 import {
@@ -21,7 +21,7 @@ export function startLockIconTimer() {
 				try {
 					const yakklSettings = (await getObjectFromLocalStorage(
 						STORAGE_YAKKL_SETTINGS
-					)) as Settings;
+					)) as YakklSettings;
 					const yakklCurrentlySelected = (await getObjectFromLocalStorage(
 						STORAGE_YAKKL_CURRENTLY_SELECTED
 					)) as YakklCurrentlySelected;
@@ -57,7 +57,7 @@ export function startLockIconTimer() {
 export async function stopLockIconTimer() {
 	try {
 		await setIconLock();
-		const yakklSettings = (await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS)) as Settings;
+		const yakklSettings = (await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS)) as YakklSettings;
 		if (yakklSettings) {
 			getTimerManager().removeTimer('iconTimer_lockIcon'); // Stops and clears the timer
 			// Don't send message from background to itself

@@ -2,8 +2,8 @@
 
 import { ethers as ethersv6 } from 'ethers-v6';
 import {
-	setSettingsStorage,
-	getSettings,
+	setYakklSettingsStorage,
+	getYakklSettings,
 	setProfileStorage,
 	getYakklCurrentlySelected,
 	setYakklCurrentlySelectedStorage,
@@ -38,7 +38,7 @@ export async function createPortfolioAccount(yakklMiscStore: string, profile: Pr
 			throw 'The User was not defined.';
 		}
 
-		let yakklSettings = await getSettings();
+		let yakklSettings = await getYakklSettings();
 		if (!yakklSettings) {
 			// noop but could load the defaults. For now we will error out!
 			throw 'The settings data has not been initialized. This could be due to not yet registered or data could be incomplete which requires registering again. If unable to re-register then uninstall and reinstall. No Ethereum data will be impacted.';
@@ -293,7 +293,7 @@ export async function createPortfolioAccount(yakklMiscStore: string, profile: Pr
 
 		await setYakklAccountsStorage(yakklAccounts);
 		await setYakklPrimaryAccountsStorage(yakklPrimaryAccounts);
-		await setSettingsStorage(yakklSettings);
+		await setYakklSettingsStorage(yakklSettings);
 		await setProfileStorage(profileEnc); // Note: Calling function will need to refresh the profile data to be current with these changes
 		await setYakklCurrentlySelectedStorage(yakklCurrentlySelected);
 

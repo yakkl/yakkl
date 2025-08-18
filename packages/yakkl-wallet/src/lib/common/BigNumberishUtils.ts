@@ -14,8 +14,20 @@ export namespace BigNumberishUtils {
 	}
 
 	export function toNumber(value: BigNumberish): number {
+		if (value === null || value === undefined) {
+			throw new Error('Invalid BigNumberish: null or undefined');
+		}
+		
 		const num = BigNumber.toNumber(value);
-		if (num === null) throw new Error('Invalid BigNumberish');
+		if (num === null) {
+			throw new Error(`Invalid BigNumberish: could not convert ${value} (type: ${typeof value})`);
+		}
+		
+		// Validate the result is a finite number
+		if (!isFinite(num) || isNaN(num)) {
+			throw new Error(`Invalid BigNumberish: result is not a finite number: ${num}`);
+		}
+		
 		return num;
 	}
 

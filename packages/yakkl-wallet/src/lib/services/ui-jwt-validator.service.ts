@@ -3,9 +3,11 @@ import { authStore } from '$lib/stores/auth-store';
 import { goto } from '$app/navigation';
 import { browser } from '$app/environment';
 import { get } from 'svelte/store';
+import type { Runtime } from 'webextension-polyfill';
 
 // Add modal state management
 import { writable } from 'svelte/store';
+import { browser_ext } from '$lib/common/environment';
 
 export const jwtValidationModalStore = writable({
   show: false,
@@ -21,8 +23,10 @@ export const jwtValidationModalStore = writable({
 export class UIJWTValidatorService {
   private static instance: UIJWTValidatorService | null = null;
   private validationInterval: NodeJS.Timeout | number | null = null;
-  private messagePort: chrome.runtime.Port | null = null;
-  private readonly VALIDATION_INTERVAL = 30000; // 30 seconds
+  private messagePort: Runtime.Port | null = null;
+  private readonly VALIDATION_INTERVAL = 300000; // 5 minutes - reduced from 30 seconds for performance
+  private lastUserActivity = Date.now();
+  private readonly ACTIVITY_THRESHOLD = 60000; // 1 minute of inactivity before reducing validation frequency
   private readonly PORT_NAME = 'jwt-validator';
   private isConnected = false;
   private retryTimeout: NodeJS.Timeout | number | null = null;
@@ -42,7 +46,7 @@ export class UIJWTValidatorService {
    * Start JWT validation service in UI context
    */
   start(): void {
-    if (!browser || typeof chrome === 'undefined') {
+    if (!browser || typeof window === 'undefined') {
       log.warn('[UIJWTValidator] Not in browser extension client context');
       return;
     }
@@ -60,16 +64,57 @@ export class UIJWTValidatorService {
     // Connect to background script
     this.connectToBackground();
 
-    // Start periodic validation
+    // Start periodic validation with activity-based frequency
     this.validationInterval = window.setInterval(() => {
-      this.validateJWTToken();
+      this.performActivityBasedValidation();
     }, this.VALIDATION_INTERVAL);
 
-    // Delay initial validation to allow grace period to be established
+    // Track user activity for intelligent validation
+    this.setupActivityTracking();
+
+    // Perform initial validation after a short delay to ensure page is ready
+    // This prevents interference with the login page initialization
     setTimeout(() => {
-      log.info('[UIJWTValidator] Starting initial validation after grace period buffer');
+      log.info('[UIJWTValidator] Performing initial validation');
       this.validateJWTToken();
-    }, 10000); // Wait 10 seconds to ensure background grace period is active
+    }, 1000); // 1 second delay to let the page initialize
+  }
+
+  /**
+   * Setup activity tracking for intelligent validation
+   */
+  private setupActivityTracking(): void {
+    // Track user activity events
+    const updateActivity = () => {
+      this.lastUserActivity = Date.now();
+    };
+
+    // Listen to common user activity events
+    if (typeof window !== 'undefined') {
+      window.addEventListener('mousedown', updateActivity);
+      window.addEventListener('keydown', updateActivity);
+      window.addEventListener('scroll', updateActivity);
+      window.addEventListener('touchstart', updateActivity);
+    }
+  }
+
+  /**
+   * Perform validation based on user activity
+   * Reduces validation frequency when user is inactive
+   */
+  private performActivityBasedValidation(): void {
+    const now = Date.now();
+    const timeSinceActivity = now - this.lastUserActivity;
+
+    // If user has been inactive for more than threshold, skip validation
+    // This reduces unnecessary background work when user is not actively using the wallet
+    if (timeSinceActivity > this.ACTIVITY_THRESHOLD) {
+      log.debug('[UIJWTValidator] User inactive, skipping validation');
+      return;
+    }
+
+    // User is active, perform validation
+    this.validateJWTToken();
   }
 
   /**
@@ -99,12 +144,12 @@ export class UIJWTValidatorService {
    */
   private connectToBackground(): void {
     try {
-      if (!chrome.runtime?.connect) {
+      if (!browser_ext.runtime?.connect) {
         log.warn('[UIJWTValidator] Chrome runtime not available');
         return;
       }
 
-      this.messagePort = chrome.runtime.connect({ name: this.PORT_NAME });
+      this.messagePort = browser_ext.runtime.connect({ name: this.PORT_NAME });
       this.isConnected = true;
 
       this.messagePort.onMessage.addListener((message) => {

@@ -116,8 +116,10 @@
     // In single-chain view, we need to check if this is the current account
     if (address === current?.address) {
       return tokens.reduce((sum, token) => {
-        // Simple and consistent: always use BigNumberishUtils.toNumber for any value
-        const value = BigNumberishUtils.toNumber(token.value || 0);
+        // Safe conversion: check type before using BigNumberishUtils
+        const value = token.value && typeof token.value === 'number' 
+          ? token.value 
+          : (token.value ? BigNumberishUtils.toNumber(token.value) : 0);
         return sum + value;
       }, 0);
     }
@@ -139,7 +141,10 @@
       } else if ('balance' in token) {
         amount = token.balance;
       }
-      return BigNumberishUtils.toNumber(amount) > 0;
+      const numAmount = amount && typeof amount === 'number' 
+        ? amount 
+        : (amount ? BigNumberishUtils.toNumber(amount) : 0);
+      return numAmount > 0;
     }).length;
   }
 </script>

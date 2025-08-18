@@ -4,7 +4,7 @@
 	// The grayed out store items are for testing purposes used in the clearData function
 	import {
 		getMiscStore,
-		getSettings,
+		getYakklSettings,
 		yakklDappConnectRequestStore,
 		yakklMiscStore
 	} from '$lib/common/stores';
@@ -141,7 +141,7 @@
 		try {
 			if (browserSvelte) {
 				domainLogo = '/images/failIcon48x48.png';
-				const settings = await getSettings();
+				const settings = await getYakklSettings();
 				if (!settings.init || !settings.legal.termsAgreed) {
 					errorValue =
 						"You must register and agree to the terms of service before using YAKKL®. Click on 'Open Wallet' to register.";

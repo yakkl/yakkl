@@ -8,8 +8,8 @@
 
 import { log } from '$lib/common/logger-wrapper';
 import { backgroundJWTManager } from './jwt-background';
-import { browserSvelte } from '$lib/common/environment';
-import { getSettings } from '$lib/common/stores';
+import { browserSvelte, browser_ext } from '$lib/common/environment';
+import { getYakklSettings } from '$lib/common/stores';
 
 export interface JWTPayload {
 	sub: string; // Subject (user ID)
@@ -21,6 +21,7 @@ export interface JWTPayload {
 	username?: string; // YAKKL username
 	planLevel?: string; // User's plan level
 	sessionId?: string; // Session identifier
+	secureHash?: string; // Encrypted secure hash for backend API authentication
 }
 
 export interface JWTHeader {
@@ -51,7 +52,8 @@ export class JWTManager {
 		username: string,
 		profileId: string,
 		planLevel: string = 'explorer_member',
-		expirationMinutes: number = 60
+		expirationMinutes: number = 60,
+		secureHash?: string // Optional secure hash to include in JWT for backend API
 	): Promise<string> {
 		try {
 			const now = Math.floor(Date.now() / 1000);
@@ -71,7 +73,8 @@ export class JWTManager {
 				profileId,
 				username,
 				planLevel,
-				sessionId
+				sessionId,
+				...(secureHash && { secureHash }) // Include secure hash if provided
 			};
 
 			const encodedHeader = this.base64UrlEncode(JSON.stringify(header));
@@ -237,7 +240,7 @@ export class JWTManager {
 		// For now, we'll generate a key based on the user's profile
 		if (browserSvelte) {
 			try {
-				const settings = await getSettings();
+				const settings = await getYakklSettings();
 
 				// Create a signing key from user settings and current date (changes daily for security)
 				const today = new Date().toISOString().split('T')[0];
@@ -333,7 +336,7 @@ export class ContextAwareJWTManager {
 		}
 
 		// Check for extension background context
-		if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local && !browserSvelte) {
+		if (typeof window === 'undefined') {
 			return true;
 		}
 

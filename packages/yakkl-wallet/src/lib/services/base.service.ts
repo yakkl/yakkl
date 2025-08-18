@@ -30,11 +30,14 @@ export abstract class BaseService {
 
       // Check if messaging service is initialized
       if (!messagingService.isInitialized()) {
-        log.warn(`[BaseService.${this.serviceName}] Messaging service not initialized, returning empty response`);
-        // Return empty success response instead of error to prevent UI blocking
+        log.warn(`[BaseService.${this.serviceName}] Messaging service not initialized`);
         return {
-          success: true,
-          data: [] as any
+          success: false,
+          error: { 
+            hasError: true, 
+            message: 'Messaging service not initialized',
+            code: 'SERVICE_NOT_INITIALIZED'
+          }
         };
       }
 
@@ -63,10 +66,14 @@ export abstract class BaseService {
           responseKeys: Object.keys(response)
         });
       } catch (error) {
-        log.warn(`[BaseService.${this.serviceName}] Messaging service error, returning empty response:`, false, error);
+        log.warn(`[BaseService.${this.serviceName}] Messaging service error:`, false, error);
         return {
-          success: true,
-          data: [] as any
+          success: false,
+          error: { 
+            hasError: true, 
+            message: `Messaging service error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            code: 'MESSAGING_ERROR'
+          }
         };
       }
 

@@ -1,19 +1,14 @@
 import { BaseService } from './base.service';
-import type { YakklAccount } from '$lib/common';
 import type { TokenDisplay, ServiceResponse } from '../types';
-import type { TokenData, TokenChange } from '$lib/common/interfaces';
+import type { TokenChange } from '$lib/common/interfaces';
 import { get } from 'svelte/store';
-import { accountStore, currentAccount, currentChain, chainStore } from '$lib/stores';
+import { currentAccount, currentChain, chainStore } from '$lib/stores';
 import { yakklCombinedTokenStore, getYakklTokenCache } from '$lib/common/stores';
-import { WalletService } from './wallet.service';
-import { BalanceCacheManager } from '$lib/managers/BalanceCacheManager';
-import { computeTokenValue } from '$lib/common/computeTokenValue';
 import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
 import { BigNumber } from '$lib/common/bignumber';
 import { DecimalMath } from '$lib/common/DecimalMath';
 import { loadDefaultTokens } from '$lib/managers/tokens/loadDefaultTokens';
 import { PriceManager } from '$lib/managers/PriceManager';
-import { ethers } from 'ethers-v6';
 
 export class TokenService extends BaseService {
 	private static instance: TokenService;
@@ -87,17 +82,47 @@ export class TokenService extends BaseService {
 					// Convert balance from smallest unit (wei) to token unit using decimals
 					// CRITICAL: Preserve existing quantity if no new balance is provided
 					let balanceStr = String(token.balance || token.quantity || '0');
-					let balance = 0;
+					let balance = 0n;
 
-					// Check if this looks like a wei value (large integer)
-					if (balanceStr && !balanceStr.includes('.') && balanceStr.length > 10) {
-						// Convert from wei to ETH using BigNumber.fromWei
-						const decimals = token.decimals || 18;
-						balanceStr = BigNumber.fromWei(balanceStr, decimals);
-						balance = parseFloat(balanceStr);
+					// For ERC20 tokens, use cached balance from storage - NO DIRECT FETCHING
+					if (!token.isNative && token.address && token.address !== '0x0000000000000000000000000000000000000000') {
+						// CRITICAL: Client should NEVER fetch from blockchain directly
+						// Always use cached data from background service
+						console.log(`[TokenService] Using cached balance for ${token.symbol} at ${token.address}`);
+						
+						// Check if we have cached balance to use
+						const quantityStr = BigNumberishUtils.toString(token.quantity || token.balance || '0');
+						if (quantityStr && BigNumberishUtils.toBigInt(quantityStr) > 0n) {
+							// Use the existing quantity from the token
+							balance = BigNumberishUtils.toBigInt(quantityStr);
+							console.log(`[TokenService] Using cached balance for ${token.symbol}: ${balance}`);
+						} else if (balanceStr && !balanceStr.includes('.') && balanceStr.length > 10) {
+							// Try to convert wei string to balance
+							const decimals = token.decimals || 18;
+							balanceStr = BigNumber.fromWei(balanceStr, decimals);
+							balance = BigNumberishUtils.toBigInt(balanceStr);
+							console.log(`[TokenService] Using converted cached balance for ${token.symbol}: ${balance}`);
+						} else if (balanceStr) {
+							// Use the balance string as-is
+							balance = BigNumberishUtils.toBigInt(balanceStr) || 0n;
+							console.log(`[TokenService] Using cached balance string for ${token.symbol}: ${balance}`);
+						} else {
+							// Only as last resort, and log it as a warning - background service will update soon
+							console.warn(`[TokenService] No cached balance available for ${token.symbol}, using 0 (will be updated by background service)`);
+							balance = 0n;
+						}
 					} else {
-						// Already in ETH units or small value
-						balance = parseFloat(balanceStr);
+						// For native tokens or when no address, use existing logic
+						// Check if this looks like a wei value (large integer)
+						if (balanceStr && !balanceStr.includes('.') && balanceStr.length > 10) {
+							// Convert from wei to ETH using BigNumber.fromWei
+							const decimals = token.decimals || 18;
+							balanceStr = BigNumber.fromWei(balanceStr, decimals);
+							balance = BigNumberishUtils.toBigInt(balanceStr);
+						} else {
+							// Already in ETH units or small value
+							balance = BigNumberishUtils.toBigInt(balanceStr);
+						}
 					}
 
 					console.log(`[TokenService] Processing token ${token.symbol}:`, {
@@ -111,7 +136,7 @@ export class TokenService extends BaseService {
 
 					// For native token (ETH), use the account balance
 					if (token.isNative && account && account.balance) {
-						balance = parseFloat(account.balance);
+						balance = BigNumberishUtils.toBigInt(account.balance);
 						console.log(
 							`[TokenService] Using account balance for native token ${token.symbol}: ${balance} ETH`
 						);
@@ -125,26 +150,15 @@ export class TokenService extends BaseService {
 								accountData: account
 							}
 						);
-						// Try to fetch balance directly
+						// CRITICAL: Never fetch directly from blockchain in client
+						// The background service will update the balance soon
 						if (account?.address) {
 							console.log(
-								'[TokenService] Attempting to fetch balance directly for:',
+								'[TokenService] Native balance not available, waiting for background service update for:',
 								account.address
 							);
-							try {
-								const walletService = WalletService.getInstance();
-								const balanceResponse = await walletService.getBalance(account.address);
-								if (balanceResponse.success && balanceResponse.data) {
-									// Use statically imported ethers
-									const balanceInEth = ethers.formatEther(balanceResponse.data);
-									balance = parseFloat(balanceInEth);
-									console.log(`[TokenService] Fetched balance directly: ${balance} ETH`);
-								} else {
-									console.error('[TokenService] Failed to fetch balance:', balanceResponse.error);
-								}
-							} catch (error) {
-								console.error('[TokenService] Error fetching balance:', error);
-							}
+							// Use 0 for now, background service will update it
+							balance = 0n;
 						}
 					}
 
@@ -190,7 +204,7 @@ export class TokenService extends BaseService {
 						}
 					}
 
-					const value = DecimalMath.of(balance).mul(BigNumberishUtils.toNumber(price)).toNumber();
+					const value = DecimalMath.of(BigNumberishUtils.toString(balance)).mul(price).toNumber();
 
 					console.log(
 						`[TokenService] Token ${token.symbol}: balance=${balance}, price=${price}, value=${value}`
@@ -231,8 +245,8 @@ export class TokenService extends BaseService {
 			// Sort by value descending, but put zero-value main tokens at the end
 			activeTokens.sort((a, b) => {
 				// Convert values to numbers for comparison
-				const aValue = typeof a.value === 'number' ? a.value : parseFloat(String(a.value || 0));
-				const bValue = typeof b.value === 'number' ? b.value : parseFloat(String(b.value || 0));
+				const aValue = typeof a.value === 'number' ? a.value : BigNumberishUtils.toNumber(a.value || 0);
+				const bValue = typeof b.value === 'number' ? b.value : BigNumberishUtils.toNumber(b.value || 0);
 
 				if (aValue === 0 && bValue === 0) {
 					// Both have zero value, sort main tokens first
@@ -332,17 +346,17 @@ export class TokenService extends BaseService {
 		// Convert balance from smallest unit (wei) to token unit using decimals
 		// CRITICAL: Preserve existing quantity if no new balance is provided
 		let balanceStr = String(token.balance || token.quantity || '0');
-		let balance = 0;
+		let balance = 0n;
 
 		// Check if this looks like a wei value (large integer)
 		if (balanceStr && !balanceStr.includes('.') && balanceStr.length > 10) {
 			// Convert from wei to token unit using decimals
 			const decimals = token.decimals || 18;
 			balanceStr = BigNumber.fromWei(balanceStr, decimals);
-			balance = parseFloat(balanceStr);
+			balance = BigNumberishUtils.toBigInt(balanceStr);
 		} else {
 			// Already in token units or small value
-			balance = parseFloat(balanceStr);
+			balance = BigNumberishUtils.toBigInt(balanceStr);
 		}
 
 		const price = token.price?.price || 0;
@@ -372,19 +386,23 @@ export class TokenService extends BaseService {
 		walletAddress: string
 	): Promise<ServiceResponse<string>> {
 		try {
+			console.log(`[TokenService] getTokenBalance - requesting from background for token: ${tokenAddress}, wallet: ${walletAddress}`);
+
+			// CRITICAL: Client must NEVER make direct blockchain calls
+			// Always route through background service
 			const response = await this.sendMessage<string>({
-				method: 'eth_call',
-				params: [
-					{
-						to: tokenAddress,
-						data: `0x70a08231000000000000000000000000${walletAddress.slice(2)}` // balanceOf(address)
-					},
-					'latest'
-				]
+				method: 'yakkl_getTokenBalance',
+				params: {
+					tokenAddress,
+					walletAddress,
+					chainId: get(currentChain)?.chainId || 1
+				}
 			});
 
+			console.log(`[TokenService] Background response:`, response);
 			return response;
 		} catch (error) {
+			console.error('[TokenService] getTokenBalance error:', error);
 			return {
 				success: false,
 				error: this.handleError(error)
@@ -394,34 +412,20 @@ export class TokenService extends BaseService {
 
 	async refreshTokenPrices(): Promise<ServiceResponse<boolean>> {
 		try {
-			// This would typically call an API to get latest prices
-			// For now, we'll simulate price changes by updating the combined token store
-			const combinedTokens = get(yakklCombinedTokenStore);
-
-			// Update prices with random variations to simulate market movements
-			const updatedTokens = combinedTokens.map((token) => {
-				if (token.price?.price) {
-					const variation = 0.05; // 5% variation
-					const randomFactor = 1 + (Math.random() * 2 - 1) * variation;
-					return {
-						...token,
-						price: {
-							...token.price,
-							price: DecimalMath.of(BigNumberishUtils.toNumber(token.price.price))
-								.mul(randomFactor)
-								.toNumber(),
-							lastUpdated: new Date()
-						}
-					};
-				}
-				return token;
+			// Request price refresh from background service
+			console.log('[TokenService] Requesting price refresh from background service');
+			
+			const response = await this.sendMessage<boolean>({
+				method: 'yakkl_refreshTokenPrices',
+				params: {}
 			});
 
-			// Update the combined token store which will trigger all reactive updates
-			yakklCombinedTokenStore.set(updatedTokens);
-
-			console.log('[TokenService] Refreshed token prices with variations');
-			return { success: true, data: true };
+			if (response.success) {
+				console.log('[TokenService] Price refresh requested successfully');
+				// The background service will update the stores, which will trigger reactive updates
+			}
+			
+			return response;
 		} catch (error) {
 			return {
 				success: false,

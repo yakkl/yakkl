@@ -3,9 +3,9 @@
 	import { createForm } from 'svelte-forms-lib';
 	import * as yup from 'yup';
 	import Modal from './Modal.svelte';
-	import { getSettings, setSettings, getProfile, setProfileStorage } from '$lib/common/stores';
+	import { getYakklSettings, setYakklSettings, getProfile, setProfileStorage } from '$lib/common/stores';
 	import { log } from '$lib/managers/Logger';
-	import type { Settings, Profile } from '$lib/common/interfaces';
+	import type { YakklSettings, Profile } from '$lib/common/interfaces';
 	import { SystemTheme, PlanType } from '$lib/common/types';
 	import SoundSettings from './SoundSettings.svelte';
 	import IdleTimeoutSettings from './IdleTimeoutSettings.svelte';
@@ -23,7 +23,7 @@
 		onComplete = () => {}
 	}: Props = $props();
 
-	let settings: Settings | null = $state(null);
+	let settings: YakklSettings | null = $state(null);
 	let profile: Profile | null = $state(null);
 	let isLoading = $state(false);
 	let isSaving = $state(false);
@@ -164,7 +164,7 @@
 		try {
 			// Load both settings and profile (for preferences)
 			[settings, profile] = await Promise.all([
-				getSettings(),
+				getYakklSettings(),
 				getProfile()
 			]);
 
@@ -209,7 +209,7 @@
 
 		try {
 			// Update settings
-			const updatedSettings: Settings = {
+			const updatedSettings: YakklSettings = {
 				...settings,
 				showHints: values.showHints,
 				trialCountdownPinned: values.trialCountdownPinned,
@@ -238,7 +238,7 @@
 
 			// Save both settings and profile
 			await Promise.all([
-				setSettings(updatedSettings),
+				setYakklSettings(updatedSettings),
 				setProfileStorage(updatedProfile)
 			]);
 

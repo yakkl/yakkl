@@ -6,7 +6,7 @@
 import { writable, derived } from 'svelte/store';
 import { PlanType } from '$lib/common/types';
 import { featureManager, canUseFeature as checkFeature } from '../utils/features';
-import { getSettings } from '$lib/common/stores';
+import { getYakklSettings } from '$lib/common/stores';
 import { log } from '../utils/logger';
 
 interface UserPlan {
@@ -32,7 +32,7 @@ function createPlanStore() {
       update(state => ({ ...state, loading: true }));
 
       try {
-        const settings = await getSettings();
+        const settings = await getYakklSettings();
         // Convert old plan types to new ones
         const planType = settings?.plan?.type;
 

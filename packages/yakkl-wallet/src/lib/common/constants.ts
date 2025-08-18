@@ -1,7 +1,7 @@
 // IMPORTANT NOTE: Edit 'constants.mustache' since it is the template for 'constants.ts'
 
 // Global shared constants. Network specifics are in the network/<whatever>/contants.js file
-export const VERSION = "2.0.1";
+export const VERSION = "2.0.2";
 
 export const YEAR = "2025"; // Instead of computing year since user can change date on system - use a constant
 
@@ -101,7 +101,7 @@ export const DEFAULT_YAKKL_ASSETS = "yakklAssets"; // Not stored in local storag
 
 export const CURRENT_STORAGE_VERSION = 1; // Increment this value when the storage format changes for migration purposes. Secure storage keys are versioned.
 export const STORAGE_YAKKL_PREFERENCES = "preferences";
-export const STORAGE_YAKKL_SETTINGS = "settings";
+export const STORAGE_YAKKL_SETTINGS = "yakklSettings";
 export const STORAGE_YAKKL_SECURITY = "yakklSecurity";
 export const STORAGE_YAKKL_PORTFOLIO = "yakklPortfolio";
 export const STORAGE_YAKKL_CURRENTLY_SELECTED = "yakklCurrentlySelected";
@@ -116,9 +116,14 @@ export const STORAGE_YAKKL_CONTACTS = "yakklContacts";
 export const STORAGE_YAKKL_TOKENDATA = "yakklTokenData";
 export const STORAGE_YAKKL_TOKENDATA_CUSTOM = "yakklTokenDataCustom";
 export const STORAGE_YAKKL_COMBINED_TOKENS = "yakklCombinedTokens";
-export const STORAGE_YAKKL_ADDRESS_TOKEN_HOLDINGS = "yakklAddressTokenHoldings";
+
+// Cache keys
+export const STORAGE_YAKKL_ADDRESS_TOKEN_CACHE = "yakklAddressTokenCache";
 export const STORAGE_YAKKL_TOKEN_CACHE = "yakklTokenCache";
+export const STORAGE_YAKKL_TOKEN_VIEW_CACHE = "yakklTokenViewCache"; // For calculated values and rollups
 export const STORAGE_YAKKL_WALLET_CACHE = "yakklWalletCache";
+export const STORAGE_YAKKL_TRANSACTIONS_CACHE = "yakklTransactionsCache";
+
 export const STORAGE_YAKKL_CHATS = "yakklChats";
 export const STORAGE_YAKKL_WATCHLIST = "yakklWatchList";
 export const STORAGE_YAKKL_BLOCKEDLIST = "yakklBlockedList";

@@ -14,7 +14,7 @@ const DEFAULT_NETWORKS: ChainDisplay[] = [
     name: 'Ethereum Mainnet',
     network: 'ethereum',
     icon: '⟠',
-    rpcUrl: 'https://mainnet.infura.io/v3/',
+    rpcUrl: 'https://eth.llamarpc.com',  // Public RPC, no auth required
     nativeCurrency: {
       name: 'Ether',
       symbol: 'ETH',
@@ -108,7 +108,7 @@ const TESTNET_NETWORKS: ChainDisplay[] = [
     name: 'Sepolia',
     network: 'sepolia',
     icon: '🧪',
-    rpcUrl: 'https://sepolia.infura.io/v3/',
+    rpcUrl: 'https://ethereum-sepolia-rpc.publicnode.com',  // Public RPC
     nativeCurrency: {
       name: 'Sepolia ETH',
       symbol: 'ETH',

@@ -1,7 +1,7 @@
 import { writable, derived, get } from 'svelte/store';
 import { browser } from '$app/environment';
 import { verify } from '$lib/common/security';
-import { getSettings, getMiscStore, setMiscStore } from '$lib/common/stores';
+import { getYakklSettings, getMiscStore, setMiscStore } from '$lib/common/stores';
 import type { Profile } from '$lib/common/interfaces';
 import { log } from '$lib/common/logger-wrapper';
 import { sessionManager, type SessionState } from '$lib/managers/SessionManager';
@@ -9,6 +9,7 @@ import { jwtManager } from '$lib/utilities/jwt';
 import { auditAuthEvent, checkAuthRateLimit, clearAuthRateLimit, validateAuthentication } from '$lib/common/authValidation';
 import { SessionVerificationService } from '$lib/services/session-verification.service';
 import { setLocks } from '$lib/common/locks';
+import { browser_ext } from '$lib/common/environment';
 
 interface AuthState {
 	isAuthenticated: boolean;
@@ -136,7 +137,7 @@ function createAuthStore() {
 				// Import validation module
 				const validation = await validateAuthentication();
 
-				const settings = await getSettings();
+				const settings = await getYakklSettings();
 				const isRegistered = !!(settings?.init && settings?.legal?.termsAgreed);
 
 				// Use comprehensive validation for authentication status
@@ -239,7 +240,7 @@ function createAuthStore() {
 				}
 
 				// Get user's plan level for JWT
-				const settings = await getSettings();
+				const settings = await getYakklSettings();
 				const planLevel = settings?.plan?.type || 'explorer_member';
 
 				// Start session with JWT token generation
@@ -286,8 +287,8 @@ function createAuthStore() {
 
 				// Notify background script about successful login to start JWT validation
 				try {
-					if (typeof chrome !== 'undefined' && chrome.runtime) {
-						await chrome.runtime.sendMessage({
+					if (typeof window !== 'undefined' && browser_ext.runtime) {
+						await browser_ext.runtime.sendMessage({
 							type: 'USER_LOGIN_SUCCESS',
 							sessionId: sessionState?.sessionId,
 							hasJWT: !!jwtToken
@@ -425,7 +426,7 @@ function createAuthStore() {
 		// Helper method to refresh registration status
 		async refreshRegistrationStatus() {
 			try {
-				const settings = await getSettings();
+				const settings = await getYakklSettings();
 				const isRegistered = !!(settings?.init && settings?.legal?.termsAgreed);
 
 				update((state) => ({ ...state, isRegistered }));

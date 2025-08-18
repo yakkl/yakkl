@@ -1,7 +1,7 @@
 import { writable, derived, get } from 'svelte/store';
 import { browser } from '$app/environment';
 import { verify } from '$lib/common/security';
-import { getSettings, getMiscStore, setMiscStore } from '$lib/common/stores';
+import { getYakklSettings, getMiscStore, setMiscStore } from '$lib/common/stores';
 import type { Profile } from '$lib/common/interfaces';
 import { log } from '$lib/common/logger-wrapper';
 import { sessionManager, type SessionState } from '$lib/managers/SessionManager';
@@ -99,7 +99,7 @@ function createAuthStore() {
 			try {
 				update((state) => ({ ...state, isInitializing: true }));
 
-				const settings = await getSettings();
+				const settings = await getYakklSettings();
 				const miscStore = getMiscStore();
 
 				const isRegistered = !!(settings?.init && settings?.legal?.termsAgreed);
@@ -162,7 +162,7 @@ function createAuthStore() {
 				}
 
 				// Get user's plan level for JWT
-				const settings = await getSettings();
+				const settings = await getYakklSettings();
 				const planLevel = settings?.plan?.type || 'basic';
 
 				// Start session with JWT token generation
@@ -245,7 +245,7 @@ function createAuthStore() {
 		// Helper method to refresh registration status
 		async refreshRegistrationStatus() {
 			try {
-				const settings = await getSettings();
+				const settings = await getYakklSettings();
 				const isRegistered = !!(settings?.init && settings?.legal?.termsAgreed);
 
 				update((state) => ({ ...state, isRegistered }));

@@ -255,6 +255,7 @@
 				<button
 					class="px-3 py-2 {viewMode === 'list' ? 'bg-blue-500 text-white' : 'bg-white dark:bg-gray-800'}"
 					onclick={() => viewMode = 'list'}
+					aria-label="List view"
 				>
 					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -263,6 +264,7 @@
 				<button
 					class="px-3 py-2 {viewMode === 'grid' ? 'bg-blue-500 text-white' : 'bg-white dark:bg-gray-800'}"
 					onclick={() => viewMode = 'grid'}
+					aria-label="Grid view"
 				>
 					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -319,13 +321,15 @@
 		<!-- List view -->
 		<div class="space-y-2">
 			{#each processedTokens as token (token.address || token.symbol)}
-				<div
-					class="p-4 rounded-lg border transition-all cursor-pointer hover:shadow-md {
+				<button
+					type="button"
+					class="p-4 rounded-lg border transition-all cursor-pointer hover:shadow-md w-full text-left {
 						selectedToken === (token.address || token.symbol)
 							? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
 							: 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
 					}"
 					onclick={() => selectToken(token)}
+					aria-label="Select {token.name} token"
 					in:fly={{ y: 20, duration: 300 }}
 				>
 					<div class="flex items-center justify-between">
@@ -373,6 +377,7 @@
 										<button
 											class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
 											onclick={(e) => handleQuickAction('send', token, e)}
+											aria-label="Send {token.symbol}"
 										>
 											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -383,6 +388,7 @@
 										<button
 											class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
 											onclick={(e) => handleQuickAction('swap', token, e)}
+											aria-label="Swap {token.symbol}"
 										>
 											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
@@ -393,6 +399,7 @@
 										<button
 											class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
 											onclick={(e) => handleQuickAction('details', token, e)}
+											aria-label="View {token.symbol} details"
 										>
 											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -403,7 +410,7 @@
 							{/if}
 						</div>
 					</div>
-				</div>
+				</button>
 			{/each}
 		</div>
 	{:else}
@@ -417,6 +424,15 @@
 							: 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
 					}"
 					onclick={() => selectToken(token)}
+					onkeydown={(e) => {
+						if (e.key === 'Enter' || e.key === ' ') {
+							e.preventDefault();
+							selectToken(token);
+						}
+					}}
+					role="button"
+					tabindex="0"
+					aria-label="Select {token.name} token"
 					in:fade={{ duration: 300 }}
 				>
 					<!-- Token header -->

@@ -5,6 +5,7 @@
   import { get } from 'svelte/store';
   import ProtectedValue from './ProtectedValue.svelte';
   import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
+  import type { BigNumberish } from '$lib/common/bignumber';
 
   interface Props {
     show?: boolean;
@@ -47,7 +48,7 @@
   }
 
   function formatPrice(price?: number): string {
-    if (!price) return '$0.00';
+    if (!price || price <= 0) return '$0.00';
     if (price < 0.01) return '< $0.01';
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -57,19 +58,107 @@
     }).format(price);
   }
 
-  function formatValue(val?: number): string {
+  // Helper functions for safe type conversion
+  function getNumericPrice(price?: number | BigNumberish): number {
+    if (!price) return 0;
+    
+    try {
+      if (typeof price === 'number') {
+        return price;
+      } else {
+        return BigNumberishUtils.toNumber(price);
+      }
+    } catch (error) {
+      console.warn('Failed to convert price:', price, error);
+      return 0;
+    }
+  }
+
+  function getNumericQuantity(qty?: number | BigNumberish): number {
+    if (!qty) return 0;
+    
+    try {
+      if (typeof qty === 'number') {
+        return qty;
+      } else {
+        return BigNumberishUtils.toNumber(qty);
+      }
+    } catch (error) {
+      console.warn('Failed to convert quantity:', qty, error);
+      return 0;
+    }
+  }
+
+  function getChangeColorClass(change24h?: number | BigNumberish): string {
+    if (change24h === undefined || change24h === null) return 'text-gray-500';
+    
+    try {
+      const numChange = typeof change24h === 'number' ? change24h : BigNumberishUtils.toNumber(change24h);
+      return numChange >= 0 ? 'text-green-600' : 'text-red-600';
+    } catch (error) {
+      console.warn('Failed to convert change24h:', change24h, error);
+      return 'text-gray-500';
+    }
+  }
+
+  function formatChange24h(change24h?: number | BigNumberish): string {
+    if (change24h === undefined || change24h === null) return 'N/A';
+    
+    try {
+      const numChange = typeof change24h === 'number' ? change24h : BigNumberishUtils.toNumber(change24h);
+      return `${numChange >= 0 ? '+' : ''}${numChange.toFixed(2)}%`;
+    } catch (error) {
+      console.warn('Failed to format change24h:', change24h, error);
+      return 'N/A';
+    }
+  }
+
+  function formatValue(val?: number | bigint | BigNumberish): string {
     if (!val) return '$0.00';
+    
+    let numValue: number;
+    
+    try {
+      if (typeof val === 'bigint') {
+        // BigInt values are stored as cents, convert to dollars
+        numValue = Number(val) / 100;
+      } else if (typeof val === 'number') {
+        numValue = val;
+      } else {
+        // Use BigNumberishUtils for safe conversion
+        numValue = BigNumberishUtils.toNumber(val);
+      }
+    } catch (error) {
+      console.warn('Failed to convert value for formatting:', val, error);
+      return '$0.00';
+    }
+    
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
-    }).format(val);
+    }).format(numValue);
   }
 
-  function formatBalance(balance?: number, symbol?: string): string {
+  function formatBalance(balance?: number | BigNumberish, symbol?: string): string {
     if (!balance) return '0';
-    const formatted = balance < 0.0001 ? balance.toExponential(4) : balance.toFixed(6);
+    
+    let numBalance: number;
+    
+    try {
+      if (typeof balance === 'number') {
+        numBalance = balance;
+      } else {
+        // Use BigNumberishUtils for safe conversion
+        numBalance = BigNumberishUtils.toNumber(balance);
+      }
+    } catch (error) {
+      console.warn('Failed to convert balance for formatting:', balance, error);
+      return '0';
+    }
+    
+    const formatted = numBalance < 0.0001 ? numBalance.toExponential(4) : numBalance.toFixed(6);
     return `${formatted} ${symbol || ''}`;
   }
 </script>
@@ -112,28 +201,28 @@
         <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
           <p class="text-xs text-gray-500 dark:text-gray-400">Balance</p>
           <p class="text-sm font-medium text-gray-900 dark:text-white">
-            <ProtectedValue value={formatBalance(Number(token.qty), token.symbol)} placeholder="****" />
+            <ProtectedValue value={formatBalance(token.qty, token.symbol)} placeholder="****" />
           </p>
         </div>
 
         <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
           <p class="text-xs text-gray-500 dark:text-gray-400">Value</p>
           <p class="text-sm font-medium text-gray-900 dark:text-white">
-            <ProtectedValue value={formatValue(Number(token.value))} placeholder="*****" />
+            <ProtectedValue value={formatValue(token.value)} placeholder="*****" />
           </p>
         </div>
 
         <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
           <p class="text-xs text-gray-500 dark:text-gray-400">Price</p>
           <p class="text-sm font-medium text-gray-900 dark:text-white">
-            <ProtectedValue value={formatPrice(BigNumberishUtils.toNumber(token.price))} placeholder="****" />
+            <ProtectedValue value={formatPrice(getNumericPrice(token.price))} placeholder="****" />
           </p>
         </div>
 
         <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
           <p class="text-xs text-gray-500 dark:text-gray-400">24h Change</p>
-          <p class="text-sm font-medium {token.change24h && BigNumberishUtils.compare(token.change24h, 0) >= 0 ? 'text-green-600' : 'text-red-600'}">
-            {token.change24h !== undefined ? `${BigNumberishUtils.compare(token.change24h, 0) >= 0 ? '+' : ''}${BigNumberishUtils.toNumber(token.change24h).toFixed(2)}%` : 'N/A'}
+          <p class="text-sm font-medium {getChangeColorClass(token.change24h)}">
+            {formatChange24h(token.change24h)}
           </p>
         </div>
       </div>
@@ -150,7 +239,7 @@
 
       <!-- Actions -->
       <div class="flex gap-2 pt-2">
-        {#if token.qty && Number(token.qty) > 0}
+        {#if token.qty && getNumericQuantity(token.qty) > 0}
           <button
             onclick={() => onSend(token)}
             class="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-sm font-medium"
@@ -173,7 +262,7 @@
           Add to Watchlist
         </button>
 
-        {#if Number(token.qty) === 0}
+        {#if getNumericQuantity(token.qty) === 0}
           <button
             onclick={handleRemoveToken}
             class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm font-medium"

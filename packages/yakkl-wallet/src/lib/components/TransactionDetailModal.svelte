@@ -143,9 +143,9 @@
 
   let txType = $derived(transaction ? getTransactionType(transaction) : '');
   let isOutgoing = $derived(transaction && account ? transaction.from.toLowerCase() === account.address.toLowerCase() : false);
-  let gasEth = $derived(transaction ? formatGasUsed(transaction.gasUsed || '0', BigNumberishUtils.toNumber(transaction.gasPrice || 0).toString()) : '0');
-  let gasFiat = $derived(formatFiatValue(gasEth, BigNumberishUtils.toNumber(nativePrice)));
-  let valueFiat = $derived(transaction ? formatFiatValue(BigNumberishUtils.toNumber(transaction.value).toString(), BigNumberishUtils.toNumber(nativePrice)) : '$0.00');
+  let gasEth = $derived(transaction ? formatGasUsed(transaction.gasUsed || '0', String(transaction.gasPrice || 0)) : '0');
+  let gasFiat = $derived(formatFiatValue(gasEth, typeof nativePrice === 'number' ? nativePrice : 0));
+  let valueFiat = $derived(transaction ? formatFiatValue(String(transaction.value || 0), typeof nativePrice === 'number' ? nativePrice : 0) : '$0.00');
 </script>
 
 <Modal bind:show {onClose} title="Transaction Details" className="max-w-lg">

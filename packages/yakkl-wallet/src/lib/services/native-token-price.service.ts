@@ -3,6 +3,7 @@ import { walletCacheStore } from '$lib/stores/wallet-cache.store';
 import { currentAccount } from '$lib/stores/account.store';
 import { currentChain } from '$lib/stores/chain.store';
 import { get } from 'svelte/store';
+import { getObjectFromLocalStorage } from '$lib/common/storage';
 
 /**
  * Service to handle native token price updates without affecting the rest of the cache
@@ -174,6 +175,83 @@ export class NativeTokenPriceService {
    */
   async refreshPrices(): Promise<void> {
     await this.triggerUpdate();
+  }
+
+  /**
+   * Fetch latest prices without updating storage
+   * Returns price data for coordinator to process
+   */
+  async fetchLatestPrices(): Promise<Record<string, any>> {
+    const priceData: Record<string, any> = {};
+    
+    try {
+      log.debug('[NativeTokenPrice] Fetching latest prices for coordinator');
+      
+      // Get all tracked tokens from cache
+      const cache = await getObjectFromLocalStorage('yakklWalletCache') as any;
+      if (!cache?.chainAccountCache) {
+        return priceData;
+      }
+      
+      // Collect unique tokens across all accounts and chains
+      const uniqueTokens = new Map<string, { chainId: number, isNative: boolean }>();
+      
+      for (const [chainId, chainData] of Object.entries(cache.chainAccountCache)) {
+        for (const accountCache of Object.values(chainData as any)) {
+          if ((accountCache as any).tokens) {
+            for (const token of (accountCache as any).tokens) {
+              const key = token.address.toLowerCase();
+              if (!uniqueTokens.has(key)) {
+                uniqueTokens.set(key, { 
+                  chainId: Number(chainId), 
+                  isNative: token.isNative || false 
+                });
+              }
+            }
+          }
+        }
+      }
+      
+      // Fetch native token prices for each chain
+      const processedChains = new Set<number>();
+      for (const [tokenAddress, tokenInfo] of uniqueTokens) {
+        if (tokenInfo.isNative && !processedChains.has(tokenInfo.chainId)) {
+          processedChains.add(tokenInfo.chainId);
+          const price = await this.fetchNativeTokenPrice(tokenInfo.chainId);
+          if (price !== null && price > 0) {
+            // Store native token price with special key
+            priceData[`native_${tokenInfo.chainId}`] = {
+              tokenAddress: '0x0000000000000000000000000000000000000000',
+              price,
+              timestamp: Date.now(),
+              isNative: true,
+              chainId: tokenInfo.chainId
+            };
+          }
+        }
+      }
+      
+      // For non-native tokens, you would fetch from your token price provider
+      // This is a placeholder - implement with your actual price provider
+      for (const [tokenAddress, tokenInfo] of uniqueTokens) {
+        if (!tokenInfo.isNative && !priceData[tokenAddress]) {
+          // Mock price for testing - replace with actual price fetching
+          priceData[tokenAddress] = {
+            tokenAddress,
+            price: Math.random() * 100,
+            timestamp: Date.now(),
+            isNative: false,
+            chainId: tokenInfo.chainId
+          };
+        }
+      }
+      
+      log.debug(`[NativeTokenPrice] Fetched prices for ${Object.keys(priceData).length} tokens`);
+      return priceData;
+    } catch (error) {
+      log.error('[NativeTokenPrice] Error fetching latest prices', error);
+      return priceData;
+    }
   }
 }
 

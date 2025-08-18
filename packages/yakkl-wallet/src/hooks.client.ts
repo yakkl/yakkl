@@ -1,5 +1,5 @@
 // src/hooks.client.ts
-import { getSettings, setContextTypeStore } from '$lib/common/stores';
+import { getYakklSettings, setContextTypeStore } from '$lib/common/stores';
 import { loadTokens } from '$lib/common/stores/tokens';
 import { ErrorHandler } from '$lib/managers/ErrorHandler';
 import { log } from '$lib/managers/Logger';
@@ -186,7 +186,7 @@ export async function init() {
 		log.info('Starting initialization process');
 
 		try {
-			await getSettings();
+			await getYakklSettings();
 		} catch (error) {
 			console.info(`[${CONTEXT_ID}] Failed to get settings in hooks - passing on:`, error);
 		}

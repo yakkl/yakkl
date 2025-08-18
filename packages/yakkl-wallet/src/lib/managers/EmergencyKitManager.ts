@@ -11,7 +11,7 @@ import type {
 	YakklContact,
 	YakklConnectedDomain,
 	Preferences,
-	Settings,
+	YakklSettings,
 	Profile,
 	YakklWatch,
 	YakklChat,
@@ -122,7 +122,7 @@ export class EmergencyKitManager {
 
 	static async createBulkEmergencyKit(
 		preferences: Preferences,
-		settings: Settings,
+		settings: YakklSettings,
 		profile: Profile,
 		currentlySelected: any,
 		contacts: YakklContact[],

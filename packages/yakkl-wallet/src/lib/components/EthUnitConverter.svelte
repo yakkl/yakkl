@@ -158,7 +158,11 @@
 	async function fetchEthPrice() {
 		try {
 			const result = await priceManager.getMarketPrice('ETH-USD');
-			ethPrice = result && typeof result === 'object' && 'price' in result ? BigNumberishUtils.toNumber(result.price) : 0;
+			ethPrice = result && typeof result === 'object' && 'price' in result 
+				? (result.price && typeof result.price === 'number' 
+					? result.price 
+					: (result.price ? BigNumberishUtils.toNumber(result.price) : 0))
+				: 0;
 		} catch (error) {
 			log.error('Failed to fetch ETH price:', false, error);
 			ethPrice = 0;

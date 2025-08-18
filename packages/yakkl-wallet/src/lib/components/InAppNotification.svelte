@@ -4,8 +4,8 @@
   import { browser_ext, browserSvelte } from '$lib/common/environment';
   import { NotificationService } from '$lib/common/notifications';
   import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
-  import { getSettings } from '$lib/common/stores';
-  import type { Settings } from '$lib/common/interfaces';
+  import { getYakklSettings } from '$lib/common/stores';
+  import type { YakklSettings } from '$lib/common/interfaces';
   import { Bell, BellOff, X, AlertTriangle, Info, CheckCircle, XCircle, Clock, Volume2 } from 'lucide-svelte';
   import { addSafeMessageListener } from '$lib/common/messageChannelWrapper';
 
@@ -33,7 +33,7 @@
   let isLockdownActive = $state(false);
   let lockdownTimeLeft = $state(0);
   let isUrgent = $state(false);
-  let settings = $state<Settings | null>(null);
+  let settings = $state<YakklSettings | null>(null);
   let removeMessageListener: (() => void) | null = null;
 
   // Audio context for playing sounds
@@ -83,13 +83,13 @@
 
       // Use custom sound if available, otherwise use default
       const soundData = settings?.sound || DEFAULT_SOUNDS[type];
-      
+
       if (soundData.startsWith('data:')) {
         // Data URI - decode and play
         const response = await fetch(soundData);
         const arrayBuffer = await response.arrayBuffer();
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-        
+
         const source = audioContext.createBufferSource();
         source.buffer = audioBuffer;
         source.connect(audioContext.destination);
@@ -108,7 +108,7 @@
   // Load settings
   async function loadSettings() {
     try {
-      settings = await getSettings();
+      settings = await getYakklSettings();
     } catch (error) {
       console.error('Failed to load settings:', error);
     }
@@ -276,7 +276,7 @@
   // Remove notification
   function removeNotification(id: string) {
     const notification = notifications.find(n => n.id === id);
-    
+
     if (notification) {
       // Clear countdown interval
       if (notification.countdownInterval) {
@@ -340,7 +340,7 @@
   // Dismiss notification
   function dismiss(id: string) {
     const notification = notifications.find(n => n.id === id);
-    
+
     // Send security activity for lockdown
     if (notification?.type === 'lockdown' && browser_ext) {
       browser_ext.runtime.sendMessage({
@@ -357,7 +357,7 @@
   // Dismiss all
   async function dismissAll() {
     const hasLockdown = notifications.some(n => n.type === 'lockdown');
-    
+
     if (hasLockdown && browser_ext) {
       await browser_ext.runtime.sendMessage({
         type: 'USER_ACTIVITY',
@@ -368,7 +368,7 @@
     }
 
     await NotificationService.clearAllAlertsEnhanced();
-    
+
     clearAllIntervals();
     notifications = [];
     clearLockdownState();
@@ -400,7 +400,7 @@
               <div class="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full animate-ping"></div>
             {/if}
           </div>
-          
+
           <div>
             <div class="font-semibold text-lg">🔒 YAKKL Security Alert</div>
             <div class="text-red-100 text-sm">
@@ -478,7 +478,7 @@
       {#if notification.type !== 'lockdown'}
         {@const Icon = getNotificationIcon(notification.type)}
         {@const colors = getNotificationColors(notification.type)}
-        
+
         <div
           class="p-4 rounded-lg shadow-xl backdrop-blur-sm {colors} transition-all duration-300 hover:shadow-2xl"
           in:fly={{ x: 50, duration: 300 }}
@@ -486,11 +486,11 @@
         >
           <div class="flex items-start gap-3">
             <Icon class="h-5 w-5 flex-shrink-0 mt-0.5" />
-            
+
             <div class="flex-1 min-w-0">
               <h3 class="font-semibold text-sm">{notification.title}</h3>
               <p class="text-sm mt-1 opacity-90">{notification.message}</p>
-              
+
               {#if notification.action}
                 <button
                   class="mt-2 text-xs font-medium px-3 py-1 bg-white/20 hover:bg-white/30 rounded transition-colors"

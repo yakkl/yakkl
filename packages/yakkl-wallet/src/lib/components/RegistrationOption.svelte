@@ -1,10 +1,10 @@
 <script lang="ts">
 	// NOTE: This is for the RegistrationOption component. The RegistrationOptionModal is only for the RegistrationOption component. Restore requires a valid account to be created first. So, removed restore from here for now.
 	import { onMount } from 'svelte';
-	import { getSettings } from '$lib/common/stores';
+	import { getYakklSettings } from '$lib/common/stores';
 	import { shouldShowProFeatures } from '$lib/common/token-analytics';
 	import { PlanType } from '$lib/common/types';
-	import type { Settings } from '$lib/common/interfaces';
+	import type { YakklSettings } from '$lib/common/interfaces';
 	import SimpleTooltip from '$lib/components/SimpleTooltip.svelte';
 
 	interface Props {
@@ -22,11 +22,11 @@
 		onRestore = () => void {}
 	}: Props = $props();
 
-	let settings: Settings | null = $state(null);
+	let settings: YakklSettings | null = $state(null);
 	let isProUser = $state(false);
 
 	onMount(async () => {
-		settings = await getSettings();
+		settings = await getYakklSettings();
 		isProUser = shouldShowProFeatures(settings?.plan?.type || PlanType.EXPLORER_MEMBER);
 	});
 

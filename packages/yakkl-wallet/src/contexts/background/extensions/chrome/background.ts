@@ -28,8 +28,9 @@ import { getAddressesForDomain, verifyDomainConnected } from './verifyDomainConn
 import { onDappListener } from './dapp';
 import { getCurrentlySelectedData } from '$lib/common/shortcuts';
 import { BackgroundIntervalService } from '$lib/services/background-interval.service';
+import { BackgroundPriceService } from '../../../../background/services/background-price.service';
 import { IdleManager } from '$lib/managers/IdleManager';
-import { getSettings } from '$lib/common/stores';
+import { getYakklSettings } from '$lib/common/stores';
 
 type RuntimeSender = Runtime.MessageSender;
 type RuntimePort = Runtime.Port;
@@ -203,10 +204,10 @@ browser.runtime.onConnect.addListener((port: RuntimePort) => {
             }, {
               context: 'background-dapp-error',
               onError: (error) => {
-                log.warn('[Background] Failed to send dapp error response:', false, { 
-                  messageId: msg.id, 
+                log.warn('[Background] Failed to send dapp error response:', false, {
+                  messageId: msg.id,
                   method: msg.method,
-                  error: error instanceof Error ? error.message : error 
+                  error: error instanceof Error ? error.message : error
                 });
               }
             });
@@ -231,10 +232,10 @@ browser.runtime.onConnect.addListener((port: RuntimePort) => {
         }, {
           context: 'background-message-error',
           onError: (error) => {
-            log.warn('[Background] Failed to send message error response:', false, { 
-              messageId: msg.id, 
+            log.warn('[Background] Failed to send message error response:', false, {
+              messageId: msg.id,
               method: msg.method,
-              error: error instanceof Error ? error.message : error 
+              error: error instanceof Error ? error.message : error
             });
           }
         });
@@ -332,10 +333,10 @@ async function handlePortMessage(message: YakklMessage, port: RuntimePort) {
         }, {
           context: 'background-response-forward',
           onError: (error) => {
-            log.warn('[Background] Failed to forward response to original requester:', false, { 
+            log.warn('[Background] Failed to forward response to original requester:', false, {
               requestId: id,
               method: method || originalRequest.data.method,
-              error: error instanceof Error ? error.message : error 
+              error: error instanceof Error ? error.message : error
             });
           }
         });
@@ -347,13 +348,13 @@ async function handlePortMessage(message: YakklMessage, port: RuntimePort) {
     // Handle refresh requests
     if (message.type === 'YAKKL_REFRESH_REQUEST') {
       const { refreshType = 'all' } = message as any;
-      
+
       log.info('[Background] Handling refresh request:', false, refreshType);
-      
+
       try {
         const intervalService = BackgroundIntervalService.getInstance();
         await intervalService.handleManualRefresh(refreshType);
-        
+
         // Send success response
         safePortPostMessage(port, {
           type: 'YAKKL_REFRESH_RESPONSE',
@@ -367,7 +368,7 @@ async function handlePortMessage(message: YakklMessage, port: RuntimePort) {
         });
       } catch (error) {
         log.error('[Background] Error handling refresh request:', false, error);
-        
+
         // Send error response
         safePortPostMessage(port, {
           type: 'YAKKL_REFRESH_RESPONSE',
@@ -378,7 +379,41 @@ async function handlePortMessage(message: YakklMessage, port: RuntimePort) {
           context: 'refresh-error-response'
         });
       }
-      
+
+      return;
+    }
+
+    // Handle force price update requests
+    if (message.type === 'FORCE_PRICE_UPDATE') {
+      log.info('[Background] Force price update requested');
+
+      try {
+        const priceService = BackgroundPriceService.getInstance();
+        await priceService.forceUpdate();
+
+        // Send success response
+        safePortPostMessage(port, {
+          type: 'PRICE_UPDATE_RESPONSE',
+          success: true
+        }, {
+          context: 'price-update-response',
+          onError: (error) => {
+            log.error('[Background] Failed to send price update response:', false, error);
+          }
+        });
+      } catch (error) {
+        log.error('[Background] Error handling price update request:', false, error);
+
+        // Send error response
+        safePortPostMessage(port, {
+          type: 'PRICE_UPDATE_RESPONSE',
+          success: false,
+          error: error instanceof Error ? error.message : 'Price update failed'
+        }, {
+          context: 'price-update-error'
+        });
+      }
+
       return;
     }
 
@@ -427,9 +462,9 @@ async function handlePortMessage(message: YakklMessage, port: RuntimePort) {
               }, {
                 context: 'background-approval-resolve',
                 onError: (error) => {
-                  log.warn('[Background] Failed to send approval resolve response:', false, { 
+                  log.warn('[Background] Failed to send approval resolve response:', false, {
                     requestId: id,
-                    error: error instanceof Error ? error.message : error 
+                    error: error instanceof Error ? error.message : error
                   });
                 }
               });
@@ -447,10 +482,10 @@ async function handlePortMessage(message: YakklMessage, port: RuntimePort) {
               }, {
                 context: 'background-approval-reject',
                 onError: (sendError) => {
-                  log.warn('[Background] Failed to send approval reject response:', false, { 
+                  log.warn('[Background] Failed to send approval reject response:', false, {
                     requestId: id,
                     originalError: error?.message,
-                    sendError: sendError instanceof Error ? sendError.message : sendError 
+                    sendError: sendError instanceof Error ? sendError.message : sendError
                   });
                 }
               });
@@ -471,10 +506,10 @@ async function handlePortMessage(message: YakklMessage, port: RuntimePort) {
           }, {
             context: 'background-popup-result',
             onError: (error) => {
-              log.warn('[Background] Failed to send popup result response:', false, { 
+              log.warn('[Background] Failed to send popup result response:', false, {
                 requestId: id,
                 method,
-                error: error instanceof Error ? error.message : error 
+                error: error instanceof Error ? error.message : error
               });
             }
           });
@@ -493,10 +528,10 @@ async function handlePortMessage(message: YakklMessage, port: RuntimePort) {
         }, {
           context: 'background-direct-result',
           onError: (error) => {
-            log.warn('[Background] Failed to send direct result response:', false, { 
+            log.warn('[Background] Failed to send direct result response:', false, {
               requestId: id,
               method,
-              error: error instanceof Error ? error.message : error 
+              error: error instanceof Error ? error.message : error
             });
           }
         });
@@ -514,10 +549,10 @@ async function handlePortMessage(message: YakklMessage, port: RuntimePort) {
         }, {
           context: 'background-request-error',
           onError: (sendError) => {
-            log.warn('[Background] Failed to send request error response:', false, { 
+            log.warn('[Background] Failed to send request error response:', false, {
               requestId: id,
               originalError: error instanceof Error ? error.message : error,
-              sendError: sendError instanceof Error ? sendError.message : sendError 
+              sendError: sendError instanceof Error ? sendError.message : sendError
             });
           }
         });
@@ -640,11 +675,11 @@ function broadcastEvent(eventName: string, data: any, type: string = 'YAKKL_EVEN
     safePortPostMessage(port, event, {
       context: `broadcast-${eventName}`,
       onError: (error) => {
-        log.warn('[Background] Failed to broadcast event:', false, { 
+        log.warn('[Background] Failed to broadcast event:', false, {
           eventName,
           type,
           portName: port.name,
-          error: error instanceof Error ? error.message : error 
+          error: error instanceof Error ? error.message : error
         });
       }
     });
@@ -756,12 +791,21 @@ async function initializeOnStartup() {
     } catch (error) {
       log.error('[Background] Failed to initialize interval service:', false, error);
     }
-    
+
+    // Initialize background price service for token pricing
+    try {
+      const priceService = BackgroundPriceService.getInstance();
+      await priceService.start();
+      log.info('[Background] Background price service started');
+    } catch (error) {
+      log.error('[Background] Failed to start price service:', false, error);
+    }
+
     // Initialize IdleManager with system-wide monitoring
     // Wrap in setTimeout to avoid blocking initial startup
     setTimeout(async () => {
       try {
-        const settings = await getSettings();
+        const settings = await getYakklSettings();
         if (settings?.idleSettings?.enabled !== false) { // Default to enabled
           const idleManager = IdleManager.initialize({
             width: 'system-wide',
@@ -947,25 +991,25 @@ function isDevelopmentEnvironment(): boolean {
       // @ts-ignore
       return DEV_MODE === true || DEV_MODE === 'true';
     }
-    
+
     // Check for __DEV__ flag
     // @ts-ignore
     if (typeof __DEV__ !== 'undefined') {
       // @ts-ignore
       return __DEV__ === true;
     }
-    
+
     // Standard NODE_ENV check
     if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production') {
       return true;
     }
-    
+
     // Fallback: check if we're in a local extension environment
     if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.getManifest) {
       const manifest = browser.runtime.getManifest();
       return !!(manifest.name && (manifest.name.includes('dev') || manifest.name.includes('Dev')));
     }
-    
+
     return false;
   } catch (e) {
     // If any check fails, assume production
