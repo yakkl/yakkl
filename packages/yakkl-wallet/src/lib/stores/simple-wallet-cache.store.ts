@@ -2,7 +2,8 @@ import { writable, derived, get } from 'svelte/store';
 import { getYakklCurrentlySelected } from '$lib/common/stores';
 import type { TokenDisplay, TransactionDisplay } from '$lib/types';
 import { log } from '$lib/common/logger-wrapper';
-import { browser_ext } from '$lib/common/environment';
+// import { browser_ext } from '$lib/common/environment';
+import browser from '$lib/common/browser-wrapper';
 
 // Simplified cache structure - ~100 lines instead of 2351
 export interface SimpleWalletCache {
@@ -326,14 +327,16 @@ function createSimpleWalletCache() {
         if (!cache.current.address) return;
 
         // Send message to background to refresh
-        await browser_ext.runtime.sendMessage({
-          method: 'yakkl_refreshTokens',
-          params: {
-            chainId: cache.current.chainId,
-            address: cache.current.address,
-            force: true
-          }
-        });
+        if (browser.runtime) {
+          await browser.runtime.sendMessage({
+            method: 'yakkl_refreshTokens',
+            params: {
+              chainId: cache.current.chainId,
+              address: cache.current.address,
+              force: true
+            }
+          });
+        }
       } catch (e) {
         log.warn('[SimpleCache] Failed to request refresh', false, e);
       }

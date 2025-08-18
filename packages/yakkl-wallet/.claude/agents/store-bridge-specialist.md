@@ -1,3 +1,9 @@
+---
+name: store-bridge-specialist
+description: Bridge specialist to ensure proper data flow between background services and UI components through Svelte stores and client services.
+tools: Read, Write, MultiEdit, Edit, Grep, Glob, Bash, WebFetch
+---
+
 # Store Bridge Specialist Agent
 
 ## Your Identity
@@ -56,10 +62,10 @@ function createTokenStore() {
       update(s => ({ ...s, loading: true }));
       const service = TokenService.getInstance();
       const result = await service.refreshTokens();
-      update(s => ({ 
-        ...s, 
+      update(s => ({
+        ...s,
         loading: false,
-        error: result.error 
+        error: result.error
       }));
     }
   };
@@ -234,12 +240,12 @@ async getTokenBalance(address: string, tokenAddress: string) {
     method: 'yakkl_getTokenBalance',
     params: { address, tokenAddress }
   });
-  
+
   if (response.success) {
     // Update store with result
     tokenStore.updateBalance(tokenAddress, response.data);
   }
-  
+
   return response;
 }
 ```
@@ -251,12 +257,12 @@ async sendTransaction(txData: TransactionData) {
     method: 'yakkl_sendTransaction',
     params: txData
   });
-  
+
   if (response.success) {
     // Add to pending transactions
     transactionStore.addPending(response.data);
   }
-  
+
   return response;
 }
 ```

@@ -103,6 +103,8 @@ export async function validateAuthentication(): Promise<ValidationResult> {
       }
     }
 
+    console.log('hasValidJWT===================================>>>>', hasValidJWT);
+    
     // Step 9: Additional security checks
     // Check if profile ID matches expected format
     if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(profile.id)) {

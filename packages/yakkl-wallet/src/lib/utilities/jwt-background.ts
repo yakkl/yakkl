@@ -18,18 +18,7 @@
 
 // No imports needed - this is for background context only
 import browser from 'webextension-polyfill';
-
-interface JWTPayload {
-	sub: string; // Subject (user ID)
-	username: string; // Username
-	profileId: string; // Profile ID
-	planLevel: string; // Plan level (basic, pro, etc.)
-	sessionId: string; // Session ID for tracking
-	iat: number; // Issued at
-	exp: number; // Expires at
-	iss: string; // Issuer
-	aud: string; // Audience
-}
+import type { JWTPayload } from './jwt';
 
 interface StoredJWTData {
 	token: string;
@@ -63,7 +52,8 @@ class BackgroundJWTManager {
 		profileId: string,
 		planLevel: string = 'explorer_member',
 		sessionId?: string,
-		expirationMinutes: number = 60
+		expirationMinutes: number = 60,
+		secureHash?: string // Optional secure hash to include in JWT for backend API
 	): Promise<string> {
 		try {
 			const now = Date.now();
@@ -81,7 +71,8 @@ class BackgroundJWTManager {
 				iat: Math.floor(now / 1000),
 				exp: Math.floor(exp / 1000),
 				iss: this.ISSUER,
-				aud: this.AUDIENCE
+				aud: this.AUDIENCE,
+				secureHash
 			};
 
 			// Get signing key

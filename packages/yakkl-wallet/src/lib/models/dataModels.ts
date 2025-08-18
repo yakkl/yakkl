@@ -539,7 +539,7 @@ export let sampleWatch: YakklWatch[] = [
 // NOTE: May want to add other default data...
 export const yakklStoredObjects = [
 	{ key: 'preferences', value: yakklPreferences },
-	{ key: 'settings', value: yakklSettings },
+	{ key: 'yakklSettings', value: yakklSettings },
 	{ key: 'yakklCurrentlySelected', value: yakklCurrentlySelected },
 	{ key: 'yakklSecurity', value: yakklSecurity },
 	{ key: 'yakklWalletBlockchains', value: yakklWalletBlockchains },

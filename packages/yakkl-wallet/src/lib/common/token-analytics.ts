@@ -186,7 +186,7 @@ export function calculateTokenValue(token: TokenData): number {
 		balanceNum = Number(token.balance);
 	}
 
-	return DecimalMath.of(balanceNum).mul(BigNumberishUtils.toNumber(token.price.price)).toNumber();
+	return balanceNum * token.price.price;
 }
 
 /**

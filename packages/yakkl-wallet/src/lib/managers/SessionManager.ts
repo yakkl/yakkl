@@ -116,24 +116,24 @@ export class SessionManager {
 					expiresAt: this.sessionState.expiresAt
 				});
 
-							// Also notify about login success to start JWT validation
-			try {
-				if (typeof window !== 'undefined' && browser_ext.runtime) {
-					// Send the JWT token to background for storage and validation
-					browser_ext.runtime.sendMessage({
-						type: 'USER_LOGIN_SUCCESS',
-						sessionId,
-						hasJWT: !!jwtToken,
-						jwtToken: jwtToken, // Include the actual JWT token
-						userId,
-						username,
-						profileId,
-						planLevel
-					});
-					log.debug('SessionManager: Notified background about login success with JWT token');
-				}
-			} catch (error) {
-				log.warn('SessionManager: Failed to notify background about login:', false, error);
+							// Also notify about login success to start JWT validation (non-blocking)
+			// Fire and forget - don't wait for response to avoid slowing down login
+			if (typeof window !== 'undefined' && browser_ext.runtime) {
+				browser_ext.runtime.sendMessage({
+					type: 'USER_LOGIN_SUCCESS',
+					sessionId,
+					hasJWT: !!jwtToken,
+					jwtToken: jwtToken, // Include the actual JWT token
+					userId,
+					username,
+					profileId,
+					planLevel
+				}).then(() => {
+					log.debug('SessionManager: Background notified about login success with JWT');
+				}).catch((error) => {
+					// Silently fail - don't block login if background notification fails
+					log.debug('SessionManager: Background notification failed (non-critical):', false, error);
+				});
 			}
 			}
 

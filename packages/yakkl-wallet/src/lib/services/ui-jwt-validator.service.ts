@@ -46,38 +46,44 @@ export class UIJWTValidatorService {
    * Start JWT validation service in UI context
    */
   start(): void {
-    if (!browser || typeof window === 'undefined') {
-      log.warn('[UIJWTValidator] Not in browser extension client context');
-      return;
+    try {
+      if (!browser || typeof window === 'undefined') {
+        log.warn('[UIJWTValidator] Not in browser extension client context');
+        return;
+      }
+
+      if (this.validationInterval) {
+        log.debug('[UIJWTValidator] Already running');
+        return;
+      }
+
+      console.log('[UIJWTValidator] Starting JWT validation service with delays');
+
+      // Track user activity for intelligent validation
+      this.setupActivityTracking();
+
+      // Delay all JWT validation operations to prevent login/home page slowdown
+      // Phase 1: Connect to background after 30 seconds
+      setTimeout(() => {
+        console.log('[UIJWTValidator] Phase 1: Connecting to background (30s delay)');
+        this.connectToBackground();
+
+        // Phase 2: Start validation after another 30 seconds (60s total)
+        setTimeout(() => {
+          console.log('[UIJWTValidator] Phase 2: Starting validation (60s total delay)');
+          
+          // Start periodic validation with activity-based frequency
+          this.validationInterval = window.setInterval(() => {
+            this.performActivityBasedValidation();
+          }, this.VALIDATION_INTERVAL);
+
+          // Perform first validation check
+          this.validateJWTToken();
+        }, 30000); // Additional 30 seconds
+      }, 30000); // Initial 30 seconds delay
+    } catch (error) {
+      console.log('[UIJWTValidator] Error starting JWT validation service', false, error);
     }
-
-    if (this.validationInterval) {
-      log.debug('[UIJWTValidator] Already running');
-      return;
-    }
-
-    log.info('[UIJWTValidator] Starting JWT validation service');
-
-    // Don't show modal immediately on startup - wait for actual validation issues
-    // this.updateModal('checking', 'Connecting to authentication service...');
-
-    // Connect to background script
-    this.connectToBackground();
-
-    // Start periodic validation with activity-based frequency
-    this.validationInterval = window.setInterval(() => {
-      this.performActivityBasedValidation();
-    }, this.VALIDATION_INTERVAL);
-
-    // Track user activity for intelligent validation
-    this.setupActivityTracking();
-
-    // Perform initial validation after a short delay to ensure page is ready
-    // This prevents interference with the login page initialization
-    setTimeout(() => {
-      log.info('[UIJWTValidator] Performing initial validation');
-      this.validateJWTToken();
-    }, 1000); // 1 second delay to let the page initialize
   }
 
   /**
@@ -248,9 +254,19 @@ export class UIJWTValidatorService {
       // to avoid circular dependency with JWT validation
       const authState = get(authStore);
 
+      console.log('[UIJWTValidator] authState', authState);
+      
       // Basic checks without calling full session validation
       if (!authState.isAuthenticated || !authState.jwtToken) {
-        log.warn('[UIJWTValidator] Not authenticated or no JWT token');
+        console.log('[UIJWTValidator] Not authenticated or no JWT token');
+        
+        // Check if we're within grace period after login (first 60 seconds)
+        const timeSinceActivity = Date.now() - authState.lastActivity;
+        if (timeSinceActivity < 60000) {
+          console.log('[UIJWTValidator] Within grace period after login, skipping validation');
+          return;
+        }
+        
         // Show 20-second security countdown modal instead of immediate logout
         this.showSecurityWarningModal(
           'Your session has expired or is invalid.',
@@ -261,7 +277,15 @@ export class UIJWTValidatorService {
 
       // Check if session state exists and is active
       if (!authState.sessionState || !authState.profile) {
-        log.warn('[UIJWTValidator] No valid session state or profile');
+        console.log('[UIJWTValidator] No valid session state or profile');
+        
+        // Check if we're within grace period after login (first 60 seconds)
+        const timeSinceActivity = Date.now() - authState.lastActivity;
+        if (timeSinceActivity < 60000) {
+          console.log('[UIJWTValidator] Within grace period after login, skipping validation');
+          return;
+        }
+        
         // Show 20-second security countdown modal instead of immediate logout
         this.showSecurityWarningModal(
           'Your session state is invalid.',
@@ -279,9 +303,9 @@ export class UIJWTValidatorService {
         });
       }
 
-      log.debug('[UIJWTValidator] JWT validation passed');
+      console.log('[UIJWTValidator] JWT validation passed');
     } catch (error) {
-      log.warn('[UIJWTValidator] JWT validation error', false, error);
+      console.log('[UIJWTValidator] JWT validation error', false, error);
       // Show 20-second security countdown modal instead of immediate logout
       this.showSecurityWarningModal(
         'A security error occurred during session validation.',

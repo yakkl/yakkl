@@ -1,20 +1,25 @@
 # YAKKL Smart Wallet v2 - Project Overview
 
-**Version**: v2.0.1  
-**Last Updated**: 2025-08-18  
+**Version**: v2.0.2
+**Last Updated**: 2025-08-18
 **Primary Goal**: Production-ready crypto wallet with enterprise-grade security and exceptional UX
 
 ## Project Description
-YAKKL Smart Wallet is a next-generation browser extension crypto wallet built with SvelteKit, focusing on security, performance, and user experience. The wallet features advanced AI integration, multi-chain support, and a revolutionary view-based caching architecture.
+YAKKL Smart Wallet is a next-generation browser extension crypto wallet built with the latest version of svelte (5.x.x with runes, $effect, $props) and the  svelteKit, focusing on security, performance, and user experience. The wallet features advanced AI integration, multi-chain support, and a revolutionary view-based caching architecture.
+
+## Claude tone of voice
+
+- Use a matter of fact like to tone with no fluff and if your opinion stings then so be it. I can not make good decisions if something always agrees with me, even when I'm wrong!
 
 ## Code Style Guidelines
 - **Indentation**: 2 spaces (no tabs)
 - **Imports**: Static imports only (NO dynamic imports except documented exceptions)
 - **TypeScript**: Strict mode, explicit types for all public APIs
-- **Components**: SvelteKit components with TypeScript
-- **Styling**: Tailwind CSS with DaisyUI components
+- **Components**: SvelteKit components with TypeScript (svelte version 5.x.x with runes, $props(), $effect(...), and NO $: - that is deprecated)
+- **Styling**: Tailwind CSS (latest version) with DaisyUI components
 - **Naming**: camelCase for variables/functions, PascalCase for components/classes
 - **File Structure**: Feature-based organization in `$lib/`
+- **Browser Extension APIs**: Use MDN browser.* APIs and NOT chrome.* APIs except for side panel feature. If in background extension context use 'browser.*' and if in client extension context use 'browser_ext.*' ($lib/common/environment)
 
 ## Frequently Used Commands
 
@@ -68,7 +73,7 @@ pnpm run coverage      # Generate coverage report
 - Node.js v20+
 - pnpm v8+
 - Chrome/Brave browser for extension development
-- VS Code with recommended extensions
+- Cursor (VS Code fork) with recommended extensions
 
 ### Setup Instructions
 1. Clone repository
@@ -92,16 +97,16 @@ Rework prompts if they:
 - Could benefit from architectural review
 
 ## Critical Rules - DO NOT VIOLATE
-1. **NO DYNAMIC IMPORTS** - Use static imports only. Dynamic imports (`await import()`) break webpack in service worker contexts.
+1. **NO DYNAMIC IMPORTS** - Use static imports only. Dynamic imports (`await import(...)`) break webpack in service worker contexts.
    - Exceptions (use ONLY when absolutely necessary):
-     - `webextension-polyfill` in client context with browser environment check
+     - `webextension-polyfill` in client context with browser environment
      - Circular dependency resolution (must be documented with comment)
      - Provider/blockchain abstraction where different implementations are loaded conditionally
      - Network providers (Alchemy, Infura, etc.) loaded based on configuration
    - All other imports MUST be static at the top of the file
    - If using dynamic import for valid reason, MUST add comment explaining why
 2. **Never modify webextension-polyfill import handling** - It has special handling for browser/non-browser contexts
-3. **NO BIG NUMBER DISPLAY ERRORS** - Always use proper BigNumber formatting utilities
+3. **NO BIG NUMBER DISPLAY ERRORS** - Always use our proper BigNumber formatting utilities found in $lib/common/bignumber.ts and others there
    - Use `formatBigNumberForDisplay()` for UI values
    - Never display raw BigNumber objects
    - Implement responsive font sizing for large values
@@ -140,17 +145,18 @@ For detailed agent descriptions and usage, see: @/docs/claude/AGENT_REFERENCE.md
 ### Active Issues (Priority Order)
 
 #### Priority Bugs to Fix:
-1. **Idle Timeout System**
-   - Currently locks immediately on idle (no grace period)
-   - Missing countdown timer and notifications
-   - No badge updates during countdown
-   - Settings UI needs idle configuration fields
+1. **JWT Validation Issue**
+   - Currently pops up a the JWT Invalid dialog immediately after login
+   - There are few generate or create JWT tokens methods and function. There is a process that looks at auth-store functions and determines there is no JWT or it is not valid and thus sets the authStore as invalid and so the default 20 seconds starts its countdown. Since it is a JWT validation issue there is no way to stop it which is good
+   - I traced a few things down, including a user defined message value called USER_LOGIN_SUCCESS but I don't see anywhere in a background context service where the message is caught so nothing happens. By default, if the JWT is not set then it will fail the validation flag and thus start the countdown
+   - I need you to focus only on JWT and JWT related code and nothing else. I need to create a valid JWT after a successful login because I will use this in my backend service for validation later. I'm working on the architecture for a more powerful architecture that includes JWT plus super secure measures. More on this later today
+   - Create a solid plan and think ultra hard about how it should be done and maybe not so much on how it is currently done. I hope they are the same so we can speed the process up. At the end of this JWT working, I don't want any orphan JWT related code hanging around. If it looks like some of the code may be good later then add it to the yakkl-wallet/deadcode directory since this directoy is not part of git nor the build process path
 
-2. **Wallet Cache & Views**
+<!-- 2. **Wallet Cache & Views**
    - Background services not properly syncing data
    - Views not organized for different data slices
    - RecentActivity component needs view selector
-   - Portfolio totals not updating correctly
+   - Portfolio totals not updating correctly -->
 
 ### 🔧 Active Configuration
 

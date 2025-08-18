@@ -11,6 +11,8 @@
   import { onMount } from 'svelte';
   import { protectedContexts } from '$lib/common/globals';
   import { goto } from '$app/navigation';
+  // import { browser_ext } from '$lib/common/environment';
+  import browser from '$lib/common/browser-wrapper';
 
   // State
   let showError = $state(false);
@@ -38,7 +40,7 @@
     planType = PlanType.EXPLORER_MEMBER;
 
     // Load settings in background (non-blocking)
-    getNormalizedSettings().then(settings => {
+    getNormalizedSettings().then(async (settings) => {
       if (settings) {
         yakklSettings = settings;
         planType = settings?.plan?.type ?? PlanType.EXPLORER_MEMBER;
@@ -46,6 +48,7 @@
         // Check legal agreement (but don't block login form)
         if (!settings.init || !settings.legal?.termsAgreed) {
           console.log('[Login] User needs to complete legal agreement');
+          await goto('/legal');
         }
       }
     }).catch(error => {
@@ -66,11 +69,17 @@
 
       // Mark as authenticated for instant navigation
       sessionStorage.setItem('wallet-authenticated', 'true');
-      sessionStorage.setItem('wallet-username', profile.username || '');
-      sessionStorage.setItem('wallet-digest', digest); // Store digest for home page
 
-      // Navigate IMMEDIATELY - no waiting
-      await goto('/home');
+      // Notify IdleManager that login is verified (fire-and-forget)
+      if (browser.runtime) {
+        browser.runtime.sendMessage({
+          type: 'SET_IDLE_LOGIN_VERIFIED',
+          payload: { verified: true }
+        }).catch(err => {
+          log.warn('[LOGIN] Failed to notify IdleManager of login verification:', false, err);
+        });
+        log.debug('[LOGIN] Notified IdleManager of successful authentication');
+      }
 
       // Minimal background work only
       setTimeout(async () => {
@@ -81,6 +90,9 @@
           console.log('Background unlock error:', e);
         }
       }, 10);
+
+      // Navigate IMMEDIATELY - no waiting
+      await goto('/home');
 
       log.info('[LOGIN onSuccess] User logged in successfully');
     } catch (error) {

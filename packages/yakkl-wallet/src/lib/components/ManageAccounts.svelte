@@ -109,19 +109,36 @@
   }
 
   // Calculate total value for account across all tokens
+  // Returns the value as a number for comparisons and formatting
   function getAccountValue(address: string): number {
     if (!tokens || !Array.isArray(tokens)) return 0;
 
     // In multi-chain view, tokens are already filtered by address
     // In single-chain view, we need to check if this is the current account
     if (address === current?.address) {
-      return tokens.reduce((sum, token) => {
-        // Safe conversion: check type before using BigNumberishUtils
-        const value = token.value && typeof token.value === 'number' 
-          ? token.value 
-          : (token.value ? BigNumberishUtils.toNumber(token.value) : 0);
-        return sum + value;
-      }, 0);
+      // Use BigInt arithmetic to avoid precision loss, then convert to dollars at the end
+      let totalBigInt = 0n;
+      
+      for (const token of tokens) {
+        if (!token.value) continue;
+        
+        try {
+          // Convert value to BigInt for safe arithmetic
+          // Token values are typically in cents (multiplied by 100)
+          const valueBigInt = BigNumberishUtils.toBigInt(token.value);
+          totalBigInt += valueBigInt;
+        } catch (e) {
+          console.debug('Failed to convert token value to BigInt:', token.value, e);
+          // If we can't convert, try to use it as a number if it's safe
+          if (typeof token.value === 'number' && Number.isSafeInteger(token.value)) {
+            totalBigInt += BigInt(Math.floor(token.value));
+          }
+        }
+      }
+      
+      // Convert from cents (or smallest unit) to dollars for display
+      // This is safe because we're dividing by 100, making the number smaller
+      return Number(totalBigInt) / 100;
     }
 
     // For other accounts, we don't have their balance data
@@ -141,10 +158,27 @@
       } else if ('balance' in token) {
         amount = token.balance;
       }
-      const numAmount = amount && typeof amount === 'number' 
-        ? amount 
-        : (amount ? BigNumberishUtils.toNumber(amount) : 0);
-      return numAmount > 0;
+      
+      // Use BigInt comparison to avoid conversion errors for large values
+      // We only need to know if the balance is > 0, not the exact value
+      if (amount === null || amount === undefined || amount === 0) {
+        return false;
+      }
+      
+      // If it's already a number and safe, use direct comparison
+      if (typeof amount === 'number') {
+        return amount > 0;
+      }
+      
+      // For BigInt, string, or other types, convert to BigInt for comparison
+      try {
+        const bigIntAmount = BigNumberishUtils.toBigInt(amount);
+        return bigIntAmount > 0n;
+      } catch (e) {
+        // If conversion fails, assume no balance
+        console.debug('Failed to convert amount to BigInt:', amount, e);
+        return false;
+      }
     }).length;
   }
 </script>

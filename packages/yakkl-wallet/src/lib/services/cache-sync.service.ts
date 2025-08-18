@@ -166,10 +166,10 @@ export class CacheSyncManager {
 			// CRITICAL FIX: Get fresh token data directly from blockchain, not from TokenService cache
 			console.log('[CacheSync] About to fetchTokensDirectlyFromBlockchain...');
 			const response = await this.fetchTokensDirectlyFromBlockchain(address, chainId);
-			console.log('[CacheSync] fetchTokensDirectlyFromBlockchain response:', { 
-				success: response?.success, 
+			console.log('[CacheSync] fetchTokensDirectlyFromBlockchain response:', {
+				success: response?.success,
 				dataLength: response?.data?.length,
-				error: response?.error 
+				error: response?.error
 			});
 
 			if (response.success && response.data) {
@@ -187,7 +187,7 @@ export class CacheSyncManager {
 
 					// Balance is already formatted in token units from the API
 					const balanceStr = BigNumberishUtils.toString(token.balance);
-					
+
 					// CRITICAL DEBUG: Log each token conversion
 					log.info(`[CacheSync] Converting token ${token.symbol}:`, false, {
 						address: token.address,
@@ -334,7 +334,7 @@ export class CacheSyncManager {
 					})),
 					nonZeroCount: tokenCache.filter(t => parseFloat(t.balance) > 0).length
 				});
-				
+
 				// Final validation before update - ensure we're not sending all zeros UNLESS this is debugging
 				const hasAnyNonZeroBalance = tokenCache.some(t => {
 					const balance = parseFloat(t.balance) || 0;
@@ -413,7 +413,7 @@ export class CacheSyncManager {
 	private async fetchTokensDirectlyFromBlockchain(address: string, chainId: number): Promise<any> {
 		try {
 			log.info(`[CacheSync] STARTING direct blockchain fetch for ${address} on chain ${chainId}`, false);
-			
+
 			// Get provider for direct blockchain access
 			const instances = await getInstances();
 			log.info('[CacheSync] getInstances() result:', false, {
@@ -424,7 +424,7 @@ export class CacheSyncManager {
 				hasBlockchain: !!instances?.[2],
 				hasTokenService: !!instances?.[3]
 			});
-			
+
 			if (!instances || !instances[1]) {
 				log.error('[CacheSync] CRITICAL: No provider available from getInstances()', false, {
 					instances,
@@ -440,11 +440,11 @@ export class CacheSyncManager {
 				hasGetBalance: typeof provider?.getBalance === 'function',
 				hasGetNetwork: typeof provider?.getNetwork === 'function'
 			});
-			
+
 			if (!provider) {
 				throw new Error('Provider is null');
 			}
-			
+
 			// CRITICAL: Verify provider network before proceeding
 			try {
 				const network = await provider.getNetwork();
@@ -457,7 +457,7 @@ export class CacheSyncManager {
 			} catch (networkError) {
 				log.error('[CacheSync] Failed to get network info from provider:', false, networkError);
 			}
-			
+
 			// Get native token balance directly
 			log.info(`[CacheSync] Getting native balance for ${address}`, false);
 			const nativeBalance = await provider.getBalance(address);
@@ -480,8 +480,6 @@ export class CacheSyncManager {
 					isNative: true,
 					chainId,
 					icon: '/images/eth.svg',
-					price: 0, // Will be set during price sync
-					value: 0n // Will be calculated after price sync
 				},
 				...erc20Tokens
 			];
@@ -518,7 +516,7 @@ export class CacheSyncManager {
 			const networkInfo = await provider.getNetwork();
 			const actualChainId = Number(networkInfo.chainId);
 			log.info(`[CacheSync] Provider connected to chain ${actualChainId}, expected ${chainId}`, false);
-			
+
 			if (actualChainId !== chainId) {
 				log.error(`[CacheSync] CHAIN MISMATCH: Provider on chain ${actualChainId}, but fetching for chain ${chainId}`, false);
 				// Use the actual chain ID from provider
@@ -528,9 +526,9 @@ export class CacheSyncManager {
 			// Get token list from combined tokens (not from cache)
 			const combinedTokens = await getYakklCombinedTokens();
 			log.info(`[CacheSync] Total combined tokens available: ${combinedTokens?.length || 0}`, false);
-			
+
 			const chainTokens = combinedTokens?.filter(t => t.chainId === chainId && !t.isNative) || [];
-			log.info(`[CacheSync] Tokens for chain ${chainId}: ${chainTokens.length}`, false, 
+			log.info(`[CacheSync] Tokens for chain ${chainId}: ${chainTokens.length}`, false,
 				chainTokens.map(t => `${t.symbol}(${t.address})`));
 
 			// Test ETH balance first to verify provider connectivity
@@ -552,7 +550,7 @@ export class CacheSyncManager {
 
 			// CRITICAL: Force check the specific tokens user claims to own
 			log.info(`[CacheSync] Force-checking specific tokens for account ${address}`, false);
-			
+
 			for (const tokenAddress of tokenAddresses) {
 				const tokenData = chainTokens.find(t => t.address.toLowerCase() === tokenAddress.toLowerCase());
 				if (!tokenData) {
@@ -562,7 +560,7 @@ export class CacheSyncManager {
 
 				try {
 					log.info(`[CacheSync] Checking balance for ${tokenData.symbol} at ${tokenData.address}`, false);
-					
+
 					// Direct ERC20 contract call using minimal ABI
 					const contract = new ethers.Contract(tokenData.address, [
 						'function balanceOf(address) view returns (uint256)',
@@ -576,7 +574,7 @@ export class CacheSyncManager {
 						contract.decimals().catch(() => tokenData.decimals || 18),
 						contract.symbol().catch(() => tokenData.symbol)
 					]);
-					
+
 					log.info(`[CacheSync] ${tokenData.symbol} balance result:`, false, {
 						balance: balance.toString(),
 						contractDecimals,
@@ -600,9 +598,9 @@ export class CacheSyncManager {
 						price: 0, // Will be set during price sync
 						value: 0n // Will be calculated after price sync
 					};
-					
+
 					tokenBalances.push(tokenEntry);
-					
+
 					if (balance > 0n) {
 						log.info(`[CacheSync] ✅ Found balance for ${tokenData.symbol}: ${balanceFormatted}`, false);
 					} else {
@@ -632,7 +630,7 @@ export class CacheSyncManager {
 				if (tokenData.address === '0x0000000000000000000000000000000000000000') {
 					continue; // Skip native token, already handled
 				}
-				
+
 				// Skip if we already checked this token
 				if (tokenAddresses.includes(tokenData.address)) {
 					continue;

@@ -342,6 +342,7 @@ export function storageChange(changes: any) {
 		if (changes.yakklWalletCache) {
 			// Import and update the wallet cache store
         console.log('yakklWalletCache', changes.yakklWalletCache.newValue);
+        // Should we add yakklWalletCacheStore.set(changes.yakklWalletCache.newValue);
         walletCacheStore.loadFromStorage();
 		}
 	} catch (error) {
@@ -391,6 +392,20 @@ export async function syncStorageToStore(storeName?: string): Promise<void> {
 					setYakklCurrentlySelectedStore(yakklCurrentlySelectedLocal ?? yakklCurrentlySelected);
 					break;
 				}
+        case 'yakklAddressTokenCacheStore': {
+          const yakklAddressTokenCache = await getYakklAddressTokenCache();
+          yakklAddressTokenCacheStore.set(yakklAddressTokenCache);
+          break;
+        }
+        case 'yakklTokenCacheStore': {
+          const yakklTokenCache = await getYakklTokenCache();
+          yakklTokenCacheStore.set(yakklTokenCache);
+          break;
+        }
+        case 'yakklWalletCacheStore': {
+          walletCacheStore.loadFromStorage();
+          break;
+        }
 				default:
 					log.warn(`Unknown store name: ${storeName}`);
 					break;

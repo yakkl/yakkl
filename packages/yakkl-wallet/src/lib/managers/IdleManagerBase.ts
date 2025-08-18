@@ -41,8 +41,8 @@ export abstract class IdleManagerBase {
       this.settings = await getYakklSettings();
       if (this.settings?.idleSettings) {
         // Convert minutes to milliseconds for threshold and lockDelay
-        this.threshold = (this.settings.idleSettings.detectionMinutes || 5) * 60 * 1000;
-        this.lockDelay = (this.settings.idleSettings.graceMinutes || 2) * 60 * 1000;
+        this.threshold = (this.settings.idleSettings.detectionMinutes || 2) * 60 * 1000;
+        this.lockDelay = (this.settings.idleSettings.graceMinutes || 1) * 60 * 1000;
         this.countdownSeconds = this.settings.idleSettings.countdownSeconds || 30;
       }
     } catch (error) {

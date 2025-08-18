@@ -48,7 +48,8 @@
   import { simpleWalletCache, currentTokens, currentTransactions, currentPortfolioValue } from '$lib/stores/simple-wallet-cache.store';
   import { getYakklCurrentlySelected, setMiscStore } from '$lib/common/stores';
   import { STORAGE_YAKKL_TOKEN_CACHE, STORAGE_YAKKL_TRANSACTIONS_CACHE } from '$lib/common/constants';
-	import { browser_ext } from '$lib/common/environment';
+	// import { browser_ext } from '$lib/common/environment';
+  import browser from '$lib/common/browser-wrapper';
 
   // Initialize core integration dynamically to prevent SSR issues
   // let initializeCore: (() => Promise<void>) | null = null;
@@ -144,7 +145,7 @@
         // CRITICAL: Load tokens from storage IMMEDIATELY
         if (address) {
           try {
-            const stored = await browser_ext.storage.local.get([STORAGE_YAKKL_TOKEN_CACHE, STORAGE_YAKKL_TRANSACTIONS_CACHE]);
+            const stored = await browser.storage.local.get([STORAGE_YAKKL_TOKEN_CACHE, STORAGE_YAKKL_TRANSACTIONS_CACHE]);
 
             // Load tokens immediately if available
             if (stored[STORAGE_YAKKL_TOKEN_CACHE] && stored[STORAGE_YAKKL_TOKEN_CACHE][cacheKey]) {
@@ -173,7 +174,7 @@
         setTimeout(async () => {
           try {
             // Simple storage listener for background updates
-            browser_ext.storage.onChanged.addListener((changes, areaName) => {
+            browser.storage.onChanged.addListener((changes, areaName) => {
               if (areaName !== 'local') return;
 
               // Handle token updates
@@ -197,7 +198,7 @@
 
             // Request fresh data from background
             console.log('[Home] Requesting fresh data from background');
-            browser_ext.runtime.sendMessage({
+            browser.runtime.sendMessage({
               method: 'yakkl_refreshTokens',
               params: {
                 chainId,
@@ -277,11 +278,11 @@
       }
 
       if (account.address && !hasInitialLoad) {
-        console.log('Account available, triggering initial data load', account.address);
+        console.log('Account available, triggering initial data load', $inspect(account.address));
         hasInitialLoad = true;
 
         // Non-blocking refresh - stores will update reactively
-        console.log('Account changed, stores will update reactively', account.address);
+        console.log('Account changed, stores will update reactively', $inspect(account.address));
         // tokenStore.refresh(false).catch(error => {
         //   console.log('Token refresh failed', error);
         // });
@@ -299,7 +300,7 @@
       }
 
       // Always log token breakdown for debugging with safer conversion
-      console.log('Token breakdown:', tokenList.map((t: any) => {
+      tokenList.map((t: any) => {
         // Safely handle balance conversion
         let qty = 0;
         try {
@@ -337,7 +338,7 @@
           address: t.address,
           chainId: t.chainId
         };
-      }));
+      });
 
       console.log('Portfolio debug:', {
         portfolioValue,

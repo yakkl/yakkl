@@ -177,9 +177,11 @@ function createAuthStore() {
 				}
 
 				// Start session validation if authenticated
-				if (isAuthenticated) {
-					startSessionValidation();
-				}
+				// Commented out to prevent immediate validation on page load
+				// Validation will start after grace period via background service
+				// if (isAuthenticated) {
+				// 	startSessionValidation();
+				// }
 
 				log.debug('Auth store initialized', false, {
 					isRegistered,
@@ -262,6 +264,14 @@ function createAuthStore() {
 					jwtToken
 				}));
 
+				log.info('Auth store updated after login', false, {
+					isAuthenticated: true,
+					hasProfile: !!profile,
+					hasSessionState: !!sessionState,
+					hasJwtToken: !!jwtToken,
+					username: profile.username
+				});
+
 				// Clear rate limiting on successful login
 				clearAuthRateLimit(normalizedUsername);
 
@@ -285,19 +295,24 @@ function createAuthStore() {
 					// Don't fail login if idle detection fails
 				}
 
-				// Notify background script about successful login to start JWT validation
-				try {
-					if (typeof window !== 'undefined' && browser_ext.runtime) {
-						await browser_ext.runtime.sendMessage({
-							type: 'USER_LOGIN_SUCCESS',
-							sessionId: sessionState?.sessionId,
-							hasJWT: !!jwtToken
-						});
-						log.debug('Notified background script about successful login');
-					}
-				} catch (error) {
-					log.warn('Failed to notify background script about login:', false, error);
-					// Don't fail login if background notification fails
+				// Notify background script about successful login (non-blocking)
+				// Fire and forget - don't wait for response to avoid slowing down login
+				if (typeof window !== 'undefined' && browser_ext.runtime) {
+					browser_ext.runtime.sendMessage({
+						type: 'USER_LOGIN_SUCCESS',
+						sessionId: sessionState?.sessionId,
+						hasJWT: !!jwtToken,
+						jwtToken: jwtToken, // Include the actual JWT token for background storage
+						userId: profile.id || profile.username,
+						username: profile.username,
+						profileId: profile.id || profile.username,
+						planLevel
+					}).then(() => {
+						log.debug('Background notified about successful login');
+					}).catch((error) => {
+						// Silently fail - don't block login if background notification fails
+						log.debug('Background notification failed (non-critical):', false, error);
+					});
 				}
 
 				log.debug('User logged in successfully', false, {
@@ -326,11 +341,20 @@ function createAuthStore() {
 				// Import setLocks to set isLocked flag
 				await setLocks(true);
 
-				// Notify background script about logout to stop idle detection
+				// Notify background script about logout to stop idle detection and clear JWT
 				try {
 					const sessionService = SessionVerificationService.getInstance();
 					await sessionService.verifyLogin(false);
 					log.debug('Idle detection stopped after logout');
+					
+					// Clear JWT from background memory
+					if (typeof window !== 'undefined' && browser_ext.runtime) {
+						browser_ext.runtime.sendMessage({
+							type: 'CLEAR_JWT_TOKEN'
+						}).catch((error) => {
+							log.debug('Failed to clear JWT in background (non-critical):', false, error);
+						});
+					}
 				} catch (error) {
 					log.warn('Failed to stop idle detection:', false, error);
 					// Don't fail logout if idle detection fails
