@@ -6,9 +6,69 @@
 	import ProtectedValue from './ProtectedValue.svelte';
 	import { log } from '$lib/common/logger-wrapper';
 	import { BigNumber } from '$lib/common/bignumber';
-	import { BrowserAPIPortService } from '$lib/services/browser-api-port.service';
+	// Import portfolio stability service for stable token data
+	import { portfolioStability, PortfolioState } from '$lib/services/portfolio-stability.service';
 
 	let { tokens = [], className = '', maxRows = 6, loading = false } = $props();
+
+// Add comprehensive validation for tokens prop
+$effect(() => {
+	console.log('[TokenPortfolio] Props validation', {
+		tokens: {
+			value: tokens,
+			isArray: Array.isArray(tokens),
+			count: tokens?.length || 0,
+			type: typeof tokens,
+			firstToken: tokens?.[0]
+		},
+		loading,
+		maxRows,
+		className
+	});
+	
+	// Validate that tokens is an array
+	if (tokens !== undefined && tokens !== null && !Array.isArray(tokens)) {
+		console.error('[TokenPortfolio] Invalid tokens prop - expected array but got:', {
+			tokens,
+			type: typeof tokens
+		});
+	}
+	
+	// Validate each token structure
+	if (Array.isArray(tokens)) {
+		tokens.forEach((token, index) => {
+			if (!token) {
+				log.warn(`[TokenPortfolio] Token at index ${index} is null/undefined`, false);
+				return;
+			}
+			
+			const issues = [];
+			if (!token.symbol) issues.push('missing symbol');
+			if (token.value !== undefined && token.value !== null && !isFinite(Number(token.value)) && typeof token.value !== 'bigint' && typeof token.value !== 'string') {
+				issues.push('invalid value type');
+			}
+			if (token.price !== undefined && token.price !== null && !isFinite(Number(token.price))) {
+				issues.push('invalid price');
+			}
+			if (token.qty !== undefined && token.qty !== null && !isFinite(Number(token.qty))) {
+				issues.push('invalid quantity');
+			}
+			
+			if (issues.length > 0) {
+				log.warn(`[TokenPortfolio] Token ${token.symbol || index} has validation issues:`, false, {
+					issues,
+					token: {
+						symbol: token.symbol,
+						value: token.value,
+						valueType: typeof token.value,
+						price: token.price,
+						qty: token.qty
+					}
+				});
+			}
+		});
+	}
+});
 
 	let expanded = $state(false);
 	let sortBy = $state<'name' | 'value' | 'price' | 'quantity'>('value');
@@ -17,188 +77,624 @@
 	let isRefreshing = $state(false);
 	let lastRefreshTime = $state(0);
 	let timeUntilNextRefresh = $state(0);
+	
+	// Get stable token data from stability service
+	const stableTokens = portfolioStability.getStableTokens();
+	const tokenState = portfolioStability.getPortfolioState();
+	
+	// Update stability service when tokens prop changes
+	$effect(() => {
+		console.log('[TokenPortfolio] Tokens prop changed, updating stability service', {
+			tokens: {
+				count: tokens?.length || 0,
+				isArray: Array.isArray(tokens),
+				hasValue: !!tokens,
+				data: tokens?.slice(0, 2).map(t => ({
+					symbol: t?.symbol,
+					value: t?.value,
+					valueType: typeof t?.value,
+					price: t?.price,
+					qty: t?.qty
+				}))
+			}
+		});
+		
+		if (tokens && Array.isArray(tokens) && tokens.length > 0) {
+			log.info('[TokenPortfolio] Updating portfolio stability with new tokens', false, { count: tokens.length });
+			portfolioStability.updateTokenList(tokens, 'fetched');
+		} else {
+			log.debug('[TokenPortfolio] No valid tokens to update stability service', false, { tokens });
+		}
+	});
+	
+	// Use stable tokens if available, otherwise use props
+	let displayTokens = $derived.by(() => {
+		const stableTokensArray = $stableTokens;
+		const hasStableTokens = Array.isArray(stableTokensArray) && stableTokensArray.length > 0;
+		const result = hasStableTokens ? stableTokensArray : tokens;
+		
+		console.log('[TokenPortfolio] displayTokens derived:', {
+			stableTokensCount: stableTokensArray?.length || 0,
+			propsTokensCount: tokens?.length || 0,
+			usingStable: hasStableTokens,
+			resultCount: result?.length || 0,
+			resultIsArray: Array.isArray(result),
+			firstToken: result?.[0]
+		});
+		
+		return result;
+	});
 
 	// Rate limiting constants
 	const REFRESH_COOLDOWN_MS = 5000; // 5 seconds between refreshes
 	const MIN_TIME_BETWEEN_CLICKS = 1000; // 1 second minimum between button clicks
 
-	// Timer to update timeUntilNextRefresh every second
+	// Update timeUntilNextRefresh reactively instead of using interval
 	$effect(() => {
-		const interval = setInterval(() => {
-			const now = Date.now();
-			const timeSinceLastRefresh = now - lastRefreshTime;
-			if (timeSinceLastRefresh >= REFRESH_COOLDOWN_MS) {
-				timeUntilNextRefresh = 0;
-			} else {
-				timeUntilNextRefresh = Math.ceil((REFRESH_COOLDOWN_MS - timeSinceLastRefresh) / 1000);
-			}
-		}, 1000);
-
-		return () => clearInterval(interval);
+		// Calculate remaining time based on current time
+		const now = Date.now();
+		const timeSinceLastRefresh = now - lastRefreshTime;
+		if (timeSinceLastRefresh >= REFRESH_COOLDOWN_MS) {
+			timeUntilNextRefresh = 0;
+		} else {
+			timeUntilNextRefresh = Math.ceil((REFRESH_COOLDOWN_MS - timeSinceLastRefresh) / 1000);
+		}
 	});
 
 	// Calculate total value of all tokens using BigNumber for precision
+	// Values are stored as bigint in cents, need to convert to dollars for display
 	let totalValue = $derived.by(() => {
-		return tokens.reduce((sum, token) => {
-			// Convert token value to number safely
-			let value = 0;
-			if (typeof token.value === 'number') {
-				value = token.value;
-			} else if (typeof token.value === 'string') {
-				// Use BigNumber to handle the conversion
-				const bn = new BigNumber(token.value || '0');
-				value = bn.toNumber() || 0;
+		// Ensure displayTokens is always an array to prevent flickering
+		if (!Array.isArray(displayTokens)) {
+			log.debug('[TokenPortfolio] totalValue: displayTokens is not array', false, { displayTokens });
+			return 0;
+		}
+		
+		const total = displayTokens.reduce((sum, token, index) => {
+			// Guard against undefined tokens to prevent flickering
+			if (!token || token.value === undefined || token.value === null) {
+				log.debug(`[TokenPortfolio] totalValue: Token ${index} is invalid`, false, { token });
+				return sum;
 			}
+			
+			// Convert token value to number (dollars) safely
+			let value = 0;
+			try {
+				log.debug(`[TokenPortfolio] totalValue: Processing token ${token.symbol}`, false, {
+					token: {
+						symbol: token.symbol,
+						value: token.value,
+						valueType: typeof token.value,
+						price: token.price,
+						qty: token.qty
+					}
+				});
+				
+				if (typeof token.value === 'bigint') {
+					// bigint values are in cents, convert to dollars
+					value = Number(token.value) / 100;
+					log.debug(`[TokenPortfolio] totalValue: Converted bigint ${token.value} to ${value}`, false);
+				} else if (typeof token.value === 'number') {
+					value = token.value;
+					log.debug(`[TokenPortfolio] totalValue: Using number value ${value}`, false);
+				} else if (typeof token.value === 'string') {
+					// Use BigNumber to handle the conversion
+					const bn = new BigNumber(token.value || '0');
+					const numValue = bn.toNumber();
+					value = numValue || 0;
+					log.debug(`[TokenPortfolio] totalValue: Converted string ${token.value} via BigNumber to ${value}`, false, { numValue });
+				} else if (token.value && typeof token.value === 'object' && 'toString' in token.value) {
+					// Handle BigNumberish types
+					const str = token.value.toString();
+					const bigintVal = BigInt(str || '0');
+					value = Number(bigintVal) / 100; // Assuming cents
+					log.debug(`[TokenPortfolio] totalValue: Converted object ${str} to ${value}`, false);
+				}
+				
+				// Validate the result and provide detailed diagnostics
+				if (!isFinite(value) || isNaN(value)) {
+					log.error(`[TokenPortfolio] totalValue: CRITICAL - NaN/Infinite value detected for ${token.symbol}`, false, {
+						originalValue: token.value,
+						originalType: typeof token.value,
+						convertedValue: value,
+						isFinite: isFinite(value),
+						isNaN: isNaN(value),
+						tokenPrice: token.price,
+						tokenQty: token.qty,
+						calculationDebug: {
+							priceTimesQty: token.price && token.qty ? token.price * token.qty : 'N/A',
+							bigintConversion: typeof token.value === 'bigint' ? 
+								(token.value <= BigInt(Number.MAX_SAFE_INTEGER) 
+									? `${token.value} -> ${Number(token.value)} -> ${Number(token.value) / 100}` 
+									: `${token.value} (too large for safe conversion)`) 
+								: 'N/A'
+						}
+					});
+					value = 0;
+				}
+			} catch (error) {
+				log.error(`[TokenPortfolio] totalValue: Error converting ${token.symbol} value`, false, {
+					error,
+					token: {
+						symbol: token.symbol,
+						value: token.value,
+						valueType: typeof token.value
+					}
+				});
+				value = 0;
+			}
+			
+			log.debug(`[TokenPortfolio] totalValue: Token ${token.symbol} contributes ${value} to total`, false);
 			return sum + value;
 		}, 0);
+		
+		log.debug('[TokenPortfolio] totalValue: Final total calculated', false, { total, tokenCount: displayTokens.length });
+		return total;
 	});
 
 	// Filter tokens with value > 0 and sort them
 	let filteredAndSortedTokens = $derived.by(() => {
+		// Ensure displayTokens is always an array to prevent flickering
+		if (!Array.isArray(displayTokens)) {
+			log.debug('[TokenPortfolio] filteredAndSortedTokens: displayTokens is not array', false, { displayTokens });
+			return [];
+		}
+		
+		console.log('[TokenPortfolio] filteredAndSortedTokens: Processing tokens', {
+			tokenCount: displayTokens.length,
+			sortBy,
+			sortOrder,
+			tokens: displayTokens.map(t => ({
+				symbol: t?.symbol,
+				value: t?.value,
+				valueType: typeof t?.value,
+				price: t?.price,
+				qty: t?.qty
+			}))
+		});
+		
 		// For debugging: show all tokens, not just those with value > 0
-		// const filtered = tokens.filter(token => {
+		// const filtered = displayTokens.filter(token => {
 		//   const value = typeof token.value === 'number' ? token.value : parseFloat(token.value || '0');
 		//   return value > 0;
 		// });
-		const filtered = tokens; // Show all tokens for now
+		const filtered = displayTokens; // Show all tokens for now
 
-		// Sort tokens
-		const sorted = [...filtered].sort((a, b) => {
-			switch (sortBy) {
-				case 'name':
-					const aName = a.symbol.toLowerCase();
-					const bName = b.symbol.toLowerCase();
-					return sortOrder === 'asc' ? aName.localeCompare(bName) : bName.localeCompare(aName);
+		// Sort tokens - ensure we have valid tokens to prevent errors
+		const sorted = [...filtered].filter(token => {
+			const isValid = token && token.symbol;
+			if (!isValid) {
+				log.warn('[TokenPortfolio] filteredAndSortedTokens: Filtering out invalid token', false, { token });
+			}
+			return isValid;
+		}).sort((a, b) => {
+			try {
+				switch (sortBy) {
+					case 'name':
+						const aName = a.symbol.toLowerCase();
+						const bName = b.symbol.toLowerCase();
+						return sortOrder === 'asc' ? aName.localeCompare(bName) : bName.localeCompare(aName);
 
-				case 'value':
-					// Use BigNumber for precise value comparison
-					const aVal =
-						typeof a.value === 'number' ? a.value : new BigNumber(a.value || '0').toNumber() || 0;
-					const bVal =
-						typeof b.value === 'number' ? b.value : new BigNumber(b.value || '0').toNumber() || 0;
-					return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+					case 'value':
+						// Use BigNumber for precise value comparison with error handling
+						let aVal = 0;
+						let bVal = 0;
+						try {
+							if (typeof a.value === 'number') {
+								aVal = a.value;
+							} else if (a.value !== undefined && a.value !== null) {
+								const aBN = new BigNumber(a.value);
+								aVal = aBN.toNumber() || 0;
+							}
+							
+							if (typeof b.value === 'number') {
+								bVal = b.value;
+							} else if (b.value !== undefined && b.value !== null) {
+								const bBN = new BigNumber(b.value);
+								bVal = bBN.toNumber() || 0;
+							}
+							
+							log.debug('[TokenPortfolio] filteredAndSortedTokens: Comparing values', false, {
+								a: { symbol: a.symbol, value: a.value, converted: aVal },
+								b: { symbol: b.symbol, value: b.value, converted: bVal }
+							});
+						} catch (error) {
+							log.error('[TokenPortfolio] filteredAndSortedTokens: Error converting values for sorting', false, {
+								error,
+								a: { symbol: a.symbol, value: a.value },
+								b: { symbol: b.symbol, value: b.value }
+							});
+							// Fallback to 0 on error to prevent crashes
+							aVal = 0;
+							bVal = 0;
+						}
+						return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
 
-				case 'price':
-					const aPrice = a.price || 0;
-					const bPrice = b.price || 0;
-					return sortOrder === 'asc' ? aPrice - bPrice : bPrice - aPrice;
+					case 'price':
+						const aPrice = a.price || 0;
+						const bPrice = b.price || 0;
+						return sortOrder === 'asc' ? aPrice - bPrice : bPrice - aPrice;
 
-				case 'quantity':
-					const aQty = a.qty || 0;
-					const bQty = b.qty || 0;
-					return sortOrder === 'asc' ? aQty - bQty : bQty - aQty;
+					case 'quantity':
+						const aQty = a.qty || 0;
+						const bQty = b.qty || 0;
+						return sortOrder === 'asc' ? aQty - bQty : bQty - aQty;
 
-				default:
-					const aDefault =
-						typeof a.value === 'number' ? a.value : new BigNumber(a.value || '0').toNumber() || 0;
-					const bDefault =
-						typeof b.value === 'number' ? b.value : new BigNumber(b.value || '0').toNumber() || 0;
-					return sortOrder === 'asc' ? aDefault - bDefault : bDefault - aDefault;
+					default:
+						let aDefault = 0;
+						let bDefault = 0;
+						try {
+							aDefault = typeof a.value === 'number' ? a.value : new BigNumber(a.value || '0').toNumber() || 0;
+							bDefault = typeof b.value === 'number' ? b.value : new BigNumber(b.value || '0').toNumber() || 0;
+						} catch (error) {
+							log.error('[TokenPortfolio] filteredAndSortedTokens: Error in default sort', false, { error });
+							// Fallback to 0 on error to prevent crashes
+							aDefault = 0;
+							bDefault = 0;
+						}
+						return sortOrder === 'asc' ? aDefault - bDefault : bDefault - aDefault;
+				}
+			} catch (error) {
+				log.error('[TokenPortfolio] filteredAndSortedTokens: Error in sort function', false, {
+					error,
+					a: { symbol: a?.symbol, value: a?.value },
+					b: { symbol: b?.symbol, value: b?.value }
+				});
+				return 0; // Maintain order on error
 			}
 		});
 
+		log.debug('[TokenPortfolio] filteredAndSortedTokens: Final sorted tokens', false, {
+			sortedCount: sorted.length,
+			sorted: sorted.map(t => ({
+				symbol: t.symbol,
+				value: t.value,
+				valueType: typeof t.value,
+				formattedValue: formatValue(t.value)
+			}))
+		});
+		
 		return sorted;
 	});
 
-	let visible = $derived(
-		expanded ? filteredAndSortedTokens : filteredAndSortedTokens.slice(0, maxRows)
-	);
-	let hidden = $derived(expanded ? [] : filteredAndSortedTokens.slice(maxRows));
+	let visible = $derived.by(() => {
+		if (!Array.isArray(filteredAndSortedTokens)) {
+			log.warn('[TokenPortfolio] visible: filteredAndSortedTokens is not an array', false, { filteredAndSortedTokens });
+			return [];
+		}
+		
+		const result = expanded ? filteredAndSortedTokens : filteredAndSortedTokens.slice(0, maxRows);
+		log.debug('[TokenPortfolio] visible tokens calculated', false, {
+			expanded,
+			maxRows,
+			totalTokens: filteredAndSortedTokens.length,
+			visibleCount: result.length
+		});
+		return result;
+	});
+	
+	let hidden = $derived.by(() => {
+		if (!Array.isArray(filteredAndSortedTokens)) {
+			log.warn('[TokenPortfolio] hidden: filteredAndSortedTokens is not an array', false, { filteredAndSortedTokens });
+			return [];
+		}
+		
+		const result = expanded ? [] : filteredAndSortedTokens.slice(maxRows);
+		log.debug('[TokenPortfolio] hidden tokens calculated', false, {
+			expanded,
+			maxRows,
+			totalTokens: filteredAndSortedTokens.length,
+			hiddenCount: result.length
+		});
+		return result;
+	});
 
-	// Debug effect
+	// Debug effect - extensive logging to track data flow
 	$effect(() => {
-		// Debug token values
-		if (tokens.length > 0) {
-			log.info('[TokenPortfolio] Debug tokens:', false, {
-				tokenCount: tokens.length,
-				filteredCount: filteredAndSortedTokens.length,
-				firstToken: tokens[0],
-				multiChainView,
-				sortBy,
-				sortOrder,
-				tokens: tokens.map((t) => ({
-					symbol: t.symbol,
-					value: t.value,
-					price: t.price,
-					qty: t.qty
+		// Log every change to understand the data flow
+		log.debug('[TokenPortfolio] Data state changed:', false, {
+			tokens: {
+				count: tokens?.length || 0,
+				isArray: Array.isArray(tokens),
+				data: tokens?.slice(0, 3).map(t => ({
+					symbol: t?.symbol,
+					value: t?.value,
+					valueType: typeof t?.value,
+					price: t?.price,
+					qty: t?.qty
+				}))
+			},
+			stableTokens: {
+				count: $stableTokens?.length || 0,
+				isArray: Array.isArray($stableTokens)
+			},
+			displayTokens: {
+				count: displayTokens?.length || 0,
+				isArray: Array.isArray(displayTokens),
+				source: $stableTokens?.length > 0 ? 'stable' : 'props'
+			},
+			filteredAndSortedTokens: {
+				count: filteredAndSortedTokens?.length || 0
+			},
+			totalValue,
+			multiChainView,
+			sortBy,
+			sortOrder,
+			tokenState: $tokenState
+		});
+		
+		// Log any NaN values found
+		if (Array.isArray(displayTokens)) {
+			displayTokens.forEach((token, index) => {
+				if (token && token.value !== undefined) {
+					const formattedValue = formatValue(token.value);
+					if (formattedValue.includes('NaN')) {
+						log.error('[TokenPortfolio] NaN detected in token value', false, {
+							index,
+							token: {
+								symbol: token.symbol,
+								value: token.value,
+								valueType: typeof token.value,
+								price: token.price,
+								qty: token.qty
+							},
+							formattedValue
+						});
+					}
+				}
+			});
+		}
+		
+		// Comprehensive NaN detection and debugging
+		if (isNaN(totalValue) || !isFinite(totalValue)) {
+			log.error('[TokenPortfolio] CRITICAL: totalValue is NaN or infinite!', false, {
+				totalValue,
+				totalValueType: typeof totalValue,
+				isNaN: isNaN(totalValue),
+				isFinite: isFinite(totalValue),
+				displayTokens: displayTokens?.map(t => ({
+					symbol: t?.symbol,
+					value: t?.value,
+					valueType: typeof t?.value,
+					price: t?.price,
+					qty: t?.qty,
+					valueString: String(t?.value),
+					valueNumber: typeof t?.value === 'bigint' ? Number(t?.value) / 100 : Number(t?.value),
+					priceTimesQty: t?.price && t?.qty ? (
+						typeof t?.qty === 'bigint' 
+							? t.price * (Number(t?.qty) / Math.pow(10, 18)) // Rough conversion for display
+							: t.price * Number(t?.qty)
+					) : null
 				}))
 			});
+			
+			// Try to identify the problematic token
+			if (Array.isArray(displayTokens)) {
+				displayTokens.forEach((token, index) => {
+					if (token && token.value !== undefined) {
+						let testValue = 0;
+						try {
+							if (typeof token.value === 'bigint') {
+								testValue = Number(token.value) / 100;
+							} else if (typeof token.value === 'number') {
+								testValue = token.value;
+							} else if (typeof token.value === 'string') {
+								const bn = new BigNumber(token.value || '0');
+								testValue = bn.toNumber() || 0;
+							}
+							
+							if (isNaN(testValue) || !isFinite(testValue)) {
+								log.error(`[TokenPortfolio] FOUND NaN SOURCE: Token ${token.symbol} at index ${index}`, false, {
+									token,
+									testValue,
+									conversionAttempt: {
+										original: token.value,
+										type: typeof token.value,
+										string: String(token.value),
+										number: Number(token.value)
+									}
+								});
+							}
+						} catch (error) {
+							log.error(`[TokenPortfolio] Error testing token ${token.symbol} value:`, false, { error, token });
+						}
+					}
+				});
+			}
 		}
 	});
 
 	// Helper for long values
 	function needsEllipsis(val: number | undefined) {
-		return String(val ?? '').length > 9;
+		const result = String(val ?? '').length > 9;
+		log.debug('[TokenPortfolio] needsEllipsis check', false, { val, length: String(val ?? '').length, needsEllipsis: result });
+		return result;
 	}
 
 	function formatValue(val: number | bigint | undefined): string {
-		if (!val) return '$0.00';
-
-		// Convert bigint (cents) to number (dollars) for display
-		const numValue = typeof val === 'bigint' ? Number(val) / 100 : val;
-		const absValue = Math.abs(numValue);
-
-		if (absValue >= 1e12) {
-			return `$${(numValue / 1e12).toFixed(1)}T+`;
-		} else if (absValue >= 1e9) {
-			return `$${(numValue / 1e9).toFixed(1)}B+`;
-		} else if (absValue >= 1e6) {
-			return `$${(numValue / 1e6).toFixed(1)}M+`;
-		} else if (absValue >= 1e3) {
-			return `$${(numValue / 1e3).toFixed(1)}K+`;
+		log.debug('[TokenPortfolio] formatValue called', false, { val, type: typeof val });
+		
+		if (val === undefined || val === null) {
+			log.debug('[TokenPortfolio] formatValue: Value is undefined/null', false);
+			return '$0.00';
+		}
+		
+		// Handle zero values
+		if (val === 0 || val === 0n) {
+			log.debug('[TokenPortfolio] formatValue: Value is zero', false);
+			return '$0.00';
 		}
 
-		return new Intl.NumberFormat('en-US', {
-			style: 'currency',
-			currency: 'USD',
-			minimumFractionDigits: 2,
-			maximumFractionDigits: 2
-		}).format(numValue);
+		let numValue: number;
+		
+		try {
+			// Convert bigint (cents) to number (dollars) for display
+			if (typeof val === 'bigint') {
+				numValue = Number(val) / 100;
+				log.debug('[TokenPortfolio] formatValue: Converted bigint to number', false, { original: val.toString(), converted: numValue });
+			} else {
+				numValue = val;
+				log.debug('[TokenPortfolio] formatValue: Using number value directly', false, { numValue });
+			}
+			
+			// Validate the numeric value with detailed diagnostics
+			if (!isFinite(numValue) || isNaN(numValue)) {
+				log.error('[TokenPortfolio] formatValue: CRITICAL - NaN/Infinite detected in formatValue', false, {
+					original: val,
+					originalType: typeof val,
+					converted: numValue,
+					isFinite: isFinite(numValue),
+					isNaN: isNaN(numValue),
+					valAsString: String(val),
+					valLength: String(val).length,
+					conversionStack: new Error().stack?.split('\n').slice(0, 5)
+				});
+				return '$0.00';
+			}
+			
+			const absValue = Math.abs(numValue);
+			log.debug('[TokenPortfolio] formatValue: Processing valid value', false, { numValue, absValue });
+
+			if (absValue >= 1e12) {
+				const result = `$${(numValue / 1e12).toFixed(1)}T+`;
+				log.debug('[TokenPortfolio] formatValue: Formatted as trillions', false, { result });
+				return result;
+			} else if (absValue >= 1e9) {
+				const result = `$${(numValue / 1e9).toFixed(1)}B+`;
+				log.debug('[TokenPortfolio] formatValue: Formatted as billions', false, { result });
+				return result;
+			} else if (absValue >= 1e6) {
+				const result = `$${(numValue / 1e6).toFixed(1)}M+`;
+				log.debug('[TokenPortfolio] formatValue: Formatted as millions', false, { result });
+				return result;
+			} else if (absValue >= 1e3) {
+				const result = `$${(numValue / 1e3).toFixed(1)}K+`;
+				log.debug('[TokenPortfolio] formatValue: Formatted as thousands', false, { result });
+				return result;
+			}
+
+			const result = new Intl.NumberFormat('en-US', {
+				style: 'currency',
+				currency: 'USD',
+				minimumFractionDigits: 2,
+				maximumFractionDigits: 2
+			}).format(numValue);
+			
+			log.debug('[TokenPortfolio] formatValue: Formatted as currency', false, { result });
+			return result;
+		} catch (error) {
+			log.error('[TokenPortfolio] formatValue: Failed to format value', false, { val, error });
+			return '$0.00';
+		}
 	}
 
 	function formatPrice(price: number | undefined): string {
-		if (!price) return '$0.00';
+		log.debug('[TokenPortfolio] formatPrice called', false, { price, type: typeof price });
+		
+		if (price === undefined || price === null || isNaN(price) || !isFinite(price)) {
+			log.debug('[TokenPortfolio] formatPrice: Invalid price', false, { price });
+			return '$0.00';
+		}
+		
+		if (price === 0) {
+			log.debug('[TokenPortfolio] formatPrice: Price is zero', false);
+			return '$0.00';
+		}
 
 		const absPrice = Math.abs(price);
+		log.debug('[TokenPortfolio] formatPrice: Processing valid price', false, { price, absPrice });
+		
 		if (absPrice >= 1e6) {
-			return `$${(price / 1e6).toFixed(1)}M+`;
+			const result = `$${(price / 1e6).toFixed(1)}M+`;
+			log.debug('[TokenPortfolio] formatPrice: Formatted as millions', false, { result });
+			return result;
 		} else if (absPrice >= 1e3) {
-			return `$${(price / 1e3).toFixed(1)}K+`;
+			const result = `$${(price / 1e3).toFixed(1)}K+`;
+			log.debug('[TokenPortfolio] formatPrice: Formatted as thousands', false, { result });
+			return result;
 		} else if (absPrice < 0.01) {
+			log.debug('[TokenPortfolio] formatPrice: Formatted as sub-penny', false);
 			return '< $0.01';
 		}
 
-		return new Intl.NumberFormat('en-US', {
+		const result = new Intl.NumberFormat('en-US', {
 			style: 'currency',
 			currency: 'USD',
 			minimumFractionDigits: 2,
 			maximumFractionDigits: price < 1 ? 6 : 2
 		}).format(price);
+		
+		log.debug('[TokenPortfolio] formatPrice: Formatted as currency', false, { result });
+		return result;
 	}
 
 	function formatValueFull(val: number | bigint | undefined): string {
-		if (!val) return '$0.00';
+		log.debug('[TokenPortfolio] formatValueFull called', false, { val, type: typeof val });
+		
+		if (val === undefined || val === null) {
+			log.debug('[TokenPortfolio] formatValueFull: Value is undefined/null', false);
+			return '$0.00';
+		}
+		
+		if (val === 0 || val === 0n) {
+			log.debug('[TokenPortfolio] formatValueFull: Value is zero', false);
+			return '$0.00';
+		}
+		
 		// Convert bigint (cents) to number (dollars) for display
-		const numValue = typeof val === 'bigint' ? Number(val) / 100 : val;
-		return new Intl.NumberFormat('en-US', {
+		let numValue: number;
+		if (typeof val === 'bigint') {
+			numValue = Number(val) / 100;
+			log.debug('[TokenPortfolio] formatValueFull: Converted bigint', false, { original: val.toString(), converted: numValue });
+		} else {
+			numValue = val;
+			log.debug('[TokenPortfolio] formatValueFull: Using number directly', false, { numValue });
+		}
+		
+		if (!isFinite(numValue) || isNaN(numValue)) {
+			log.warn('[TokenPortfolio] formatValueFull: Invalid numeric value', false, { val, numValue });
+			return '$0.00';
+		}
+		
+		const result = new Intl.NumberFormat('en-US', {
 			style: 'currency',
 			currency: 'USD',
 			minimumFractionDigits: 2,
 			maximumFractionDigits: 2
 		}).format(numValue);
+		
+		log.debug('[TokenPortfolio] formatValueFull: Final result', false, { result });
+		return result;
 	}
 
 	function getFullPriceDisplay(price: number | undefined): string {
-		if (!price) return '$0.00000000';
-		if (price < 0.00000001) {
-			return `$${price.toExponential(8)}`;
+		log.debug('[TokenPortfolio] getFullPriceDisplay called', false, { price, type: typeof price });
+		
+		if (price === undefined || price === null || isNaN(price) || !isFinite(price)) {
+			log.debug('[TokenPortfolio] getFullPriceDisplay: Invalid price', false, { price });
+			return '$0.00000000';
 		}
-		return new Intl.NumberFormat('en-US', {
+		
+		if (price === 0) {
+			log.debug('[TokenPortfolio] getFullPriceDisplay: Price is zero', false);
+			return '$0.00000000';
+		}
+		
+		if (price < 0.00000001) {
+			const result = `$${price.toExponential(8)}`;
+			log.debug('[TokenPortfolio] getFullPriceDisplay: Formatted as exponential', false, { result });
+			return result;
+		}
+		
+		const result = new Intl.NumberFormat('en-US', {
 			style: 'currency',
 			currency: 'USD',
 			minimumFractionDigits: 2,
 			maximumFractionDigits: 10
 		}).format(price);
+		
+		log.debug('[TokenPortfolio] getFullPriceDisplay: Final result', false, { result });
+		return result;
 	}
 
 	function toggleMultiChain() {
@@ -228,7 +724,7 @@
 		}
 	}
 
-	// Refresh function with rate limiting
+	// Refresh function with rate limiting - uses store methods only
 	function handleRefresh() {
 		const now = Date.now();
 
@@ -257,37 +753,17 @@
 		isRefreshing = true;
 		lastRefreshTime = now;
 
-		log.info('[TokenPortfolio] Sending refresh request to background...', false);
+		log.info('[TokenPortfolio] Triggering token refresh via store...', false);
 
-		// Send refresh request to background service using BrowserAPIPortService
-		const browserAPI = BrowserAPIPortService.getInstance() as any;
-		if (browserAPI.runtimeSendMessage) {
-			browserAPI.runtimeSendMessage({
-				type: 'YAKKL_REFRESH_REQUEST',
-				refreshType: 'all'
-			}).then((response: any) => {
-			if (response?.success) {
-				log.info('[TokenPortfolio] Background refresh completed', false);
-			} else {
-				log.warn('[TokenPortfolio] Background refresh failed', false, response?.error);
-				// Reset the cooldown on error to allow retry sooner
-				lastRefreshTime = Date.now() - (REFRESH_COOLDOWN_MS - 2000); // Allow retry in 2 seconds
-			}
-			isRefreshing = false;
-			}).catch((error: any) => {
-				log.warn('[TokenPortfolio] Failed to send refresh request:', false, error);
-				isRefreshing = false;
-			});
-		} else {
-			log.warn('[TokenPortfolio] runtimeSendMessage not available', false);
-			isRefreshing = false;
-		}
-
-		// Also trigger a non-blocking token store refresh
+		// Use token store refresh which handles all background communication
 		tokenStore.refresh(true).then(() => {
 			log.info('[TokenPortfolio] Token store refresh completed', false);
+			isRefreshing = false;
 		}).catch(error => {
 			log.warn('[TokenPortfolio] Token store refresh failed:', false, error);
+			// Reset the cooldown on error to allow retry sooner
+			lastRefreshTime = Date.now() - (REFRESH_COOLDOWN_MS - 2000); // Allow retry in 2 seconds
+			isRefreshing = false;
 		});
 	}
 </script>
@@ -491,9 +967,22 @@
 							class="text-xs text-zinc-400 dark:text-zinc-200 truncate max-w-[96px] text-center cursor-help mt-0.5"
 						>
 							<ProtectedValue
-								value={needsEllipsis(token.qty)
-									? `${token.qty}`.slice(0, 9) + '…'
-									: String(token.qty || 0)}
+								value={(() => {
+									const qty = token.qty;
+									log.debug('[TokenPortfolio] Processing quantity for display', false, {
+										symbol: token.symbol,
+										qty,
+										qtyType: typeof qty
+									});
+									
+									if (qty === undefined || qty === null || isNaN(Number(qty))) {
+										log.warn('[TokenPortfolio] Invalid quantity detected', false, { symbol: token.symbol, qty });
+										return '0';
+									}
+									
+									const qtyStr = String(qty);
+									return needsEllipsis(qty) ? qtyStr.slice(0, 9) + '…' : qtyStr;
+								})()}
 								placeholder="****"
 							/>
 						</div>
@@ -506,7 +995,17 @@
 						maxWidth="250px"
 					>
 						<div class="text-xs text-zinc-500 dark:text-zinc-400 text-center cursor-help">
-							<ProtectedValue value={formatPrice(token.price)} placeholder="****" />
+							<ProtectedValue 
+								value={(() => {
+									log.debug('[TokenPortfolio] Formatting price for display', false, {
+										symbol: token.symbol,
+										price: token.price,
+										priceType: typeof token.price
+									});
+									return formatPrice(token.price);
+								})()} 
+								placeholder="****" 
+							/>
 						</div>
 					</SimpleTooltip>
 
@@ -521,7 +1020,23 @@
 								? 'break-all'
 								: 'truncate max-w-[96px]'}"
 						>
-							<ProtectedValue value={formatValue(token.value)} placeholder="*****" />
+							<ProtectedValue 
+								value={(() => {
+									log.debug('[TokenPortfolio] Formatting value for display', false, {
+										symbol: token.symbol,
+										value: token.value,
+										valueType: typeof token.value
+									});
+									const result = formatValue(token.value);
+									log.debug('[TokenPortfolio] Formatted value result', false, {
+										symbol: token.symbol,
+										result,
+										containsNaN: result.includes('NaN')
+									});
+									return result;
+								})()} 
+								placeholder="*****" 
+							/>
 						</div>
 					</SimpleTooltip>
 					{#if token.change24h !== undefined}
@@ -554,7 +1069,21 @@
 			<div class="flex justify-between items-center">
 				<span class="text-sm font-medium text-zinc-600 dark:text-zinc-400">Total Value:</span>
 				<span class="text-sm font-bold text-zinc-800 dark:text-zinc-200">
-					<ProtectedValue value={formatValue(totalValue)} placeholder="*****" />
+					<ProtectedValue 
+						value={(() => {
+							log.debug('[TokenPortfolio] Formatting total value for display', false, {
+								totalValue,
+								totalValueType: typeof totalValue
+							});
+							const result = formatValue(totalValue);
+							log.debug('[TokenPortfolio] Formatted total value result', false, {
+								result,
+								containsNaN: result.includes('NaN')
+							});
+							return result;
+						})()} 
+						placeholder="*****" 
+					/>
 				</span>
 			</div>
 		</div>

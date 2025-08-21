@@ -1,0 +1,592 @@
+/**
+ * ProviderRoutingManager
+ * Intelligent provider routing with weighted selection, overrides, and auto-failover
+ * Based on PriceManager's weighted selection pattern
+ */
+
+import type { Provider } from './Provider';
+import ProviderFactory from './ProviderFactory';
+import { log } from '$lib/common/logger-wrapper';
+
+export interface ProviderConfig {
+  name: string;
+  weight: number;           // For weighted random selection
+  enabled: boolean;         // Can disable without removing
+  suspended?: boolean;      // Temporarily stop
+  suspendedUntil?: Date;   // Auto-resume time
+  overrideCount?: number;  // Force use count (-1 = normal, 0 = permanent, >0 = count)
+  overrideUntil?: Date;    // Force use until time
+  failureCount: number;     // Track failures for auto-suspend
+  avgResponseTime: number;  // Performance metric
+  successRate: number;      // Reliability metric (0-100)
+  costTier: 'free' | 'paid'; // Cost tracking
+  remainingQuota?: number;  // Free tier tracking
+  totalRequests: number;    // Total requests made
+  lastUsed?: Date;         // Last time provider was used
+}
+
+export interface ProviderStats {
+  name: string;
+  enabled: boolean;
+  suspended: boolean;
+  weight: number;
+  avgResponseTime: number;
+  successRate: number;
+  failureCount: number;
+  totalRequests: number;
+  lastUsed?: Date;
+}
+
+export interface GetProviderOptions {
+  preferCost?: boolean;     // Prefer free tier
+  preferSpeed?: boolean;    // Prefer fastest
+  forceProvider?: string;   // Force specific provider
+}
+
+export class ProviderRoutingManager {
+  private static instance: ProviderRoutingManager | null = null;
+  private providers: Map<string, ProviderConfig> = new Map();
+  private currentProvider: string | null = null;
+  private providerPool: string[] = []; // Weighted pool for random selection
+  private chainId: number = 1; // Default to mainnet
+  private readonly MAX_FAILURES = 3; // Auto-suspend after 3 failures
+  private readonly SUSPEND_DURATION = 5 * 60 * 1000; // 5 minutes
+
+  private constructor() {
+    this.initializeDefaultProviders();
+  }
+
+  static getInstance(): ProviderRoutingManager {
+    if (!ProviderRoutingManager.instance) {
+      ProviderRoutingManager.instance = new ProviderRoutingManager();
+    }
+    return ProviderRoutingManager.instance;
+  }
+
+  /**
+   * Initialize with default providers
+   */
+  private initializeDefaultProviders(): void {
+    // Alchemy - highest weight, most reliable
+    this.addProvider({
+      name: 'alchemy',
+      weight: 10,  // Increased weight since it's the only working provider
+      enabled: true,
+      suspended: false,
+      overrideCount: -1, // Normal routing
+      failureCount: 0,
+      avgResponseTime: 0,
+      successRate: 100,
+      costTier: 'free',
+      remainingQuota: 300000000, // 300M compute units per month
+      totalRequests: 0
+    });
+
+    // Infura - disabled by default to avoid auth popups until properly implemented
+    this.addProvider({
+      name: 'infura',
+      weight: 0,  // Zero weight means it won't be selected
+      enabled: false,  // Disabled to prevent auth issues
+      suspended: true,  // Suspended until implemented
+      overrideCount: -1,
+      failureCount: 0,
+      avgResponseTime: 0,
+      successRate: 100,
+      costTier: 'free',
+      remainingQuota: 100000, // 100k requests per day
+      totalRequests: 0
+    });
+
+    // QuickNode - lower weight, third option
+    this.addProvider({
+      name: 'quicknode',
+      weight: 0,
+      enabled: false, // Disabled by default until API key is configured
+      suspended: false,
+      overrideCount: -1,
+      failureCount: 0,
+      avgResponseTime: 0,
+      successRate: 100,
+      costTier: 'free',
+      totalRequests: 0
+    });
+
+    // Rebuild the weighted pool
+    this.buildWeightedPool();
+  }
+
+  /**
+   * Set the chain ID for provider connections
+   */
+  setChainId(chainId: number): void {
+    this.chainId = chainId;
+  }
+
+  /**
+   * Get a provider based on routing logic
+   */
+  async getProvider(options?: GetProviderOptions): Promise<Provider> {
+    try {
+      // 1. Check forced provider
+      if (options?.forceProvider) {
+        const config = this.providers.get(options.forceProvider);
+        if (!config || !config.enabled) {
+          throw new Error(`Provider ${options.forceProvider} not available`);
+        }
+        return this.getProviderInstance(options.forceProvider);
+      }
+
+      // 2. Check current provider override
+      if (this.currentProvider) {
+        const config = this.providers.get(this.currentProvider);
+        if (config && config.enabled && !config.suspended) {
+          // Time-based override takes precedence
+          if (config.overrideUntil && config.overrideUntil > new Date()) {
+            log.debug(`[ProviderRouting] Using time-override provider: ${this.currentProvider}`);
+            return this.getProviderInstance(this.currentProvider);
+          }
+
+          // Count-based override
+          if (config.overrideCount !== undefined && config.overrideCount >= 0) {
+            if (config.overrideCount === 0) {
+              // Permanent override
+              log.debug(`[ProviderRouting] Using permanent-override provider: ${this.currentProvider}`);
+              return this.getProviderInstance(this.currentProvider);
+            } else if (config.overrideCount > 0) {
+              // Decrement count
+              config.overrideCount--;
+              log.debug(`[ProviderRouting] Using count-override provider: ${this.currentProvider}, remaining: ${config.overrideCount}`);
+              return this.getProviderInstance(this.currentProvider);
+            }
+          }
+
+          // Reset to normal routing if override expired
+          if (config.overrideCount === -1) {
+            this.currentProvider = null;
+          }
+        }
+      }
+
+      // 3. Apply preference filters if specified
+      let availableProviders = this.getAvailableProviders();
+
+      if (options?.preferCost) {
+        // Sort by free tier first, then by remaining quota
+        availableProviders = availableProviders.sort((a, b) => {
+          if (a.costTier === 'free' && b.costTier === 'paid') return -1;
+          if (a.costTier === 'paid' && b.costTier === 'free') return 1;
+          return (b.remainingQuota || 0) - (a.remainingQuota || 0);
+        });
+      } else if (options?.preferSpeed) {
+        // Sort by response time (fastest first)
+        availableProviders = availableProviders.filter(p => p.avgResponseTime > 0)
+          .sort((a, b) => a.avgResponseTime - b.avgResponseTime);
+      }
+
+      // 4. Normal weighted random selection
+      const selectedName = this.getWeightedRandomProvider(availableProviders);
+      const provider = this.getProviderInstance(selectedName);
+
+      // Update last used
+      const config = this.providers.get(selectedName);
+      if (config) {
+        config.lastUsed = new Date();
+        config.totalRequests++;
+      }
+
+      return provider;
+    } catch (error) {
+      log.error('[ProviderRouting] Error getting provider:', false, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Build weighted pool for random selection (like PriceManager)
+   */
+  private buildWeightedPool(): void {
+    this.providerPool = [];
+    for (const [name, config] of this.providers) {
+      if (config.enabled && !config.suspended) {
+        // Check if suspension expired
+        if (config.suspendedUntil && config.suspendedUntil <= new Date()) {
+          config.suspended = false;
+          config.suspendedUntil = undefined;
+          log.info(`[ProviderRouting] Provider ${name} suspension expired, resuming`);
+        }
+
+        // Add provider name to pool based on weight
+        for (let i = 0; i < config.weight; i++) {
+          this.providerPool.push(name);
+        }
+      }
+    }
+    log.debug(`[ProviderRouting] Weighted pool rebuilt: ${this.providerPool.length} entries`);
+  }
+
+  /**
+   * Get weighted random provider (like PriceManager's implementation)
+   */
+  private getWeightedRandomProvider(availableConfigs?: ProviderConfig[]): string {
+    // If specific configs provided, build temporary pool
+    if (availableConfigs && availableConfigs.length > 0) {
+      const tempPool: string[] = [];
+      for (const config of availableConfigs) {
+        for (let i = 0; i < config.weight; i++) {
+          tempPool.push(config.name);
+        }
+      }
+
+      if (tempPool.length === 0) {
+        throw new Error('No providers available in weighted pool');
+      }
+
+      const index = Math.floor(Math.random() * tempPool.length);
+      return tempPool[index];
+    }
+
+    // Use default pool
+    if (this.providerPool.length === 0) {
+      this.buildWeightedPool(); // Try rebuilding
+      if (this.providerPool.length === 0) {
+        throw new Error('No providers available');
+      }
+    }
+
+    const index = Math.floor(Math.random() * this.providerPool.length);
+    return this.providerPool[index];
+  }
+
+  /**
+   * Get available providers (not suspended or disabled)
+   */
+  private getAvailableProviders(): ProviderConfig[] {
+    const available: ProviderConfig[] = [];
+    for (const [_, config] of this.providers) {
+      if (config.enabled && !config.suspended) {
+        // Check if suspension expired
+        if (config.suspendedUntil && config.suspendedUntil <= new Date()) {
+          config.suspended = false;
+          config.suspendedUntil = undefined;
+        }
+
+        if (!config.suspended) {
+          available.push(config);
+        }
+      }
+    }
+    return available;
+  }
+
+  /**
+   * Get provider instance (NEVER store API keys in variables)
+   */
+  private getProviderInstance(name: string): Provider {
+    const config = this.providers.get(name);
+    if (!config) {
+      throw new Error(`Provider ${name} not found`);
+    }
+
+    // Create provider with API key directly from environment
+    // SECURITY: Never assign API keys to variables
+    const provider = ProviderFactory.createProvider({
+      name: config.name,
+      // API key accessed directly in the factory based on provider name
+      apiKey: this.getProviderApiKey(name),
+      chainId: this.chainId
+    });
+
+    return provider;
+  }
+
+  /**
+   * Get provider API key directly from environment
+   * SECURITY: This should only be called from background context
+   */
+  private getProviderApiKey(name: string): string | null {
+    // SECURITY: Direct access only, never store in variables
+    switch(name.toLowerCase()) {
+      case 'alchemy':
+        return process.env.ALCHEMY_API_KEY || null;
+      case 'infura':
+        return process.env.INFURA_API_KEY || null;
+      case 'quicknode':
+        return process.env.QUICKNODE_API_KEY || null;
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * Set provider override
+   */
+  setProviderOverride(name: string, count: number, until?: Date): void {
+    const config = this.providers.get(name);
+    if (!config) {
+      throw new Error(`Provider ${name} not found`);
+    }
+
+    config.overrideCount = count;
+    config.overrideUntil = until;
+    this.currentProvider = name;
+
+    log.info(`[ProviderRouting] Override set for ${name}: count=${count}, until=${until?.toISOString()}`);
+  }
+
+  /**
+   * Suspend a provider temporarily
+   */
+  suspendProvider(name: string, until?: Date): void {
+    const config = this.providers.get(name);
+    if (!config) {
+      throw new Error(`Provider ${name} not found`);
+    }
+
+    config.suspended = true;
+    config.suspendedUntil = until || new Date(Date.now() + this.SUSPEND_DURATION);
+
+    // Rebuild pool to exclude suspended provider
+    this.buildWeightedPool();
+
+    log.warn(`[ProviderRouting] Provider ${name} suspended until ${config.suspendedUntil.toISOString()}`);
+  }
+
+  /**
+   * Resume a suspended provider
+   */
+  resumeProvider(name: string): void {
+    const config = this.providers.get(name);
+    if (!config) {
+      throw new Error(`Provider ${name} not found`);
+    }
+
+    config.suspended = false;
+    config.suspendedUntil = undefined;
+    config.failureCount = 0; // Reset failure count
+
+    // Rebuild pool to include resumed provider
+    this.buildWeightedPool();
+
+    log.info(`[ProviderRouting] Provider ${name} resumed`);
+  }
+
+  /**
+   * Disable a provider
+   */
+  disableProvider(name: string): void {
+    const config = this.providers.get(name);
+    if (!config) {
+      throw new Error(`Provider ${name} not found`);
+    }
+
+    config.enabled = false;
+
+    // Clear override if this was the current provider
+    if (this.currentProvider === name) {
+      this.currentProvider = null;
+    }
+
+    // Rebuild pool
+    this.buildWeightedPool();
+
+    log.info(`[ProviderRouting] Provider ${name} disabled`);
+  }
+
+  /**
+   * Enable a provider
+   */
+  enableProvider(name: string): void {
+    const config = this.providers.get(name);
+    if (!config) {
+      throw new Error(`Provider ${name} not found`);
+    }
+
+    config.enabled = true;
+
+    // Rebuild pool
+    this.buildWeightedPool();
+
+    log.info(`[ProviderRouting] Provider ${name} enabled`);
+  }
+
+  /**
+   * Remove a provider
+   */
+  removeProvider(name: string): void {
+    if (this.currentProvider === name) {
+      this.currentProvider = null;
+    }
+
+    this.providers.delete(name);
+    this.buildWeightedPool();
+
+    log.info(`[ProviderRouting] Provider ${name} removed`);
+  }
+
+  /**
+   * Add a new provider
+   */
+  addProvider(config: ProviderConfig): void {
+    this.providers.set(config.name, config);
+
+    if (config.enabled && !config.suspended) {
+      this.buildWeightedPool();
+    }
+
+    log.info(`[ProviderRouting] Provider ${config.name} added with weight ${config.weight}`);
+  }
+
+  /**
+   * Set provider weight
+   */
+  setProviderWeight(name: string, weight: number): void {
+    const config = this.providers.get(name);
+    if (!config) {
+      throw new Error(`Provider ${name} not found`);
+    }
+
+    config.weight = Math.max(1, weight); // Minimum weight of 1
+    this.buildWeightedPool();
+
+    log.info(`[ProviderRouting] Provider ${name} weight set to ${config.weight}`);
+  }
+
+  /**
+   * Record provider metrics
+   */
+  recordProviderMetrics(name: string, responseTime: number, success: boolean): void {
+    const config = this.providers.get(name);
+    if (!config) return;
+
+    // Update average response time (rolling average)
+    if (config.totalRequests > 0) {
+      config.avgResponseTime = (config.avgResponseTime * (config.totalRequests - 1) + responseTime) / config.totalRequests;
+    } else {
+      config.avgResponseTime = responseTime;
+    }
+
+    // Update success rate
+    if (success) {
+      config.successRate = ((config.successRate * (config.totalRequests - 1)) + 100) / config.totalRequests;
+    } else {
+      config.failureCount++;
+      config.successRate = ((config.successRate * (config.totalRequests - 1)) + 0) / config.totalRequests;
+
+      // Auto-suspend after max failures
+      if (config.failureCount >= this.MAX_FAILURES) {
+        this.suspendProvider(name, new Date(Date.now() + this.SUSPEND_DURATION));
+        log.warn(`[ProviderRouting] Provider ${name} auto-suspended after ${this.MAX_FAILURES} failures`);
+      }
+    }
+
+    // Decrement quota if tracking
+    if (config.remainingQuota !== undefined && config.remainingQuota > 0) {
+      config.remainingQuota--;
+    }
+  }
+
+  /**
+   * Get provider statistics
+   */
+  getProviderStats(name: string): ProviderStats | null {
+    const config = this.providers.get(name);
+    if (!config) return null;
+
+    return {
+      name: config.name,
+      enabled: config.enabled,
+      suspended: config.suspended || false,
+      weight: config.weight,
+      avgResponseTime: config.avgResponseTime,
+      successRate: config.successRate,
+      failureCount: config.failureCount,
+      totalRequests: config.totalRequests,
+      lastUsed: config.lastUsed
+    };
+  }
+
+  /**
+   * Get all provider statistics
+   */
+  getAllProviderStats(): ProviderStats[] {
+    const stats: ProviderStats[] = [];
+    for (const [name, _] of this.providers) {
+      const stat = this.getProviderStats(name);
+      if (stat) stats.push(stat);
+    }
+    return stats;
+  }
+
+  /**
+   * Get current provider name
+   */
+  getCurrentProvider(): string | null {
+    return this.currentProvider;
+  }
+
+  /**
+   * Handle provider failure with auto-failover
+   */
+  async handleProviderFailure(failedProvider: string, error?: any): Promise<Provider> {
+    log.warn(`[ProviderRouting] Provider ${failedProvider} failed, attempting failover`);
+
+    // Check if this is an authentication error (401 or auth popup)
+    const isAuthError = error && (
+      error.code === 401 ||
+      error.message?.includes('401') ||
+      error.message?.includes('Unauthorized') ||
+      error.message?.includes('authentication') ||
+      error.message?.includes('API key')
+    );
+
+    if (isAuthError) {
+      log.error(`[ProviderRouting] Authentication error for ${failedProvider}, disabling provider`);
+      // Immediately disable provider to prevent further auth popups
+      this.disableProvider(failedProvider);
+    } else {
+      // Record normal failure
+      this.recordProviderMetrics(failedProvider, 0, false);
+    }
+
+    // Get next provider excluding the failed one
+    const availableProviders = this.getAvailableProviders()
+      .filter(p => p.name !== failedProvider);
+
+    if (availableProviders.length === 0) {
+      log.error('[ProviderRouting] No alternative providers available, using public RPC as last resort');
+      // Return a fake provider that won't cause auth issues
+      // This should trigger the app to use the public RPC URLs we configured
+      throw new Error('All providers failed. Please check your RPC configuration.');
+    }
+
+    // Select next provider
+    const nextProvider = this.getWeightedRandomProvider(availableProviders);
+    log.info(`[ProviderRouting] Failing over to provider: ${nextProvider}`);
+
+    return this.getProviderInstance(nextProvider);
+  }
+
+  /**
+   * Reset all provider metrics
+   */
+  resetMetrics(): void {
+    for (const [_, config] of this.providers) {
+      config.failureCount = 0;
+      config.avgResponseTime = 0;
+      config.successRate = 100;
+      config.totalRequests = 0;
+      config.lastUsed = undefined;
+    }
+    log.info('[ProviderRouting] All provider metrics reset');
+  }
+
+  /**
+   * Get provider configuration
+   */
+  getProviderConfig(name: string): ProviderConfig | null {
+    return this.providers.get(name) || null;
+  }
+}
+
+// Export singleton instance getter
+export const providerRoutingManager = ProviderRoutingManager.getInstance();

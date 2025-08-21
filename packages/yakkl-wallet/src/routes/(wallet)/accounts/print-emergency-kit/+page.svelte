@@ -2,15 +2,15 @@
   import { onMount } from 'svelte';
   import { currentAccount, accounts } from '$lib/stores/account.store';
   import { visibleChains } from '$lib/stores/chain.store';
-  import { getProfile, getSettings, getYakklPrimaryAccounts } from '$lib/common/stores';
-  import { VERSION, type Profile, type Settings, type YakklPrimaryAccount } from '$lib/common';
+  import { getProfile, getYakklSettings, getYakklPrimaryAccounts } from '$lib/common/stores';
+  import { VERSION, type Profile, type YakklSettings, type YakklPrimaryAccount } from '$lib/common';
   import { sensitiveOperations } from '$lib/services/sensitiveOperations.service';
   import { notificationService } from '$lib/services/notification.service';
   import QRCode from 'qrcode';
 
   // State
   let profile = $state<Profile | null>(null);
-  let settings = $state<Settings | null>(null);
+  let settings = $state<YakklSettings | null>(null);
   let qrCodeUrl = $state('');
   let generatedDate = new Date().toLocaleDateString();
   let generatedTime = new Date().toLocaleTimeString();
@@ -108,7 +108,7 @@
   onMount(async () => {
     // Load profile and settings
     profile = await getProfile();
-    settings = await getSettings();
+    settings = await getYakklSettings();
 
     // Generate QR code
     if (account) {

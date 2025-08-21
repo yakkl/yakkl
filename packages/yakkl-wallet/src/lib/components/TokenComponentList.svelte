@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { getYakklCombinedTokensDirect, yakklCombinedTokenStore, getSettingsDirect } from '$lib/common/stores';
-	import type { Settings, TokenData } from '$lib/common';
+	import { getYakklCombinedTokensDirect, yakklCombinedTokenStore, getYakklSettingsDirect } from '$lib/common/stores';
+	import type { YakklSettings, TokenData } from '$lib/common';
 	import { onMount } from 'svelte';
 	import { log } from '$lib/managers/Logger';
 	import { browser_ext } from '$lib/common/environment';
@@ -35,7 +35,7 @@
 	onMount(async (): Promise<any> => {
 		log.info('TokenComponentList', false, 'onMount');
 
-		const settings: Settings = await getSettingsDirect();
+		const settings: YakklSettings = await getYakklSettingsDirect();
 		if (!settings || !settings.init || !settings.legal?.termsAgreed) {
 			tokens = [];
 			updateTokenDisplay();

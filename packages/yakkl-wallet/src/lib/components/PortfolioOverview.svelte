@@ -1,20 +1,13 @@
 <script lang="ts">
-  import { derived } from 'svelte/store';
+  import { onMount, onDestroy } from 'svelte';
+  import { derived, get } from 'svelte/store';
   import { currentAccount, accountStore } from '$lib/stores/account.store';
   import { currentChain, chainStore } from '$lib/stores/chain.store';
-  import {
-    walletCacheStore,
+  import { 
     currentPortfolioValue,
-    multiChainPortfolioValue,
-    portfolioByNetwork,
-    currentChainTotal,
-    grandPortfolioTotal,
-    watchListTotal,
-    primaryAccountHierarchy,
-    isInitializing,
-    hasEverLoaded
+    walletCacheStore
   } from '$lib/stores/wallet-cache.store';
-  import { isMultiChainView, tokenStore } from '$lib/stores/token.store';
+  import { tokenStore } from '$lib/stores/token.store';
   import ProtectedValue from './ProtectedValue.svelte';
   import { canUseFeature, getPlanBadgeText, getPlanBadgeColor, getCurrentPlan } from '$lib/utils/features';
   import { planStore } from '$lib/stores/plan.store';
@@ -22,21 +15,13 @@
   import { modalStore } from '$lib/stores/modal.store';
   import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
   import type { BigNumberish } from '$lib/common/bignumber';
-	import { log } from '$lib/common/logger-wrapper';
+  import { log } from '$lib/common/logger-wrapper';
+  import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
+  import { uiStore } from '$lib/stores/ui.store';
+  import { visibilityStore } from '$lib/common/stores/visibilityStore';
 
-  // Define view modes - expanded to include all rollup types
-  type ViewMode = 'current_account' | 'single_network' | 'all_networks' | 'watch_list' | 'hierarchy';
 
-  interface NetworkValue {
-    chainId: number;
-    chainName: string;
-    value: BigNumberish;
-    percentage: number;
-    icon?: string;
-    color: string;
-  }
-
-  // Props
+  // Props - simplified, no view mode
   let {
     onRefresh = () => {},
     loading = false,
@@ -51,6 +36,56 @@
     currentlySelected?: YakklCurrentlySelected | null;
   }>();
 
+  // Create debounced refresh function with rate limiting
+  let refreshAttempts = 0;
+  let lastRefreshTime = 0;
+
+  const debouncedRefresh = UnifiedTimerManager.createDebounce(async () => {
+    const now = Date.now();
+    const timeSinceLastRefresh = now - lastRefreshTime;
+
+    // Reset attempts counter after 6 seconds
+    if (timeSinceLastRefresh > 6000) {
+      refreshAttempts = 0;
+    }
+
+    // Check rate limiting
+    if (timeSinceLastRefresh < 2000) {
+      refreshAttempts++;
+
+      if (refreshAttempts >= 3) {
+        uiStore.showError('Rate Limited', 'Too many refresh attempts. Please wait 6 seconds.');
+        return;
+      } else {
+        uiStore.showWarning('Please Wait', 'Refresh in progress, please wait...');
+        return;
+      }
+    }
+
+    // Execute refresh
+    lastRefreshTime = now;
+    isUserInitiatedRefresh = true;
+    await onRefresh();
+
+    // Reset flag after a delay
+    setTimeout(() => {
+      isUserInitiatedRefresh = false;
+    }, 3000);
+  }, 2000); // 2 second debounce delay
+
+  // Type for view modes
+  type ViewMode = 'current_account' | 'single_network' | 'all_networks' | 'watch_list' | 'hierarchy';
+  
+  // Type for network values
+  interface NetworkValue {
+    chainId: number;
+    chainName: string;
+    value: bigint;
+    percentage: number;
+    icon?: string;
+    color: string;
+  }
+  
   // State
   let isExpanded = $state(false);
   let isMultiChain = $state(false);
@@ -63,59 +98,102 @@
   let planLoaded = $state(false);
   let hasProAccess = $state(false);
 
+  // Use the current portfolio value directly from the store
+  let stablePortfolioValue = $state(0n);
+  let lastKnownLayoutMode = $state<'large' | 'normal'>('normal');
+
+  // Log component mount immediately
+  log.info('[PortfolioOverview] Component mounting', false);
+
+  // onMount: Component is purely reactive - no direct cache manipulation
+  onMount(() => {
+    log.info('[PortfolioOverview] Component mounted - subscribing to reactive stores', false);
+
+    // Initialize stable value from current portfolio (reactive)
+    const currentValue = $currentPortfolioValue;
+    if (currentValue && currentValue > 0n) {
+      stablePortfolioValue = currentValue;
+      lastKnownLayoutMode = currentValue >= 10000n ? 'large' : 'normal';
+    }
+
+    log.info('[PortfolioOverview] Initial values from stores', false, {
+      stableValue: stablePortfolioValue.toString(),
+      layoutMode: lastKnownLayoutMode
+    });
+  });
+
+  // Update portfolio value when it changes
+  $effect(() => {
+    const currentValue = $currentPortfolioValue;
+    if (currentValue !== undefined && currentValue !== null) {
+      // Only update if the value actually changed and is valid
+      if (currentValue > 0n) {
+        stablePortfolioValue = currentValue;
+        lastKnownLayoutMode = currentValue >= 10000n ? 'large' : 'normal';
+        log.info('[PortfolioOverview] Portfolio value updated', false, {
+          value: currentValue.toString()
+        });
+      }
+    }
+  });
+
+  // Cleanup on component destroy
+  onDestroy(() => {
+    // Component cleanup if needed
+  });
+
   // Update reactive values from stores
   $effect(() => {
-    isMultiChain = $isMultiChainView;
     chain = $currentChain;
     accounts = $accountStore?.accounts || [];
-    isFirstLoad = $isInitializing;
-    everLoaded = $hasEverLoaded;
-
-    // Sync view mode with multi-chain state
-    if (isMultiChain) {
-      viewMode = 'all_networks';
-    } else {
-      // Default to current_account for single chain view
-      viewMode = 'current_account';
-    }
+    // Simple multi-chain detection based on view mode
+    isMultiChain = viewMode === 'all_networks';
   });
 
-  // Update Pro access check reactively when plan changes
+  // Track current plan type for badge display
+  let currentPlanType = $state<PlanType>(PlanType.EXPLORER_MEMBER);
+  
+  // Update Pro access check reactively when plan changes - but don't block on it
   $effect(() => {
     const plan = $planStore;
-    if (plan && !plan.loading) {
-      planLoaded = true;
-      hasProAccess = canUseFeature('advanced_analytics');
-      console.log('hasProAccess updated:', hasProAccess, 'plan:', plan.plan?.type);
+    if (plan) {
+      // Don't wait for loading to complete - use defaults if still loading
+      if (!plan.loading) {
+        planLoaded = true;
+        hasProAccess = canUseFeature('advanced_analytics');
+        currentPlanType = plan.plan?.type || PlanType.EXPLORER_MEMBER;
+        log.info('[PortfolioOverview] Plan loaded:', false, { 
+          hasProAccess, 
+          planType: plan.plan?.type,
+          currentPlanType 
+        });
+      } else {
+        // Use defaults while loading
+        log.info('[PortfolioOverview] Plan still loading, using defaults', false);
+        hasProAccess = false; // Default to false while loading
+      }
     }
   });
+  
+  // Load plan on mount to ensure it's available
+  onMount(async () => {
+    await planStore.loadPlan();
+  });
 
-  // Log for debugging
+  // Log state changes for debugging
   $effect(() => {
-    console.log('hasProAccess check:', hasProAccess, 'planLoaded:', planLoaded);
+    log.debug('[PortfolioOverview] State update:', false, {
+      hasProAccess,
+      planLoaded,
+      isFirstLoad,
+      everLoaded,
+      viewMode
+    });
   });
 
   // Get total portfolio value based on view mode using rollup stores
-  const portfolioTotal = derived(
-    [currentPortfolioValue, currentChainTotal, grandPortfolioTotal, watchListTotal, primaryAccountHierarchy],
-    ([$currentValue, $chainTotal, $grandTotal, $watchList, $hierarchy]) => {
-      // Ensure we always return a valid BigNumberish value
-      switch (viewMode) {
-        case 'current_account':
-          return $currentValue || 0n;
-        case 'single_network':
-          return $chainTotal || 0n;
-        case 'all_networks':
-          return $grandTotal || 0n;
-        case 'watch_list':
-          return $watchList || 0n;
-        case 'hierarchy':
-          return $hierarchy?.totalWithDerived || $hierarchy?.totalValue || 0n;
-        default:
-          return $currentValue || 0n;
-      }
-    }
-  );
+  // Simplified portfolio total - just use currentPortfolioValue for now
+  const portfolioTotal = currentPortfolioValue;
 
   // Calculate network values from the new cache architecture
   const networkValues = derived(
@@ -185,13 +263,18 @@
             chainId,
             chainName: chain?.name || `Chain ${chainId}`,
             value: value,
-            percentage: BigNumberishUtils.toNumber(numGrandTotal > 0n ? (numValue / numGrandTotal) * BigNumberishUtils.toBigInt(100) : 0n),
+            percentage: numGrandTotal > 0n ? Number((numValue * 100n) / numGrandTotal) : 0,
             icon: chain?.icon,
             color: getChainColor(chainId)
           };
         })
         .filter(n =>n.value > 0n)
-        .sort((a, b) => BigNumberishUtils.compare(b.value, a.value));
+        .sort((a, b) => {
+          // Both values are bigints, so we can compare them directly
+          if (b.value > a.value) return 1;
+          if (b.value < a.value) return -1;
+          return 0;
+        });
 
       return values;
     }
@@ -236,6 +319,8 @@
       // The error is likely due to initial undefined values
     }
   });
+
+  // Removed auto-expand logic - layout is now controlled only by user interaction
 
   // Get responsive font size based on value
   function getResponsiveFontSize(value: BigNumberish): string {
@@ -325,19 +410,14 @@
   }
 
   function cycleViewMode() {
-    // Cycle through view modes
-    const modes: ViewMode[] = ['current_account', 'single_network', 'all_networks', 'watch_list', 'hierarchy'];
+    // Cycle through view modes - for now only support the two main modes
+    const modes: ViewMode[] = ['current_account', 'all_networks'];
     const currentIndex = modes.indexOf(viewMode);
     const nextIndex = (currentIndex + 1) % modes.length;
     viewMode = modes[nextIndex];
 
     // Update multi-chain view state based on view mode
-    const shouldBeMultiChain = viewMode === 'all_networks' || viewMode === 'watch_list';
-    if (shouldBeMultiChain && !isMultiChain) {
-      tokenStore.toggleMultiChainView();
-    } else if (!shouldBeMultiChain && isMultiChain) {
-      tokenStore.toggleMultiChainView();
-    }
+    isMultiChain = viewMode === 'all_networks';
   }
 
   function getViewModeLabel(): string {
@@ -366,11 +446,6 @@
         const watchCount = $walletCacheStore?.accountMetadata?.watchListAccounts?.length || 0;
         return `${watchCount} watched account${watchCount !== 1 ? 's' : ''}`;
       case 'hierarchy':
-        const hierarchy = $primaryAccountHierarchy;
-        if (hierarchy) {
-          const derivedCount = hierarchy.derivedAccounts?.length || 0;
-          return derivedCount > 0 ? `Primary + ${derivedCount} derived` : 'Primary account';
-        }
         return 'Account hierarchy';
       case 'current_account':
       default:
@@ -409,59 +484,53 @@
     // Mark this as a user-initiated refresh
     isUserInitiatedRefresh = true;
 
-    // Send message to background service to trigger refresh
     try {
       // Only set loading for user-initiated refreshes
       loading = true;
 
-      // Send message to background to trigger data refresh
-      chrome.runtime.sendMessage({
-        type: 'REFRESH_PORTFOLIO_DATA',
-        viewMode: viewMode,
-        chainId: $currentChain?.chainId,
-        address: $currentAccount?.address,
-        userInitiated: true // Add flag to indicate user-initiated
-      });
+      // Trigger a force recalculation of all token values
+      await walletCacheStore.recalculateAllTokenValues();
+      
+      // Also refresh if we have tokenStore available
+      if (typeof tokenStore !== 'undefined' && tokenStore?.refresh) {
+        await tokenStore.refresh(true);
+      }
 
       // Set timeout for refresh (10 seconds)
       refreshTimeout = setTimeout(() => {
         loading = false;
         isUserInitiatedRefresh = false;
-        log.warn('[PortfolioOverview] Refresh timeout - no update received', false);
+        log.info('[PortfolioOverview] Refresh completed', false);
       }, 10000);
 
     } catch (error) {
-      log.error('[PortfolioOverview] Failed to send refresh message:', false, error);
+      log.error('[PortfolioOverview] Failed to refresh:', false, error);
       loading = false;
       isUserInitiatedRefresh = false;
     }
   }
 
-  // Listen for refresh completion from background
+  // Listen for store updates (purely reactive)
   $effect(() => {
-    const handleMessage = (message: any) => {
-      if (message.type === 'PORTFOLIO_DATA_REFRESHED') {
-        // Only update loading state if this was a user-initiated refresh
-        if (isUserInitiatedRefresh) {
-          // Clear timeout and loading state
-          if (refreshTimeout) {
-            clearTimeout(refreshTimeout);
-            refreshTimeout = null;
-          }
-          loading = false;
-          isUserInitiatedRefresh = false;
+    // React to wallet cache updates
+    const cacheState = $walletCacheStore;
+    if (cacheState && cacheState.lastSync) {
+      // Update last update time when cache syncs
+      if (isUserInitiatedRefresh) {
+        // Clear timeout and loading state
+        if (refreshTimeout) {
+          clearTimeout(refreshTimeout);
+          refreshTimeout = null;
         }
-        lastUpdate = new Date();
-        log.info('[PortfolioOverview] Portfolio data refreshed', false);
+        loading = false;
+        isUserInitiatedRefresh = false;
       }
-    };
-
-    // Add listener
-    chrome.runtime.onMessage.addListener(handleMessage);
+      lastUpdate = new Date(cacheState.lastSync);
+      log.debug('[PortfolioOverview] Store data updated', false);
+    }
 
     // Cleanup
     return () => {
-      chrome.runtime.onMessage.removeListener(handleMessage);
       if (refreshTimeout) {
         clearTimeout(refreshTimeout);
       }
@@ -486,7 +555,7 @@
   </div>
 {:else if !hasProAccess}
   <!-- Basic User View -->
-  <div class="{className} rounded-2xl p-6 shadow-md hover:shadow-lg transition-all duration-300" style="background-color: {getPlanBadgeColor()}20">
+  <div class="{className} rounded-2xl p-6 shadow-md hover:shadow-lg transition-all duration-300" style="background-color: {getPlanBadgeColor(currentPlanType)}20">
     <div class="space-y-3">
       <!-- Header with badge -->
       <div class="flex items-start justify-between gap-2">
@@ -497,9 +566,9 @@
             </span>
             <span
               class="px-2 py-0.5 text-white text-[10px] font-bold rounded-full whitespace-nowrap"
-              style="background-color: {getPlanBadgeColor()}"
+              style="background-color: {getPlanBadgeColor(currentPlanType)}"
             >
-              {getPlanBadgeText()}
+              {getPlanBadgeText(currentPlanType)}
             </span>
           </div>
           <span class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 block">
@@ -521,7 +590,7 @@
       </div>
 
       <!-- Value and toggle -->
-      {#if BigNumberishUtils.toBigInt($portfolioTotal || 0n) >= 10000n}
+      {#if isExpanded}
         <!-- Large value layout - value on its own line -->
         <div class="space-y-3">
           {#if loading || isFirstLoad}
@@ -539,13 +608,24 @@
             </div>
           {/if}
 
-          <div class="flex justify-end">
+          <div class="flex justify-end gap-2">
             <button
               onclick={cycleViewMode}
               class="px-3 py-1.5 text-xs font-medium rounded-full border transition-all duration-200 min-w-[120px] text-center bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-zinc-700"
               title="Click to cycle through view modes"
             >
               {getViewModeLabel()}
+            </button>
+
+            <button
+              onclick={() => isExpanded = !isExpanded}
+              class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+              title={isExpanded ? "Collapse" : "Expand"}
+              aria-label={isExpanded ? "Collapse portfolio details" : "Expand portfolio details"}
+            >
+              <svg class="w-4 h-4 text-gray-500 transition-transform duration-200 {isExpanded ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
             </button>
           </div>
         </div>
@@ -567,14 +647,27 @@
             </div>
           {/if}
 
-          <!-- View Mode Toggle -->
-          <button
-            onclick={cycleViewMode}
-            class="px-3 py-1.5 text-xs font-medium rounded-full border transition-all duration-200 min-w-[120px] text-center bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-zinc-700"
-            title="Click to cycle through view modes"
-          >
-            {getViewModeLabel()}
-          </button>
+          <!-- View Mode Toggle and Expand -->
+          <div class="flex items-center gap-2">
+            <button
+              onclick={cycleViewMode}
+              class="px-3 py-1.5 text-xs font-medium rounded-full border transition-all duration-200 min-w-[120px] text-center bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-zinc-700"
+              title="Click to cycle through view modes"
+            >
+              {getViewModeLabel()}
+            </button>
+
+            <button
+              onclick={() => isExpanded = !isExpanded}
+              class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+              title={isExpanded ? "Collapse" : "Expand"}
+              aria-label={isExpanded ? "Collapse portfolio details" : "Expand portfolio details"}
+            >
+              <svg class="w-4 h-4 text-gray-500 transition-transform duration-200 {isExpanded ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          </div>
         </div>
       {/if}
 
@@ -615,9 +708,9 @@
               </span>
               <span
                 class="px-2 py-0.5 text-white text-[10px] font-bold rounded-full whitespace-nowrap"
-                style="background-color: {getPlanBadgeColor()}"
+                style="background-color: {getPlanBadgeColor(currentPlanType)}"
               >
-                {getPlanBadgeText()}
+                {getPlanBadgeText(currentPlanType)}
               </span>
             </div>
             <span class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 block">
@@ -627,7 +720,7 @@
 
           <!-- Refresh button aligned to the right -->
           <button
-            onclick={onRefresh}
+            onclick={debouncedRefresh}
             class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors flex-shrink-0"
             title="Refresh"
             aria-label="Refresh portfolio data"
@@ -640,7 +733,7 @@
         </div>
 
         <!-- Value and Controls -->
-        {#if BigNumberishUtils.toBigInt($portfolioTotal || 0n) >= 10000n}
+        {#if isExpanded}
           <!-- Large value layout - value on its own line -->
           <div class="space-y-3">
             {#if loading || isFirstLoad}

@@ -1,19 +1,15 @@
 <!-- File: src/routes/sidepanel/+page.svelte -->
 <script lang="ts">
 	import TokenComponentList from '$lib/components/TokenComponentList.svelte';
-	// import RotatingBanner from '$lib/components/RotatingBanner.svelte';
-  console.log('browserSvelte', browserSvelte);
 	import { browserSvelte, browser_ext } from '$lib/common/environment';
-  console.log('browser_ext', browser_ext);
-	import { browserAPI } from '$lib/services/browser-api.service';
 	import WalletIcon from '$lib/components/icons/WalletIcon.svelte';
 	import TokenIcon from '$lib/components/icons/TokenIcon.svelte';
 	import NewsIcon from '$lib/components/icons/NewsIcon.svelte';
 	import ToolIcon from '$lib/components/icons/ToolIcon.svelte';
 	import { onMount } from 'svelte';
 	import {
-		getSettingsDirect,
-		setSettingsStorage,
+		getYakklSettingsDirect,
+		setYakklSettingsStorage,
 		setYakklCombinedTokenStorage,
 		updateCombinedTokenStore,
 		yakklCombinedTokenStore
@@ -242,8 +238,9 @@
 
 
 
-			const settings = await getSettingsDirect();
+			const settings = await getYakklSettingsDirect();
 			if (!settings || !settings.init) {
+        console.log('getYakklSettingsDirect', settings);
 				// Show legal terms first for new users
 				init = false;
 				document.documentElement.classList.remove('dark');
@@ -292,12 +289,12 @@
 		if (!isAgreed) return;
 
 		try {
-			const settings = await getSettingsDirect();
+			const settings = await getYakklSettingsDirect();
 			if (settings) {
 				settings.legal.privacyViewed = true;
 				settings.legal.termsAgreed = true;
 				settings.isLocked = true;
-				await setSettingsStorage(settings);
+				await setYakklSettingsStorage(settings);
 
 				// Hide legal terms and show normal sidepanel
 				// showLegalTerms = false;

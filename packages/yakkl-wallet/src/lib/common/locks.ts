@@ -1,6 +1,6 @@
 import { STORAGE_YAKKL_CURRENTLY_SELECTED, STORAGE_YAKKL_SETTINGS } from './constants';
 import { dateString } from './datetime';
-import type { Settings, YakklCurrentlySelected } from './interfaces';
+import type { YakklSettings, YakklCurrentlySelected } from './interfaces';
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from './storage';
 import { yakklCurrentlySelectedStore, yakklSettingsStore } from './stores';
 import { log } from '$lib/managers/Logger';
@@ -26,7 +26,7 @@ export async function setLocks(locked: boolean = true, planType?: PlanType, toke
 			}
 		}
 
-		const yakklSettings = (await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS)) as Settings;
+		const yakklSettings = (await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS)) as YakklSettings;
 		if (yakklSettings) {
 			dirty = false;
 			if (locked) {
@@ -37,7 +37,7 @@ export async function setLocks(locked: boolean = true, planType?: PlanType, toke
 					if (planType && Object.values(PlanType).includes(planType)) {
 						yakklSettings.plan.type = planType;
 					}
-					await setObjectInLocalStorage('settings', yakklSettings);
+					await setObjectInLocalStorage(STORAGE_YAKKL_SETTINGS, yakklSettings);
 					dirty = true;
 				}
 			} else {
@@ -48,7 +48,7 @@ export async function setLocks(locked: boolean = true, planType?: PlanType, toke
 					if (planType && Object.values(PlanType).includes(planType)) {
 						yakklSettings.plan.type = planType;
 					}
-					await setObjectInLocalStorage('settings', yakklSettings);
+					await setObjectInLocalStorage(STORAGE_YAKKL_SETTINGS, yakklSettings);
 					dirty = true;
 				}
 			}

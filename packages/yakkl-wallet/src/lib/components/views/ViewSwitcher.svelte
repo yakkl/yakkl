@@ -67,7 +67,7 @@
 	// Filtered views for quick switch
 	let filteredViews = $derived.by(() => {
 		if (!quickSwitchQuery) return Object.entries(views);
-		
+
 		const query = quickSwitchQuery.toLowerCase();
 		return Object.entries(views).filter(([_, meta]) =>
 			meta.label.toLowerCase().includes(query)
@@ -102,14 +102,14 @@
 				isOpen = false;
 			}
 		}
-		
+
 		// Escape to close
 		if (event.key === 'Escape') {
 			isOpen = false;
 			showQuickSwitch = false;
 			quickSwitchQuery = '';
 		}
-		
+
 		// Alt + number shortcuts
 		if (event.altKey && event.key >= '1' && event.key <= '7') {
 			const viewList = Object.keys(views) as ViewType[];
@@ -141,7 +141,7 @@
 	$effect(() => {
 		window.addEventListener('keydown', handleKeyboard);
 		document.addEventListener('click', handleClickOutside);
-		
+
 		return () => {
 			window.removeEventListener('keydown', handleKeyboard);
 			document.removeEventListener('click', handleClickOutside);
@@ -152,7 +152,7 @@
 <div class="view-switcher fixed {positionClass} z-50 {className}">
 	<!-- Quick Switch Modal -->
 	{#if showQuickSwitch}
-		<div 
+		<div
 			class="absolute bottom-full mb-2 right-0 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden"
 			transition:scale={{ duration: 200, easing: cubicOut }}
 		>
@@ -165,7 +165,7 @@
 					class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
 				/>
 			</div>
-			
+
 			<!-- View list -->
 			<div class="max-h-64 overflow-y-auto">
 				{#each filteredViews as [view, meta]}
@@ -190,7 +190,7 @@
 
 	<!-- Expanded Menu -->
 	{#if isOpen && !compact}
-		<div 
+		<div
 			class="absolute bottom-full mb-2 right-0 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden"
 			transition:scale={{ duration: 200, easing: cubicOut }}
 		>
@@ -222,7 +222,7 @@
 			<!-- View Grid -->
 			<div class="p-3 grid grid-cols-3 gap-2">
 				{#each Object.entries(views) as [view, meta]}
-					<SimpleTooltip text="{meta.label} (Alt+{meta.shortcut})">
+					<SimpleTooltip content="{meta.label} (Alt+{meta.shortcut})">
 						<button
 							class="p-3 rounded-lg transition-all hover:scale-105 {
 								$currentView === view
@@ -280,12 +280,12 @@
 
 	<!-- Compact Menu -->
 	{#if isOpen && compact}
-		<div 
+		<div
 			class="absolute bottom-full mb-2 right-0 flex flex-col gap-1 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-2"
 			transition:scale={{ duration: 200, easing: cubicOut }}
 		>
 			{#each Object.entries(views) as [view, meta]}
-				<SimpleTooltip text="{meta.label} (Alt+{meta.shortcut})" position="left">
+				<SimpleTooltip content="{meta.label} (Alt+{meta.shortcut})" position="left">
 					<button
 						class="p-2 rounded-lg transition-all {
 							$currentView === view
@@ -334,7 +334,7 @@
 
 	<!-- Keyboard hint -->
 	{#if !isOpen && !showQuickSwitch}
-		<div 
+		<div
 			class="absolute bottom-full mb-2 right-0 px-2 py-1 text-xs bg-gray-900 text-white rounded opacity-0 hover:opacity-100 transition-opacity pointer-events-none"
 		>
 			⌘K for quick switch

@@ -4,7 +4,7 @@
   import { safeNavigate } from '$lib/common/safeNavigate';
   import { onMount } from 'svelte';
   import { log } from '$lib/common/logger-wrapper';
-  import { getSettings } from '$lib/common/stores';
+  import { getYakklSettings } from '$lib/common/stores';
   import Failed from '$lib/components/Failed.svelte';
 
   let loading = $state(true);
@@ -16,7 +16,7 @@
 
     try {
       // Check if wallet is initialized
-      const settings = await getSettings();
+      const settings = await getYakklSettings();
       if (!settings.init || !settings.legal.termsAgreed) {
         errorValue = "You must register and agree to the terms of service before using YAKKL®. Click on 'Open Wallet' to register.";
         showFailure = true;
@@ -27,7 +27,7 @@
       // Get URL parameters
       const requestId = page.url.searchParams.get('requestId');
       const method = page.url.searchParams.get('method');
-      
+
       if (!requestId) {
         errorValue = 'Missing request ID. Invalid dApp request.';
         showFailure = true;
@@ -66,10 +66,10 @@
   <title>YAKKL - dApp Request</title>
 </svelte:head>
 
-<Failed 
-  bind:show={showFailure} 
-  title="dApp Request Failed" 
-  content={errorValue} 
+<Failed
+  bind:show={showFailure}
+  title="dApp Request Failed"
+  content={errorValue}
   onReject={handleFailureAction}
 />
 

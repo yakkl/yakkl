@@ -2,13 +2,13 @@
  * Background Context JWT Manager
  * Works in all browser extension contexts (background, content scripts, service workers)
  * Does NOT use Svelte stores - uses browser storage APIs directly
- * 
+ *
  * Security Features:
  * - Token blacklisting: Invalidated tokens are stored in a blacklist to prevent reuse
  * - Automatic cleanup: Blacklisted tokens expire after 24 hours
  * - Hash-based storage: Only token hashes are stored in the blacklist, not full tokens
  * - Lock integration: Tokens are automatically invalidated when the wallet is locked
- * 
+ *
  * Usage:
  * - invalidateJWT(token?) - Invalidate a specific token or the current token
  * - clearJWTBlacklist() - Clear all blacklisted tokens (use with caution)
@@ -17,18 +17,8 @@
  */
 
 // No imports needed - this is for background context only
-
-interface JWTPayload {
-	sub: string; // Subject (user ID)
-	username: string; // Username
-	profileId: string; // Profile ID
-	planLevel: string; // Plan level (basic, pro, etc.)
-	sessionId: string; // Session ID for tracking
-	iat: number; // Issued at
-	exp: number; // Expires at
-	iss: string; // Issuer
-	aud: string; // Audience
-}
+import browser from 'webextension-polyfill';
+import type { JWTPayload } from './jwt';
 
 interface StoredJWTData {
 	token: string;
@@ -62,7 +52,8 @@ class BackgroundJWTManager {
 		profileId: string,
 		planLevel: string = 'explorer_member',
 		sessionId?: string,
-		expirationMinutes: number = 60
+		expirationMinutes: number = 60,
+		secureHash?: string // Optional secure hash to include in JWT for backend API
 	): Promise<string> {
 		try {
 			const now = Date.now();
@@ -80,7 +71,8 @@ class BackgroundJWTManager {
 				iat: Math.floor(now / 1000),
 				exp: Math.floor(exp / 1000),
 				iss: this.ISSUER,
-				aud: this.AUDIENCE
+				aud: this.AUDIENCE,
+				secureHash
 			};
 
 			// Get signing key
@@ -209,9 +201,7 @@ class BackgroundJWTManager {
 		try {
 			if (this.isExtensionContext()) {
 				return new Promise((resolve) => {
-					chrome.storage.local.remove([this.STORAGE_KEY], () => {
-						resolve();
-					});
+					browser.storage.local.remove([this.STORAGE_KEY]);
 				});
 			} else if (typeof localStorage !== 'undefined') {
 				localStorage.removeItem(this.STORAGE_KEY);
@@ -267,7 +257,7 @@ class BackgroundJWTManager {
 	async hasValidToken(): Promise<boolean> {
 		const token = await this.getCurrentToken();
 		if (!token) return false;
-		
+
 		// Also check if it's not blacklisted
 		return !(await this.isTokenBlacklisted(token));
 	}
@@ -279,9 +269,7 @@ class BackgroundJWTManager {
 		try {
 			if (this.isExtensionContext()) {
 				return new Promise((resolve) => {
-					chrome.storage.local.remove([this.BLACKLIST_KEY], () => {
-						resolve();
-					});
+					browser.storage.local.remove([this.BLACKLIST_KEY]);
 				});
 			} else if (typeof localStorage !== 'undefined') {
 				localStorage.removeItem(this.BLACKLIST_KEY);
@@ -358,9 +346,7 @@ class BackgroundJWTManager {
 		try {
 			if (this.isExtensionContext()) {
 				return new Promise((resolve) => {
-					chrome.storage.local.set({ [this.STORAGE_KEY]: data }, () => {
-						resolve();
-					});
+					browser.storage.local.set({ [this.STORAGE_KEY]: data });
 				});
 			} else if (typeof localStorage !== 'undefined') {
 				localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
@@ -374,9 +360,7 @@ class BackgroundJWTManager {
 		try {
 			if (this.isExtensionContext()) {
 				return new Promise((resolve) => {
-					chrome.storage.local.get([this.STORAGE_KEY], (result) => {
-						resolve(result[this.STORAGE_KEY] || null);
-					});
+					browser.storage.local.get([this.STORAGE_KEY]);
 				});
 			} else if (typeof localStorage !== 'undefined') {
 				const stored = localStorage.getItem(this.STORAGE_KEY);
@@ -390,7 +374,7 @@ class BackgroundJWTManager {
 	}
 
 	private isExtensionContext(): boolean {
-		return typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local !== undefined;
+		return typeof window !== 'undefined' && browser.storage && browser.storage.local !== undefined;
 	}
 
 	/**
@@ -401,7 +385,7 @@ class BackgroundJWTManager {
 			const blacklist = await this.getBlacklist();
 			const now = Date.now();
 			const expiryTime = now + (this.BLACKLIST_EXPIRY_HOURS * 60 * 60 * 1000);
-			
+
 			// Create a hash of the token for storage (don't store full tokens)
 			const tokenHash = await this.hashToken(token);
 			blacklist[tokenHash] = expiryTime;
@@ -417,9 +401,7 @@ class BackgroundJWTManager {
 			// Store updated blacklist
 			if (this.isExtensionContext()) {
 				return new Promise((resolve) => {
-					chrome.storage.local.set({ [this.BLACKLIST_KEY]: cleanedBlacklist }, () => {
-						resolve();
-					});
+					browser.storage.local.set({ [this.BLACKLIST_KEY]: cleanedBlacklist });
 				});
 			} else if (typeof localStorage !== 'undefined') {
 				localStorage.setItem(this.BLACKLIST_KEY, JSON.stringify(cleanedBlacklist));
@@ -437,9 +419,9 @@ class BackgroundJWTManager {
 			const blacklist = await this.getBlacklist();
 			const tokenHash = await this.hashToken(token);
 			const expiryTime = blacklist[tokenHash];
-			
+
 			if (!expiryTime) return false;
-			
+
 			// Check if still valid
 			return Date.now() < expiryTime;
 		} catch (error) {
@@ -455,9 +437,7 @@ class BackgroundJWTManager {
 		try {
 			if (this.isExtensionContext()) {
 				return new Promise((resolve) => {
-					chrome.storage.local.get([this.BLACKLIST_KEY], (result) => {
-						resolve(result[this.BLACKLIST_KEY] || {});
-					});
+					browser.storage.local.get([this.BLACKLIST_KEY]);
 				});
 			} else if (typeof localStorage !== 'undefined') {
 				const stored = localStorage.getItem(this.BLACKLIST_KEY);

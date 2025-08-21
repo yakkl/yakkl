@@ -242,24 +242,45 @@ export class BigNumber implements IBigNumber {
 
 	// Static method to convert a BigNumberish to a number
 	static toNumber(value: BigNumberish): number | null {
-		if (value === null) {
+		if (value === null || value === undefined) {
 			return null;
 		}
 
-		if (typeof value === 'string' || typeof value === 'number') {
-			return Number(value);
-		}
+		try {
+			if (typeof value === 'string') {
+				const num = Number(value);
+				return isFinite(num) ? num : null;
+			}
+			
+			if (typeof value === 'number') {
+				return isFinite(value) ? value : null;
+			}
 
-		if (typeof value === 'bigint') {
-			return Number(value);
-		}
+			if (typeof value === 'bigint') {
+				// Check if bigint is within safe integer range
+				if (value > BigInt(Number.MAX_SAFE_INTEGER) || value < BigInt(Number.MIN_SAFE_INTEGER)) {
+					console.warn('BigInt value exceeds safe integer range:', value);
+					// Return the clamped value rather than null for better UX
+					return value > 0 ? Number.MAX_SAFE_INTEGER : Number.MIN_SAFE_INTEGER;
+				}
+				return Number(value);
+			}
 
-		if (BigNumber.isBigNumber(value)) {
-			return value.toNumber();
-		}
+			if (BigNumber.isBigNumber(value)) {
+				return value.toNumber();
+			}
 
-		if (BigNumber.isHexObject(value)) {
-			return Number(BigInt(value.hex));
+			if (BigNumber.isHexObject(value)) {
+				const bigintVal = BigInt(value.hex);
+				if (bigintVal > BigInt(Number.MAX_SAFE_INTEGER) || bigintVal < BigInt(Number.MIN_SAFE_INTEGER)) {
+					console.warn('Hex object value exceeds safe integer range:', value.hex);
+					return bigintVal > 0 ? Number.MAX_SAFE_INTEGER : Number.MIN_SAFE_INTEGER;
+				}
+				return Number(bigintVal);
+			}
+		} catch (error) {
+			console.warn('Failed to convert BigNumberish to number:', value, error);
+			return null;
 		}
 
 		return null;

@@ -2,7 +2,7 @@ import { writable, derived } from 'svelte/store';
 import type { UserPlan } from '../types';
 import { PlanType } from '../common';
 import { hasFeature, getFeaturesForPlan, isTrialUser } from '../config/features';
-import { getMiscStore, getProfile, getSettings, setProfileStorage, setSettingsStorage } from '$lib/common/stores';
+import { getMiscStore, getProfile, getYakklSettings, setProfileStorage, setYakklSettingsStorage } from '$lib/common/stores';
 import { setUserPlan } from '../utils/features';
 import { decryptData, encryptData, isEncryptedData, type ProfileData } from '$lib/common';
 import { log } from '$lib/common/logger-wrapper';
@@ -29,9 +29,18 @@ function createPlanStore() {
 
       try {
         // Get plan from settings
-        const settings = await getSettings();
-        const planType = settings?.plan?.type || PlanType.EXPLORER_MEMBER;
+        const settings = await getYakklSettings();
+        
+        // Check both plan.type and planType fields (for backward compatibility)
+        const planType = settings?.plan?.type || (settings as any)?.planType || PlanType.EXPLORER_MEMBER;
         const trialEndsAt = (settings as any)?.plan?.trialEndsAt as string || null;
+        
+        log.info('[PlanStore] Loading plan from settings:', {
+          settingsPlanType: settings?.plan?.type,
+          settingsPlanTypeAlt: (settings as any)?.planType,
+          resolvedPlanType: planType,
+          hasSettings: !!settings
+        });
 
         // Check if user is on trial
         const onTrial = isTrialUser(trialEndsAt);
@@ -111,12 +120,12 @@ function createPlanStore() {
         }
 
         // Update local storage for persistence
-        const settings = await getSettings();
+        const settings = await getYakklSettings();
         if (settings) {
           settings.plan.type = newPlan as PlanType;
           settings.plan.trialEndDate = null as string | null; // Clear trial when upgrading
           settings.plan.upgradeDate = new Date().toISOString();
-          await setSettingsStorage(settings);
+          await setYakklSettingsStorage(settings);
         }
 
         // Update the store

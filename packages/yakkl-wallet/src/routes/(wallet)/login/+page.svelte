@@ -4,25 +4,25 @@
   import { safeLogout } from '$lib/common/safeNavigate';
   import { startActivityTracking } from '$lib/common/messaging';
   import { log } from '$lib/common/logger-wrapper';
-  import type { Profile, Settings } from '$lib/common/interfaces';
+  import type { Profile, YakklSettings } from '$lib/common/interfaces';
   import { getNormalizedSettings, PlanType } from '$lib/common';
   import { setLocks } from '$lib/common/locks';
   import ErrorNoAction from '$lib/components/ErrorNoAction.svelte';
   import { onMount } from 'svelte';
   import { protectedContexts } from '$lib/common/globals';
-	import { goto } from '$app/navigation';
-	import { initNetworkSpeedMonitoring } from '$lib/common/networkSpeed';
-	import { loadCacheManagers } from '$lib/common/cacheManagers';
+  import { goto } from '$app/navigation';
+  // import { browser_ext } from '$lib/common/environment';
+  import browser from '$lib/common/browser-wrapper';
 
   // State
   let showError = $state(false);
   let errorValue = $state('');
   let planType = $state(PlanType.EXPLORER_MEMBER);
-  let yakklSettings: Settings | null = $state(null);
-  let isInitializing = $state(true);
+  let yakklSettings: YakklSettings | null = $state(null);
+  let isInitializing = $state(false);
   let initError = $state<string | null>(null);
 
-  // Format plan type for display (remove underscores and capitalize)
+  // Format plan type for display
   function formatPlanType(plan: string): string {
     if (!plan) return '';
     return plan
@@ -34,104 +34,79 @@
 
   onMount(async () => {
     console.log('[Login] Starting login page initialization...');
-    
-    try {
-      // Simply load settings - the root layout handles AppStateManager initialization
-      yakklSettings = await getNormalizedSettings();
-      
-      // Handle null settings - user might be on first launch
-      if (!yakklSettings || !yakklSettings.init || !yakklSettings.legal?.termsAgreed) {
-        console.warn('[Login] No settings found, redirecting to legal page for initial setup');
-        // Redirect to legal page which starts the registration flow
-        await goto('/legal');
-        return;
-      }
 
-      planType = yakklSettings?.plan?.type ?? PlanType.EXPLORER_MEMBER;
-      
-      // Everything initialized successfully
-      isInitializing = false;
-      console.log('[Login] Login page initialization complete');
-      
-    } catch (error) {
-      console.error('[Login] Initialization error:', error);
-      
-      // Provide more specific error messages
-      if (error instanceof Error) {
-        if (error.message.includes('timeout')) {
-          initError = 'Extension connection timeout. Please reload the page.';
-        } else if (error.message.includes('Extension connection failed')) {
-          initError = 'Unable to connect to wallet extension. Please ensure the extension is installed and enabled.';
-        } else {
-          initError = error.message;
+    // Show login form IMMEDIATELY - no spinner, no delay
+    isInitializing = false;
+    planType = PlanType.EXPLORER_MEMBER;
+
+    // Load settings in background (non-blocking)
+    getNormalizedSettings().then(async (settings) => {
+      if (settings) {
+        yakklSettings = settings;
+        planType = settings?.plan?.type ?? PlanType.EXPLORER_MEMBER;
+
+        // Check legal agreement (but don't block login form)
+        if (!settings.init || !settings.legal?.termsAgreed) {
+          console.log('[Login] User needs to complete legal agreement');
+          await goto('/legal');
         }
-      } else {
-        initError = 'Failed to initialize wallet';
       }
-      
-      isInitializing = false;
-    }
+    }).catch(error => {
+      console.log('[Login] Settings load failed (non-critical):', error);
+    });
   });
 
-  // Handle successful login
+  // Handle successful login - FAST PATH
   async function onSuccess(profile: Profile, digest: string, isMinimal: boolean, jwtToken?: string) {
-    log.debug('[LOGIN onSuccess] Called with:', false, {
-      profile,
-      hasDigest: !!digest,
-      digestLength: digest?.length,
-      isMinimal,
-      hasJWT: !!jwtToken
+    log.debug('[LOGIN onSuccess] FAST PATH:', false, {
+      profile: profile.username,
+      hasDigest: !!digest
     });
 
     try {
       // Set the username in the global store
       $yakklUserNameStore = profile.username || '';
 
-      // KEY: Sync all storage to stores - this loads all persistent data
-      await syncStorageToStore();
-
-      // Unlock the wallet using setLocks function - this updates both storage and stores
-      await setLocks(false, yakklSettings?.plan?.type || PlanType.EXPLORER_MEMBER);
-
-      // Start activity tracking
-      const contextType = 'popup-wallet';
-      if (protectedContexts.includes(contextType)) {
-        log.info(`Starting activity tracking for protected context: ${contextType}`);
-        startActivityTracking(contextType);
-      }
-
-      // Initialize network speed monitoring for dynamic timeouts
-      try {
-        initNetworkSpeedMonitoring();
-      } catch (error) {
-        console.log('Network speed monitoring initialization failed', error);
-      }
-
-      // Mark session as authenticated - only for session tracking but not used for real authentication
+      // Mark as authenticated for instant navigation
       sessionStorage.setItem('wallet-authenticated', 'true');
-      // Small delay to ensure all async operations complete
-      await new Promise(resolve => setTimeout(resolve, 300));
 
-      try {
-        await goto('/home');
-      } catch (error) {
-        console.error('[LOGIN] Navigation failed:', error);
-        // Fallback to login page on navigation error
-        errorValue = 'Failed to navigate to home page';
-        showError = true;
+      // Notify IdleManager that login is verified (fire-and-forget)
+      if (browser.runtime) {
+        browser.runtime.sendMessage({
+          type: 'SET_IDLE_LOGIN_VERIFIED',
+          payload: { verified: true }
+        }).catch(err => {
+          log.warn('[LOGIN] Failed to notify IdleManager of login verification:', false, err);
+        });
+        log.debug('[LOGIN] Notified IdleManager of successful authentication');
       }
 
-    } catch (e: any) {
-      console.error('Error during post-login initialization', e);
-      errorValue = e;
+      // Minimal background work only
+      setTimeout(async () => {
+        try {
+          // Just unlock - skip heavy operations
+          await setLocks(false, PlanType.EXPLORER_MEMBER);
+        } catch (e) {
+          console.log('Background unlock error:', e);
+        }
+      }, 10);
+
+      // Navigate IMMEDIATELY - no waiting
+      await goto('/home');
+
+      log.info('[LOGIN onSuccess] User logged in successfully');
+    } catch (error) {
+      log.error('[LOGIN onSuccess] Error during login:', false, error);
       showError = true;
+      errorValue = error instanceof Error ? error.message : 'Login failed';
     }
   }
 
   // Handle login errors
-  function onError(value: string) {
-    errorValue = value;
+  function onError(error: any) {
+    log.error('[LOGIN onError] Login error:', false, error);
     showError = true;
+    errorValue = error instanceof Error ? error.message : String(error);
   }
 
   // Handle login cancel
@@ -164,72 +139,34 @@
         <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Preview 2.0</p>
       </div>
 
-      {#if isInitializing}
-        <!-- Loading state while extension initializes -->
-        <div class="py-8">
-          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p class="text-zinc-600 dark:text-zinc-400">Connecting to extension...</p>
-          <p class="text-xs text-zinc-500 dark:text-zinc-500 mt-2">Please wait while we initialize the wallet</p>
-        </div>
-      {:else if initError}
-        <!-- Error state if initialization fails -->
-        <div class="py-8">
-          <div class="text-red-600 dark:text-red-400 mb-4">
-            <svg class="w-12 h-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <p class="text-red-600 dark:text-red-400 font-medium">Initialization Failed</p>
-          <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">{initError}</p>
-          <button 
-            onclick={() => window.location.reload()} 
-            class="btn btn-primary btn-sm mt-4"
-          >
-            Reload Wallet
-          </button>
-        </div>
-      {:else}
-        <!-- Login Form - only shown when fully initialized -->
+        <!-- Login form - shown immediately -->
         <Login
           {onSuccess}
           {onError}
           {onCancel}
-          loginButtonText="Unlock Wallet"
-          cancelButtonText="Exit"
+          loginButtonText="Unlock"
+          cancelButtonText="Exit/Logout"
+          minimumAuth={false}
+          useAuthStore={false}
+          generateJWT={false}
           inputTextClass="text-zinc-900 dark:text-white"
           inputBgClass="bg-white dark:bg-zinc-800"
-          useAuthStore={true}
-          generateJWT={true}
         />
-      {/if}
 
-      <!-- Plan Info - only show when not initializing -->
-      {#if !isInitializing && !initError}
-        <div class="mt-8 p-4 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900 dark:to-purple-900 rounded-xl">
-        {#if planType.toLowerCase() === PlanType.YAKKL_PRO.toLowerCase()}
-          <h3 class="font-semibold text-indigo-900 dark:text-indigo-100">{formatPlanType(PlanType.YAKKL_PRO)}</h3>
-          <p class="text-sm text-indigo-700 dark:text-indigo-200 mt-1">
-            Access to all premium features and advanced tools
+      <!-- Plan type display -->
+      {#if planType && !isInitializing}
+        <div class="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+          <p class="text-xs text-zinc-500 dark:text-zinc-400">
+            Plan: {formatPlanType(planType)}
           </p>
-        {:else if planType.toLowerCase() === PlanType.FOUNDING_MEMBER.toLowerCase()}
-          <h3 class="font-semibold text-purple-900 dark:text-purple-100">{formatPlanType(PlanType.FOUNDING_MEMBER)}</h3>
-          <p class="text-sm text-purple-700 dark:text-purple-200 mt-1">
-            Exclusive access to all features and early releases
-          </p>
-        {:else if planType.toLowerCase() === PlanType.EARLY_ADOPTER.toLowerCase()}
-          <h3 class="font-semibold text-blue-900 dark:text-blue-100">{formatPlanType(PlanType.EARLY_ADOPTER)}</h3>
-          <p class="text-sm text-blue-700 dark:text-blue-200 mt-1">
-            Enhanced features and priority support
-          </p>
-        {:else}
-          <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">{formatPlanType(planType)}</h3>
-          <p class="text-sm text-zinc-700 dark:text-zinc-300 mt-1">
-            Core wallet features with option to upgrade
-          </p>
-        {/if}
         </div>
       {/if}
-
     </div>
   </div>
 </div>
+
+<style>
+  /* .yakkl-card {
+    @apply bg-white dark:bg-zinc-800 rounded-lg shadow-lg;
+  } */
+</style>

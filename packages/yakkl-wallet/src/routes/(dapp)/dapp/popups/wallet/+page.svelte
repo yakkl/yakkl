@@ -6,7 +6,7 @@
 		getYakklCurrentlySelected,
 		getMiscStore,
 		yakklDappConnectRequestStore,
-		getSettings
+		getYakklSettings
 	} from '$lib/common/stores';
 	import { type YakklCurrentlySelected } from '$lib/common';
 	import { DEFAULT_TITLE, YAKKL_DAPP } from '$lib/common/constants';
@@ -140,7 +140,7 @@
 			if (browserSvelte) {
 				log.info('Dapp - wallet page mounted:', false);
 
-				const settings = await getSettings();
+				const settings = await getYakklSettings();
 				if (!settings.init || !settings.legal.termsAgreed) {
 					errorValue =
 						"You must register and agree to the terms of service before using YAKKL®. Click on 'Open Wallet' to register.";

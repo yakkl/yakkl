@@ -1,5 +1,5 @@
 // src/hooks.client.ts
-import { getSettings, setContextTypeStore } from '$lib/common/stores';
+import { getYakklSettings, setContextTypeStore } from '$lib/common/stores';
 import { loadTokens } from '$lib/common/stores/tokens';
 import { ErrorHandler } from '$lib/managers/ErrorHandler';
 import { log } from '$lib/managers/Logger';
@@ -8,8 +8,11 @@ import { globalListenerManager } from '$lib/managers/GlobalListenerManager';
 import { uiListenerManager } from '$lib/common/listeners/ui/uiListeners';
 import { protectedContexts } from '$lib/common/globals';
 import { initializeGlobalErrorHandlers } from '$lib/common/globalErrorHandler';
-import { browser_ext } from '$lib/common/environment';
+// import { browser_ext } from '$lib/common/environment';
 import { initializeMessaging, initializeUiContext } from '$lib/common/messaging';
+import browser from '$lib/common/browser-wrapper';
+
+console.log('[hooks.client] hooks.client.ts loaded');
 
 // Helper function to check if context needs idle protection
 function contextNeedsIdleProtection(contextType: string): boolean {
@@ -184,9 +187,10 @@ export async function init() {
 		}
 
 		log.info('Starting initialization process');
+    console.log('[init] Starting initialization process');
 
 		try {
-			await getSettings();
+			await getYakklSettings();
 		} catch (error) {
 			console.info(`[${CONTEXT_ID}] Failed to get settings in hooks - passing on:`, error);
 		}
@@ -205,24 +209,34 @@ export async function init() {
 		// Get context type for this initialization
 		const contextType = getContextType();
 
-		// Initialize messaging service if browser API is available
-		log.info('Checking browser API availability:', false, { browser_ext: !!browser_ext });
-		if (browser_ext) {
+
+// Made a change to new browser wrapper
+    // Initialize messaging service if browser API is available
+		log.info('Checking browser API availability:', false, { browser: !!browser });
+    console.log('[init] Checking browser API availability:', { browser: !!browser });
+		if (browser) {
 			log.info('Initializing messaging service with browser API');
+      console.log('[init] Initializing messaging service with browser API');
 			try {
-				initializeMessaging(browser_ext);
-				await initializeUiContext(browser_ext, contextType);
+				initializeMessaging(browser);
+				await initializeUiContext(browser, contextType);
+
+
+
 				log.info('UI context registered successfully with background');
+        console.log('[init] UI context registered successfully with background');
 			} catch (error) {
 				log.warn('Failed to initialize messaging service:', false, error);
+        console.log('[init] Failed to initialize messaging service:', error);
 			}
 		} else {
 			log.warn('Browser API not available, messaging service not initialized');
+      console.log('[init] Browser API not available, messaging service not initialized');
 		}
 
 		// Set up UI listeners through the manager
 		await setupUIListeners();
-
+    console.log('[init] UI listeners setup');
 		// Note: Registration with background script is already handled by initializeUiContext above
 		// No need for duplicate registration
 
@@ -230,6 +244,7 @@ export async function init() {
 		window.EXTENSION_INIT_STATE.initialized = true;
 		clearTimeout(initTimeout);
 		log.info('Initialization completed successfully');
+    console.log('[init] Initialization completed successfully');
 	} catch (error: any) {
 		clearTimeout(initTimeout);
 		console.warn(`[${CONTEXT_ID}] Initialization error:`, error);

@@ -16,13 +16,14 @@
   import PortfolioDetailsModal from "$lib/components/PortfolioDetailsModal.svelte";
   import TransactionListModal from "$lib/components/TransactionListModal.svelte";
   import TransactionDetailModal from "$lib/components/TransactionDetailModal.svelte";
-  import PortfolioOverview from '$lib/components/PortfolioOverview.svelte';
+  import PortfolioOverview from '$lib/components/PortfolioOverviewSimple.svelte';
+  import OrbitalViewSelector from '$lib/components/views/OrbitalViewSelector.svelte';
+  import TraditionalNavigation from '$lib/components/views/TraditionalNavigation.svelte';
+  import NavigationToggle from '$lib/components/views/NavigationToggle.svelte';
+  import DataInspector from '$lib/components/debug/DataInspector.svelte';
   import { isModalOpen, modalStore } from "$lib/stores/modal.store";
-  // import { initializeCore } from "$lib/core/integration";
   import { currentAccount } from '$lib/stores/account.store';
   import { currentChain } from '$lib/stores/chain.store';
-  // import { importWithBrowserAPI, ensureBrowserAPI } from '$lib/browser-polyfill-import';
-  // import type { BrowserFeatures } from '$lib/modules/browser-dependent-features';
   import { totalPortfolioValue, isLoadingTokens, lastTokenUpdate, isMultiChainView, displayTokens, tokenStore, grandTotalPortfolioValue } from '$lib/stores/token.store';
   import { canUseFeature } from '$lib/utils/features';
   import { uiStore } from '$lib/stores/ui.store';
@@ -32,7 +33,7 @@
 	import PincodeVerify from '$lib/components/PincodeVerify.svelte';
 	import ProtectedValue from '$lib/components/ProtectedValue.svelte';
   // Removed unused imports
-  import { VERSION } from '$lib/common';
+  import { VERSION, type YakklCurrentlySelected } from '$lib/common';
   import { nativeTokenPriceService } from '$lib/services/native-token-price.service';
   import { uiJWTValidatorService } from '$lib/services/ui-jwt-validator.service';
   import { log } from '$lib/common/logger-wrapper';
@@ -41,6 +42,14 @@
   import { BigNumber, type BigNumberish } from '$lib/common/bignumber';
   import { authStore } from '$lib/stores/auth-store';
   import { BrowserAPIPortService } from '$lib/services/browser-api-port.service';
+  import { storageSyncService } from '$lib/services/storage-sync.service';
+  import { portfolioStability } from '$lib/services/portfolio-stability.service';
+  import { getNativeTokenSymbol, isNativeToken } from '$lib/utils/native-token.utils';
+  import { simpleWalletCache, currentTokens, currentTransactions, currentPortfolioValue } from '$lib/stores/simple-wallet-cache.store';
+  import { getYakklCurrentlySelected, setMiscStore } from '$lib/common/stores';
+  import { STORAGE_YAKKL_TOKEN_CACHE, STORAGE_YAKKL_TRANSACTIONS_CACHE } from '$lib/common/constants';
+	// import { browser_ext } from '$lib/common/environment';
+  import browser from '$lib/common/browser-wrapper';
 
   // Initialize core integration dynamically to prevent SSR issues
   // let initializeCore: (() => Promise<void>) | null = null;
@@ -67,115 +76,196 @@
   let hasInitialLoad = $state(false);
   let transactionListData = $state<any>(null);
   // let browserFeatures = $state<BrowserFeatures | null>(null);
+  let navigationMode = $state<'orbital' | 'traditional'>('orbital');
+  let currentlySelected = $state<YakklCurrentlySelected | null>(null);
 
   // Debug state for error tracking
   let hasError = $state(false);
   let errorMessage = $state('');
+  let showDebugPanel = $state(false); // Toggle with keyboard shortcut or dev mode
 
-  function safeLog(message: string, data?: any) {
-    try {
-      log.info(`[Home] ${message}`, false, data);
-    } catch (e) {
-      log.warn(`[Home] ${message}`, false, data);
-    }
-  }
+  // Removed unused safeLog function
 
   function handleError(error: any, context: string) {
     const errorMsg = `Error in ${context}: ${error?.message || error}`;
     console.log(errorMsg, error);
-    hasError = true;
-    errorMessage = errorMsg;
 
-    // Show user-friendly notification
-    try {
-      console.trace('handleError', errorMsg);
+    // Don't update state if we're in a derived/effect context
+    // Use setTimeout to defer state updates outside of the reactive context
+    if (typeof window !== 'undefined') {
+      setTimeout(() => {
+        hasError = true;
+        errorMessage = errorMsg;
 
-      uiStore.showError('Page Load Error', `Failed to load home page: ${context}`);
-    } catch (e) {
-      log.warn('Failed to show error notification:', false, e);
+        // Show user-friendly notification
+        try {
+          console.trace('handleError', errorMsg);
+          uiStore.showError('Page Load Error', `Failed to load home page: ${context}`);
+        } catch (e) {
+          log.warn('Failed to show error notification:', false, e);
+        }
+      }, 0);
     }
   }
 
   onMount(() => {
-    try {
-      if (typeof window === 'undefined') {
-        log.info('window is not defined');
-        return null;
+    // Add keyboard shortcut for debug panel
+    const handleKeydown = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + Shift + D to toggle debug panel
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'D') {
+        e.preventDefault();
+        showDebugPanel = !showDebugPanel;
       }
+    };
 
-      console.log('onMount: Starting home page initialization');
+    window.addEventListener('keydown', handleKeydown);
 
-      // Dynamic import and async initialization
-      (async () => {
-        try {
-          // Core services initialize automatically through stores
-          // Just ensure token store is ready
-          console.log('onMount: Core services initializing automatically');
+    // FAST initialization - display immediately from cache
+    const initializeAsync = async () => {
+      try {
+        if (typeof window === 'undefined') return;
 
-          // Non-blocking token store refresh
-          // tokenStore.refresh().then(() => {
-          //   console.log('onMount: Token store refreshed');
-          // }).catch(error => {
-          //   handleError(error, 'token store refresh');
-          // });
+        console.log('[Home] FAST PATH - Loading immediately');
 
-          // The background interval service handles price and balance updates
-          // We just need to ensure the stores are reactive to storage changes
-          console.log('onMount: Background interval service handles data updates', $authStore);
-          // Start JWT validation service only if authenticated
-          if ($authStore.isAuthenticated && $authStore.jwtToken) {
-            try {
-              console.log('onMount: Starting UI JWT validation service (authenticated)');
-              // Start immediately - the service should handle its own grace period
-              uiJWTValidatorService.start();
-            } catch (error) {
-              handleError(error, 'JWT validation service start');
+        // Restore digest from session if available (from fast login)
+        const digest = sessionStorage.getItem('wallet-digest');
+        if (digest) {
+          setMiscStore(digest);
+          console.log('[Home] Restored digest from fast login');
+        }
+
+        currentlySelected = await getYakklCurrentlySelected();
+        const chainId = currentlySelected?.shortcuts?.chainId || 1;
+        const address = currentlySelected?.shortcuts?.address;
+        const cacheKey = `${chainId}_${address?.toLowerCase()}`;
+
+        // Initialize simple cache
+        simpleWalletCache.initialize();
+
+        // CRITICAL: Load tokens from storage IMMEDIATELY
+        if (address) {
+          try {
+            const stored = await browser.storage.local.get([STORAGE_YAKKL_TOKEN_CACHE, STORAGE_YAKKL_TRANSACTIONS_CACHE]);
+
+            // Load tokens immediately if available
+            if (stored[STORAGE_YAKKL_TOKEN_CACHE] && stored[STORAGE_YAKKL_TOKEN_CACHE][cacheKey]) {
+              const tokens = stored[STORAGE_YAKKL_TOKEN_CACHE][cacheKey];
+              console.log('[Home] Found cached tokens, displaying immediately:', tokens.length);
+              simpleWalletCache.updateTokens(tokens);
+            } else {
+              console.log('[Home] No cached tokens found for', cacheKey);
             }
-          } else {
-            console.log('onMount: Skipping JWT validation service - not authenticated');
+
+            // Load transactions if available
+            if (stored[STORAGE_YAKKL_TRANSACTIONS_CACHE] && stored[STORAGE_YAKKL_TRANSACTIONS_CACHE][cacheKey]) {
+              const txs = stored[STORAGE_YAKKL_TRANSACTIONS_CACHE][cacheKey];
+              console.log('[Home] Found cached transactions:', txs.length);
+              simpleWalletCache.updateTransactions(txs);
+            }
+          } catch (e) {
+            console.log('[Home] Storage read error (non-critical):', e);
           }
-          console.log('onMount: Async initialization completed successfully');
-        } catch (error) {
-          handleError(error, 'async initialization');
         }
-      })();
 
-      // Listen for token click events
-      const handleEvent = (event: Event) => {
-        try {
-          handleTokenClick(event as CustomEvent);
-        } catch (error) {
-          handleError(error, 'token click event handler');
+        // UI is now showing cached data immediately
+        hasInitialLoad = true;
+
+        // Start background refresh (non-blocking)
+        setTimeout(async () => {
+          try {
+            // Simple storage listener for background updates
+            browser.storage.onChanged.addListener((changes, areaName) => {
+              if (areaName !== 'local') return;
+
+              // Handle token updates
+              if (changes[STORAGE_YAKKL_TOKEN_CACHE]) {
+                const newTokens = changes[STORAGE_YAKKL_TOKEN_CACHE].newValue;
+                if (newTokens && newTokens[cacheKey]) {
+                  console.log('[Home] Tokens updated from background:', newTokens[cacheKey].length);
+                  simpleWalletCache.updateTokens(newTokens[cacheKey]);
+                }
+              }
+
+              // Handle transaction updates
+              if (changes[STORAGE_YAKKL_TRANSACTIONS_CACHE]) {
+                const newTxs = changes[STORAGE_YAKKL_TRANSACTIONS_CACHE].newValue;
+                if (newTxs && newTxs[cacheKey]) {
+                  console.log('[Home] Transactions updated from background:', newTxs[cacheKey].length);
+                  simpleWalletCache.updateTransactions(newTxs[cacheKey]);
+                }
+              }
+            });
+
+            // Request fresh data from background
+            console.log('[Home] Requesting fresh data from background');
+            browser.runtime.sendMessage({
+              method: 'yakkl_refreshTokens',
+              params: {
+                chainId,
+                address,
+                force: true
+              }
+            }).catch((e: any) => console.log('[Home] Background message failed:', e));
+          } catch (e) {
+            console.log('[Home] Background setup error (non-critical):', e);
+          }
+        }, 100); // Small delay to ensure UI renders first
+
+        // Check for JWT validation if authenticated
+        if (sessionStorage.getItem('wallet-authenticated') === 'true') {
+          try {
+            uiJWTValidatorService.start();
+            console.log('onMount: UI JWT validation service started');
+          } catch (e) {
+            console.log('JWT validation error (non-critical):', e);
+          }
         }
-      };
-
-      if (typeof document !== 'undefined') {
-        document.addEventListener('tokenclick', handleEvent);
+      } catch (error) {
+        handleError(error, 'async initialization');
       }
+    };
 
-      // Cleanup on unmount
-      return () => {
-        try {
-          if (typeof document !== 'undefined') {
-            document.removeEventListener('tokenclick', handleEvent);
-          }
+    // Start async initialization
+    initializeAsync();
 
-          // Stop native token price updates
-          nativeTokenPriceService.stopAutomaticUpdates();
-          console.log('onMount cleanup: Native token price service stopped');
+    // Listen for token click events
+    const handleEvent = (event: Event) => {
+      try {
+        handleTokenClick(event as CustomEvent);
+      } catch (error) {
+        handleError(error, 'token click event handler');
+      }
+    };
 
-          // Stop JWT validation service
-          uiJWTValidatorService.stop();
-          console.log('onMount cleanup: UI JWT validation service stopped');
-        } catch (error) {
-          handleError(error, 'cleanup');
-        }
-      };
-    } catch (error) {
-      handleError(error, 'onMount');
-      // Return empty cleanup function on error
-      return () => {};
+    if (typeof document !== 'undefined') {
+      document.addEventListener('tokenclick', handleEvent);
     }
+
+    // Return cleanup function
+    return () => {
+      try {
+        if (typeof window !== 'undefined') {
+          window.removeEventListener('keydown', handleKeydown);
+        }
+        if (typeof document !== 'undefined') {
+          document.removeEventListener('tokenclick', handleEvent as EventListener);
+        }
+
+        // Stop native token price updates
+        nativeTokenPriceService.stopAutomaticUpdates();
+        console.log('onMount cleanup: Native token price service stopped');
+
+        // Stop JWT validation service
+        uiJWTValidatorService.stop();
+        console.log('onMount cleanup: UI JWT validation service stopped');
+
+        // Stop storage sync service
+        storageSyncService.stop();
+        console.log('onMount cleanup: Storage sync service stopped');
+      } catch (error) {
+        handleError(error, 'cleanup');
+      }
+    };
   });
 
   // Safely wrap all effects in try-catch
@@ -188,11 +278,11 @@
       }
 
       if (account.address && !hasInitialLoad) {
-        console.log('Account available, triggering initial data load', account.address);
+        console.log('Account available, triggering initial data load', $inspect(account.address));
         hasInitialLoad = true;
 
         // Non-blocking refresh - stores will update reactively
-        console.log('Account changed, stores will update reactively', account.address);
+        console.log('Account changed, stores will update reactively', $inspect(account.address));
         // tokenStore.refresh(false).catch(error => {
         //   console.log('Token refresh failed', error);
         // });
@@ -210,7 +300,7 @@
       }
 
       // Always log token breakdown for debugging with safer conversion
-      console.log('Token breakdown:', tokenList.map((t: any) => {
+      tokenList.map((t: any) => {
         // Safely handle balance conversion
         let qty = 0;
         try {
@@ -219,12 +309,25 @@
             // Try to parse balance as a number or BigNumber
             const balanceStr = String(balance);
             if (balanceStr && balanceStr !== '0') {
-              qty = new BigNumber(balanceStr).toNumber();
+              const balanceNum = new BigNumber(balanceStr).toNumber();
+              qty = balanceNum !== null && isFinite(balanceNum) ? balanceNum : 0;
             }
           }
         } catch (e) {
           // If balance conversion fails, use qty field or default to 0
-          qty = (t as any).qty || 0;
+          try {
+            const qtyValue = (t as any).qty;
+            if (qtyValue !== undefined && qtyValue !== null) {
+              if (typeof qtyValue === 'number') {
+                qty = isFinite(qtyValue) ? qtyValue : 0;
+              } else {
+                const qtyNum = BigNumberishUtils.toNumber(qtyValue);
+                qty = isFinite(qtyNum) ? qtyNum : 0;
+              }
+            }
+          } catch (e2) {
+            qty = 0;
+          }
         }
 
         return {
@@ -235,7 +338,7 @@
           address: t.address,
           chainId: t.chainId
         };
-      }));
+      });
 
       console.log('Portfolio debug:', {
         portfolioValue,
@@ -263,16 +366,46 @@
     }
   });
 
-    // Reactive values from stores
+  // Reactive values from stores - memoized to prevent unnecessary recalculations
   let account = $derived($currentAccount);
   let chain = $derived($currentChain);
-  let tokenList = $derived($displayTokens);
+  let tokenList = $derived.by(() => {
+    const tokens = $displayTokens;
+    console.log('[HomePage] tokenList derived CRITICAL:', {
+      tokensCount: tokens?.length || 0,
+      isArray: Array.isArray(tokens),
+      firstThreeTokens: tokens?.slice(0, 3).map(t => ({
+        symbol: t?.symbol,
+        balance: t?.balance,
+        balanceType: typeof t?.balance,
+        qty: t?.qty?.toString(),
+        value: t?.value,
+        valueType: typeof t?.value,
+        hasBalance: !!t?.balance && t?.balance !== '0'
+      }))
+    });
+    return tokens;
+  });
   let isMultiChain = $derived($isMultiChainView);
-  let grandTotal = $derived($grandTotalPortfolioValue); // Total across ALL addresses and ALL chains
+  let grandTotal = $derived.by(() => {
+    const total = $grandTotalPortfolioValue;
+    console.log('Derived grandTotal:', total?.toString() || '0');
+    return total;
+  }); // Total across ALL addresses and ALL chains
+
+  // Get stable value from stability service
+  const stablePortfolioValue = portfolioStability.getStableValue();
+  // const portfolioState = portfolioStability.getPortfolioState(); // Not used
 
   let portfolioValue = $derived.by(() => {
     try {
-      // Use the appropriate total based on view mode
+      // Use stable value from stability service for current view
+      const stableVal = $stablePortfolioValue;
+      if (stableVal && BigNumberishUtils.toBigInt(stableVal) > 0n) {
+        return stableVal;
+      }
+
+      // Fallback to store values
       if (isMultiChain) {
         // In multi-chain view, use the grand total across all addresses/chains
         return grandTotal;
@@ -281,7 +414,7 @@
         return $totalPortfolioValue;
       }
     } catch (error) {
-      handleError(error, 'calculating portfolio value');
+      console.error('Error calculating portfolio value:', error);
       return 0;
     }
   });
@@ -293,7 +426,7 @@
       // This is the value for the current account on the current network only
       return $totalPortfolioValue;
     } catch (error) {
-      handleError(error, 'calculating current account value');
+      console.error('Error calculating current account value:', error);
       return 0;
     }
   });
@@ -302,7 +435,7 @@
     try {
       return $isLoadingTokens;
     } catch (error) {
-      handleError(error, 'getting loading state');
+      console.error('Error getting loading state:', error);
       return false;
     }
   });
@@ -311,7 +444,7 @@
     try {
       return $lastTokenUpdate;
     } catch (error) {
-      handleError(error, 'getting last update');
+      console.error('Error getting last update:', error);
       return null;
     }
   });
@@ -319,25 +452,33 @@
   // Find native token and its price
   let nativeToken = $derived.by(() => {
     try {
-      return tokenList.find(t =>
-        t.symbol === chain?.nativeCurrency?.symbol ||
-        t.symbol === 'ETH' ||
-        t.symbol === 'MATIC' ||
-        t.symbol === 'BNB'
-      );
+      // getNativeTokenSymbol(chain); // Not used, commenting out
+      return tokenList.find(t => isNativeToken(t.symbol, chain));
     } catch (error) {
-      handleError(error, 'finding native token');
+      console.error('Error finding native token:', error);
       return null;
     }
   });
 
   let nativePrice = $derived.by(() => {
     try {
-      // Ensure we return a valid number, not undefined/null
-      const price = nativeToken?.price;
-      return price !== undefined && price !== null ? price : 0;
+      // Handle the price safely - it might be undefined, null, an object, or already a number
+      let price = nativeToken?.price;
+
+      // If it's already a number, return it
+      if (typeof price === 'number') {
+        return price;
+      }
+
+      // If it's a string that looks like a number, parse it
+      if (typeof price === 'string' && !isNaN(parseFloat(price))) {
+        return parseFloat(price);
+      }
+
+      // Default to 0 if we can't extract a valid price
+      return 0;
     } catch (error) {
-      handleError(error, 'getting native price');
+      console.error('Error getting native price:', error);
       return 0;
     }
   });
@@ -355,8 +496,8 @@
   //       });
 
         // Check if the price looks like a portfolio value
-        // if (nativeToken.price && BigNumberishUtils.compare(nativeToken.price, 10000) > 0) {
-        //   console.log('WARNING: Native token price looks like portfolio value!', BigNumberishUtils.toNumber(nativeToken.price));
+        // if (nativeToken.price && nativeToken.price > 10000) {
+        //   console.log('WARNING: Native token price looks like portfolio value!', nativeToken.price);
         // }
   //     }
   //   } catch (error) {
@@ -364,21 +505,22 @@
   //   }
   // });
 
-  // Calculate native token value for account display using BigNumber for precision
+  // Calculate native token value for account display using simple multiplication
   let accountNativeValue = $derived.by(() => {
     try {
-      if (!account || !chain) return 0;
+      if (!account || !chain || !nativePrice) return 0;
 
-      // Use BigNumber to handle the balance and price multiplication properly
-      const balanceBN = new BigNumber(account.balance || '0');
+      // Parse balance as a decimal string (in ETH units)
+      const balanceInEth = parseFloat(account.balance || '0');
 
-      // Use mulByPrice to get USD value (handles decimal ETH values properly)
-      const usdValue = balanceBN.mulByPrice(BigNumberishUtils.toNumber(nativePrice), 18);
+      // Simple multiplication: balance (in ETH) * price (in USD)
+      const usdValue = balanceInEth * nativePrice;
 
-      // The result is already in USD, just convert to number for display
-      return usdValue.toNumber();
+      // Return the USD value
+      return usdValue;
     } catch (error) {
-      handleError(error, 'calculating account native value');
+      // Just log the error, don't call handleError which modifies state
+      console.error('Error calculating account native value:', error);
       return 0;
     }
   });
@@ -386,18 +528,19 @@
   // Track native price changes and update direction indicator
   $effect(() => {
     try {
-      if (nativePrice && BigNumberishUtils.compare(nativePrice, 0) > 0 && previousNativePrice !== null && previousNativePrice > 0) {
-        if (previousNativePrice && BigNumberishUtils.compare(nativePrice, previousNativePrice) > 0) {
+      // Use simple number comparisons since nativePrice is already a number
+      if (nativePrice && nativePrice > 0 && previousNativePrice !== null && previousNativePrice > 0) {
+        if (nativePrice > previousNativePrice) {
           nativePriceDirection = 'up';
-        } else if (previousNativePrice && BigNumberishUtils.compare(nativePrice, previousNativePrice) < 0) {
+        } else if (nativePrice < previousNativePrice) {
           nativePriceDirection = 'down';
         }
       }
-      if (nativePrice && BigNumberishUtils.compare(nativePrice, 0) > 0) {
-        previousNativePrice = BigNumberishUtils.toNumber(nativePrice);
+      if (nativePrice && nativePrice > 0) {
+        previousNativePrice = nativePrice;
       }
     } catch (error) {
-      handleError(error, 'native price tracking effect');
+      console.error('Error in native price tracking effect:', error);
     }
   });
 
@@ -545,12 +688,26 @@
   function formatCurrency(value: number | BigNumberish): string {
     let numValue: number;
 
-    if (typeof value === 'number') {
-      numValue = value;
-    } else {
-      // Value is stored as cents (bigint), convert to dollars for display
-      const valueInCents = BigNumberishUtils.toBigInt(value);
-      numValue = Number(valueInCents) / 100;
+    try {
+      if (typeof value === 'number') {
+        numValue = value;
+      } else if (typeof value === 'bigint') {
+        // BigInt values are stored as cents, convert to dollars
+        numValue = Number(value) / 100;
+      } else {
+        // Use BigNumberishUtils for safe conversion
+        const valueInCents = BigNumberishUtils.toBigInt(value);
+        numValue = Number(valueInCents) / 100;
+      }
+
+      // Validate the numeric value
+      if (!isFinite(numValue) || isNaN(numValue)) {
+        console.warn('Invalid numeric value for currency formatting:', value);
+        return '$0.00';
+      }
+    } catch (error) {
+      console.warn('Failed to convert value for currency formatting:', value, error);
+      return '$0.00';
     }
 
     return new Intl.NumberFormat('en-US', {
@@ -559,6 +716,21 @@
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }).format(numValue);
+  }
+
+  function safeFormatBalance(balance: string | number | BigNumberish): string {
+    try {
+      if (typeof balance === 'string' || typeof balance === 'number') {
+        const balanceNum = new BigNumber(balance).toNumber();
+        return balanceNum !== null && isFinite(balanceNum) ? balanceNum.toFixed(4) : '0.0000';
+      } else {
+        const balanceNum = BigNumberishUtils.toNumber(balance);
+        return isFinite(balanceNum) ? balanceNum.toFixed(4) : '0.0000';
+      }
+    } catch (error) {
+      console.warn('Failed to format balance:', balance, error);
+      return '0.0000';
+    }
   }
 
 
@@ -796,7 +968,7 @@
               <span class="text-xs font-medium">Native Balance:</span>
               <span class="text-xs">
                 <ProtectedValue
-                  value={`${new BigNumber(account.balance || '0').toNumber().toFixed(4)} ${chain?.nativeCurrency?.symbol || 'ETH'} (${formatCurrency(accountNativeValue)})`}
+                  value={`${safeFormatBalance(account.balance || '0')} ${chain?.nativeCurrency?.symbol || 'ETH'} (${formatCurrency(accountNativeValue)})`}
                   placeholder="**** *** (*****)"
                 />
               </span>
@@ -869,6 +1041,29 @@
     className="mb-4"
   />
 
+  <!-- Navigation Mode Toggle -->
+  <div class="flex justify-center mb-4">
+    <NavigationToggle
+      value={navigationMode}
+      onChange={(mode: 'orbital' | 'traditional') => navigationMode = mode}
+    />
+  </div>
+
+  <!-- Navigation View -->
+  {#if navigationMode === 'orbital'}
+    <!-- Orbital View Navigation -->
+    <div class="flex justify-center my-6">
+      <OrbitalViewSelector
+        showTotal={true}
+        enableAnimations={true}
+        className="scale-75 md:scale-100"
+      />
+    </div>
+  {:else}
+    <!-- Traditional Navigation -->
+    <TraditionalNavigation className="my-4" />
+  {/if}
+
   <!-- Action Buttons -->
   <div class="grid grid-cols-4 gap-3 relative z-10">
     <button
@@ -923,6 +1118,18 @@
     loading={loading}
     className="yakkl-card relative z-10"
   />
+
+  <!-- Debug Panel (Toggle with Ctrl/Cmd + Shift + D) -->
+  {#if showDebugPanel}
+    <div class="mt-4 relative z-10">
+      <DataInspector />
+    </div>
+  {:else if import.meta.env.DEV}
+    <!-- Show hint in dev mode -->
+    <div class="mt-2 text-center text-xs opacity-50">
+      Press Ctrl+Shift+D (or Cmd+Shift+D) to open debug panel
+    </div>
+  {/if}
 
   <!-- Pro Feature: Advanced Analytics -->
   <!-- {#if canUseFeature('advanced_analytics')}

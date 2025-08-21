@@ -6,7 +6,7 @@ import { STORAGE_YAKKL_SETTINGS } from '$lib/common/constants';
 import { sessionManager } from '$lib/managers/SessionManager';
 import { jwtManager } from '$lib/utilities/jwt';
 import { getProfile } from '$lib/common/stores';
-import type { Profile, ProfileData, Settings } from '$lib/common/interfaces';
+import type { Profile, ProfileData, YakklSettings } from '$lib/common/interfaces';
 import { get } from 'svelte/store';
 import { decryptData } from './encryption';
 import { isEncryptedData } from './misc';
@@ -26,7 +26,7 @@ export interface ValidationResult {
 export async function validateAuthentication(): Promise<ValidationResult> {
   try {
     // Step 1: Check if wallet is initialized
-    const settings = await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS) as Settings;
+    const settings = await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS) as YakklSettings;
     if (!settings || !settings.init) {
       log.warn('Authentication failed: Wallet not initialized');
       return { isValid: false, reason: 'Wallet not initialized' };
@@ -41,33 +41,13 @@ export async function validateAuthentication(): Promise<ValidationResult> {
     }
 
     // Step 3: Validate digest exists and is non-empty
-    // Add retry logic for race condition on initial load
-    let digest = getMiscStore();
-    
-    // If digest is not immediately available, retry a few times with short delays
-    // This handles the race condition where the digest might still be loading
+    // Digest should be loaded before validation is called
+    // We removed retry logic to improve performance - the digest should already be available
+    const digest = getMiscStore();
+
     if (!digest || digest.length === 0) {
-      const maxRetries = 3;
-      const retryDelay = 100; // 100ms between retries
-      
-      for (let i = 0; i < maxRetries; i++) {
-        log.debug(`Authentication: Digest not found, retry ${i + 1}/${maxRetries}`);
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-        
-        // Try to get the digest again
-        digest = getMiscStore();
-        
-        if (digest && digest.length > 0) {
-          log.debug('Authentication: Digest found after retry');
-          break;
-        }
-      }
-      
-      // After retries, if still no digest, then auth fails
-      if (!digest || digest.length === 0) {
-        log.warn('Authentication failed: No valid digest found after retries');
-        return { isValid: false, reason: 'No authentication digest' };
-      }
+      log.warn('Authentication failed: No valid digest found');
+      return { isValid: false, reason: 'No authentication digest' };
     }
 
     // Step 4: Verify digest matches stored value
@@ -78,30 +58,12 @@ export async function validateAuthentication(): Promise<ValidationResult> {
     // }
 
     // Step 5: Retrieve and validate profile
-    // Also add retry logic here as profile might be loading
-    let profile = await getProfile();
-    
+    // Profile should be loaded before validation is called
+    const profile = await getProfile();
+
     if (!profile) {
-      // Try a couple times with short delay for profile to load
-      const maxRetries = 2;
-      const retryDelay = 100;
-      
-      for (let i = 0; i < maxRetries; i++) {
-        log.debug(`Authentication: Profile not found, retry ${i + 1}/${maxRetries}`);
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-        
-        profile = await getProfile();
-        
-        if (profile) {
-          log.debug('Authentication: Profile found after retry');
-          break;
-        }
-      }
-      
-      if (!profile) {
-        log.warn('Authentication failed: No profile found after retries');
-        return { isValid: false, reason: 'No profile found' };
-      }
+      log.warn('Authentication failed: No profile found');
+      return { isValid: false, reason: 'No user profile' };
     }
 
     // Step 6: Check if profile is locked
@@ -141,6 +103,8 @@ export async function validateAuthentication(): Promise<ValidationResult> {
       }
     }
 
+    console.log('hasValidJWT===================================>>>>', hasValidJWT);
+    
     // Step 9: Additional security checks
     // Check if profile ID matches expected format
     if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(profile.id)) {
@@ -169,7 +133,7 @@ export async function validateAuthentication(): Promise<ValidationResult> {
  */
 export async function quickAuthCheck(): Promise<boolean> {
   try {
-    const settings = await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS) as Settings;
+    const settings = await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS) as YakklSettings;
     const digest = getMiscStore();
 
     return !!(settings && settings.isLocked === false && digest && digest.length > 0);
@@ -184,7 +148,7 @@ export async function quickAuthCheck(): Promise<boolean> {
 export async function clearAuthenticationState(): Promise<void> {
   try {
     // Lock the wallet
-    const settings = await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS) as Settings;
+    const settings = await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS) as YakklSettings;
     if (settings) {
       settings.isLocked = true;
       await setObjectInLocalStorage(STORAGE_YAKKL_SETTINGS, settings);

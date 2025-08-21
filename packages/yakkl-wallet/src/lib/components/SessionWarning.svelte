@@ -5,14 +5,14 @@
   import { log } from '$lib/common/logger-wrapper';
   // import { Button } from '$lib/components/ui/button';
   import { Clock } from 'lucide-svelte';
-  import { getSettings } from '$lib/common/stores';
-  import type { Settings } from '$lib/common/interfaces';
+  import { getYakklSettings } from '$lib/common/stores';
+  import type { YakklSettings } from '$lib/common/interfaces';
   import { safeLogout } from '$lib/common/safeNavigate';
 
   let showWarning = false;
   let timeRemaining = 0;
   let countdown: ReturnType<typeof setInterval> | null = null;
-  let settings: Settings | null = null;
+  let settings: YakklSettings | null = null;
   let audioContext: AudioContext | null = null;
 
   // Default notification sounds
@@ -91,7 +91,7 @@
   // Load settings
   async function loadSettings() {
     try {
-      settings = await getSettings();
+      settings = await getYakklSettings();
     } catch (error) {
       log.error('Failed to load settings', false, error);
     }

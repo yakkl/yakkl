@@ -14,8 +14,20 @@ export namespace BigNumberishUtils {
 	}
 
 	export function toNumber(value: BigNumberish): number {
+		if (value === null || value === undefined) {
+			throw new Error('Invalid BigNumberish: null or undefined');
+		}
+		
 		const num = BigNumber.toNumber(value);
-		if (num === null) throw new Error('Invalid BigNumberish');
+		if (num === null) {
+			throw new Error(`Invalid BigNumberish: could not convert ${value} (type: ${typeof value})`);
+		}
+		
+		// Validate the result is a finite number
+		if (!isFinite(num) || isNaN(num)) {
+			throw new Error(`Invalid BigNumberish: result is not a finite number: ${num}`);
+		}
+		
 		return num;
 	}
 
@@ -85,5 +97,60 @@ export namespace BigNumberishUtils {
 	export function isWeiValue(value: BigNumberish): boolean {
 		const str = value?.toString() || '';
 		return str.length > 10 && !str.includes('.') && /^\d+$/.test(str);
+	}
+
+	/**
+	 * Detects if a balance is in raw smallest units (wei, satoshi, etc.) or human-readable format
+	 * @param balance The balance value to check
+	 * @param decimals The token decimals
+	 * @returns true if the balance appears to be in raw format
+	 */
+	export function isRawBalance(balance: BigNumberish, decimals: number = 18): boolean {
+		const str = balance?.toString() || '';
+		
+		// If it contains a decimal point, it's human-readable
+		if (str.includes('.')) {
+			return false;
+		}
+		
+		// For 6 decimal tokens (USDC, USDT), raw values are typically > 1000000
+		// For 8 decimal tokens (WBTC), raw values are typically > 100000
+		// For 18 decimal tokens (ETH), raw values are typically > 1000000000
+		
+		const thresholds: Record<number, number> = {
+			6: 1000, // 0.001 USDC minimum
+			8: 10000, // 0.0001 BTC minimum  
+			18: 1000000000, // 0.000000001 ETH minimum
+		};
+		
+		const threshold = thresholds[decimals] || 1000000000;
+		const numValue = parseFloat(str);
+		
+		// If the numeric value is greater than threshold and has no decimal, it's likely raw
+		return !isNaN(numValue) && numValue > threshold;
+	}
+
+	/**
+	 * Standardizes a balance to human-readable format
+	 * @param balance The balance (could be raw or formatted)
+	 * @param decimals The token decimals
+	 * @returns Human-readable balance string
+	 */
+	export function standardizeBalance(balance: BigNumberish, decimals: number = 18): string {
+		const str = balance?.toString() || '0';
+		
+		// If it's already human-readable (has decimal point), return as-is
+		if (str.includes('.')) {
+			return str;
+		}
+		
+		// Check if it looks like a raw value
+		if (isRawBalance(balance, decimals)) {
+			// Convert from smallest units to human-readable
+			return toDecimal(balance, decimals).toString();
+		}
+		
+		// Otherwise, assume it's already in the correct format
+		return str;
 	}
 }

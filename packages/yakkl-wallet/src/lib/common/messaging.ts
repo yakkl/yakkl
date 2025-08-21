@@ -770,6 +770,7 @@ export const messagingService = ExtensionMessaging.getInstance();
  * @param browserExtensionApi The browser extension API from webextension-polyfill
  */
 export function initializeMessaging(browserExtensionApi: Browser): void {
+	console.log('[messaging] initializeMessaging');
 	if (!isBrowser) return;
 	messagingService.initialize(browserExtensionApi);
 }

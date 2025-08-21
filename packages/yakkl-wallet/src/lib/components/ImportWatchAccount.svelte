@@ -11,7 +11,7 @@
 		setYakklCurrentlySelectedStorage,
 		getYakklCurrentlySelected,
 		getMiscStore,
-		getSettings
+		getYakklSettings
 	} from '$lib/common/stores';
 	import { encryptData, decryptData } from '$lib/common/encryption';
 	import { deepCopy } from '$lib/utilities/utilities';
@@ -20,7 +20,7 @@
 		type CurrentlySelectedData,
 		type Profile,
 		type ProfileData,
-		type Settings,
+		type YakklSettings,
 		type YakklCurrentlySelected,
 		type YakklWatch
 	} from '$lib/common';
@@ -44,14 +44,14 @@
 	let currentlySelected: YakklCurrentlySelected;
 	let yakklMiscStore: string;
 	let yakklWatchListStore: YakklWatch[];
-	let yakklSettingsStore: Settings | null;
+	let yakklSettingsStore: YakklSettings | null;
 	let error = $state('');
 
 	onMount(async () => {
 		currentlySelected = await getYakklCurrentlySelected();
 		yakklMiscStore = getMiscStore();
 		yakklWatchListStore = await getYakklWatchList();
-		yakklSettingsStore = await getSettings();
+		yakklSettingsStore = await getYakklSettings();
 	});
 
 	const { form, errors, handleChange, handleSubmit, updateInitialValues } = createForm({

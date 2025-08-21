@@ -8,7 +8,7 @@ import { dateString } from '$lib/common/datetime';
 import type { YakklAccount, AccountData } from '$lib/common/interfaces';
 import { AccountTypeCategory } from '$lib/common/types';
 import { DEFAULT_PERSONA, VERSION, DEFAULT_DERIVED_PATH_ETH } from '$lib/common/constants';
-import { getSettings, getYakklCurrentlySelected, getYakklAccounts, setYakklAccountsStorage, getMiscStore } from '$lib/common/stores';
+import { getYakklSettings, getYakklCurrentlySelected, getYakklAccounts, setYakklAccountsStorage, getMiscStore } from '$lib/common/stores';
 import { getSymbol } from '$lib/utilities/utilities';
 
 export const cryptoHandlers = new Map<string, MessageHandlerFunc>([
@@ -40,7 +40,7 @@ export const cryptoHandlers = new Map<string, MessageHandlerFunc>([
 
       // Get current state
       const currentlySelected = await getYakklCurrentlySelected();
-      const settings = await getSettings();
+      const settings = await getYakklSettings();
       const encryptionPassword = getMiscStore() || '';
 
       if (!encryptionPassword) {
@@ -85,7 +85,7 @@ export const cryptoHandlers = new Map<string, MessageHandlerFunc>([
       accounts.push(newAccount);
       await setYakklAccountsStorage(accounts);
 
-      return { 
+      return {
         success: true,
         data: {
           account: newAccount,
@@ -132,7 +132,7 @@ export const cryptoHandlers = new Map<string, MessageHandlerFunc>([
 
       // Get current state
       const currentlySelected = await getYakklCurrentlySelected();
-      const settings = await getSettings();
+      const settings = await getYakklSettings();
       const encryptionPassword = getMiscStore() || '';
 
       if (!encryptionPassword) {
@@ -178,7 +178,7 @@ export const cryptoHandlers = new Map<string, MessageHandlerFunc>([
       accounts.push(newAccount);
       await setYakklAccountsStorage(accounts);
 
-      return { 
+      return {
         success: true,
         data: {
           account: newAccount,
@@ -205,7 +205,7 @@ export const cryptoHandlers = new Map<string, MessageHandlerFunc>([
       }
 
       // Get encryption password
-      const settings = await getSettings();
+      const settings = await getYakklSettings();
       const encryptionPassword = getMiscStore() || '';
 
       if (!encryptionPassword) {
@@ -222,7 +222,7 @@ export const cryptoHandlers = new Map<string, MessageHandlerFunc>([
         decryptedData = account.data as AccountData & { mnemonic?: string };
       }
 
-      return { 
+      return {
         success: true,
         data: {
           privateKey: decryptedData.privateKey,

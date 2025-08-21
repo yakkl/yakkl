@@ -1,5 +1,7 @@
 import { log } from '$lib/common/logger-wrapper';
 import { backgroundJWTManager } from '$lib/utilities/jwt-background';
+import browser from 'webextension-polyfill';
+import type { Runtime } from 'webextension-polyfill';
 
 /**
  * Background JWT Validation Service
@@ -8,12 +10,13 @@ import { backgroundJWTManager } from '$lib/utilities/jwt-background';
 export class BackgroundJWTValidatorService {
   private static instance: BackgroundJWTValidatorService | null = null;
   private validationInterval: NodeJS.Timeout | number | null = null;
-  private connectedPorts = new Map<string, chrome.runtime.Port>();
+  private connectedPorts = new Map<string, Runtime.Port>();
   private readonly VALIDATION_INTERVAL = 30000; // 30 seconds
   private readonly PORT_NAME = 'jwt-validator';
   private lastValidation = 0;
   private loginTime = 0; // Track when user logged in
-  private readonly GRACE_PERIOD_AFTER_LOGIN = 30000; // 30 seconds grace period after login
+  private readonly GRACE_PERIOD_AFTER_LOGIN = 60000; // 60 seconds grace period after login
+  private jwtToken: string | null = null; // Store JWT token reference
 
   static getInstance(): BackgroundJWTValidatorService {
     if (!BackgroundJWTValidatorService.instance) {
@@ -26,7 +29,7 @@ export class BackgroundJWTValidatorService {
    * Start background JWT validation service (with delayed start until JWT exists)
    */
   start(): void {
-    if (typeof chrome === 'undefined' || !chrome.runtime) {
+    if (!browser.runtime) {
       log.warn('[BackgroundJWTValidator] Not in browser extension context');
       return;
     }
@@ -43,6 +46,46 @@ export class BackgroundJWTValidatorService {
 
     // Wait for JWT token to be available before starting validation
     this.waitForJWTAndStart();
+  }
+
+  /**
+   * Handle login success notification from session handler
+   * @param token JWT token to validate
+   * @param loginTime Time when user logged in
+   */
+  notifyLoginSuccess(token: string, loginTime: number): void {
+    log.info('[BackgroundJWTValidator] Login success notified', false, {
+      hasToken: !!token,
+      loginTime: new Date(loginTime).toISOString()
+    });
+
+    this.jwtToken = token;
+    this.loginTime = loginTime;
+
+    // Apply grace period before starting validation
+    // This prevents immediate validation right after login
+    const gracePeriod = this.GRACE_PERIOD_AFTER_LOGIN;
+    
+    log.info('[BackgroundJWTValidator] Applying grace period before validation', false, {
+      gracePeriodMs: gracePeriod,
+      willStartAt: new Date(Date.now() + gracePeriod).toISOString()
+    });
+
+    // Clear any existing validation interval
+    if (this.validationInterval) {
+      clearInterval(this.validationInterval);
+      this.validationInterval = null;
+    }
+
+    // Start validation after grace period
+    setTimeout(() => {
+      if (this.jwtToken) {
+        log.info('[BackgroundJWTValidator] Grace period ended, starting validation');
+        this.startPeriodicValidation();
+      } else {
+        log.warn('[BackgroundJWTValidator] JWT token cleared during grace period');
+      }
+    }, gracePeriod);
   }
 
   /**
@@ -142,7 +185,7 @@ export class BackgroundJWTValidatorService {
   /**
    * Register a JWT validator port (called by the main port listener system)
    */
-  registerJWTValidatorPort(port: chrome.runtime.Port): void {
+  registerJWTValidatorPort(port: Runtime.Port): void {
     try {
       log.info('[BackgroundJWTValidator] UI connected via port', false, { portId: port.sender?.tab?.id });
 
@@ -208,6 +251,18 @@ export class BackgroundJWTValidatorService {
   private async validateJWTInBackground(): Promise<void> {
     try {
       const now = Date.now();
+
+      // Check if we're still in grace period after login
+      if (this.loginTime > 0) {
+        const timeSinceLogin = now - this.loginTime;
+        if (timeSinceLogin < this.GRACE_PERIOD_AFTER_LOGIN) {
+          log.debug('[BackgroundJWTValidator] Still in grace period, skipping validation', false, {
+            timeSinceLogin,
+            gracePeriod: this.GRACE_PERIOD_AFTER_LOGIN
+          });
+          return;
+        }
+      }
 
       // Rate limiting
       if (now - this.lastValidation < 10000) { // 10 seconds minimum
@@ -325,7 +380,7 @@ export class BackgroundJWTValidatorService {
   /**
    * Send message to specific UI port
    */
-  private sendMessageToUI(port: chrome.runtime.Port, message: any): void {
+  private sendMessageToUI(port: Runtime.Port, message: any): void {
     try {
       port.postMessage(message);
     } catch (error) {

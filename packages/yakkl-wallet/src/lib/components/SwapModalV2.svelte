@@ -104,7 +104,9 @@
       return false;
     }
 
-    const balance = BigNumberishUtils.toNumber(fromToken.balance || 0);
+    const balance = fromToken.balance && typeof fromToken.balance === 'number' 
+      ? fromToken.balance 
+      : (fromToken.balance ? BigNumberishUtils.toNumber(fromToken.balance) : 0);
     if (parseFloat(fromAmount) > balance) {
       validationError = 'Insufficient balance';
       return false;
@@ -204,7 +206,9 @@
         });
 
         if (allowanceResponse.success) {
-          const allowance = BigNumberishUtils.toBigInt(allowanceResponse.data.allowance);
+          const allowance = allowanceResponse.data.allowance && typeof allowanceResponse.data.allowance === 'bigint' 
+            ? allowanceResponse.data.allowance 
+            : BigNumberishUtils.toBigInt(allowanceResponse.data.allowance || 0);
           const amountIn = ethers.parseUnits(fromAmount, fromToken.decimals || 18);
 
           if (allowance < amountIn) {
@@ -374,11 +378,14 @@
       </div>
       {#if fromToken}
         <div class="mt-2 flex justify-between text-sm text-gray-500">
-          <span>Balance: {formatAmount(BigNumberishUtils.toNumber(fromToken.balance || 0))}</span>
+          <span>Balance: {formatAmount(fromToken.balance && typeof fromToken.balance === 'number' ? fromToken.balance : (fromToken.balance ? BigNumberishUtils.toNumber(fromToken.balance) : 0))}</span>
           <button
             class="text-indigo-600 hover:text-indigo-800"
             onclick={() => {
-              fromAmount = BigNumberishUtils.toNumber(fromToken?.balance || 0).toString();
+              const balance = fromToken?.balance && typeof fromToken.balance === 'number' 
+              ? fromToken.balance 
+              : (fromToken?.balance ? BigNumberishUtils.toNumber(fromToken.balance) : 0);
+            fromAmount = balance.toString();
               handleAmountChange();
             }}
           >
@@ -426,7 +433,7 @@
       </div>
       {#if toToken}
         <div class="mt-2 text-sm text-gray-500">
-          Balance: {formatAmount(BigNumberishUtils.toNumber(toToken.balance || 0))}
+          Balance: {formatAmount(toToken.balance && typeof toToken.balance === 'number' ? toToken.balance : (toToken.balance ? BigNumberishUtils.toNumber(toToken.balance) : 0))}
         </div>
       {/if}
     </div>

@@ -1,4 +1,5 @@
-import { derived } from 'svelte/store';
+import { derived, get } from 'svelte/store';
+import * as ethers from 'ethers-v6';
 // Check if we're in a browser environment
 const browser = typeof window !== 'undefined';
 import type { LoadingState, ErrorState } from '../types';
@@ -20,6 +21,7 @@ import type { TokenData } from '$lib/common/interfaces';
 import { setYakklCombinedTokenStorage, getYakklCombinedTokens } from '$lib/common/stores';
 import { BigNumber } from '$lib/common/bignumber';
 import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
+import { hasChanged, compareTokenData } from '$lib/utils/deepCompare';
 
 interface TokenState {
   loading: LoadingState;
@@ -51,7 +53,7 @@ function createTokenStore() {
       // CRITICAL FIX: Initialize current account cache with retry logic
       log.info('[TokenStore] Step 2: Initializing current account cache...', false);
       await syncManager.initializeCurrentAccount();
-      
+
       // CRITICAL FIX: Ensure rollups are always calculated on initial load
       log.info('[TokenStore] Step 3: Calculating rollups...', false);
       const cacheState = walletCacheStore.getCacheSync();
@@ -59,7 +61,7 @@ function createTokenStore() {
         // Always calculate rollups on initialization to ensure UI shows values
         log.info('[TokenStore] Calculating initial rollups to ensure UI shows values...', false);
         await walletCacheStore.calculateAllRollups();
-        
+
         // Mark cache as having been loaded
         walletCacheStore.setHasEverLoaded(true);
       }
@@ -132,16 +134,16 @@ function createTokenStore() {
 
       try {
         // CRITICAL FIX: Ensure cache is properly initialized before refresh
-        log.info('[TokenStore] Starting refresh - ensuring cache initialization...', false);
-        
+        log.info('[TokenStore] Starting refresh - ensuring cache initialization...');
+
         // First ensure cache is initialized
         await syncManager.initializeCurrentAccount();
-        
+
         // Then sync current account data
         await syncManager.syncCurrentAccount();
-        
+
         // CRITICAL: Always recalculate rollups after refresh to ensure UI shows values
-        log.info('[TokenStore] Refresh complete - recalculating rollups...', false);
+        log.info('[TokenStore] Refresh complete - recalculating rollups...');
         await walletCacheStore.calculateAllRollups();
 
         update(state => ({
@@ -149,8 +151,8 @@ function createTokenStore() {
           loading: { isLoading: false },
           error: { hasError: false }
         }));
-        
-        log.info('[TokenStore] Refresh completed successfully', false);
+
+        log.info('[TokenStore] Refresh completed successfully');
       } catch (error) {
         log.warn('[TokenStore] Refresh failed:', false, error);
         update(state => ({
@@ -169,6 +171,99 @@ function createTokenStore() {
 
       // Data will automatically update via derived stores
       log.info('[TokenStore] Toggled multi-chain view', false);
+    },
+
+    async refreshFromStorage() {
+      // Called by storage sync service when storage changes
+      log.debug('[TokenStore] Refreshing from storage change');
+
+      try {
+        // Get current token data before sync
+        const currentTokens = get(currentAccountTokens);
+
+        // Re-sync current account from storage
+        await syncManager.syncCurrentAccount();
+
+        // Get new token data after sync
+        const newTokens = get(currentAccountTokens);
+
+        // CRITICAL FIX: Only recalculate rollups if token data actually changed
+        if (compareTokenData(currentTokens, newTokens)) {
+          log.debug('[TokenStore] Token data changed during storage refresh, recalculating rollups');
+          await walletCacheStore.calculateAllRollups();
+        } else {
+          log.debug('[TokenStore] No token data changes detected during storage refresh');
+        }
+
+        log.debug('[TokenStore] Storage refresh completed');
+      } catch (error) {
+        log.error('[TokenStore] Error refreshing from storage:', false, error);
+      }
+    },
+
+    async updatePricesFromCache(tokenCache: Record<string, any>) {
+      // Called by storage sync service when token cache changes
+      log.debug('[TokenStore] Updating prices from cache');
+
+      try {
+        // Get current token data to compare prices
+        const currentTokens = get(currentAccountTokens);
+        const currentPrices = currentTokens.map(t => ({ address: t.address.toLowerCase(), price: t.price }));
+
+        // Extract new prices from token cache
+        const newPrices = Object.entries(tokenCache).map(([key, entry]: [string, any]) => ({
+          address: entry.tokenAddress?.toLowerCase() || key.toLowerCase(),
+          price: entry.price
+        }));
+
+        // CRITICAL FIX: Only trigger rollup recalculation if prices actually changed
+        const pricesChanged = hasChanged(currentPrices, newPrices);
+
+        if (pricesChanged) {
+          log.debug('[TokenStore] Price data changed, updating rollups');
+          // The wallet cache store handles price updates
+          // We just need to trigger a rollup recalculation
+          await walletCacheStore.calculateAllRollups();
+        } else {
+          log.debug('[TokenStore] No price changes detected, skipping rollup update');
+        }
+
+        log.debug('[TokenStore] Price update from cache completed');
+      } catch (error) {
+        log.error('[TokenStore] Error updating prices from cache:', false, error);
+      }
+    },
+
+    async updateBalancesFromHoldings(holdings: Record<string, any>) {
+      // Called by storage sync service when address token holdings change
+      log.debug('[TokenStore] Updating balances from holdings');
+
+      try {
+        // Get current token balances for comparison
+        const currentTokens = get(currentAccountTokens);
+        const currentBalances = currentTokens.map(t => ({ address: t.address.toLowerCase(), balance: t.balance }));
+
+        // The sync manager handles balance updates
+        await syncManager.syncCurrentAccount();
+
+        // Get new token balances after sync
+        const newTokens = get(currentAccountTokens);
+        const newBalances = newTokens.map(t => ({ address: t.address.toLowerCase(), balance: t.balance }));
+
+        // CRITICAL FIX: Only recalculate rollups if balances actually changed
+        const balancesChanged = hasChanged(currentBalances, newBalances);
+
+        if (balancesChanged) {
+          log.debug('[TokenStore] Balance data changed during holdings update, recalculating rollups');
+          await walletCacheStore.calculateAllRollups();
+        } else {
+          log.debug('[TokenStore] No balance changes detected during holdings update');
+        }
+
+        log.debug('[TokenStore] Balance update from holdings completed');
+      } catch (error) {
+        log.error('[TokenStore] Error updating balances from holdings:', false, error);
+      }
     },
 
     async refreshPrices() {
@@ -231,6 +326,128 @@ function createTokenStore() {
     updateTokenBalance(address: string, balance: string) {
       // This will be handled by the sync manager in the next update
       log.info('[TokenStore] Token balance update requested:', false, address, balance);
+    },
+
+    /**
+     * Update prices from Portfolio Data Coordinator
+     * This method is called by the coordinator to apply validated price updates
+     */
+    async updatePricesFromCoordinator(priceData: Record<string, any>) {
+      log.debug('[TokenStore] Updating prices from coordinator');
+
+      try {
+        // Update prices in wallet cache
+        const cache = walletCacheStore.getCacheSync();
+        if (!cache) return;
+
+        // Update token prices in cache
+        for (const [chainId, chainData] of Object.entries(cache.chainAccountCache)) {
+          for (const [address, accountCache] of Object.entries(chainData)) {
+            accountCache.tokens = accountCache.tokens.map(token => {
+              const priceEntry = priceData[token.address.toLowerCase()];
+              if (priceEntry && priceEntry.price !== undefined) {
+                // Recalculate value with new price
+                const balance = BigNumberishUtils.toBigInt(token.balance || 0n);
+                const newPrice = priceEntry.price;
+                const value = balance > 0n && newPrice > 0
+                  ? BigNumberishUtils.toBigInt((Number(balance) / 1e18) * newPrice * 100) // Convert to cents
+                  : 0n;
+
+                return {
+                  ...token,
+                  price: newPrice,
+                  value,
+                  priceLastUpdated: new Date()
+                };
+              }
+              return token;
+            });
+          }
+        }
+
+        // Trigger wallet cache update
+        await walletCacheStore.updateFromCoordinator(cache);
+
+        log.debug('[TokenStore] Prices updated from coordinator');
+      } catch (error) {
+        log.error('[TokenStore] Error updating prices from coordinator:', false, error);
+      }
+    },
+
+    /**
+     * Update balances from Portfolio Data Coordinator
+     */
+    async updateBalancesFromCoordinator(balanceData: Record<string, any>) {
+      log.debug('[TokenStore] Updating balances from coordinator');
+
+      try {
+        // Update balances in wallet cache
+        const cache = walletCacheStore.getCacheSync();
+        if (!cache) return;
+
+        // Update token balances in cache
+        for (const [accountAddress, accountBalances] of Object.entries(balanceData)) {
+          for (const [chainId, chainData] of Object.entries(cache.chainAccountCache)) {
+            const accountCache = chainData[accountAddress.toLowerCase()];
+            if (accountCache && accountBalances) {
+              accountCache.tokens = accountCache.tokens.map(token => {
+                const newBalance = (accountBalances as any)[token.address.toLowerCase()];
+                if (newBalance !== undefined) {
+                  const balanceBigInt = BigNumberishUtils.toBigInt(newBalance);
+                  const price = token.price || 0;
+                  const value = balanceBigInt > 0n && price > 0
+                    ? BigNumberishUtils.toBigInt((Number(balanceBigInt) / 1e18) * price * 100) // Convert to cents
+                    : 0n;
+
+                  return {
+                    ...token,
+                    balance: balanceBigInt.toString(),
+                    value,
+                    balanceLastUpdated: new Date()
+                  };
+                }
+                return token;
+              });
+            }
+          }
+        }
+
+        // Trigger wallet cache update
+        await walletCacheStore.updateFromCoordinator(cache);
+
+        log.debug('[TokenStore] Balances updated from coordinator');
+      } catch (error) {
+        log.error('[TokenStore] Error updating balances from coordinator:', false, error);
+      }
+    },
+
+    /**
+     * Update token list from Portfolio Data Coordinator
+     */
+    async updateTokenListFromCoordinator(data: { tokens: any[], address?: string, chainId?: number }) {
+      log.debug('[TokenStore] Updating token list from coordinator');
+
+      try {
+        const cache = walletCacheStore.getCacheSync();
+        if (!cache) return;
+
+        // Determine which account/chain to update
+        const address = data.address || cache.activeAccountAddress;
+        const chainId = data.chainId || cache.activeChainId;
+
+        if (cache.chainAccountCache[chainId]?.[address]) {
+          // Update the token list
+          cache.chainAccountCache[chainId][address].tokens = data.tokens;
+          cache.chainAccountCache[chainId][address].lastTokenRefresh = new Date();
+
+          // Trigger wallet cache update
+          await walletCacheStore.updateFromCoordinator(cache);
+        }
+
+        log.debug('[TokenStore] Token list updated from coordinator');
+      } catch (error) {
+        log.error('[TokenStore] Error updating token list from coordinator:', false, error);
+      }
     }
   };
 }
@@ -241,24 +458,72 @@ export const tokenStore = createTokenStore();
 export const tokens = derived(
   [tokenStore, currentAccountTokens],
   ([$store, $tokens]) => {
+    // CRITICAL DEBUG: Log what we receive from currentAccountTokens
+    console.log('[TokenStore] tokens derived - input from currentAccountTokens:', {
+      tokenCount: $tokens?.length || 0,
+      tokensData: $tokens?.map(t => ({
+        symbol: t.symbol,
+        balance: t.balance,
+        balanceType: typeof t.balance,
+        value: t.value,
+        valueType: typeof t.value
+      }))
+    });
+
     // Map TokenCache to TokenDisplay format
-    return $tokens.map(token => ({
-      address: token.address,
-      symbol: token.symbol,
-      name: token.name,
-      decimals: token.decimals,
-      balance: token.balance,
-      price: token.price,
-      value: token.value,
-      icon: token.icon,
-      change24h: token.price24hChange,
-      isNative: token.isNative,
-      chainId: token.chainId,
-      // Add required fields for TokenDisplay
-      qty: BigNumber.from(token.balance) || 0n,
-      quantity: token.balance,
-      chainName: ''  // Will be filled by UI
-    }));
+    const result = $tokens.map((token, index) => {
+      const mappedToken = {
+        address: token.address,
+        symbol: token.symbol,
+        name: token.name,
+        decimals: token.decimals,
+        balance: token.balance || '0', // Ensure balance is never undefined
+        price: token.price || 0,
+        value: token.value || 0,
+        icon: token.icon,
+        change24h: token.price24hChange,
+        isNative: token.isNative,
+        chainId: token.chainId,
+        // Add required fields for TokenDisplay
+        // Balance is formatted string, convert to wei for qty
+        qty: (() => {
+          try {
+            const balance = token.balance || '0';
+            if (balance && typeof balance === 'string' && balance.includes('.')) {
+              // Formatted balance, convert to wei
+              const decimals = token.decimals || 18;
+              return ethers.parseUnits(balance, decimals);
+            }
+            return BigNumberishUtils.toBigInt(balance) || 0n;
+          } catch (e) {
+            log.warn(`[TokenStore] Failed to convert balance to qty for ${token.symbol}:`, false, { balance: token.balance });
+            return 0n;
+          }
+        })(),
+        quantity: token.balance || '0',
+        chainName: ''  // Will be filled by UI
+      };
+
+      // Log each mapped token
+      if (index < 3) { // Only log first 3 to avoid spam
+        console.log(`[TokenStore] Mapped token ${index}:`, {
+          symbol: mappedToken.symbol,
+          balance: mappedToken.balance,
+          qty: mappedToken.qty?.toString(),
+          value: mappedToken.value,
+          quantity: mappedToken.quantity
+        });
+      }
+
+      return mappedToken;
+    });
+
+    console.log('[TokenStore] tokens derived - output:', {
+      resultCount: result.length,
+      hasBalances: result.some(t => t.balance && t.balance !== '0')
+    });
+
+    return result;
   }
 );
 
@@ -297,7 +562,24 @@ export const displayTokens = derived(
     const tokenList = $store.isMultiChainView ? $multiTokens : $singleTokens;
     // Always ensure we return an array, even if empty
     const result = Array.isArray(tokenList) ? tokenList : [];
-    log.info('[TokenStore] displayTokens:', false, result.length, 'tokens', result);
+
+    // CRITICAL DEBUG: Enhanced logging for displayTokens
+    console.log('[TokenStore] displayTokens CRITICAL:', {
+      isMultiChainView: $store.isMultiChainView,
+      singleTokensCount: $singleTokens?.length || 0,
+      multiTokensCount: $multiTokens?.length || 0,
+      resultCount: result.length,
+      firstThreeTokens: result.slice(0, 3).map(t => ({
+        symbol: t?.symbol,
+        balance: t?.balance,
+        balanceType: typeof t?.balance,
+        qty: t?.qty?.toString(),
+        value: t?.value,
+        valueType: typeof t?.value,
+        hasBalance: !!t?.balance && t?.balance !== '0'
+      }))
+    });
+
     return result;
   }
 );
@@ -345,6 +627,7 @@ export const grandTotalPortfolioValue = derived(
       Object.values($cache.chainAccountCache).forEach(chainData => {
         Object.values(chainData).forEach(accountCache => {
           try {
+            console.log('[TokenStore] grandTotalPortfolioValue >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', chainData, accountCache);
             const portfolioValue = accountCache.portfolio?.totalValue;
             if (portfolioValue !== undefined && portfolioValue !== null) {
               const bigIntValue = BigNumber.toBigInt(portfolioValue);
@@ -361,7 +644,7 @@ export const grandTotalPortfolioValue = derived(
     } catch (error) {
       console.error('Error calculating grand total portfolio value:', error);
     }
-    
+
     return totalValue;
   }
 );

@@ -28,7 +28,7 @@ import type {
 	AccountData,
 	PrimaryAccountData,
 	ProfileData,
-	Settings,
+	YakklSettings,
 	ConnectedDomainPermissions,
 	AccountAddress,
 	ConnectedDomainRevoked
@@ -146,7 +146,7 @@ export const yakklPreferences: Preferences = {
 };
 
 // Settings - Mostly items that are automatically updated by the system
-export let yakklSettings: Settings = {
+export let yakklSettings: YakklSettings = {
 	id: '', // Profile id
 	persona: DEFAULT_PERSONA,
 	version: VERSION, // Uses semversion format but puts 'default' as a placeholder
@@ -539,7 +539,7 @@ export let sampleWatch: YakklWatch[] = [
 // NOTE: May want to add other default data...
 export const yakklStoredObjects = [
 	{ key: 'preferences', value: yakklPreferences },
-	{ key: 'settings', value: yakklSettings },
+	{ key: 'yakklSettings', value: yakklSettings },
 	{ key: 'yakklCurrentlySelected', value: yakklCurrentlySelected },
 	{ key: 'yakklSecurity', value: yakklSecurity },
 	{ key: 'yakklWalletBlockchains', value: yakklWalletBlockchains },

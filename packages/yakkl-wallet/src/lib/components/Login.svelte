@@ -2,13 +2,15 @@
 <script lang="ts">
 	import { createForm } from 'svelte-forms-lib';
 	import { verify } from '$lib/common/security';
-	import { getContextTypeStore, getMiscStore, getSettings } from '$lib/common/stores';
+	import { getContextTypeStore, getMiscStore, getYakklSettings } from '$lib/common/stores';
 	import { log } from '$lib/common/logger-wrapper';
 	import { authStore } from '$lib/stores/auth-store';
 	import AuthError from '$lib/components/AuthError.svelte';
-	import AuthLoading from '$lib/components/AuthLoading.svelte';
+	import AuthenticationLoader from '$lib/components/AuthenticationLoader.svelte';
 	import { sessionManager } from '$lib/managers/SessionManager';
 	import { jwtManager } from '$lib/utilities/jwt';
+	import { getNormalizedSettings, STORAGE_YAKKL_SETTINGS } from '$lib/common';
+  import browser from '$lib/common/browser-wrapper';
 
 	// Props using runes syntax
 	const props = $props<{
@@ -29,7 +31,7 @@
 	const loginButtonText = $derived(props.loginButtonText ?? 'Unlock');
 	const cancelButtonText = $derived(props.cancelButtonText ?? 'Exit/Logout');
 
-	// Default to DaisyUI default colors (no explicit text/bg colors)
+	// Fix: Ensure proper theme-aware colors for inputs
 	const inputTextClass = $derived(props.inputTextClass ?? 'text-base-content');
 	const inputBgClass = $derived(props.inputBgClass ?? '');
 
@@ -66,9 +68,14 @@
 
 	async function verifyUser(username: string, password: string) {
 		try {
+      if (typeof window === 'undefined') return;
+
+      const settings = await browser.storage.local.get(STORAGE_YAKKL_SETTINGS);
+      console.log('[Login] settings >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', settings);
+
 			let jwtToken: string | undefined;
 
-			// If useAuthStore is enabled, use the auth store login method
+			// We'll handle session management after navigation
 			if (props.useAuthStore) {
 				const profile = await authStore.login(username, password);
 				const digest = getMiscStore();
@@ -82,9 +89,7 @@
 
 				props.onSuccess(profile, digest, minimumAuth, jwtToken);
 				return;
-			} else {
-        log.warn('Login.svelte: useAuthStore is disabled, using verify', false, props);
-      }
+			}
 
 			// Original verification method
 			// Format the username properly (removing .nfs.id if already present, then adding it)
@@ -93,14 +98,16 @@
 
 			// Call the existing verify function - this is your core authentication
 			log.info('Login.svelte: Starting verification for user:', false, normalizedUsername);
+      console.log('[Login] loginString >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', loginString);
 			const profile = await verify(loginString);
 
 			if (!profile) {
 				log.warn('Login.svelte: Verification returned no profile');
 				throw 'Invalid credentials or profile not found';
 			}
-			
+
 			log.info('Login.svelte: Verification successful, profile received');
+      console.log('[Login] profile >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', profile);
 
 			// Get the digest that was set during verification
 			// This is important as it's used for decryption throughout the app
@@ -111,44 +118,24 @@
 			}
 
 			log.info('Login.svelte: profile =', false, profile, digest);
-			// Generate JWT token if requested
 			if (props.generateJWT) {
-				try {
-					// Get user's plan level for JWT
-					const settings = await getSettings();
+        const settings = await getNormalizedSettings();
 
-					log.info('Login.svelte: settings =', false, settings);
-					log.info('Login.svelte: settings.plan =', false, settings?.plan);
-					log.info('Login.svelte: settings.plan.type =', false, settings?.plan?.type);
+        log.info('Login.svelte: settings =', false, settings);
+        log.info('Login.svelte: settings.plan =', false, settings?.plan);
+        log.info('Login.svelte: settings.plan.type =', false, settings?.plan?.type);
+        console.log('[Login] settings >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', settings);
 
-					const planLevel = settings?.plan?.type || 'explorer_member';
+        const planLevel = settings?.plan?.type || 'explorer_member';
 
-					// Generate JWT token
-					jwtToken = await jwtManager.generateToken(
-						profile.id || profile.username,
-						profile.username,
-						profile.id || profile.username,
-						planLevel
-					);
-
-					// Also start session management if not using auth store
-					if (!props.useAuthStore) {
-						await sessionManager.startSession(
-							profile.id || profile.username,
-							profile.username,
-							profile.id || profile.username,
-							planLevel
-						);
-					}
-
-					log.debug('JWT token generated for login', false, {
-						username: normalizedUsername,
-						hasToken: !!jwtToken
-					});
-				} catch (jwtError) {
-					log.warn('Failed to generate JWT token:', false, jwtError);
-					// Continue without JWT - don't fail the login
-				}
+        // Generate JWT token
+        jwtToken = await jwtManager.generateToken(
+          profile.id || profile.username,
+          profile.username,
+          profile.id || profile.username,
+          planLevel
+        );
+        console.log('jwtToken===================================>>>>', jwtToken);
 			}
 
 			// Call success handler with profile, digest, minimal flag, and optional JWT
@@ -369,7 +356,7 @@
 
 	<!-- Loading state -->
 	{#if isLoggingIn}
-		<AuthLoading message="Authenticating..." variant="spinner" size="md" className="mt-4" />
+		<AuthenticationLoader message="Authenticating..." />
 	{/if}
 
 	<!-- Error handling with retry -->

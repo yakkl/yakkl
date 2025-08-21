@@ -94,7 +94,7 @@ export interface RequestMetadata {
 	};
 }
 
-export interface AddressTokenHolding {
+export interface AddressTokenCache {
 	walletAddress: string; // The wallet address that holds tokens
 	chainId: number; // Chain ID
 	tokenAddress: string; // Token contract address
@@ -892,7 +892,7 @@ export interface Preferences {
 	updateDate: string;
 }
 
-export interface Settings {
+export interface YakklSettings {
 	id: string; // Profile id (aka user id)
 	persona?: string; // The persona that is associated with the account
 	previousVersion?: string;

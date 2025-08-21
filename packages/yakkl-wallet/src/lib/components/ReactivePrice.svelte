@@ -57,15 +57,15 @@
         const valueInDollars = typeof token.value === 'bigint' ? Number(token.value) / 100 : Number(token.value);
         return formatValue(valueInDollars);
       case 'full':
-        return formatFullPrice(BigNumberishUtils.toNumber(token.price));
+        return formatFullPrice(typeof token.price === 'number' ? token.price : 0);
       default:
-        return formatPrice(BigNumberishUtils.toNumber(token.price));
+        return formatPrice(typeof token.price === 'number' ? token.price : 0);
     }
   });
 
   let changeClass = $derived(
     token?.change24h !== undefined
-      ? BigNumberishUtils.compare(token.change24h, 0) >= 0 ? 'text-green-500' : 'text-red-500'
+      ? (typeof token.change24h === 'number' ? token.change24h : 0) >= 0 ? 'text-green-500' : 'text-red-500'
       : ''
   );
 </script>
@@ -74,7 +74,7 @@
   <ProtectedValue value={displayValue} placeholder="*****" />
   {#if showChange && token?.change24h !== undefined}
     <span class="text-xs ml-1 {changeClass}">
-      {BigNumberishUtils.compare(token.change24h, 0) >= 0 ? '+' : ''}{BigNumberishUtils.toNumber(token.change24h).toFixed(2)}%
+      {(typeof token.change24h === 'number' ? token.change24h : 0) >= 0 ? '+' : ''}{(typeof token.change24h === 'number' ? token.change24h : 0).toFixed(2)}%
     </span>
   {/if}
 </div>

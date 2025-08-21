@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import AuthenticationLoader from '$lib/components/AuthenticationLoader.svelte';
   import DockLauncher from '$lib/components/DockLauncher.svelte';
   import AIHelpButton from '$lib/components/AIHelpButton.svelte';
   import Header from '$lib/components/Header.svelte';
@@ -10,7 +11,6 @@
   import SessionWarning from '$lib/components/SessionWarning.svelte';
   import JWTValidationModalProvider from '$lib/components/JWTValidationModalProvider.svelte';
   import EmergencyKit from '$lib/components/EmergencyKit.svelte';
-  import IdleCountdownModal from '$lib/components/IdleCountdownModal.svelte';
   import ManageAccounts from '$lib/components/ManageAccounts.svelte';
   import NetworkMismatchModal from '$lib/components/NetworkMismatchModal.svelte';
   import ScrollIndicator from '$lib/components/ScrollIndicator.svelte';
@@ -33,6 +33,7 @@
   import { log } from '$lib/common/logger-wrapper';
   import { lockWallet } from '$lib/common/lockWallet';
   import { appStateManager, AppPhase } from '$lib/managers/AppStateManager';
+  import IdleCountdownModalEnhanced from '$lib/components/IdleCountdownModalEnhanced.svelte';
 
   interface Props {
     children?: import('svelte').Snippet;
@@ -42,6 +43,7 @@
   // --- State ---
   let appState = $state($appStateManager);
   let initializing = $state(true);
+  let isAuthenticating = $state(true);  // Show loader while authenticating
   let showTestnets = $state(false);
   let showSettings = $state(false);
   let showProfile = $state(false);
@@ -66,7 +68,7 @@
   onMount(() => {
     if (typeof window === 'undefined') return;
 
-    setupConsoleFilters();
+    // setupConsoleFilters();
 
     // Subscribe to app state changes
     const unsubscribe = appStateManager.subscribe(state => {
@@ -79,10 +81,13 @@
       try {
         // Wait for app to be ready (extension connected, stores loaded, cache initialized)
         await appStateManager.waitForReady();
-        
+
         // Authentication has already been validated in +layout.ts
         // We can assume we're authenticated if we reach this component
         isAuthenticated = true;
+        isAuthenticating = false;  // Hide loader once authenticated
+
+        console.log('[Layout] isAuthenticated >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', isAuthenticated);
 
         // Load remaining stores that aren't critical for initialization
         await Promise.all([
@@ -98,6 +103,7 @@
           if (isEncryptedData(profile.data)) {
             const profileData = await decryptData(profile.data, miscStore) as ProfileData;
             log.info('Layout: Starting session with JWT', false, profileData);
+            console.log('[Layout] profileData >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', profileData);
             await sessionManager.startSession(
               profile.id,
               profile.username || 'user',
@@ -119,6 +125,7 @@
         }
       } finally {
         initializing = false;
+        isAuthenticating = false;  // Ensure loader is hidden
       }
     })();
 
@@ -135,7 +142,7 @@
         handleExit();
       }
     }
-    
+
     document.addEventListener('keydown', handleKeyboardShortcuts);
 
     // Cleanup on unmount
@@ -207,7 +214,7 @@
   // Service cleanup function
   async function stopAllClientServices() {
     console.log('[stopAllClientServices] Quick service cleanup...');
-    
+
     // Stop TokenService (fire-and-forget)
     import('$lib/services/token.service').then(({ TokenService }) => {
       const tokenService = TokenService.getInstance();
@@ -215,7 +222,7 @@
         tokenService.stop().catch(() => {});
       }
     }).catch(() => {});
-    
+
     // Stop all timers (fire-and-forget)
     import('$lib/managers/TimerManager').then(({ TimerManager }) => {
       const timerManager = TimerManager.getInstance();
@@ -223,7 +230,7 @@
         timerManager.stopAll();
       }
     }).catch(() => {});
-    
+
     // Clear all intervals/timeouts
     if (typeof window !== 'undefined') {
       const highestId = setTimeout(() => {}, 0) as unknown as number;
@@ -247,13 +254,13 @@
   async function handleExit() {
     isLoggingOut = true;
     logoutMessage = 'Closing wallet...';
-    
+
     // Start cleanup (fire-and-forget)
     stopAllClientServices();
-    
+
     // Perform exit (fire-and-forget)
     performLogout('exit');
-    
+
     // Close window immediately
     if (typeof window !== 'undefined' && window.close) {
       setTimeout(() => window.close(), 100); // Small delay to ensure cleanup starts
@@ -270,37 +277,37 @@
   async function performLogout(mode: 'logout' | 'exit' = 'logout') {
     console.log(`[performLogout] FAST ${mode.toUpperCase()} STARTED`);
     const startTime = Date.now();
-    
+
     // Show loading overlay for logout
     if (mode === 'logout') {
       isLoggingOut = true;
       logoutMessage = 'Logging out...';
     }
-    
+
     try {
       // Start service cleanup (fire-and-forget)
       stopAllClientServices();
-      
+
       // Call lockWallet - now optimized to be < 1 second
       console.log('[performLogout] Calling fast lockWallet...');
       await lockWallet(mode === 'exit' ? 'user-exit' : 'user-logout');
-      
+
       // Clear session storage (synchronous, instant)
       if (typeof sessionStorage !== 'undefined') {
         sessionStorage.clear();
       }
-      
+
       const elapsed = Date.now() - startTime;
       console.log(`[performLogout] ✓ FAST ${mode.toUpperCase()} completed in ${elapsed}ms`);
-      
+
       // Navigate to login page for logout only
       if (mode === 'logout') {
         await goto('/login', { replaceState: true });
       }
-      
+
     } catch (error) {
       console.error(`[performLogout] ${mode} error:`, error?.message);
-      
+
       // Even on error, navigate to login for logout
       if (mode === 'logout') {
         try {
@@ -316,6 +323,10 @@
 </script>
 
 <!-- Loading overlay for logout/exit -->
+{#if isAuthenticating}
+  <AuthenticationLoader />
+{/if}
+
 {#if isLoggingOut}
   <div class="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center">
     <div class="bg-white dark:bg-zinc-800 rounded-lg p-6 shadow-2xl">
@@ -345,7 +356,7 @@
 {#if isAuthenticated}
   <SessionWarning />
   <JWTValidationModalProvider />
-  <IdleCountdownModal />
+  <IdleCountdownModalEnhanced />
 {/if}
 {#if pendingChain}
   <NetworkMismatchModal

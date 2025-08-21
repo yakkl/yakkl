@@ -1,7 +1,7 @@
 // import browser from 'webextension-polyfill';
 import type { Runtime } from 'webextension-polyfill';
-import { VERSION } from '$lib/common/constants';
-import type { Preferences, Settings } from '$lib/common/interfaces';
+import { STORAGE_YAKKL_SETTINGS, VERSION } from '$lib/common/constants';
+import type { Preferences, YakklSettings } from '$lib/common/interfaces';
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from '$lib/common/storage';
 import { log } from '$lib/common/logger-wrapper';
 import { upgrade } from '$lib/upgrades/upgrades';
@@ -15,9 +15,9 @@ export async function setLocalObjectStorage(
 	shouldUpgrade: boolean = true  // Default to true for automatic upgrades
 ): Promise<void> {
 	try {
-		const yakklSettings = (await getObjectFromLocalStorage<Settings>(
-			'settings'
-		)) as Settings | null;
+		const yakklSettings = (await getObjectFromLocalStorage<YakklSettings>(
+			STORAGE_YAKKL_SETTINGS
+		)) as YakklSettings | null;
 		const prevVersion = yakklSettings?.version ?? VERSION;
 
 		// Always run upgrades unless explicitly disabled and version has changed
@@ -54,7 +54,7 @@ export async function setLocalObjectStorage(
 				yakklSettings.platform.platform = browserPlatform?.type ?? '';
 			}
 
-			await setObjectInLocalStorage('settings', yakklSettings);
+			await setObjectInLocalStorage(STORAGE_YAKKL_SETTINGS, yakklSettings);
 		}
 	} catch (e) {
 		log.error('setLocalObjectStorage Error', false, e);

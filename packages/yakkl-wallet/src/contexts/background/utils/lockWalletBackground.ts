@@ -11,6 +11,7 @@ import { get } from 'svelte/store';
 import { STORAGE_YAKKL_CURRENTLY_SELECTED, STORAGE_YAKKL_SETTINGS } from '$lib/common/constants';
 import { walletCacheStore } from '$lib/stores/wallet-cache.store';
 import { SingletonWindowManager } from '$lib/managers/SingletonWindowManager';
+import { IdleManager } from '$lib/managers/IdleManager';
 
 /**
  * Lock the wallet and clear all sensitive data - Background Context Version
@@ -32,14 +33,24 @@ export async function lockWalletBackground(reason: string = 'manual', tokenToInv
       log.warn('[Background] Failed to invalidate JWT during wallet lock:', false, error);
     }
 
-    // 2. Stop all active processes
+    // 2. Notify IdleManager that login is no longer verified
+    try {
+      const idleManager = IdleManager.getInstance();
+      idleManager.setLoginVerified(false);
+      log.info('[Background] IdleManager login verification cleared during wallet lock');
+    } catch (error) {
+      log.warn('[Background] Failed to clear IdleManager login verification:', false, error);
+      // Don't fail the lock process if this fails
+    }
+
+    // 3. Stop all active processes
     await stopActivityTracking();
 
-    // 3. Update UI indicators
+    // 4. Update UI indicators
     await setBadgeText('');
     await setIconLock();
 
-    // 4. Save wallet cache before clearing - CRITICAL: Do not save if being reset
+    // 5. Save wallet cache before clearing - CRITICAL: Do not save if being reset
     try {
       const cacheState = get(walletCacheStore);
 
@@ -68,7 +79,7 @@ export async function lockWalletBackground(reason: string = 'manual', tokenToInv
       log.warn('[Background] Failed to save wallet cache during lock:', false, error);
     }
 
-    // 5. Update storage to reflect locked state
+    // 6. Update storage to reflect locked state
     const yakklCurrentlySelectedResult = await browser.storage.local.get(STORAGE_YAKKL_CURRENTLY_SELECTED);
     const yakklCurrentlySelected = yakklCurrentlySelectedResult[STORAGE_YAKKL_CURRENTLY_SELECTED] as any;
     
@@ -86,18 +97,18 @@ export async function lockWalletBackground(reason: string = 'manual', tokenToInv
       await browser.storage.local.set({ [STORAGE_YAKKL_SETTINGS]: settings });
     }
 
-    // 6. Clear all sensitive data from memory
+    // 7. Clear all sensitive data from memory
     removeTimers();
     removeListeners();
     setMiscStore('');
 
-    // 7. Zero out values in custom token storage
+    // 8. Zero out values in custom token storage
     setYakklTokenDataCustomStorage(get(yakklTokenDataCustomStore));
 
-    // 8. Reset all stores
+    // 9. Reset all stores
     resetStores();
 
-    // 9. Clear extension session storage (except windowId)
+    // 10. Clear extension session storage (except windowId)
     if (browser.storage.session) {
       try {
         // Get all keys from session storage
@@ -113,10 +124,10 @@ export async function lockWalletBackground(reason: string = 'manual', tokenToInv
       }
     }
 
-    // 10. Clear any auth tokens from local storage
+    // 11. Clear any auth tokens from local storage
     await browser.storage.local.remove(['sessionToken', 'sessionExpiresAt', 'authToken']);
 
-    // 11. Reset SingletonWindowManager to clear any stale window references
+    // 12. Reset SingletonWindowManager to clear any stale window references
     try {
       SingletonWindowManager.reset();
       log.info('[Background] SingletonWindowManager reset during wallet lock');

@@ -9,6 +9,7 @@ import {
 	getObjectFromLocalStorage as getObjectFromBackgroundStorage
 } from '$lib/common/backgroundStorage';
 import type { YakklAccount, TokenDisplay, TransactionDisplay, ChainDisplay } from '$lib/types';
+import { AccountTypeCategory } from '$lib/common/types';
 import type {
 	PortfolioRollup,
 	TransactionRollup,
@@ -21,14 +22,18 @@ import type {
 import { VERSION } from '$lib/common';
 import { log } from '$lib/common/logger-wrapper';
 import { BigNumber, type BigNumberish } from '$lib/common/bignumber';
-// import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
+import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
+import * as ethers from 'ethers';
 import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
 import { PortfolioRollupService } from '$lib/services/portfolio-rollup.service';
 import { toSmallestUnit, DEFAULT_CURRENCY } from '$lib/config/currencies';
+import { compareWalletCacheData, hasChanged, compareTokenData } from '$lib/utils/deepCompare';
 
 // Cache version for migrations
 const CACHE_VERSION = VERSION;
 const CACHE_KEY = 'yakklWalletCache';
+
+console.log('[WalletCache] WalletCacheStore loaded');
 
 // Helper functions to use appropriate storage based on context
 const isBackgroundContext = typeof window === 'undefined';
@@ -188,6 +193,7 @@ function getDefaultPortfolioRollup(): PortfolioRollup {
 		chainCount: 0,
 		nativeTokenValue: 0n,
 		erc20TokenValue: 0n,
+		breakdown: { byTokenAddress: {} },
 		lastCalculated: new Date()
 	};
 }
@@ -272,41 +278,75 @@ function getDefaultAccountCache(account: YakklAccount, chainId: number): Account
 	};
 }
 
-// Utility to convert date strings back to Date objects
+// Utility to convert date strings back to Date objects and restore BigInt values
 function hydrateDates(obj: any): any {
-	if (obj instanceof Date) return obj;
-	if (typeof obj === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(obj)) {
-		return new Date(obj);
-	}
-	if (Array.isArray(obj)) {
-		return obj.map(hydrateDates);
-	}
-	if (obj && typeof obj === 'object') {
-		const hydrated: any = {};
-		for (const key in obj) {
-			hydrated[key] = hydrateDates(obj[key]);
-		}
-		return hydrated;
-	}
-	return obj;
+  try {
+    if (obj instanceof Date) return obj;
+    if (typeof obj === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(obj)) {
+      return new Date(obj);
+    }
+    // Handle BigInt restoration for value fields
+    if (typeof obj === 'string' && obj.endsWith('n')) {
+      try {
+        return BigInt(obj.slice(0, -1));
+      } catch {
+        return obj;
+      }
+    }
+    if (Array.isArray(obj)) {
+      return obj.map(hydrateDates);
+    }
+    if (obj && typeof obj === 'object') {
+      const hydrated: any = {};
+      for (const key in obj) {
+        // Special handling for known BigInt fields
+        if (key === 'value' || key === 'totalValue') {
+          const val = obj[key];
+          if (typeof val === 'string' && /^\d+$/.test(val)) {
+            hydrated[key] = BigInt(val);
+          } else if (typeof val === 'number') {
+            hydrated[key] = BigInt(val);
+          } else {
+            hydrated[key] = hydrateDates(val);
+          }
+        } else {
+          hydrated[key] = hydrateDates(obj[key]);
+        }
+      }
+      return hydrated;
+    }
+    return obj;
+  } catch (error) {
+    console.log('[WalletCache] Failed to hydrate dates:', error);
+    return obj;
+  }
 }
 
-// Utility to serialize dates to ISO strings for storage
+// Utility to serialize dates to ISO strings and BigInt values for storage
 function serializeDates(obj: any): any {
-	if (obj instanceof Date) {
-		return obj.toISOString();
-	}
-	if (Array.isArray(obj)) {
-		return obj.map(serializeDates);
-	}
-	if (obj && typeof obj === 'object' && obj.constructor === Object) {
-		const serialized: any = {};
-		for (const key in obj) {
-			serialized[key] = serializeDates(obj[key]);
-		}
-		return serialized;
-	}
-	return obj;
+  try {
+    if (obj instanceof Date) {
+      return obj.toISOString();
+    }
+    // Handle BigInt serialization
+    if (typeof obj === 'bigint') {
+      return obj.toString();
+    }
+    if (Array.isArray(obj)) {
+      return obj.map(serializeDates);
+    }
+    if (obj && typeof obj === 'object' && obj.constructor === Object) {
+      const serialized: any = {};
+      for (const key in obj) {
+        serialized[key] = serializeDates(obj[key]);
+      }
+      return serialized;
+    }
+    return obj;
+  } catch (error) {
+    console.log('[WalletCache] Failed to serialize dates:', error);
+    return obj;
+  }
 }
 
 // Debounce utility
@@ -332,7 +372,7 @@ function createWalletCacheStore() {
 	// Check if we're in a browser environment
 	const isBrowser = typeof window !== 'undefined';
 
-	// Debounced save to prevent excessive writes
+	// Debounced save to prevent excessive writes with improved performance
 	const saveToStorage = debounce(async (state: WalletCacheController) => {
 		if (!isBrowser) return;
 
@@ -464,7 +504,7 @@ function createWalletCacheStore() {
 		} catch (error) {
 			log.warn('[WalletCache] Failed to save:', false, error);
 		}
-	}, 500);
+	}, 250); // CRITICAL FIX: Reduced debounce time for better UI responsiveness
 
 	// Load from storage on initialization
 	async function loadFromStorage() {
@@ -477,11 +517,53 @@ function createWalletCacheStore() {
 			if (cached) {
 				// Cache exists, just load it
 				const hydrated = hydrateDates(cached);
+
+				// CRITICAL DEBUG: Log what we loaded from storage
+				console.log('[WalletCache] CRITICAL - Loaded from storage:', {
+					hasCache: !!hydrated,
+					activeAccount: hydrated.activeAccountAddress,
+					activeChain: hydrated.activeChainId,
+					chainCount: Object.keys(hydrated.chainAccountCache || {}).length,
+					context: isBackgroundContext ? 'background' : 'client'
+				});
+
+				// Debug: Check specific token data
+				if (hydrated.activeAccountAddress && hydrated.activeChainId) {
+					const accountCache = hydrated.chainAccountCache?.[hydrated.activeChainId]?.[hydrated.activeAccountAddress];
+					if (accountCache) {
+						console.log('[WalletCache] CRITICAL - Active account cache:', {
+							tokenCount: accountCache.tokens?.length || 0,
+							portfolioValue: accountCache.portfolio?.totalValue?.toString(),
+							firstThreeTokens: accountCache.tokens?.slice(0, 3).map(t => ({
+								symbol: t.symbol,
+								balance: t.balance,
+								balanceType: typeof t.balance,
+								price: t.price,
+								value: t.value?.toString()
+							}))
+						});
+					} else {
+						console.log('[WalletCache] CRITICAL - No cache found for active account');
+					}
+				}
+
 				set(hydrated);
 				log.info(`[WalletCache] Loaded from ${isBackgroundContext ? 'background' : 'client'} storage`, false);
+
+				// CRITICAL FIX: Check if we have token data but missing rollups and force recalculation
+				const hasTokenData = Object.values(hydrated.chainAccountCache).some(chainData =>
+					Object.values(chainData).some(accountCache => accountCache.tokens?.length > 0)
+				);
+
+				const hasValidRollups = hydrated.portfolioRollups?.grandTotal?.totalValue !== undefined;
+
+				if (hasTokenData && !hasValidRollups) {
+					log.info('[WalletCache] Token data found but rollups missing - will trigger calculation after initialization', false);
+				}
 			} else {
 				// No cache exists, create new one
 				log.info('[WalletCache] Initializing with new enhanced cache structure', false);
+        console.log('[WalletCache] Initializing with new enhanced cache structure');
 				const newCache = getDefaultCache();
 				set(newCache);
 				await setObjectInStorage(CACHE_KEY, newCache);
@@ -512,9 +594,11 @@ function createWalletCacheStore() {
 					false,
 					currentlySelected.shortcuts.chainId
 				);
+        console.log('[WalletCache] Synced active chain from storage:', currentlySelected.shortcuts.chainId);
 			}
 		} catch (error) {
 			log.warn('[WalletCache] Failed to load:', false, error);
+      console.log('[WalletCache] Failed to load:', error);
 		}
 	}
 
@@ -523,11 +607,10 @@ function createWalletCacheStore() {
 		loadFromStorage();
 	}
 
-	// Auto-save on changes
+	// Auto-save on changes - save in both browser and background contexts
 	subscribe((state) => {
-		if (isBrowser) {
-			saveToStorage(state);
-		}
+		// Save regardless of context - both browser and background need to persist
+		saveToStorage(state);
 	});
 
 	return {
@@ -554,6 +637,69 @@ function createWalletCacheStore() {
 					);
 				}
 			}
+
+			// CRITICAL FIX: Force rollup calculations after initialization
+			// This ensures UI shows portfolio values immediately on load
+			const currentState = get({ subscribe });
+			const hasTokenData = Object.values(currentState.chainAccountCache).some(chainData =>
+				Object.values(chainData).some(accountCache => accountCache.tokens?.length > 0)
+			);
+
+			if (hasTokenData) {
+				log.info('[WalletCache] Token data found during initialization - calculating rollups', false);
+				// Use setTimeout to avoid blocking initialization
+				setTimeout(async () => {
+					await this.calculateAllRollups();
+					// Force recalculation of all portfolio values from token data
+					await this.recalculateAllPortfolios();
+					log.info('[WalletCache] Initialization rollups and portfolio recalculation completed', false);
+				}, 50);
+			} else {
+				log.info('[WalletCache] No token data found during initialization', false, {
+					chainAccountCache: Object.keys(currentState.chainAccountCache),
+					activeAccount: currentState.activeAccountAddress,
+					activeChain: currentState.activeChainId
+				});
+			}
+		},
+
+		// Update cache from storage (called by storage sync service)
+		async updateFromStorage(newCache: WalletCacheController) {
+			// Validate the new cache has data
+			if (!newCache || typeof newCache !== 'object') {
+				log.warn('[WalletCache] Invalid cache data from storage');
+				return;
+			}
+
+			// Get current cache to compare
+			const currentCache = get({ subscribe });
+
+			// CRITICAL FIX: Only update if data has actually changed
+			if (!compareWalletCacheData(currentCache, newCache)) {
+				log.debug('[WalletCache] No changes detected in storage update, skipping reactive update');
+				return;
+			}
+
+			// Update the store with the new cache data
+			update((currentCache) => {
+				// Preserve initialization flags from current state
+				const updatedCache = {
+					...newCache,
+					isInitializing: currentCache.isInitializing,
+					hasEverLoaded: currentCache.hasEverLoaded || true
+				};
+
+				// Hydrate dates
+				const hydrated = hydrateDates(updatedCache);
+
+				log.debug('[WalletCache] Updated from storage change - data actually changed', false, {
+					activeAccount: hydrated.activeAccountAddress,
+					activeChain: hydrated.activeChainId,
+					hasRollups: !!hydrated.portfolioRollups?.grandTotal
+				});
+
+				return hydrated;
+			});
 		},
 
 		// Switch active account without clearing cache
@@ -604,15 +750,72 @@ function createWalletCacheStore() {
 
 				const accountCache = newCache.chainAccountCache[chainId][normalizedAddress];
 
-				// IMPORTANT: Always accept token updates to prevent data loss
-				// The only time we should reject is if we're getting completely empty data
-				// which would indicate a failed API call
+				// IMPORTANT: Enhanced protection against data loss from incomplete updates
 				const isCompletelyEmpty = tokens.length === 0 ||
 					tokens.every(token => !token.address && !token.symbol && !token.name);
 
+				// Check if we have existing tokens with value or balance
+				const hasExistingValue = accountCache.tokens.some(t => {
+					const value = BigNumber.toBigInt(t.value || 0) || 0n;
+					const balance = BigNumber.toBigInt(t.balance || 0) || 0n;
+					return value > 0n || balance > 0n;
+				});
+
+				// Check if portfolio has value
+				const portfolioValue = BigNumber.toBigInt(accountCache.portfolio.totalValue || 0) || 0n;
+				const hasPortfolioValue = portfolioValue > 0n;
+
+				// Check if all new tokens have zero balance AND value (suspicious)
+				const allNewTokensZero = tokens.length > 0 && tokens.every(t => {
+					const balance = BigNumber.toBigInt(t.balance || 0) || 0n;
+					const value = BigNumber.toBigInt(t.value || 0) || 0n;
+					return balance === 0n && value === 0n;
+				});
+
+				// Track the update source for debugging
+				const stackTrace = new Error().stack?.split('\n').slice(2, 4).join(' <- ');
+				log.info('[WalletCache] Token update check:', false, {
+					hasExistingValue,
+					hasPortfolioValue,
+					existingTokenCount: accountCache.tokens.length,
+					incomingTokenCount: tokens.length,
+					allNewTokensZero,
+					caller: stackTrace
+				});
+
 				if (isCompletelyEmpty && accountCache.tokens.length > 0) {
-					log.warn(
-						'[WalletCache] Rejecting empty token update - would lose existing data',
+					log.error(
+						'[WalletCache] BLOCKING empty token update - would lose existing data',
+						false,
+						{ existingCount: accountCache.tokens.length }
+					);
+					return cache;
+				}
+
+				// Enhanced protection: Prevent clearing existing data when getting all zeros
+				if ((hasExistingValue || hasPortfolioValue) && allNewTokensZero) {
+					log.error(
+						'[WalletCache] BLOCKING all-zero update - preserving existing values',
+						false,
+						{
+							existingPortfolioValue: accountCache.portfolio.totalValue.toString(),
+							existingTokensWithValue: accountCache.tokens.filter(t => {
+								const val = BigNumber.toBigInt(t.value || 0) || 0n;
+								return val > 0n;
+							}).map(t => ({ symbol: t.symbol, value: t.value, balance: t.balance })),
+							newTokens: tokens.slice(0, 3).map(t => ({ symbol: t.symbol, balance: t.balance, value: t.value })),
+							address: normalizedAddress,
+							source: stackTrace
+						}
+					);
+					return cache;
+				}
+
+				// CRITICAL FIX: Check if token data has actually changed to prevent unnecessary updates
+				const hasTokenDataChanged = compareTokenData(accountCache.tokens, tokens);
+				if (!hasTokenDataChanged) {
+					log.debug(
+						`[WalletCache] Token data unchanged for ${normalizedAddress} on chain ${chainId}, skipping update`,
 						false
 					);
 					return cache;
@@ -621,7 +824,7 @@ function createWalletCacheStore() {
 				// Always update if we have any token data - even with 0 balances
 				// Token metadata, prices, and the existence of tokens is valuable information
 				log.info(
-					`[WalletCache] Updating tokens for ${normalizedAddress} on chain ${chainId}`,
+					`[WalletCache] Updating tokens for ${normalizedAddress} on chain ${chainId} - data changed`,
 					false,
 					{ tokenCount: tokens.length }
 				);
@@ -631,69 +834,100 @@ function createWalletCacheStore() {
 					accountCache.tokens.map(t => [t.address.toLowerCase(), t])
 				);
 
-				// Validate and fix token values - ensure values are in USD not wei
+				// SIMPLIFIED value calculation helper - ALWAYS calculate when we have balance AND price
+				const calculateTokenValue = (balance: string | undefined, price: number | undefined, decimals: number = 18): bigint => {
+					if (!balance || balance === '0' || !price || price === 0) {
+						return 0n;
+					}
+
+					console.log('[WalletCache] Calculating token value: ========================================>>>>>', { balance, price, decimals });
+
+					try {
+						let balanceInEth: string;
+
+						// Simple detection: decimal point = human readable, no decimal + >10 digits = wei
+						if (balance.includes('.')) {
+							// Already in human readable format (e.g., "0.125" ETH)
+							balanceInEth = balance;
+						} else if (balance.length > 10) {
+							// Likely wei format (e.g., "125000000000000000"), convert to ETH
+							const balanceWei = BigInt(balance);
+							balanceInEth = ethers.utils.formatUnits(balanceWei, decimals);
+						} else {
+							// Small whole number, treat as human readable
+							balanceInEth = balance;
+						}
+
+						console.log('[WalletCache] Calculating token value balanceInEth: ========================================>>>>>', { balanceInEth, price });
+						
+						// EthereumBigNumber.toFiat expects balance in ETH (not wei!)
+						// It will multiply the ETH amount by the price
+						const fiatValue = parseFloat(balanceInEth) * price;
+						
+						console.log('[WalletCache] Calculating token value fiat: ========================================>>>>>', { fiatValue });
+						
+						// Convert to cents (multiply by 100) and store as BigInt
+						const valueInCents = Math.round(fiatValue * 100);
+						const value = BigInt(valueInCents);
+						
+						console.log('[WalletCache] Calculating token value value: ========================================>>>>>', { value });
+						return value;
+					} catch (error) {
+						console.warn(`[WalletCache] Failed to calculate value:`, { balance, price, error });
+						return 0n;
+					}
+				};
+
+				// SIMPLIFIED token validation - focus on ALWAYS calculating value
 				const validatedTokens = tokens.map((token) => {
-					// Check if we have an existing token with a balance
 					const existingToken = existingTokenMap.get(token.address.toLowerCase());
 
-					// CRITICAL: Preserve existing balance if new balance is not provided or is 0
-					let balance = BigNumber.toBigInt(token.balance || '0');
-					if (balance === 0n && existingToken && existingToken.balance) {
-						// Preserve the existing balance
-						balance = BigNumber.toBigInt(existingToken.balance) || 0n;
-						log.debug(
-							`[WalletCache] Preserving existing balance for ${token.symbol}`,
-							false,
-							{ existingBalance: existingToken.balance, address: token.address }
-						);
+					// Get balance - prefer new, fallback to existing
+					let balance = token.balance;
+					if (!balance && existingToken?.balance) {
+						balance = existingToken.balance;
 					}
+					balance = balance || '0';
 
-					// Convert price from BigNumberish to number
-					const price = token.price || 0;
-
-					// Calculate expected value (balance * price) using precision-safe arithmetic
-					// toFiat now correctly handles wei balance and USD price
-					const fiatValue = EthereumBigNumber.toFiat(balance, price);
-					// Store as smallest unit for the currency (cents for USD)
-					const expectedValue = toSmallestUnit(fiatValue, DEFAULT_CURRENCY);
-
-					// CRITICAL: value should be in USD, not wei
-					// Always calculate value from balance * price
-					let value = expectedValue;
-
-					// If token.value is provided, check if it might be in wei
-					if (token.value !== undefined && token.value !== null) {
-						const providedValue = BigNumber.toBigInt(token.value) || 0n;
-
-						// Check if the provided value seems to be in wei (way too large)
-						// If value is more than 1000x the expected, it's likely in wei
-						if (providedValue > 0n && expectedValue > 0n && providedValue > expectedValue * 1000n) {
-							log.warn(
-								`[WalletCache] Token ${token.symbol} value appears to be in wei (${providedValue}), using calculated value (${expectedValue})`,
-								false
-							);
-							value = expectedValue;
-						} else if (balance > 0n && price > 0) {
-							// Sanity check: if calculated value differs significantly, use calculated
-							const tolerance = 0.01; // 1% tolerance for rounding
-							const ratio = providedValue / expectedValue;
-							if (ratio < (1 - tolerance) || ratio > (1 + tolerance)) {
-								log.warn(
-									`[WalletCache] Token ${token.symbol} stored value (${providedValue}) differs from calculated (${expectedValue}), using calculated`,
-									false
-								);
-								value = expectedValue;
-							} else {
-								// Value seems reasonable, use it
-								value = providedValue;
-							}
-						}
+					// Get price - prefer new, fallback to existing
+					let price = token.price;
+					if ((price === undefined || price === null || price === 0) && existingToken?.price) {
+						price = existingToken.price;
 					}
+					price = price || 0;
+
+					// ALWAYS recalculate value when we have both balance AND price
+					const value = calculateTokenValue(balance, price, token.decimals || 18);
+
+					// Log value calculation for debugging
+					console.log(`[WalletCache] Token ${token.symbol} value calc:`, {
+						balance,
+						price,
+						value: value.toString(),
+						hasValue: value > 0n
+					})
 
 					return {
 						...token,
-						value: value
+						balance,
+						price,
+						value
 					};
+				});
+
+				// CRITICAL DEBUG: Enhanced logging to trace token storage
+				console.log('[WalletCache] CRITICAL - Storing validated tokens:', {
+					chainId,
+					address,
+					tokenCount: validatedTokens.length,
+					tokens: validatedTokens.map(t => ({
+						symbol: t.symbol,
+						balance: t.balance,
+						balanceType: typeof t.balance,
+						price: t.price,
+						value: t.value?.toString() || '0',
+						hasBalance: !!t.balance && t.balance !== '0'
+					}))
 				});
 
 				accountCache.tokens = validatedTokens;
@@ -721,11 +955,12 @@ function createWalletCacheStore() {
 					false
 				);
 
-				// Trigger rollup update for this account
-				// Note: We do this after the update to ensure rollups use fresh data
-				setTimeout(() => {
-					this.updateAccountRollup(normalizedAddress);
-				}, 0);
+				// Trigger rollup update for this account immediately
+				// CRITICAL FIX: Don't use setTimeout - execute immediately for UI responsiveness
+				this.updateAccountRollup(normalizedAddress);
+
+				// Also update legacy portfolio value for backward compatibility
+				this.recalculatePortfolioFromTokens(chainId, normalizedAddress);
 
 				return newCache;
 			});
@@ -750,9 +985,18 @@ function createWalletCacheStore() {
 				let updated = false;
 				accountCache.tokens = accountCache.tokens.map((token) => {
 					if (token.isNative) {
-						const balance = BigNumber.toBigInt(token.balance) || 0n;
+						// Balance is stored as formatted string, need to convert to wei
+						let balanceWei: bigint;
+						if (typeof token.balance === 'string' && token.balance.includes('.')) {
+							// Balance is formatted (e.g., "0.0125" ETH), convert to wei
+							const decimals = token.decimals || 18;
+							balanceWei = ethers.utils.parseUnits(token.balance, decimals).toBigInt();
+						} else {
+							// Balance might already be in wei or another format
+							balanceWei = BigNumber.toBigInt(token.balance) || 0n;
+						}
 						updated = true;
-						const fiatValue = EthereumBigNumber.toFiat(balance, price);
+						const fiatValue = EthereumBigNumber.toFiat(balanceWei, price);
 						return {
 							...token,
 							price: price,
@@ -764,14 +1008,30 @@ function createWalletCacheStore() {
 				});
 
 				if (updated) {
-					// DON'T recalculate portfolio here - let other systems handle portfolio totals
-					// Just update the price update timestamp
+					// ALWAYS recalculate portfolio when native token price changes
+					// This prevents the $0.00 flickering issue
+					accountCache.portfolio = {
+						totalValue: accountCache.tokens.reduce((sum, token) => {
+							const tokenValue = BigNumber.toBigInt(token.value || 0n) || 0n;
+							return BigNumber.toBigInt(sum) + tokenValue;
+						}, 0n),
+						lastCalculated: new Date(),
+						tokenCount: accountCache.tokens.length
+					};
+
 					accountCache.lastPriceUpdate = new Date();
 					log.info(
-						'[WalletCache] Updated native token price only (portfolio calculation skipped)',
+						'[WalletCache] Updated native token price and recalculated portfolio',
 						false,
-						{ chainId, address, price }
+						{ chainId, address, price, newTotal: accountCache.portfolio.totalValue.toString() }
 					);
+
+					// Trigger rollup update after native price change immediately
+					// CRITICAL FIX: Execute immediately for UI responsiveness
+					this.updateAccountRollup(normalizedAddress);
+
+					// Also recalculate portfolio from fresh token data
+					this.recalculatePortfolioFromTokens(chainId, normalizedAddress);
 				}
 
 				return newCache;
@@ -790,14 +1050,27 @@ function createWalletCacheStore() {
 				Object.keys(chainCache).forEach((address) => {
 					const accountCache = chainCache[address];
 
+					// Check if we have existing value before update
+					const portfolioValue = BigNumber.toBigInt(accountCache.portfolio.totalValue || 0) || 0n;
+					const hadValue = portfolioValue > 0n;
+
 					accountCache.tokens = accountCache.tokens.map((token) => {
 						const tokenKey = token.address.toLowerCase();
 						const newPrice = priceMap.get(tokenKey);
 
-						if (newPrice !== undefined) {
-							const balance = BigNumber.toBigInt(token.balance) || 0n;
+						if (newPrice !== undefined && newPrice > 0) {
+							// Balance is stored as formatted string, need to convert to wei
+							let balanceWei: bigint;
+							if (typeof token.balance === 'string' && token.balance.includes('.')) {
+								// Balance is formatted (e.g., "0.0125" ETH), convert to wei
+								const decimals = token.decimals || 18;
+								balanceWei = ethers.utils.parseUnits(token.balance, decimals).toBigInt();
+							} else {
+								// Balance might already be in wei or another format
+								balanceWei = BigNumber.toBigInt(token.balance) || 0n;
+							}
 							// Use precision-safe calculation for value
-							const fiatValue = EthereumBigNumber.toFiat(balance, newPrice);
+							const fiatValue = EthereumBigNumber.toFiat(balanceWei, newPrice);
 							// Store as smallest unit for the currency
 							let value = toSmallestUnit(fiatValue, DEFAULT_CURRENCY);
 
@@ -807,29 +1080,54 @@ function createWalletCacheStore() {
 								priceLastUpdated: new Date(),
 								value: value
 							};
+						} else if (newPrice === 0 && token.price && token.price > 0) {
+							// PROTECTION: Don't update to zero price if we had a valid price
+							log.warn(
+								`[WalletCache] Ignoring zero price update for ${token.symbol}, keeping ${token.price}`,
+								false
+							);
 						}
 
 						return token;
 					});
 
-					// Always recalculate portfolio when prices update (this is a complete price refresh)
-					accountCache.portfolio = {
-						totalValue: accountCache.tokens.reduce((sum, token) => {
-							const tokenValue = BigNumber.toBigInt(token.value || 0n) || 0n;
-							return BigNumber.toBigInt(sum) + tokenValue;
-						}, 0n),
-						lastCalculated: new Date(),
-						tokenCount: accountCache.tokens.length
-					};
+					// Recalculate portfolio - but protect against losing value
+					const newTotalValue = accountCache.tokens.reduce((sum, token) => {
+						const tokenValue = BigNumber.toBigInt(token.value || 0n) || 0n;
+						return BigNumber.toBigInt(sum) + tokenValue;
+					}, 0n);
+
+					// PROTECTION: Don't update to zero if we had value before
+					if (hadValue && newTotalValue === 0n) {
+						log.error(
+							'[WalletCache] Price update would zero portfolio - SKIPPING recalculation',
+							false,
+							{
+								address,
+								oldValue: accountCache.portfolio.totalValue.toString(),
+								tokenCount: accountCache.tokens.length
+							}
+						);
+						// Keep existing portfolio value
+					} else {
+						accountCache.portfolio = {
+							totalValue: newTotalValue,
+							lastCalculated: new Date(),
+							tokenCount: accountCache.tokens.length
+						};
+					}
 
 					accountCache.lastPriceUpdate = new Date();
 				});
 
-				// Trigger chain rollup update after price updates
-				// Note: We debounce this to avoid excessive recalculation
-				setTimeout(() => {
-					this.updateChainRollup(chainId);
-				}, 100);
+				// Trigger chain rollup update after price updates immediately
+				// CRITICAL FIX: Execute immediately for UI responsiveness
+				this.updateChainRollup(chainId);
+
+				// Also recalculate portfolio values from token data
+				Object.keys(chainCache).forEach((address) => {
+					this.recalculatePortfolioFromTokens(chainId, address);
+				});
 
 				return newCache;
 			});
@@ -881,25 +1179,130 @@ function createWalletCacheStore() {
 				const newCache = { ...cache };
 				const normalizedAddress = address.toLowerCase();
 
+				// CRITICAL DEBUG: Log transaction update attempt
+				console.log('[WalletCache] updateTransactions called:', {
+					chainId,
+					address: normalizedAddress,
+					newTransactionsCount: transactions.length,
+					lastBlock,
+					firstNewTx: transactions[0] ? {
+						hash: transactions[0].hash,
+						value: transactions[0].value,
+						timestamp: transactions[0].timestamp
+					} : null
+				});
+
 				if (!newCache.chainAccountCache[chainId]?.[normalizedAddress]) {
-					console.warn(`[WalletCache] No cache for ${normalizedAddress} on chain ${chainId}`);
-					return cache;
+					console.warn(`[WalletCache] No cache for ${normalizedAddress} on chain ${chainId} - creating new cache`);
+					// Create the cache structure if it doesn't exist
+					if (!newCache.chainAccountCache[chainId]) {
+						newCache.chainAccountCache[chainId] = {};
+					}
+					// Create a minimal account object for the cache
+					const minimalAccount: YakklAccount = {
+						id: normalizedAddress, // Use address as ID for minimal account
+						persona: '',
+						index: 0,
+						blockchain: 'Ethereum',
+						smartContract: false,
+						address: normalizedAddress,
+						alias: '',
+						accountType: AccountTypeCategory.PRIMARY,
+						name: '',
+						description: '',
+						primaryAccount: null, // null for primary accounts
+						data: {} as any, // Minimal data placeholder
+						isActive: true,
+						connectedDomains: [],
+						includeInPortfolio: true,
+						version: '1.0.0',
+						createDate: new Date().toISOString(),
+						updateDate: new Date().toISOString()
+					};
+					newCache.chainAccountCache[chainId][normalizedAddress] = getDefaultAccountCache(minimalAccount, chainId);
 				}
 
 				const accountCache = newCache.chainAccountCache[chainId][normalizedAddress];
 
-				// Merge new transactions with existing (remove duplicates)
-				const existingHashes = new Set(accountCache.transactions.transactions.map((tx) => tx.hash));
-				const newTransactions = transactions.filter((tx) => !existingHashes.has(tx.hash));
+				// CRITICAL: Enhanced protection for transaction persistence
+				const hasExistingTransactions = accountCache.transactions.transactions.length > 0;
+				const isEmptyUpdate = transactions.length === 0;
 
-				accountCache.transactions = {
-					transactions: [...accountCache.transactions.transactions, ...newTransactions].sort(
+				// Track update source for debugging
+				const stackTrace = new Error().stack?.split('\n').slice(2, 4).join(' <- ');
+
+				if (isEmptyUpdate && hasExistingTransactions) {
+					log.error(
+						'[WalletCache] BLOCKING empty transaction update - preserving existing transactions',
+						false,
+						{
+							existingCount: accountCache.transactions.transactions.length,
+							firstThreeTxs: accountCache.transactions.transactions.slice(0, 3).map(tx => ({
+								hash: tx.hash.substring(0, 10) + '...',
+								to: tx.to,
+								value: tx.value
+							})),
+							chainId,
+							address: normalizedAddress,
+							source: stackTrace
+						}
+					);
+					// Still update the lastBlock if it's newer
+					if (lastBlock > accountCache.transactions.lastBlock) {
+						accountCache.transactions.lastBlock = lastBlock;
+						accountCache.lastTransactionRefresh = new Date();
+					}
+					return newCache;
+				}
+
+				// If we have new transactions, merge them properly
+				if (transactions.length > 0) {
+					// Create a map of all transactions by hash for deduplication
+					const txMap = new Map<string, TransactionDisplay>();
+
+					// Add existing transactions first
+					accountCache.transactions.transactions.forEach(tx => {
+						txMap.set(tx.hash, tx);
+					});
+
+					// Add/update with new transactions (newer data wins)
+					transactions.forEach(tx => {
+						txMap.set(tx.hash, tx);
+					});
+
+					// Convert back to array and sort
+					const mergedTransactions = Array.from(txMap.values()).sort(
 						(a, b) => b.timestamp - a.timestamp
-					), // Sort by newest first
-					lastBlock: Math.max(accountCache.transactions.lastBlock, lastBlock),
-					hasMore: true, // Will be determined by the sync manager
-					total: accountCache.transactions.total + newTransactions.length
-				};
+					);
+
+					accountCache.transactions = {
+						transactions: mergedTransactions,
+						lastBlock: Math.max(accountCache.transactions.lastBlock, lastBlock),
+						hasMore: accountCache.transactions.hasMore !== false, // Preserve hasMore unless explicitly false
+						total: mergedTransactions.length
+					};
+
+					// CRITICAL DEBUG: Log detailed transaction storage
+					console.log('[WalletCache] Stored transactions in cache:', {
+						chainId,
+						address: normalizedAddress,
+						storedCount: mergedTransactions.length,
+						firstStoredTx: mergedTransactions[0] ? {
+							hash: mergedTransactions[0].hash,
+							value: mergedTransactions[0].value,
+							timestamp: mergedTransactions[0].timestamp,
+							from: mergedTransactions[0].from,
+							to: mergedTransactions[0].to
+						} : null,
+						cacheLocation: `chainAccountCache[${chainId}][${normalizedAddress}].transactions`
+					});
+
+					log.info(
+						`[WalletCache] Updated transactions for ${normalizedAddress}`,
+						false,
+						{ previous: accountCache.transactions.transactions.length, new: transactions.length, merged: mergedTransactions.length }
+					);
+				}
 
 				accountCache.lastTransactionRefresh = new Date();
 
@@ -917,6 +1320,73 @@ function createWalletCacheStore() {
 		clearAllCache() {
 			set(getDefaultCache());
 			console.log('[WalletCache] All cache cleared by user');
+		},
+
+		/**
+		 * SIMPLE: Recalculate all token values for all accounts
+		 * Call this after price updates or balance changes
+		 */
+		async recalculateAllTokenValues() {
+			update((cache) => {
+				const newCache = { ...cache };
+
+				// Simple helper to calculate value - use ETH not wei!
+				const calcValue = (balance: string, price: number, decimals: number = 18): bigint => {
+					if (!balance || balance === '0' || !price || price === 0) return 0n;
+
+					try {
+						let balanceInEth: string;
+						
+						if (balance.includes('.')) {
+							// Already in ETH/token format
+							balanceInEth = balance;
+						} else if (balance.length > 10) {
+							// Wei format, convert to ETH
+							const balanceWei = BigInt(balance);
+							balanceInEth = ethers.utils.formatUnits(balanceWei, decimals);
+						} else {
+							// Small whole number
+							balanceInEth = balance;
+						}
+
+						// Simple multiplication: balance (in ETH/tokens) * price = USD value
+						const fiatValue = parseFloat(balanceInEth) * price;
+						// Convert to cents
+						const valueInCents = Math.round(fiatValue * 100);
+						return BigInt(valueInCents);
+					} catch {
+						return 0n;
+					}
+				};
+
+				// Iterate through all accounts and tokens
+				let totalRecalculated = 0;
+				for (const [chainId, accounts] of Object.entries(newCache.chainAccountCache)) {
+					for (const [address, accountCache] of Object.entries(accounts)) {
+						for (const token of accountCache.tokens) {
+							// ALWAYS recalculate if we have balance AND price
+							if (token.balance && token.balance !== '0' && token.price && token.price > 0) {
+								const newValue = calcValue(token.balance, token.price, token.decimals || 18);
+								if (newValue !== token.value) {
+									console.log(`[WalletCache] Recalculated ${token.symbol} value: ${token.value} -> ${newValue}`);
+									token.value = newValue;
+									totalRecalculated++;
+								}
+							}
+						}
+
+						// Recalculate portfolio total for this account
+						accountCache.portfolio.totalValue = accountCache.tokens.reduce((sum, token) => {
+							const newSum = sum + (BigNumberishUtils.toBigInt(token.value) || 0n);
+              console.log('[WalletCache] Recalculated portfolio total: ========================================>>>>>', { sum, tokenValue: BigNumberishUtils.toBigInt(token.value), newSum, tokenValueStr: token.value.toString() });
+              return newSum;
+						}, 0n);
+					}
+				}
+
+				console.log(`[WalletCache] Recalculated values for ${totalRecalculated} tokens - newCache.portfolio.totalValue: ========================================>>>>>`, { newCache: newCache });
+				return newCache;
+			});
 		},
 
 		// Clear specific account cache (user action only)
@@ -1079,7 +1549,7 @@ function createWalletCacheStore() {
 				// Calculate watch list rollup
 				if (newCache.accountMetadata?.watchListAccounts) {
 					newCache.portfolioRollups.watchListRollup = rollupService.calculateWatchListRollup(
-						new Set(newCache.accountMetadata.watchListAccounts),
+						Array.from(new Set(newCache.accountMetadata.watchListAccounts)),
 						newCache
 					);
 				}
@@ -1264,7 +1734,7 @@ function createWalletCacheStore() {
 				// Update watch list if this is a watch account
 				if (newCache.accountMetadata?.watchListAccounts?.includes(normalizedAddress)) {
 					newCache.portfolioRollups.watchListRollup = rollupService.calculateWatchListRollup(
-						new Set(newCache.accountMetadata.watchListAccounts),
+						Array.from(new Set(newCache.accountMetadata.watchListAccounts)),
 						newCache
 					);
 				}
@@ -1377,7 +1847,9 @@ function createWalletCacheStore() {
 			}
 
 			// If not in cache, calculate on demand
-			return rollupService.getRollupForView(viewType, state, context);
+			// Get the full cache state
+			const cache = get({ subscribe });
+			return rollupService.getRollupForView(viewType, state, cache);
 		},
 
 		/**
@@ -1446,7 +1918,7 @@ function createWalletCacheStore() {
 					const rollupService = PortfolioRollupService.getInstance();
 
 					newCache.portfolioRollups.watchListRollup = rollupService.calculateWatchListRollup(
-						new Set(newCache.accountMetadata.watchListAccounts),
+						Array.from(new Set(newCache.accountMetadata.watchListAccounts)),
 						newCache
 					);
 
@@ -1464,6 +1936,167 @@ function createWalletCacheStore() {
 					address: normalizedAddress,
 					include
 				});
+
+				return newCache;
+			});
+		},
+
+		/**
+		 * Recalculate portfolio value from tokens for a specific account/chain
+		 * This ensures the portfolio.totalValue matches the sum of token values
+		 */
+		recalculatePortfolioFromTokens(chainId: number, address: string) {
+			update((cache) => {
+				const newCache = { ...cache };
+				const normalizedAddress = address.toLowerCase();
+				const accountCache = newCache.chainAccountCache[chainId]?.[normalizedAddress];
+
+				if (!accountCache) return newCache;
+
+				// Recalculate portfolio total from current token values
+				const newTotalValue = accountCache.tokens.reduce((sum, token) => {
+					const tokenValue = BigNumber.toBigInt(token.value || 0) || 0n;
+					return BigNumber.toBigInt(sum) + tokenValue;
+				}, 0n);
+
+				// Update portfolio with fresh calculation
+				accountCache.portfolio = {
+					totalValue: newTotalValue,
+					lastCalculated: new Date(),
+					tokenCount: accountCache.tokens.length
+				};
+
+				log.debug(`[WalletCache] Recalculated portfolio for ${normalizedAddress} on chain ${chainId}:`, false, {
+					totalValue: newTotalValue.toString(),
+					tokenCount: accountCache.tokens.length,
+					tokensWithValue: accountCache.tokens.filter(t => BigNumber.toBigInt(t.value || 0) > 0n).length
+				});
+
+				return newCache;
+			});
+		},
+
+		/**
+		 * Update cache from Portfolio Data Coordinator
+		 * This method is called by the coordinator to apply validated updates
+		 */
+		async updateFromCoordinator(data: Partial<WalletCacheController>) {
+			update((cache) => {
+				const newCache = { ...cache, ...data };
+
+				// Ensure dates are properly hydrated
+				const hydrated = hydrateDates(newCache);
+
+				log.debug('[WalletCache] Updated from coordinator', false, {
+					hasRollups: !!hydrated.portfolioRollups?.grandTotal,
+					grandTotal: hydrated.portfolioRollups?.grandTotal?.totalValue?.toString()
+				});
+
+				return hydrated;
+			});
+		},
+
+		/**
+		 * Recalculate rollups after price updates
+		 * More efficient than full portfolio recalculation
+		 */
+		async recalculateRollupsFromPrices() {
+			update((cache) => {
+				const newCache = { ...cache };
+				const rollupService = PortfolioRollupService.getInstance();
+
+				// Only recalculate value rollups, not token counts or balances
+				if (newCache.portfolioRollups) {
+					// Recalculate grand total
+					newCache.portfolioRollups.grandTotal = rollupService.calculateGrandTotal(newCache);
+
+					// Update per-account rollups
+					for (const address of Object.keys(newCache.portfolioRollups.byAccount)) {
+						newCache.portfolioRollups.byAccount[address] = rollupService.calculateAccountRollup(address, newCache);
+					}
+
+					// Update per-chain rollups
+					for (const chainId of Object.keys(newCache.portfolioRollups.byChain)) {
+						newCache.portfolioRollups.byChain[Number(chainId)] = rollupService.calculateChainRollup(Number(chainId), newCache);
+					}
+
+					// Update timestamp
+					newCache.portfolioRollups.lastCalculated = new Date();
+
+					// Update legacy portfolio field
+					newCache.portfolio = {
+						totalValue: newCache.portfolioRollups.grandTotal.totalValue,
+						lastCalculated: newCache.portfolioRollups.lastCalculated,
+						tokenCount: newCache.portfolioRollups.grandTotal.tokenCount
+					};
+				}
+
+				log.debug('[WalletCache] Rollups recalculated from prices', false);
+
+				return newCache;
+			});
+		},
+
+		/**
+		 * Recalculate portfolios after balance updates
+		 */
+		async recalculatePortfoliosFromBalances() {
+			// For balance updates, we need to recalculate token values first
+			update((cache) => {
+				const newCache = { ...cache };
+
+				// Update portfolio values for all accounts
+				for (const [chainId, chainData] of Object.entries(newCache.chainAccountCache)) {
+					for (const [address, accountCache] of Object.entries(chainData)) {
+						// Recalculate portfolio total
+						accountCache.portfolio = {
+							totalValue: accountCache.tokens.reduce((sum, token) => {
+								const tokenValue = BigNumber.toBigInt(token.value || 0n) || 0n;
+								return BigNumber.toBigInt(sum) + tokenValue;
+							}, 0n),
+							lastCalculated: new Date(),
+							tokenCount: accountCache.tokens.length
+						};
+					}
+				}
+
+				return newCache;
+			});
+
+			// Then recalculate all rollups
+			await this.calculateAllRollups();
+		},
+
+		/**
+		 * Update a single transaction from coordinator
+		 */
+		async updateTransactionFromCoordinator(transactionData: any) {
+			update((cache) => {
+				const newCache = { ...cache };
+
+				// Find and update the transaction
+				const { chainId, address, hash } = transactionData;
+
+				if (newCache.chainAccountCache[chainId]?.[address]?.transactions?.transactions) {
+					const transactions = newCache.chainAccountCache[chainId][address].transactions.transactions;
+					const index = transactions.findIndex(tx => tx.hash === hash);
+
+					if (index >= 0) {
+						transactions[index] = { ...transactions[index], ...transactionData };
+					} else {
+						// Add new transaction
+						transactions.unshift(transactionData);
+						// Keep only last 100 transactions
+						if (transactions.length > 100) {
+							transactions.length = 100;
+						}
+					}
+
+					// Update last refresh time
+					newCache.chainAccountCache[chainId][address].lastTransactionRefresh = new Date();
+				}
+
+				log.debug('[WalletCache] Transaction updated from coordinator', false, { hash });
 
 				return newCache;
 			});
@@ -1485,33 +2118,193 @@ export const currentAccount = derived(walletCacheStore, ($cache) => {
 
 export const currentAccountTokens = derived(walletCacheStore, ($cache) => {
 	const { activeChainId, activeAccountAddress, chainAccountCache } = $cache;
-	return chainAccountCache[activeChainId]?.[activeAccountAddress]?.tokens || [];
+	const tokens = chainAccountCache[activeChainId]?.[activeAccountAddress]?.tokens || [];
+
+	// CRITICAL DEBUG: Enhanced logging to trace missing balances
+	if (tokens.length > 0) {
+		console.log('[WalletCache] currentAccountTokens CRITICAL DEBUG:', {
+			activeChainId,
+			activeAccountAddress,
+			tokenCount: tokens.length,
+			tokensDetailed: tokens.map(t => ({
+				symbol: t.symbol,
+				address: t.address,
+				balance: t.balance,
+				balanceType: typeof t.balance,
+				hasBalance: !!t.balance,
+				price: t.price,
+				value: t.value,
+				valueType: typeof t.value
+			}))
+		});
+	} else {
+		console.log('[WalletCache] currentAccountTokens: NO TOKENS FOUND', {
+			activeChainId,
+			activeAccountAddress,
+			hasChainCache: !!chainAccountCache[activeChainId],
+			hasAccountCache: !!chainAccountCache[activeChainId]?.[activeAccountAddress]
+		});
+	}
+
+	return tokens;
 });
+
+// Derived store for current account transactions
+export const currentAccountTransactions = derived(walletCacheStore, ($cache) => {
+	const { activeChainId, activeAccountAddress, chainAccountCache } = $cache;
+	const transactions = chainAccountCache[activeChainId]?.[activeAccountAddress]?.transactions?.transactions || [];
+
+	// Debug logging for transactions
+	if (transactions.length > 0) {
+		console.log('[WalletCache] currentAccountTransactions:', {
+			activeChainId,
+			activeAccountAddress,
+			transactionCount: transactions.length,
+			firstTx: transactions[0] ? {
+				hash: transactions[0].hash,
+				value: transactions[0].value,
+				timestamp: transactions[0].timestamp
+			} : null
+		});
+	}
+
+	return transactions;
+});
+
+// Derived store for ALL transactions organized by network and account
+export const allTransactionsByNetworkAndAccount = derived(walletCacheStore, ($cache) => {
+	const { chainAccountCache } = $cache;
+	const result: Record<number, Record<string, TransactionDisplay[]>> = {};
+
+  console.log('[WalletCache] allTransactionsByNetworkAndAccount: ========================================>>>>>', { chainAccountCache });
+
+	// Organize transactions by chainId and account address
+	for (const [chainId, accounts] of Object.entries(chainAccountCache)) {
+		const chainIdNum = Number(chainId);
+		if (!result[chainIdNum]) {
+			result[chainIdNum] = {};
+		}
+
+		for (const [address, accountCache] of Object.entries(accounts)) {
+			const transactions = accountCache.transactions?.transactions || [];
+			if (transactions.length > 0) {
+				result[chainIdNum][address] = transactions;
+				console.log(`[WalletCache] Found ${transactions.length} transactions for ${address} on chain ${chainIdNum}`);
+			}
+		}
+	}
+
+  console.log('[WalletCache] allTransactionsByNetworkAndAccount: ========================================>>>>>', { result });
+	return result;
+});
+
+// Track last known good values to prevent flickering
+let lastKnownPortfolioValue: bigint = 0n;
+let lastKnownAccount: string | null = null;
 
 // Enhanced: Use rollup data if available, fallback to direct calculation
 export const currentPortfolioValue = derived(walletCacheStore, ($cache) => {
 	const { activeChainId, activeAccountAddress, portfolioRollups, chainAccountCache } = $cache;
 
-	// Try to get from rollup first (faster)
-	if (portfolioRollups && portfolioRollups.byAccountChain) {
-		const key = `${activeAccountAddress.toLowerCase()}_${activeChainId}`;
-		const rollup = portfolioRollups.byAccountChain[key]; // Access as object property, not Map
-		if (rollup) {
-			const value = BigNumber.toBigInt(rollup.totalValue) || 0n;
-			console.log('currentPortfolioValue from rollup (cents) >>>>>>>>>>', value, '→ dollars:', Number(value) / 100);
-			return value;
-		}
+	// Validate inputs first
+	if (!activeChainId || !activeAccountAddress) {
+		console.log('currentPortfolioValue: Missing activeChainId or activeAccountAddress, using last known:', lastKnownPortfolioValue, {
+			activeChainId,
+			activeAccountAddress
+		});
+		return lastKnownPortfolioValue;  // Return last known instead of 0
 	}
 
-	// Fallback to direct calculation
-	const value = BigNumber.toBigInt(chainAccountCache[activeChainId]?.[activeAccountAddress]?.portfolio.totalValue || 0n) || 0n;
-	console.log('currentPortfolioValue (cents) >>>>>>>>>>', value, '→ dollars:', Number(value) / 100);
-	return value;
-});
+	// Reset if account changed
+	if (lastKnownAccount && lastKnownAccount !== activeAccountAddress) {
+		lastKnownPortfolioValue = 0n;
+	}
+	lastKnownAccount = activeAccountAddress;
 
-export const currentAccountTransactions = derived(walletCacheStore, ($cache) => {
-	const { activeChainId, activeAccountAddress, chainAccountCache } = $cache;
-	return chainAccountCache[activeChainId]?.[activeAccountAddress]?.transactions.transactions || [];
+	// Try to get from rollup first (faster) with better error handling
+	if (portfolioRollups && portfolioRollups.byAccountChain) {
+		const key = `${activeAccountAddress.toLowerCase()}_${activeChainId}`;
+		const rollup = portfolioRollups.byAccountChain[key];
+		const availableKeys = Object.keys(portfolioRollups.byAccountChain);
+
+		console.log('currentPortfolioValue: Checking rollup data', {
+			key,
+			availableKeys,
+			hasRollup: !!rollup,
+			rollupValue: rollup?.totalValue?.toString()
+		});
+
+		if (rollup && rollup.totalValue !== undefined && rollup.totalValue !== null) {
+			const value = BigNumber.toBigInt(rollup.totalValue) || 0n;
+			// Update last known value if we have a real value
+			if (value > 0n) {
+				lastKnownPortfolioValue = value;
+			}
+			console.log('currentPortfolioValue from rollup (cents) >>>>>>>>>>', value, '→ dollars:', Number(value) / 100, 'key:', key);
+			return value > 0n ? value : lastKnownPortfolioValue;
+		} else {
+			console.log('currentPortfolioValue: Rollup found but no totalValue', { key, rollup, availableKeys });
+		}
+	} else {
+		console.log('currentPortfolioValue: No portfolioRollups available', {
+			hasPortfolioRollups: !!portfolioRollups,
+			hasbyAccountChain: !!portfolioRollups?.byAccountChain
+		});
+	}
+
+	// Fallback to direct calculation with better error handling
+	const accountCache = chainAccountCache[activeChainId]?.[activeAccountAddress];
+	if (!accountCache) {
+		console.log('currentPortfolioValue: No account cache available, using last known', {
+			activeChainId,
+			activeAccountAddress,
+			lastKnown: lastKnownPortfolioValue,
+			availableChains: Object.keys(chainAccountCache)
+		});
+		return lastKnownPortfolioValue;  // Return last known instead of 0
+	}
+
+	// CRITICAL: Calculate fresh value from token data, don't rely on cached portfolio value
+	let freshValue = 0n;
+	if (accountCache.tokens && accountCache.tokens.length > 0) {
+		freshValue = accountCache.tokens.reduce((sum, token) => {
+			const tokenValue = BigNumber.toBigInt(token.value || 0) || 0n;
+			return BigNumber.toBigInt(sum) + tokenValue;
+		}, 0n);
+
+		console.log('currentPortfolioValue: Calculated fresh value from tokens', {
+			freshValue: freshValue.toString(),
+			tokenCount: accountCache.tokens.length,
+			tokensWithValue: accountCache.tokens.filter(t => BigNumber.toBigInt(t.value || 0) > 0n).length,
+			tokens: accountCache.tokens.map(t => ({
+				symbol: t.symbol,
+				value: BigNumber.toBigInt(t.value || 0).toString(),
+				balance: t.balance,
+				price: t.price
+			}))
+		});
+	}
+
+	const portfolioTotal = accountCache.portfolio?.totalValue;
+	const cachedValue = BigNumber.toBigInt(portfolioTotal || 0) || 0n;
+
+	// Use the fresh calculated value, which should be more accurate
+	const value = freshValue > 0n ? freshValue : cachedValue;
+
+	// Update last known value if we have a real value
+	if (value > 0n) {
+		lastKnownPortfolioValue = value;
+	}
+
+	console.log('currentPortfolioValue fallback (cents) >>>>>>>>>>', value, '→ dollars:', Number(value) / 100, {
+		activeChainId,
+		activeAccountAddress,
+		freshValue: freshValue.toString(),
+		cachedValue: cachedValue.toString(),
+		finalValue: value.toString()
+	});
+
+	return value > 0n ? value : lastKnownPortfolioValue;
 });
 
 // Enhanced: Use rollup data for better performance

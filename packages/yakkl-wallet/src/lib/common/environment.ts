@@ -3,6 +3,8 @@ import { log } from '$lib/managers/Logger';
 import type { Browser } from 'webextension-polyfill';
 import { getBrowserSync, getBrowserAsync, initializeBrowserPolyfill, browserExtension } from './browser-polyfill-unified';
 
+console.log('[environment] environment.ts loaded');
+
 // Use a more generic type or create your own
 type BrowserAPI = Browser; // or create a proper interface in your types file
 
@@ -52,12 +54,12 @@ if (!isClient && typeof globalThis !== 'undefined') {
 // Get the browser API from unified loader
 export async function getBrowserExtFromGlobal(): Promise<BrowserAPI | null> {
 	console.log('[getBrowserExtFromGlobal] Called');
-	
+
 	if (!isClient) {
 		console.log('[getBrowserExtFromGlobal] Not in browser, returning mock');
 		return mockBrowser;
 	}
-	
+
 	// Return cached if available
 	if (cachedBrowserApi) {
 		console.log('[getBrowserExtFromGlobal] Returning cached API');
@@ -71,14 +73,14 @@ export async function getBrowserExtFromGlobal(): Promise<BrowserAPI | null> {
 			cachedBrowserApi = window.chrome as any;
 			return cachedBrowserApi;
 		}
-		
+
 		// Try browser_ext export
 		if (browser_ext && browser_ext.runtime) {
 			console.log('[getBrowserExtFromGlobal] Using browser_ext export');
 			cachedBrowserApi = browser_ext;
 			return cachedBrowserApi;
 		}
-		
+
 		// Try async loader
 		console.log('[getBrowserExtFromGlobal] Trying async loader...');
 		const api = await getBrowserAsync();
@@ -87,7 +89,7 @@ export async function getBrowserExtFromGlobal(): Promise<BrowserAPI | null> {
 			cachedBrowserApi = api;
 			return api;
 		}
-		
+
 		console.warn('[getBrowserExtFromGlobal] No browser API found');
 		return null;
 	} catch (err) {
@@ -107,6 +109,7 @@ export function getBrowserExt(): BrowserAPI | null {
 	// If not loaded yet, trigger initialization
 	initializeBrowserPolyfill().catch(err => {
 		log.warn('Failed to initialize browser polyfill:', false, err);
+    console.log('[getBrowserExt] Failed to initialize browser polyfill:', err);
 	});
 
 	return null;
