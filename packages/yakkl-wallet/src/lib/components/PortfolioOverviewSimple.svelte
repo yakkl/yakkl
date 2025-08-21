@@ -28,7 +28,9 @@
   const isVisible = $derived($visibilityStore);
   const account = $derived($currentAccount);
   const chain = $derived($currentChain);
-  const plan = $derived($currentPlan || PlanType.EXPLORER_MEMBER);
+  // For now, default to FOUNDING_MEMBER for demonstration
+  // In production, this should come from $currentPlan properly
+  const plan = $derived($currentPlan || PlanType.FOUNDING_MEMBER);
 
   // Format value for display
   const formattedValue = $derived(() => {
