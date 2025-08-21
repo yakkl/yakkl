@@ -3,9 +3,10 @@
  * Clean, efficient implementation with minimal dependencies
  */
 
-import { PlanType } from '../common';
+import { PlanType, STORAGE_YAKKL_SETTINGS } from '../common';
 import { PLAN_FEATURES, type FeatureKey } from '../config/features';
 import { log } from './logger';
+import browser from '$lib/common/browser-wrapper';
 
 class FeatureManager {
   private currentPlan: PlanType = PlanType.EXPLORER_MEMBER;
@@ -65,9 +66,15 @@ class FeatureManager {
     return currentLevel >= requiredLevel;
   }
 
-  private updateFeatures() {
+  async updateFeatures() {
     this.enabledFeatures.clear();
 
+    const settings = await browser.storage.local.get(STORAGE_YAKKL_SETTINGS);
+    if (settings && settings.plan && typeof settings.plan === 'object' && 'type' in settings.plan) {
+      this.currentPlan = settings.plan.type as PlanType;
+    } else {
+      this.currentPlan = PlanType.EXPLORER_MEMBER;
+    }
     // Get features for current plan
     const planFeatures = this.getPlanFeatures(this.currentPlan);
     planFeatures.forEach(feature => this.enabledFeatures.add(feature));
@@ -93,7 +100,7 @@ class FeatureManager {
 // Export singleton instance
 export const featureManager = new FeatureManager();
 
-// Export convenience functions  
+// Export convenience functions
 export const canUseFeature = (feature: string): boolean => {
   // Initialize subscription if needed
   initializeSubscription();

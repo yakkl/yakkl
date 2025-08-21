@@ -203,7 +203,11 @@ $effect(() => {
 						tokenQty: token.qty,
 						calculationDebug: {
 							priceTimesQty: token.price && token.qty ? token.price * token.qty : 'N/A',
-							bigintConversion: typeof token.value === 'bigint' ? `${token.value} -> ${Number(token.value)} -> ${Number(token.value) / 100}` : 'N/A'
+							bigintConversion: typeof token.value === 'bigint' ? 
+								(token.value <= BigInt(Number.MAX_SAFE_INTEGER) 
+									? `${token.value} -> ${Number(token.value)} -> ${Number(token.value) / 100}` 
+									: `${token.value} (too large for safe conversion)`) 
+								: 'N/A'
 						}
 					});
 					value = 0;
@@ -455,8 +459,12 @@ $effect(() => {
 					price: t?.price,
 					qty: t?.qty,
 					valueString: String(t?.value),
-					valueNumber: Number(t?.value),
-					priceTimesQty: t?.price && t?.qty ? t.price * t.qty : null
+					valueNumber: typeof t?.value === 'bigint' ? Number(t?.value) / 100 : Number(t?.value),
+					priceTimesQty: t?.price && t?.qty ? (
+						typeof t?.qty === 'bigint' 
+							? t.price * (Number(t?.qty) / Math.pow(10, 18)) // Rough conversion for display
+							: t.price * Number(t?.qty)
+					) : null
 				}))
 			});
 			

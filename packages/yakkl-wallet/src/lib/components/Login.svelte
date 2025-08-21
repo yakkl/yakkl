@@ -9,6 +9,8 @@
 	import AuthenticationLoader from '$lib/components/AuthenticationLoader.svelte';
 	import { sessionManager } from '$lib/managers/SessionManager';
 	import { jwtManager } from '$lib/utilities/jwt';
+	import { getNormalizedSettings, STORAGE_YAKKL_SETTINGS } from '$lib/common';
+  import browser from '$lib/common/browser-wrapper';
 
 	// Props using runes syntax
 	const props = $props<{
@@ -66,12 +68,15 @@
 
 	async function verifyUser(username: string, password: string) {
 		try {
+      if (typeof window === 'undefined') return;
+
+      const settings = await browser.storage.local.get(STORAGE_YAKKL_SETTINGS);
+      console.log('[Login] settings >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', settings);
+
 			let jwtToken: string | undefined;
 
-			// SIMPLIFIED FAST LOGIN - Skip auth store for speed
 			// We'll handle session management after navigation
-			if (false && props.useAuthStore) {
-				// Skip auth store for now - it's too slow
+			if (props.useAuthStore) {
 				const profile = await authStore.login(username, password);
 				const digest = getMiscStore();
 
@@ -93,6 +98,7 @@
 
 			// Call the existing verify function - this is your core authentication
 			log.info('Login.svelte: Starting verification for user:', false, normalizedUsername);
+      console.log('[Login] loginString >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', loginString);
 			const profile = await verify(loginString);
 
 			if (!profile) {
@@ -101,6 +107,7 @@
 			}
 
 			log.info('Login.svelte: Verification successful, profile received');
+      console.log('[Login] profile >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', profile);
 
 			// Get the digest that was set during verification
 			// This is important as it's used for decryption throughout the app
@@ -111,10 +118,24 @@
 			}
 
 			log.info('Login.svelte: profile =', false, profile, digest);
-			// Skip JWT generation for speed - do it after navigation
-			// This was causing 15-second delays
-			if (false && props.generateJWT) {
-				// Skip for now - handle after navigation
+			if (props.generateJWT) {
+        const settings = await getNormalizedSettings();
+
+        log.info('Login.svelte: settings =', false, settings);
+        log.info('Login.svelte: settings.plan =', false, settings?.plan);
+        log.info('Login.svelte: settings.plan.type =', false, settings?.plan?.type);
+        console.log('[Login] settings >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', settings);
+
+        const planLevel = settings?.plan?.type || 'explorer_member';
+
+        // Generate JWT token
+        jwtToken = await jwtManager.generateToken(
+          profile.id || profile.username,
+          profile.username,
+          profile.id || profile.username,
+          planLevel
+        );
+        console.log('jwtToken===================================>>>>', jwtToken);
 			}
 
 			// Call success handler with profile, digest, minimal flag, and optional JWT

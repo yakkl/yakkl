@@ -15,7 +15,8 @@ export class BackgroundJWTValidatorService {
   private readonly PORT_NAME = 'jwt-validator';
   private lastValidation = 0;
   private loginTime = 0; // Track when user logged in
-  private readonly GRACE_PERIOD_AFTER_LOGIN = 30000; // 30 seconds grace period after login
+  private readonly GRACE_PERIOD_AFTER_LOGIN = 60000; // 60 seconds grace period after login
+  private jwtToken: string | null = null; // Store JWT token reference
 
   static getInstance(): BackgroundJWTValidatorService {
     if (!BackgroundJWTValidatorService.instance) {
@@ -45,6 +46,46 @@ export class BackgroundJWTValidatorService {
 
     // Wait for JWT token to be available before starting validation
     this.waitForJWTAndStart();
+  }
+
+  /**
+   * Handle login success notification from session handler
+   * @param token JWT token to validate
+   * @param loginTime Time when user logged in
+   */
+  notifyLoginSuccess(token: string, loginTime: number): void {
+    log.info('[BackgroundJWTValidator] Login success notified', false, {
+      hasToken: !!token,
+      loginTime: new Date(loginTime).toISOString()
+    });
+
+    this.jwtToken = token;
+    this.loginTime = loginTime;
+
+    // Apply grace period before starting validation
+    // This prevents immediate validation right after login
+    const gracePeriod = this.GRACE_PERIOD_AFTER_LOGIN;
+    
+    log.info('[BackgroundJWTValidator] Applying grace period before validation', false, {
+      gracePeriodMs: gracePeriod,
+      willStartAt: new Date(Date.now() + gracePeriod).toISOString()
+    });
+
+    // Clear any existing validation interval
+    if (this.validationInterval) {
+      clearInterval(this.validationInterval);
+      this.validationInterval = null;
+    }
+
+    // Start validation after grace period
+    setTimeout(() => {
+      if (this.jwtToken) {
+        log.info('[BackgroundJWTValidator] Grace period ended, starting validation');
+        this.startPeriodicValidation();
+      } else {
+        log.warn('[BackgroundJWTValidator] JWT token cleared during grace period');
+      }
+    }, gracePeriod);
   }
 
   /**
@@ -210,6 +251,18 @@ export class BackgroundJWTValidatorService {
   private async validateJWTInBackground(): Promise<void> {
     try {
       const now = Date.now();
+
+      // Check if we're still in grace period after login
+      if (this.loginTime > 0) {
+        const timeSinceLogin = now - this.loginTime;
+        if (timeSinceLogin < this.GRACE_PERIOD_AFTER_LOGIN) {
+          log.debug('[BackgroundJWTValidator] Still in grace period, skipping validation', false, {
+            timeSinceLogin,
+            gracePeriod: this.GRACE_PERIOD_AFTER_LOGIN
+          });
+          return;
+        }
+      }
 
       // Rate limiting
       if (now - this.lastValidation < 10000) { // 10 seconds minimum

@@ -11,8 +11,8 @@
 
 	// Form fields with defaults
 	let enabled = $state(true);
-	let detectionMinutes = $state(5);
-	let graceMinutes = $state(2);
+	let detectionMinutes = $state(2);
+	let graceMinutes = $state(1);
 	let countdownSeconds = $state(30);
 	let showNotifications = $state(true);
 	let showCountdownModal = $state(true);
@@ -40,8 +40,8 @@
 			name: 'Balanced',
 			description: 'Default balanced settings',
 			config: {
-				detectionMinutes: 5,
-				graceMinutes: 2,
+				detectionMinutes: 2,
+				graceMinutes: 1,
 				countdownSeconds: 30
 			}
 		},
@@ -61,8 +61,8 @@
 			settings = await getYakklSettings();
 			if (settings?.idleSettings) {
 				enabled = settings.idleSettings.enabled ?? true;
-				detectionMinutes = settings.idleSettings.detectionMinutes ?? 5;
-				graceMinutes = settings.idleSettings.graceMinutes ?? 2;
+				detectionMinutes = settings.idleSettings.detectionMinutes ?? 2;
+				graceMinutes = settings.idleSettings.graceMinutes ?? 1;
 				countdownSeconds = settings.idleSettings.countdownSeconds ?? 30;
 				showNotifications = settings.idleSettings.showNotifications ?? true;
 				showCountdownModal = settings.idleSettings.showCountdownModal ?? true;

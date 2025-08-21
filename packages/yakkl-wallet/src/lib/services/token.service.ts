@@ -81,7 +81,7 @@ export class TokenService extends BaseService {
 				chainTokens.map(async (token) => {
 					// Convert balance from smallest unit (wei) to token unit using decimals
 					// CRITICAL: Preserve existing quantity if no new balance is provided
-					let balanceStr = String(token.balance || token.quantity || '0');
+					let balanceStr = String(token.balance.toString() || token.quantity.toString() || '0');
 					let balance = 0n;
 
 					// For ERC20 tokens, use cached balance from storage - NO DIRECT FETCHING
@@ -89,9 +89,9 @@ export class TokenService extends BaseService {
 						// CRITICAL: Client should NEVER fetch from blockchain directly
 						// Always use cached data from background service
 						console.log(`[TokenService] Using cached balance for ${token.symbol} at ${token.address}`);
-						
+
 						// Check if we have cached balance to use
-						const quantityStr = BigNumberishUtils.toString(token.quantity || token.balance || '0');
+						const quantityStr = BigNumberishUtils.toString(token.quantity.toString() || token.balance.toString() || '0');
 						if (quantityStr && BigNumberishUtils.toBigInt(quantityStr) > 0n) {
 							// Use the existing quantity from the token
 							balance = BigNumberishUtils.toBigInt(quantityStr);
@@ -414,7 +414,7 @@ export class TokenService extends BaseService {
 		try {
 			// Request price refresh from background service
 			console.log('[TokenService] Requesting price refresh from background service');
-			
+
 			const response = await this.sendMessage<boolean>({
 				method: 'yakkl_refreshTokenPrices',
 				params: {}
@@ -424,7 +424,7 @@ export class TokenService extends BaseService {
 				console.log('[TokenService] Price refresh requested successfully');
 				// The background service will update the stores, which will trigger reactive updates
 			}
-			
+
 			return response;
 		} catch (error) {
 			return {

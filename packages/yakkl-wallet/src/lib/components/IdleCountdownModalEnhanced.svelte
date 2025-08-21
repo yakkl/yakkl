@@ -3,15 +3,15 @@
 	import Modal from '$lib/components/Modal.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { fade, scale } from 'svelte/transition';
+	import { scale } from 'svelte/transition';
 	import { browser_ext } from '$lib/common/environment';
-	
+
 	// Props for full customization
 	let {
 		show = $bindable(false),
 		title = 'Idle Timeout Warning',
 		message = 'Your wallet will be locked due to inactivity',
-		countdown = $state(30),
+		countdown = 30,
 		theme = 'red', // red for idle (security), yellow for session
 		onCancel = () => {},
 		onStayActive = () => {},
@@ -26,16 +26,16 @@
 		onStayActive?: () => void;
 		onLockdown?: () => void;
 	}>();
-	
+
 	// Internal state
 	let internalCountdown = $state(countdown);
 	let isPaused = $state(false);
 	let countdownInterval: ReturnType<typeof setInterval> | null = null;
-	
+
 	// Animation states
 	let pulseAnimation = $state(true);
 	let isUrgent = $derived(internalCountdown <= 10);
-	
+
 	// Theme configuration
 	const themeConfig = $derived.by(() => {
 		switch (theme) {
@@ -88,7 +88,7 @@
 				};
 		}
 	});
-	
+
 	// Handle messages from background
 	function handleMessage(message: any) {
 		if (message.type === 'SHOW_IDLE_COUNTDOWN') {
@@ -107,22 +107,22 @@
 			handleDismiss();
 		}
 	}
-	
+
 	// Start countdown timer
 	function startCountdown() {
 		if (countdownInterval) {
 			clearInterval(countdownInterval);
 		}
-		
+
 		countdownInterval = setInterval(() => {
 			if (!isPaused && internalCountdown > 0) {
 				internalCountdown--;
-				
+
 				// Trigger urgency animations
 				if (internalCountdown === 10) {
 					pulseAnimation = true;
 				}
-				
+
 				// Auto-lockdown when countdown reaches 0
 				if (internalCountdown === 0) {
 					handleLockdown();
@@ -130,80 +130,80 @@
 			}
 		}, 1000);
 	}
-	
+
 	// Cancel/Lock Now - immediate lockdown
 	async function handleCancel() {
 		isPaused = true;
 		show = false;
-		
+
 		if (countdownInterval) {
 			clearInterval(countdownInterval);
 			countdownInterval = null;
 		}
-		
+
 		// Send message to background to trigger lockdown
 		if (browser_ext) {
 			await browser_ext.runtime.sendMessage({
 				type: 'CANCEL_IDLE_LOCKDOWN'
 			});
 		}
-		
+
 		onCancel();
 	}
-	
+
 	// Stay Active - reset timer
 	async function handleStayActive() {
 		// Reset countdown
 		internalCountdown = countdown;
 		pulseAnimation = false;
-		
+
 		// Simulate activity to reset idle timer
 		if (typeof window !== 'undefined') {
 			window.dispatchEvent(new MouseEvent('mousemove'));
 		}
-		
+
 		// Send message to background
 		if (browser_ext) {
 			await browser_ext.runtime.sendMessage({
 				type: 'RESET_IDLE_TIMER'
 			});
 		}
-		
+
 		// Dismiss modal
 		show = false;
-		
+
 		if (countdownInterval) {
 			clearInterval(countdownInterval);
 			countdownInterval = null;
 		}
-		
+
 		onStayActive();
 	}
-	
+
 	// Handle automatic lockdown
 	function handleLockdown() {
 		show = false;
-		
+
 		if (countdownInterval) {
 			clearInterval(countdownInterval);
 			countdownInterval = null;
 		}
-		
+
 		onLockdown();
 	}
-	
+
 	// Dismiss the modal (activity detected)
 	function handleDismiss() {
 		show = false;
 		internalCountdown = countdown;
 		isPaused = false;
-		
+
 		if (countdownInterval) {
 			clearInterval(countdownInterval);
 			countdownInterval = null;
 		}
 	}
-	
+
 	// Watch for show prop changes
 	$effect(() => {
 		if (show) {
@@ -214,26 +214,26 @@
 			countdownInterval = null;
 		}
 	});
-	
+
 	onMount(() => {
 		// Listen for messages from background
 		if (browser_ext) {
 			browser_ext.runtime.onMessage.addListener(handleMessage);
 		}
 	});
-	
+
 	onDestroy(() => {
 		// Clean up listener and interval
 		if (browser_ext) {
 			browser_ext.runtime.onMessage.removeListener(handleMessage);
 		}
-		
+
 		if (countdownInterval) {
 			clearInterval(countdownInterval);
 			countdownInterval = null;
 		}
 	});
-	
+
 	// Format countdown display
 	function formatCountdown(seconds: number): string {
 		if (seconds <= 0) return '0:00';
@@ -241,7 +241,7 @@
 		const secs = seconds % 60;
 		return `${mins}:${secs.toString().padStart(2, '0')}`;
 	}
-	
+
 	// Get dynamic styles based on urgency
 	const dynamicStyles = $derived.by(() => {
 		if (isUrgent) {
@@ -266,24 +266,24 @@
 	});
 </script>
 
-<Modal bind:show className="idle-timeout-enhanced" closeOnEsc={false} closeOnOutsideClick={false}>
+<Modal bind:show className="idle-timeout-enhanced" >
 	<div class="relative overflow-hidden rounded-lg">
 		<!-- Background with theme gradient -->
 		<div class="absolute inset-0 bg-gradient-to-br {themeConfig.bgGradient} opacity-10"></div>
-		
+
 		<!-- Content -->
 		<div class="relative z-10 p-8">
 			<!-- Icon with animation -->
 			<div class="text-center mb-6">
 				<div class="inline-flex items-center justify-center w-20 h-20 rounded-full {dynamicStyles.iconClass} {themeConfig.glowColor} shadow-lg transition-all duration-300">
 					{#if isUrgent}
-						<Icon name="alert-triangle" className="w-10 h-10 text-white" />
+						<Icon name="alert-triangle" class="w-10 h-10 text-white" />
 					{:else}
-						<Icon name="clock" className="w-10 h-10 text-white" />
+						<Icon name="clock" class="w-10 h-10 text-white" />
 					{/if}
 				</div>
 			</div>
-			
+
 			<!-- Title and Message -->
 			<div class="text-center mb-6">
 				<h2 class="text-2xl font-bold {themeConfig.textColor} mb-2">
@@ -293,7 +293,7 @@
 					{message}
 				</p>
 			</div>
-			
+
 			<!-- Countdown Display -->
 			<div class="text-center mb-6">
 				<div class="{dynamicStyles.countdownClass} font-mono font-bold transition-all duration-300">
@@ -303,7 +303,7 @@
 					{isUrgent ? 'Time is running out!' : 'Time remaining'}
 				</p>
 			</div>
-			
+
 			<!-- Progress Ring -->
 			<div class="flex justify-center mb-6">
 				<svg class="w-32 h-32 transform -rotate-90">
@@ -331,37 +331,37 @@
 					/>
 				</svg>
 			</div>
-			
+
 			<!-- Warning Alert for Urgent State -->
 			{#if isUrgent}
-				<div transition:scale={{ duration: 300 }} 
+				<div transition:scale={{ duration: 300 }}
 					class="mb-6 p-3 {themeConfig.alertBg} rounded-lg border {themeConfig.borderColor}">
 					<p class="text-sm font-medium {themeConfig.alertText} flex items-center justify-center">
-						<Icon name="alert-triangle" className="w-4 h-4 mr-2" />
+						<Icon name="alert-triangle" class="w-4 h-4 mr-2" />
 						Lockdown imminent! Click "Stay Active" to continue.
 					</p>
 				</div>
 			{/if}
-			
+
 			<!-- Action Buttons -->
 			<div class="flex gap-3 justify-center">
 				<Button
 					onclick={handleStayActive}
-					className="px-6 py-3 {themeConfig.buttonBg} text-white rounded-lg font-medium transition-all shadow-lg hover:scale-105"
+					class="px-6 py-3 {themeConfig.buttonBg} text-white rounded-lg font-medium transition-all shadow-lg hover:scale-105"
 				>
-					<Icon name="shield-check" className="w-5 h-5 mr-2 inline" />
+					<Icon name="shield-check" class="w-5 h-5 mr-2 inline" />
 					Stay Active
 				</Button>
-				
+
 				<Button
 					onclick={handleCancel}
-					className="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors"
+					class="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors"
 				>
-					<Icon name="lock" className="w-5 h-5 mr-2 inline" />
+					<Icon name="lock" class="w-5 h-5 mr-2 inline" />
 					Lock Now
 				</Button>
 			</div>
-			
+
 			<!-- Info Text -->
 			<div class="text-center mt-4 text-xs {themeConfig.textColor} opacity-50">
 				Activity will automatically reset this timer
@@ -374,7 +374,7 @@
 	:global(.idle-timeout-enhanced) {
 		z-index: 9999;
 	}
-	
+
 	/* Custom pulse animation for critical state */
 	@keyframes critical-pulse {
 		0%, 100% {
@@ -386,7 +386,7 @@
 			transform: scale(1.05);
 		}
 	}
-	
+
 	:global(.animate-critical) {
 		animation: critical-pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 	}

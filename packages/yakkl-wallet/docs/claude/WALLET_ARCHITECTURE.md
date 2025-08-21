@@ -1,5 +1,15 @@
 # Name: YAKKL Smart (Crypto) Wallet Architecture
 
+## Svelte, svelte stores, sveltekit:
+
+- Svelte version: Must always use the latest version of svelte. We use version 5.x.x that uses runes, $effect(...), $props() - ALL components pass parameters via $props(...) now and no longer use 'export let ...', no longer use $: {...} for reactivity but use $effect(...). Also, use $derive to calculate totals and sub-totals from the stores if you need to.
+- Svelte stores and any svelte code (how we use it) are not allowed in any file in the background context (it can be many file and not just background.ts)
+- If you need hold an import value then it can't be a store if needing access to it from the background context. It is better to setup a global variable where you may be catching the messages.
+- IF you want to write a variable that is like:
+-  const currentlySelected = $state(...)
+- THEN do console.log('Here is currentlySelected:', $inspect(currentlySelected));
+- Any variable that is a $state like var must use $inspect(<state variable>) so svelte can break out of the context and show just the value!
+
 ## Blockchain and Provider Abstractions:
 
 Your AbstractBlockchain and AbstractProvider classes look good. They define the common properties and methods that all blockchains and providers should have.

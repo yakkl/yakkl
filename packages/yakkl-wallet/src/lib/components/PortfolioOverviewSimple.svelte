@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { currentPortfolioValue } from '$lib/stores/simple-wallet-cache.store';
-  import { currentAccount, accountStore } from '$lib/stores/account.store';
+  import { currentPortfolioValue } from '$lib/stores/wallet-cache.store';
+  import { currentAccount } from '$lib/stores/account.store';
   import { currentChain } from '$lib/stores/chain.store';
-  import { planStore, currentPlan } from '$lib/stores/plan.store';
+  import { currentPlan } from '$lib/stores/plan.store';
   import ProtectedValue from './ProtectedValue.svelte';
   import { visibilityStore } from '$lib/common/stores/visibilityStore';
   import { formatCurrency } from '$lib/config/currencies';
@@ -29,7 +29,7 @@
   const account = $derived($currentAccount);
   const chain = $derived($currentChain);
   const plan = $derived($currentPlan || PlanType.EXPLORER_MEMBER);
-  
+
   // Format value for display
   const formattedValue = $derived(() => {
     const value = BigNumberishUtils.toBigInt(portfolioValue);
@@ -69,7 +69,7 @@
 </script>
 
 <!-- Main container with shadow and hover effect like original -->
-<div class="{className} rounded-2xl p-6 shadow-md hover:shadow-lg transition-all duration-300" 
+<div class="{className} rounded-2xl p-6 shadow-md hover:shadow-lg transition-all duration-300"
      style="background-color: {getPlanBadgeColor()}20">
   <div class="space-y-3">
     <!-- Header with badge -->
@@ -77,7 +77,7 @@
       <h3 class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
         <div class="flex items-center gap-2">
           <span class="truncate max-w-[200px]">
-            Portfolio Value
+            Portfolio View
           </span>
           <span
             class="px-2 py-0.5 text-white text-[10px] font-bold rounded-full whitespace-nowrap"

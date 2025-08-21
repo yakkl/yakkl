@@ -29,7 +29,8 @@ export class ModTemplate {
       description: config.description || 'Track and analyze your crypto portfolio',
       category: 'finance',
       tags: ['portfolio', 'tracking', 'analytics'],
-      tier: 'community'
+      tier: 'community',
+      version: '2.0.2'
     })
     .withUI([
       {
@@ -52,7 +53,8 @@ export class ModTemplate {
       description: config.description || 'Automated trading strategies',
       category: 'trading',
       tags: ['trading', 'automation', 'bot'],
-      tier: 'pro'
+      tier: 'pro',
+      version: '2.0.2'
     })
     .withBackground(['trading-engine.js'])
     .withAPI(['execute-trade', 'get-strategies'])
@@ -67,7 +69,8 @@ export class ModTemplate {
       description: config.description || 'Monitor DeFi positions and yields',
       category: 'defi',
       tags: ['defi', 'yield', 'dashboard'],
-      tier: 'community'
+      tier: 'community',
+      version: '2.0.2'
     })
     .withUI([
       {
@@ -89,7 +92,8 @@ export class ModTemplate {
       description: config.description || 'Display and manage NFT collections',
       category: 'nft',
       tags: ['nft', 'gallery', 'collectibles'],
-      tier: 'community'
+      tier: 'community',
+      version: '2.0.2'
     })
     .withUI([
       {
@@ -112,7 +116,8 @@ export class ModTemplate {
       description: config.description || 'Set price alerts for cryptocurrencies',
       category: 'alerts',
       tags: ['alerts', 'notifications', 'price'],
-      tier: 'community'
+      tier: 'community',
+      version: '2.0.2'
     })
     .withBackground(['price-monitor.js'])
     .withUI([
@@ -136,7 +141,8 @@ export class ModTemplate {
       description: config.description || 'Analyze transaction patterns and costs',
       category: 'analytics',
       tags: ['analytics', 'transactions', 'gas'],
-      tier: 'pro'
+      tier: 'pro',
+      version: '2.0.2'
     })
     .withUI([
       {
@@ -159,7 +165,8 @@ export class ModTemplate {
       description: config.description || 'Scan transactions and contracts for security issues',
       category: 'security',
       tags: ['security', 'scanner', 'audit'],
-      tier: 'private'
+      tier: 'private',
+      version: '2.0.2'
     })
     .withBackground(['security-scanner.js'])
     .withAPI(['scan-transaction', 'scan-contract'])
@@ -174,7 +181,8 @@ export class ModTemplate {
       description: config.description || 'Secure backup and recovery management',
       category: 'security',
       tags: ['backup', 'recovery', 'security'],
-      tier: 'enterprise'
+      tier: 'enterprise',
+      version: '2.0.2'
     })
     .withUI([
       {

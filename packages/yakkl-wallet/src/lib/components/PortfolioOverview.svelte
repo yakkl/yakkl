@@ -1,8 +1,13 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { derived, get } from 'svelte/store';
   import { currentAccount, accountStore } from '$lib/stores/account.store';
   import { currentChain, chainStore } from '$lib/stores/chain.store';
-  import { currentPortfolioValue } from '$lib/stores/simple-wallet-cache.store';
+  import { 
+    currentPortfolioValue,
+    walletCacheStore
+  } from '$lib/stores/wallet-cache.store';
+  import { tokenStore } from '$lib/stores/token.store';
   import ProtectedValue from './ProtectedValue.svelte';
   import { canUseFeature, getPlanBadgeText, getPlanBadgeColor, getCurrentPlan } from '$lib/utils/features';
   import { planStore } from '$lib/stores/plan.store';
@@ -68,6 +73,19 @@
     }, 3000);
   }, 2000); // 2 second debounce delay
 
+  // Type for view modes
+  type ViewMode = 'current_account' | 'single_network' | 'all_networks' | 'watch_list' | 'hierarchy';
+  
+  // Type for network values
+  interface NetworkValue {
+    chainId: number;
+    chainName: string;
+    value: bigint;
+    percentage: number;
+    icon?: string;
+    color: string;
+  }
+  
   // State
   let isExpanded = $state(false);
   let isMultiChain = $state(false);
@@ -80,9 +98,7 @@
   let planLoaded = $state(false);
   let hasProAccess = $state(false);
 
-  // Use stability service for portfolio value
-  const stableValue = portfolioStability.getStableValue();
-  const portfolioState = portfolioStability.getPortfolioState();
+  // Use the current portfolio value directly from the store
   let stablePortfolioValue = $state(0n);
   let lastKnownLayoutMode = $state<'large' | 'normal'>('normal');
 
@@ -97,7 +113,7 @@
     const currentValue = $currentPortfolioValue;
     if (currentValue && currentValue > 0n) {
       stablePortfolioValue = currentValue;
-      // lastKnownLayoutMode = currentValue >= 10000n ? 'large' : 'normal';
+      lastKnownLayoutMode = currentValue >= 10000n ? 'large' : 'normal';
     }
 
     log.info('[PortfolioOverview] Initial values from stores', false, {
@@ -106,55 +122,37 @@
     });
   });
 
-  // Portfolio value stability effect - use stability service
+  // Update portfolio value when it changes
   $effect(() => {
-    const currentValue = $portfolioTotal;
-    if (currentValue === undefined || currentValue === null) return;
-
-    // Update the stability service with the new value
-    const source = $isInitializing ? 'optimistic' : 'cache';
-    portfolioStability.updatePortfolioValue(currentValue, source);
-  });
-
-  // Update stable portfolio value from stability service
-  $effect(() => {
-    const value = $stableValue;
-    stablePortfolioValue = BigNumberishUtils.toBigInt(value);
-    // lastKnownLayoutMode = stablePortfolioValue >= 10000n ? 'large' : 'normal';
-  });
-
-  // Update state based on portfolio state changes
-  $effect(() => {
-    const state = $portfolioState;
-    if (state === PortfolioState.ERROR) {
-      log.warn('[PortfolioOverview] Portfolio in error state', false);
+    const currentValue = $currentPortfolioValue;
+    if (currentValue !== undefined && currentValue !== null) {
+      // Only update if the value actually changed and is valid
+      if (currentValue > 0n) {
+        stablePortfolioValue = currentValue;
+        lastKnownLayoutMode = currentValue >= 10000n ? 'large' : 'normal';
+        log.info('[PortfolioOverview] Portfolio value updated', false, {
+          value: currentValue.toString()
+        });
+      }
     }
   });
 
   // Cleanup on component destroy
   onDestroy(() => {
-    // Reset stability service state when component unmounts
-    // This is optional, only if you want to reset between navigations
-    // portfolioStability.reset();
+    // Component cleanup if needed
   });
 
   // Update reactive values from stores
   $effect(() => {
-    isMultiChain = $isMultiChainView;
     chain = $currentChain;
     accounts = $accountStore?.accounts || [];
-    isFirstLoad = $isInitializing;
-    everLoaded = $hasEverLoaded;
-
-    // Sync view mode with multi-chain state
-    if (isMultiChain) {
-      viewMode = 'all_networks';
-    } else {
-      // Default to current_account for single chain view
-      viewMode = 'current_account';
-    }
+    // Simple multi-chain detection based on view mode
+    isMultiChain = viewMode === 'all_networks';
   });
 
+  // Track current plan type for badge display
+  let currentPlanType = $state<PlanType>(PlanType.EXPLORER_MEMBER);
+  
   // Update Pro access check reactively when plan changes - but don't block on it
   $effect(() => {
     const plan = $planStore;
@@ -163,13 +161,23 @@
       if (!plan.loading) {
         planLoaded = true;
         hasProAccess = canUseFeature('advanced_analytics');
-        log.info('[PortfolioOverview] Plan loaded, hasProAccess:', false, { hasProAccess, planType: plan.plan?.type });
+        currentPlanType = plan.plan?.type || PlanType.EXPLORER_MEMBER;
+        log.info('[PortfolioOverview] Plan loaded:', false, { 
+          hasProAccess, 
+          planType: plan.plan?.type,
+          currentPlanType 
+        });
       } else {
         // Use defaults while loading
         log.info('[PortfolioOverview] Plan still loading, using defaults', false);
         hasProAccess = false; // Default to false while loading
       }
     }
+  });
+  
+  // Load plan on mount to ensure it's available
+  onMount(async () => {
+    await planStore.loadPlan();
   });
 
   // Log state changes for debugging
@@ -184,26 +192,8 @@
   });
 
   // Get total portfolio value based on view mode using rollup stores
-  const portfolioTotal = derived(
-    [currentPortfolioValue, currentChainTotal, grandPortfolioTotal, watchListTotal, primaryAccountHierarchy],
-    ([$currentValue, $chainTotal, $grandTotal, $watchList, $hierarchy]) => {
-      // Ensure we always return a valid BigNumberish value
-      switch (viewMode) {
-        case 'current_account':
-          return $currentValue || 0n;
-        case 'single_network':
-          return $chainTotal || 0n;
-        case 'all_networks':
-          return $grandTotal || 0n;
-        case 'watch_list':
-          return $watchList || 0n;
-        case 'hierarchy':
-          return $hierarchy?.totalWithDerived || $hierarchy?.totalValue || 0n;
-        default:
-          return $currentValue || 0n;
-      }
-    }
-  );
+  // Simplified portfolio total - just use currentPortfolioValue for now
+  const portfolioTotal = currentPortfolioValue;
 
   // Calculate network values from the new cache architecture
   const networkValues = derived(
@@ -420,19 +410,14 @@
   }
 
   function cycleViewMode() {
-    // Cycle through view modes
-    const modes: ViewMode[] = ['current_account', 'single_network', 'all_networks', 'watch_list', 'hierarchy'];
+    // Cycle through view modes - for now only support the two main modes
+    const modes: ViewMode[] = ['current_account', 'all_networks'];
     const currentIndex = modes.indexOf(viewMode);
     const nextIndex = (currentIndex + 1) % modes.length;
     viewMode = modes[nextIndex];
 
     // Update multi-chain view state based on view mode
-    const shouldBeMultiChain = viewMode === 'all_networks' || viewMode === 'watch_list';
-    if (shouldBeMultiChain && !isMultiChain) {
-      tokenStore.toggleMultiChainView();
-    } else if (!shouldBeMultiChain && isMultiChain) {
-      tokenStore.toggleMultiChainView();
-    }
+    isMultiChain = viewMode === 'all_networks';
   }
 
   function getViewModeLabel(): string {
@@ -461,11 +446,6 @@
         const watchCount = $walletCacheStore?.accountMetadata?.watchListAccounts?.length || 0;
         return `${watchCount} watched account${watchCount !== 1 ? 's' : ''}`;
       case 'hierarchy':
-        const hierarchy = $primaryAccountHierarchy;
-        if (hierarchy) {
-          const derivedCount = hierarchy.derivedAccounts?.length || 0;
-          return derivedCount > 0 ? `Primary + ${derivedCount} derived` : 'Primary account';
-        }
         return 'Account hierarchy';
       case 'current_account':
       default:
@@ -508,9 +488,13 @@
       // Only set loading for user-initiated refreshes
       loading = true;
 
-      // Use tokenStore refresh to trigger background update
-      // The store will handle communication with background service
-      await tokenStore.refresh(true);
+      // Trigger a force recalculation of all token values
+      await walletCacheStore.recalculateAllTokenValues();
+      
+      // Also refresh if we have tokenStore available
+      if (typeof tokenStore !== 'undefined' && tokenStore?.refresh) {
+        await tokenStore.refresh(true);
+      }
 
       // Set timeout for refresh (10 seconds)
       refreshTimeout = setTimeout(() => {
@@ -571,7 +555,7 @@
   </div>
 {:else if !hasProAccess}
   <!-- Basic User View -->
-  <div class="{className} rounded-2xl p-6 shadow-md hover:shadow-lg transition-all duration-300" style="background-color: {getPlanBadgeColor()}20">
+  <div class="{className} rounded-2xl p-6 shadow-md hover:shadow-lg transition-all duration-300" style="background-color: {getPlanBadgeColor(currentPlanType)}20">
     <div class="space-y-3">
       <!-- Header with badge -->
       <div class="flex items-start justify-between gap-2">
@@ -582,9 +566,9 @@
             </span>
             <span
               class="px-2 py-0.5 text-white text-[10px] font-bold rounded-full whitespace-nowrap"
-              style="background-color: {getPlanBadgeColor()}"
+              style="background-color: {getPlanBadgeColor(currentPlanType)}"
             >
-              {getPlanBadgeText()}
+              {getPlanBadgeText(currentPlanType)}
             </span>
           </div>
           <span class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 block">
@@ -724,9 +708,9 @@
               </span>
               <span
                 class="px-2 py-0.5 text-white text-[10px] font-bold rounded-full whitespace-nowrap"
-                style="background-color: {getPlanBadgeColor()}"
+                style="background-color: {getPlanBadgeColor(currentPlanType)}"
               >
-                {getPlanBadgeText()}
+                {getPlanBadgeText(currentPlanType)}
               </span>
             </div>
             <span class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 block">

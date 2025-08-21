@@ -29,6 +29,7 @@ import { onDappListener } from './dapp';
 import { getCurrentlySelectedData } from '$lib/common/shortcuts';
 import { BackgroundIntervalService } from '$lib/services/background-interval.service';
 import { BackgroundPriceService } from '../../../../background/services/background-price.service';
+import { BackgroundTransactionService } from '../../../../background/services/background-transaction.service';
 import { IdleManager } from '$lib/managers/IdleManager';
 import { getYakklSettings } from '$lib/common/stores';
 
@@ -801,6 +802,15 @@ async function initializeOnStartup() {
       log.error('[Background] Failed to start price service:', false, error);
     }
 
+    // Initialize background transaction service for fetching transaction history
+    try {
+      const transactionService = BackgroundTransactionService.getInstance();
+      await transactionService.start();
+      log.info('[Background] Background transaction service started');
+    } catch (error) {
+      log.error('[Background] Failed to start transaction service:', false, error);
+    }
+
     // Initialize IdleManager with system-wide monitoring
     // Wrap in setTimeout to avoid blocking initial startup
     setTimeout(async () => {
@@ -809,8 +819,8 @@ async function initializeOnStartup() {
         if (settings?.idleSettings?.enabled !== false) { // Default to enabled
           const idleManager = IdleManager.initialize({
             width: 'system-wide',
-            threshold: (settings?.idleSettings?.detectionMinutes || 5) * 60 * 1000,
-            lockDelay: (settings?.idleSettings?.graceMinutes || 2) * 60 * 1000,
+            threshold: (settings?.idleSettings?.detectionMinutes || 2) * 60 * 1000,
+            lockDelay: (settings?.idleSettings?.graceMinutes || 1) * 60 * 1000,
             checkInterval: 15000
           });
           log.info('[Background] IdleManager initialized with system-wide monitoring');

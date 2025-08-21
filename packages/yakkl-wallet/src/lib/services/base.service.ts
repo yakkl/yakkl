@@ -3,6 +3,8 @@ import messagingService from '$lib/common/messaging';
 import type { ServiceResponse, ErrorState } from '../types';
 import { log } from '$lib/common/logger-wrapper';
 
+console.log('[base.service] base.service.ts loaded');
+
 export abstract class BaseService {
   protected serviceName: string;
   protected port?: any;
@@ -33,8 +35,8 @@ export abstract class BaseService {
         log.warn(`[BaseService.${this.serviceName}] Messaging service not initialized`);
         return {
           success: false,
-          error: { 
-            hasError: true, 
+          error: {
+            hasError: true,
             message: 'Messaging service not initialized',
             code: 'SERVICE_NOT_INITIALIZED'
           }
@@ -69,8 +71,8 @@ export abstract class BaseService {
         log.warn(`[BaseService.${this.serviceName}] Messaging service error:`, false, error);
         return {
           success: false,
-          error: { 
-            hasError: true, 
+          error: {
+            hasError: true,
             message: `Messaging service error: ${error instanceof Error ? error.message : 'Unknown error'}`,
             code: 'MESSAGING_ERROR'
           }

@@ -2,12 +2,23 @@ import type { MessageHandlerFunc, MessageResponse } from './MessageHandler';
 import browser from 'webextension-polyfill';
 import { log } from '$lib/common/logger-wrapper';
 import { lockWalletBackground } from '../utils/lockWalletBackground';
-import type { SessionToken, StoreHashResponse } from '$lib/common/interfaces';
+import type { SessionToken } from '$lib/common/interfaces';
+import { IdleManager } from '$lib/managers/IdleManager';
+import { BackgroundJWTValidatorService } from '$lib/services/background-jwt-validator.service';
 
 // Session token management
-let bgMemoryHash: string | null = null;
+let bgMemoryHash: string | null = null; // Used in STORE_SESSION_HASH and REFRESH_SESSION handlers
 let bgSessionToken: SessionToken | null = null;
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+
+// In-memory JWT storage (secure, not persisted, cleared on browser restart)
+let jwtToken: string | null = null;
+let jwtExpiry: number = 0;
+let loginTime: number = 0;
+let userId: string | null = null;
+let username: string | null = null;
+let profileId: string | null = null;
+let planLevel: string | null = null;
 
 function generateSessionToken(): SessionToken {
   const token = `yakkl_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
@@ -230,6 +241,136 @@ export const sessionHandlers = new Map<string, MessageHandlerFunc>([
       return { success: true };
     } catch (error) {
       log.error('[SessionHandler] Error closing windows:', false, error);
+      return {
+        success: false,
+        error: (error as Error).message
+      };
+    }
+  }],
+
+  ['USER_LOGIN_SUCCESS', async (payload): Promise<MessageResponse> => {
+    try {
+      log.info('[SessionHandler] USER_LOGIN_SUCCESS received', false, {
+        hasJWT: !!payload?.jwtToken,
+        hasUserId: !!payload?.userId,
+        hasUsername: !!payload?.username,
+        jwtLength: payload?.jwtToken?.length || 0
+      });
+
+      // Store JWT and user info in memory (secure, not persisted)
+      if (payload?.jwtToken) {
+        jwtToken = payload.jwtToken;
+        jwtExpiry = Date.now() + (60 * 60 * 1000); // 1 hour expiry
+        loginTime = Date.now();
+        userId = payload.userId || null;
+        username = payload.username || null;
+        profileId = payload.profileId || null;
+        planLevel = payload.planLevel || 'explorer_member';
+
+        log.info('[SessionHandler] JWT stored in memory', false, {
+          hasToken: true,
+          userId,
+          username,
+          planLevel,
+          expiryTime: new Date(jwtExpiry).toISOString()
+        });
+
+        // Start background JWT validation after a grace period (60 seconds)
+        // This prevents immediate validation right after login
+        setTimeout(() => {
+          if (jwtToken) {
+            try {
+              const validator = BackgroundJWTValidatorService.getInstance();
+              validator.notifyLoginSuccess(jwtToken, loginTime);
+              log.info('[SessionHandler] Background JWT validator notified after grace period');
+            } catch (error) {
+              log.warn('[SessionHandler] Failed to notify JWT validator:', false, error);
+            }
+          }
+        }, 60000); // 60 second grace period
+
+        // Also set login verified for idle detection
+        try {
+          const idleManager = IdleManager.getInstance();
+          idleManager.setLoginVerified(true);
+          log.info('[SessionHandler] Idle manager login verification set');
+        } catch (error) {
+          log.warn('[SessionHandler] Failed to set idle login verification:', false, error);
+        }
+
+        return { success: true, data: { message: 'JWT stored successfully' } };
+      } else {
+        log.warn('[SessionHandler] USER_LOGIN_SUCCESS received without JWT token');
+        return { success: false, error: 'No JWT token provided' };
+      }
+    } catch (error) {
+      log.error('[SessionHandler] Error handling USER_LOGIN_SUCCESS:', false, error);
+      return { success: false, error: 'Failed to process login success' };
+    }
+  }],
+
+  ['GET_JWT_TOKEN', async (): Promise<MessageResponse> => {
+    try {
+      // Check if JWT exists and is not expired
+      if (jwtToken && jwtExpiry > Date.now()) {
+        return { 
+          success: true, 
+          data: { 
+            token: jwtToken,
+            expiresAt: jwtExpiry,
+            userId,
+            username,
+            profileId,
+            planLevel
+          } 
+        };
+      } else {
+        return { success: false, error: 'No valid JWT token available' };
+      }
+    } catch (error) {
+      log.error('[SessionHandler] Error getting JWT token:', false, error);
+      return { success: false, error: 'Failed to retrieve JWT token' };
+    }
+  }],
+
+  ['CLEAR_JWT_TOKEN', async (): Promise<MessageResponse> => {
+    try {
+      jwtToken = null;
+      jwtExpiry = 0;
+      loginTime = 0;
+      userId = null;
+      username = null;
+      profileId = null;
+      planLevel = null;
+      log.info('[SessionHandler] JWT token cleared from memory');
+      return { success: true };
+    } catch (error) {
+      log.error('[SessionHandler] Error clearing JWT token:', false, error);
+      return { success: false, error: 'Failed to clear JWT token' };
+    }
+  }],
+
+  ['SET_IDLE_LOGIN_VERIFIED', async (payload): Promise<MessageResponse> => {
+    try {
+      const { verified } = payload || {};
+      log.info('[SessionHandler] Setting idle login verification:', false, { verified });
+
+      // Get the IdleManager instance and set login verification
+      try {
+        const idleManager = IdleManager.getInstance();
+        idleManager.setLoginVerified(verified === true);
+        log.info('[SessionHandler] IdleManager login verification set successfully:', false, { verified });
+      } catch (error) {
+        log.warn('[SessionHandler] IdleManager not initialized or error setting verification:', false, error);
+        // Don't fail the request if IdleManager isn't ready yet
+      }
+
+      return { 
+        success: true,
+        data: { verified }
+      };
+    } catch (error) {
+      log.error('[SessionHandler] Error setting idle login verification:', false, error);
       return {
         success: false,
         error: (error as Error).message
