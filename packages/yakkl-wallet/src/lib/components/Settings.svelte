@@ -308,6 +308,8 @@
 				return 'Early Adopter';
 			case PlanType.YAKKL_PRO:
 				return 'YAKKL Pro';
+			case PlanType.YAKKL_PRO_PLUS:
+				return 'YAKKL Pro+';
 			case PlanType.ENTERPRISE:
 				return 'Enterprise';
 			default:

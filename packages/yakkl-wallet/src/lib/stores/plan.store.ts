@@ -28,23 +28,41 @@ function createPlanStore() {
       update(state => ({ ...state, loading: true }));
 
       try {
-        // Get plan from settings
-        const settings = await getYakklSettings();
-        
-        // Check both plan.type and planType fields (for backward compatibility)
-        const planType = settings?.plan?.type || (settings as any)?.planType || PlanType.EXPLORER_MEMBER;
-        const trialEndsAt = (settings as any)?.plan?.trialEndsAt as string || null;
-        
-        log.info('[PlanStore] Loading plan from settings:', {
-          settingsPlanType: settings?.plan?.type,
-          settingsPlanTypeAlt: (settings as any)?.planType,
-          resolvedPlanType: planType,
-          hasSettings: !!settings
+        // Get plan from profile data (the authoritative source)
+        const profile = await getProfile();
+        let planType = PlanType.EXPLORER_MEMBER;
+        let trialEndsAt: string | null = null;
+        let subscriptionId: string | undefined = undefined;
+
+        if (profile?.data) {
+          if (isEncryptedData(profile.data)) {
+            // Decrypt profile data to get plan type
+            const miscStore = getMiscStore();
+            const profileData = await decryptData(profile.data, miscStore) as ProfileData;
+            if (profileData) {
+              planType = profileData.planType || PlanType.EXPLORER_MEMBER;
+              // Trial and subscription info could be stored in profile too
+              trialEndsAt = (profileData as any).trialEndsAt || null;
+              subscriptionId = (profileData as any).subscriptionId;
+            }
+          } else {
+            // Unencrypted profile data (shouldn't happen in production)
+            const profileData = profile.data as ProfileData;
+            planType = profileData.planType || PlanType.EXPLORER_MEMBER;
+            trialEndsAt = (profileData as any).trialEndsAt || null;
+            subscriptionId = (profileData as any).subscriptionId;
+          }
+        }
+
+        log.info('[PlanStore] Loading plan from profile:', {
+          profilePlanType: planType,
+          hasProfile: !!profile,
+          isEncrypted: profile?.data ? isEncryptedData(profile.data) : false
         });
 
         // Check if user is on trial
         const onTrial = isTrialUser(trialEndsAt);
-        const effectivePlan = onTrial ? PlanType.YAKKL_PRO : planType;
+        const effectivePlan = onTrial ? PlanType.YAKKL_PRO : planType; // TODO: Update to Pro Plus if needed
 
         // Update the feature manager with the current plan
         setUserPlan(effectivePlan as PlanType);
@@ -53,12 +71,13 @@ function createPlanStore() {
           plan: {
             type: effectivePlan as PlanType,
             trialEndsAt: trialEndsAt,
-            subscriptionId: (settings as any)?.plan?.subscriptionId,
+            subscriptionId: subscriptionId,
             features: getFeaturesForPlan(effectivePlan as PlanType) as string[]
           },
           loading: false
         });
       } catch (error) {
+        log.error('[PlanStore] Error loading plan:', error);
         // Default to basic plan on error
         set({
           plan: {
@@ -119,14 +138,8 @@ function createPlanStore() {
           }
         }
 
-        // Update local storage for persistence
-        const settings = await getYakklSettings();
-        if (settings) {
-          settings.plan.type = newPlan as PlanType;
-          settings.plan.trialEndDate = null as string | null; // Clear trial when upgrading
-          settings.plan.upgradeDate = new Date().toISOString();
-          await setYakklSettingsStorage(settings);
-        }
+        // Do NOT store plan type in yakklSettings - it belongs in ProfileData only
+        // yakklSettings should only contain UI preferences, not account data
 
         // Update the store
         update(state => ({
@@ -181,6 +194,7 @@ function createPlanStore() {
         const trialEndsAt = new Date();
         trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
 
+        // TODO: Update to Pro Plus if needed
         update(state => ({
           ...state,
           plan: {
@@ -203,7 +217,7 @@ function createPlanStore() {
 
     getUpgradeOptions(currentPlan: PlanType) {
       // Note: Need to check dates to see if planType.EARLY_ADOPTER or planType.FOUNDING_MEMBER are still active
-      const plans = [PlanType.EXPLORER_MEMBER, PlanType.YAKKL_PRO, PlanType.EARLY_ADOPTER, PlanType.FOUNDING_MEMBER, PlanType.ENTERPRISE];
+      const plans = [PlanType.EXPLORER_MEMBER, PlanType.YAKKL_PRO, PlanType.YAKKL_PRO_PLUS, PlanType.EARLY_ADOPTER, PlanType.FOUNDING_MEMBER, PlanType.ENTERPRISE];
       const currentIndex = plans.indexOf(currentPlan);
       return plans.slice(currentIndex + 1);
     },
@@ -251,7 +265,7 @@ export const currentPlan = derived(
 
 export const isProUser = derived(
   planStore,
-  $store => $store?.plan?.type === (PlanType.YAKKL_PRO || $store.plan.type === PlanType.ENTERPRISE || $store.plan.type === PlanType.EARLY_ADOPTER || $store.plan.type === PlanType.FOUNDING_MEMBER)
+  $store => $store?.plan?.type === (PlanType.YAKKL_PRO || $store.plan.type === PlanType.YAKKL_PRO_PLUS || $store.plan.type === PlanType.ENTERPRISE || $store.plan.type === PlanType.EARLY_ADOPTER || $store.plan.type === PlanType.FOUNDING_MEMBER)
 );
 
 export const isOnTrial = derived(

@@ -3,7 +3,7 @@
   import { derived, get } from 'svelte/store';
   import { currentAccount, accountStore } from '$lib/stores/account.store';
   import { currentChain, chainStore } from '$lib/stores/chain.store';
-  import { 
+  import {
     currentPortfolioValue,
     walletCacheStore
   } from '$lib/stores/wallet-cache.store';
@@ -75,7 +75,7 @@
 
   // Type for view modes
   type ViewMode = 'current_account' | 'single_network' | 'all_networks' | 'watch_list' | 'hierarchy';
-  
+
   // Type for network values
   interface NetworkValue {
     chainId: number;
@@ -85,7 +85,7 @@
     icon?: string;
     color: string;
   }
-  
+
   // State
   let isExpanded = $state(false);
   let isMultiChain = $state(false);
@@ -152,7 +152,7 @@
 
   // Track current plan type for badge display
   let currentPlanType = $state<PlanType>(PlanType.EXPLORER_MEMBER);
-  
+
   // Update Pro access check reactively when plan changes - but don't block on it
   $effect(() => {
     const plan = $planStore;
@@ -162,10 +162,10 @@
         planLoaded = true;
         hasProAccess = canUseFeature('advanced_analytics');
         currentPlanType = plan.plan?.type || PlanType.EXPLORER_MEMBER;
-        log.info('[PortfolioOverview] Plan loaded:', false, { 
-          hasProAccess, 
+        log.info('[PortfolioOverview] Plan loaded:', false, {
+          hasProAccess,
           planType: plan.plan?.type,
-          currentPlanType 
+          currentPlanType
         });
       } else {
         // Use defaults while loading
@@ -174,7 +174,7 @@
       }
     }
   });
-  
+
   // Load plan on mount to ensure it's available
   onMount(async () => {
     await planStore.loadPlan();
@@ -464,6 +464,8 @@
         return 'bg-green-600 text-white border-green-600 hover:bg-green-700';
       case PlanType.YAKKL_PRO:
         return 'bg-teal-600 text-white border-teal-600 hover:bg-teal-700';
+      case PlanType.YAKKL_PRO_PLUS:
+        return 'bg-pink-600 text-white border-pink-600 hover:bg-pink-700';
       case PlanType.ENTERPRISE:
         return 'bg-purple-600 text-white border-purple-600 hover:bg-purple-700';
       case PlanType.EXPLORER_MEMBER:
@@ -490,7 +492,7 @@
 
       // Trigger a force recalculation of all token values
       await walletCacheStore.recalculateAllTokenValues();
-      
+
       // Also refresh if we have tokenStore available
       if (typeof tokenStore !== 'undefined' && tokenStore?.refresh) {
         await tokenStore.refresh(true);

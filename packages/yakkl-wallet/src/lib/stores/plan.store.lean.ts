@@ -32,6 +32,10 @@ function createPlanStore() {
       update(state => ({ ...state, loading: true }));
 
       try {
+        // TODO: Update to Pro Plus if needed
+
+        // TODO: ProfileData for real Plan Type
+
         const settings = await getYakklSettings();
         // Convert old plan types to new ones
         const planType = settings?.plan?.type;
@@ -40,7 +44,7 @@ function createPlanStore() {
 
         // Check if user is on trial (Pro features during trial)
         const onTrial = trialEndDate && new Date(trialEndDate) > new Date();
-        const effectivePlan = onTrial ? PlanType.YAKKL_PRO : planType;
+        const effectivePlan = onTrial ? PlanType.YAKKL_PRO : planType; // TODO: Update to Pro Plus if needed
 
         // Update feature manager
         featureManager.setPlan(planType);
@@ -98,7 +102,7 @@ export const currentPlan = derived(
 
 export const isProUser = derived(
   planStore,
-  $store => featureManager.hasAccess(PlanType.YAKKL_PRO) || featureManager.hasAccess(PlanType.FOUNDING_MEMBER) || featureManager.hasAccess(PlanType.EARLY_ADOPTER)
+  $store => featureManager.hasAccess(PlanType.YAKKL_PRO) || featureManager.hasAccess(PlanType.YAKKL_PRO_PLUS) || featureManager.hasAccess(PlanType.FOUNDING_MEMBER) || featureManager.hasAccess(PlanType.EARLY_ADOPTER)
 );
 
 export const isOnTrial = derived(

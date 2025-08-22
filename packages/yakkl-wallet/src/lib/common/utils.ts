@@ -98,10 +98,12 @@ export function getCurrentFunctionInfo(depth = 2): { name: string; location: str
 	return { name: 'unknown', location: 'unknown' };
 }
 
+// TODO: May want to verify with profile.planType for "REAL" PRO users
 export async function isProLevel(): Promise<boolean> {
 	const settings = await getYakklSettings();
 	return (
 		settings?.plan.type === PlanType.YAKKL_PRO ||
+		settings?.plan.type === PlanType.YAKKL_PRO_PLUS ||
 		settings?.plan.type === PlanType.FOUNDING_MEMBER ||
 		settings?.plan.type === PlanType.EARLY_ADOPTER
 	);
@@ -140,6 +142,7 @@ export async function isFullyPro(providedSettings?: YakklSettings): Promise<bool
 
 	return (
 		(plan.type === PlanType.YAKKL_PRO ||
+			plan.type === PlanType.YAKKL_PRO_PLUS ||
 			plan.type === PlanType.FOUNDING_MEMBER ||
 			plan.type === PlanType.EARLY_ADOPTER) &&
 		plan.source !== AccessSourceType.TRIAL &&
@@ -156,8 +159,10 @@ export async function canUpgrade(providedSettings?: YakklSettings): Promise<bool
 	const { plan } = settings;
 
 	// Fully Pro users (paid or promo) can't upgrade
+  // TODO: Pro Plus is not included here but is a special case
 	if (
 		(plan.type === PlanType.YAKKL_PRO ||
+			plan.type === PlanType.YAKKL_PRO_PLUS ||
 			plan.type === PlanType.FOUNDING_MEMBER ||
 			plan.type === PlanType.EARLY_ADOPTER) &&
 		plan.source !== AccessSourceType.TRIAL &&

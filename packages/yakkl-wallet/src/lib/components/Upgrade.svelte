@@ -18,7 +18,7 @@
   let upgradeStep = $state('overview'); // 'overview', 'selecting', 'processing', 'success'
   let isProcessing = $state(false);
   let progress = $state(0);
-  let selectedPlan = $state(PlanType.YAKKL_PRO);
+  let selectedPlan = $state(PlanType.YAKKL_PRO); // TODO: Update to Pro Plus if needed
   let statusMessage = $state('');
 
   // Plan features configuration
@@ -27,6 +27,8 @@
       'Basic wallet functionality',
       'Up to 3 accounts',
       'Standard networks',
+      'Full Swap Functionality',
+      'Strong Security',
       'Community support'
     ],
     [PlanType.FOUNDING_MEMBER]: [
@@ -44,8 +46,10 @@
       'Priority feedback'
     ],
     [PlanType.YAKKL_PRO]: [
+      'AI Assistant',
       'Unlimited accounts',
       'Advanced analytics',
+      'Advanced security',
       'Custom networks',
       'Pro extensions',
       'Priority support',
@@ -54,6 +58,15 @@
       'DeFi integrations',
       'Portfolio tracking',
       'Advanced trading tools'
+    ],
+    [PlanType.YAKKL_PRO_PLUS]: [ // TODO: Maybe we add a Plus Plan Add-on? or MAX Plan?
+      'Everything in Pro',
+      'AI Assistant Plus',
+      'Multiple Visualizations to data',
+      'Rapid Support',
+      'Custom Features',
+      'Access to Innovation Lab',
+      'Advanced Pro+ Security'
     ],
     [PlanType.ENTERPRISE]: [
       'Everything in Pro',

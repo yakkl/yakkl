@@ -57,6 +57,7 @@ class FeatureManager {
       [PlanType.YAKKL_PRO]: 2,
       [PlanType.EARLY_ADOPTER]: 2.5, // Higher than Pro, lower than Founding
       [PlanType.FOUNDING_MEMBER]: 3, // Highest prestige Pro-level
+      [PlanType.YAKKL_PRO_PLUS]: 3.5, // Higher than Pro - TODO: May want to have a Pro+ add-on or MAX Plan?
       [PlanType.ENTERPRISE]: 4
     };
 
@@ -88,6 +89,8 @@ class FeatureManager {
       case PlanType.EARLY_ADOPTER:
       case PlanType.YAKKL_PRO:
         return PLAN_FEATURES.PRO;
+      case PlanType.YAKKL_PRO_PLUS:
+        return PLAN_FEATURES.PRO_PLUS;
       case PlanType.ENTERPRISE:
         return PLAN_FEATURES.ENTERPRISE;
       default:
@@ -130,6 +133,8 @@ export const getPlanBadgeText = (plan?: PlanType): string => {
       return 'EARLY / PRO';
     case PlanType.YAKKL_PRO:
       return 'PRO';
+    case PlanType.YAKKL_PRO_PLUS:
+      return 'PRO+';
     case PlanType.ENTERPRISE:
       return 'ENTERPRISE';
     case PlanType.EXPLORER_MEMBER:
@@ -148,6 +153,8 @@ export const getPlanBadgeColor = (plan?: PlanType): string => {
       return 'oklch(71.97% 0.149 142.5 / 1)'; // Green with similar characteristics
     case PlanType.YAKKL_PRO:
       return 'oklch(71.97% 0.149 192.5 / 1)'; // Teal with similar characteristics
+    case PlanType.YAKKL_PRO_PLUS:
+      return 'oklch(71.97% 0.149 212.5 / 1)'; // Teal with similar characteristics
     case PlanType.ENTERPRISE:
       return 'oklch(71.97% 0.149 266.5 / 1)'; // Purple with similar characteristics
     case PlanType.EXPLORER_MEMBER:
@@ -165,6 +172,8 @@ export const getPlanGradientClass = (plan?: PlanType): string => {
       return 'from-green-500 to-emerald-600';
     case PlanType.YAKKL_PRO:
       return 'from-teal-500 to-cyan-600';
+    case PlanType.YAKKL_PRO_PLUS:
+      return 'from-pink-500 to-rose-600';
     case PlanType.ENTERPRISE:
       return 'from-purple-500 to-indigo-600';
     case PlanType.EXPLORER_MEMBER:
