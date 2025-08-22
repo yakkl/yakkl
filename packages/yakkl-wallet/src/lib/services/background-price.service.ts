@@ -175,6 +175,9 @@ export class BackgroundPriceService {
                 // Update token with new price
                 token.price = price;
                 token.priceLastUpdated = new Date().toISOString();
+              } else if (token.price && token.price > 0) {
+                // Keep existing valid price if new fetch returned 0 or null
+                log.debug(`[BackgroundPriceService] Keeping existing price for ${token.symbol}: ${token.price} (new price was ${price})`);
 
                 // Calculate value (balance * price) using proper BigNumber math
                 try {

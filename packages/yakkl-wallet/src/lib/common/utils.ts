@@ -29,6 +29,61 @@ let extensionContextValid = true;
 // Queue for operations that need valid extension context
 const contextDependentOperations: Array<() => void> = [];
 
+export function generateUniqueId(): string {
+	return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+export interface FeatureAccess {
+	bookmarks: {
+		enabled: boolean;
+		maxCount: number;
+		currentCount?: number;
+		voiceNotes: boolean;
+		stickyNotes: boolean;
+		aiFeatures: boolean;
+		export: boolean;
+		import: boolean;
+	};
+	newsFeeds: {
+		enabled: boolean;
+		maxFeeds: number;
+	};
+	tokens: {
+		enabled: boolean;
+		maxVisible: number;
+	};
+}
+
+export async function getFeatureAccess(): Promise<FeatureAccess> {
+	const settings = await getYakklSettings();
+	const planType = settings?.plan?.type || 'explorer_member';
+	
+	// Determine if user is Pro level or higher
+	const isProUser = planType !== 'explorer_member';
+	const isFoundingMember = planType === 'founding_member';
+	const isEarlyAdopter = planType === 'early_adopter';
+	
+	return {
+		bookmarks: {
+			enabled: true, // Free for all users!
+			maxCount: isProUser ? -1 : 50, // -1 means unlimited
+			voiceNotes: isProUser,
+			stickyNotes: isProUser,
+			aiFeatures: isFoundingMember || isEarlyAdopter,
+			export: true, // Allow export for all
+			import: isProUser
+		},
+		newsFeeds: {
+			enabled: true,
+			maxFeeds: isProUser ? 10 : 3
+		},
+		tokens: {
+			enabled: true,
+			maxVisible: isProUser ? -1 : 10
+		}
+	};
+}
+
 export function isExtensionContextValid(): boolean {
 	try {
 		// Multiple checks to ensure context is valid

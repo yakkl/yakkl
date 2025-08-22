@@ -31,6 +31,7 @@ import { EthersConverter } from '$lib/managers/utilities/EthersConverter';
 import { ethers as ethersv6 } from 'ethers-v6';
 import { log } from '$lib/managers/Logger';
 import { RPCAlchemy } from '$managers/providers/network/alchemy/RPCAlchemy';
+import { providerRoutingManager } from '$lib/managers/ProviderRoutingManager';
 
 interface AlchemyOptions {
 	apiKey?: string | null;
@@ -350,9 +351,13 @@ export class Alchemy extends AbstractProvider {
 			);
 			const balance = BigInt(result.toString());
 			eventManager.emit('balanceFetched', { address: addressOrName, balance });
+			// Track successful request
+			providerRoutingManager.resetProviderStatus(this.name);
 			return balance;
 		} catch (error) {
 			eventManager.emit('error', { provider: this.name, method: 'getBalance', error });
+			// Track provider failure for automatic failover
+			providerRoutingManager.trackProviderFailure(this.name, error);
 			throw error;
 		}
 	}

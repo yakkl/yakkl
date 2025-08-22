@@ -6,6 +6,7 @@
 	import type { RSSItem } from '$lib/managers/ExtensionRSSFeedService';
 	import { yakklBookmarkedArticlesStore, setYakklBookmarkedArticles } from '$lib/common/stores';
 	import { derived } from 'svelte/store';
+	import { enhancedBookmarkStore } from '$lib/stores/enhancedBookmark.store';
 
 	let {
 		article,
@@ -213,6 +214,8 @@
 				(a) => !(a.title === article.title && a.source === article.source)
 			);
 			await setYakklBookmarkedArticles(updatedArticles);
+			// Also remove from enhanced bookmarks
+			await enhancedBookmarkStore.removeBookmarkByUrl(article.url);
 		} else {
 			// Check for duplicates before adding
 			const isDuplicate = bookmarkedArticles.some(
@@ -220,9 +223,21 @@
 			);
 
 			if (!isDuplicate) {
-				// Add to bookmarks only if not a duplicate
-				const updatedArticles = [...bookmarkedArticles, article];
+				// Add to bookmarks only if not a duplicate - prepend to show at top
+				const updatedArticles = [article, ...bookmarkedArticles];
 				await setYakklBookmarkedArticles(updatedArticles);
+				
+				// Also add to enhanced bookmarks
+				await enhancedBookmarkStore.addBookmark({
+					url: article.url || '',
+					title: article.title || 'Untitled',
+					description: article.description || article.content || '',
+					imageUrl: article.imageUrl || '/images/logoBull48x48.png',
+					contentType: article.contentType || 'article',
+					source: article.source || '',
+					tags: article.categories || [],
+					notes: []
+				});
 			}
 		}
 	}

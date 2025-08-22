@@ -23,6 +23,8 @@ export interface ProviderConfig {
   remainingQuota?: number;  // Free tier tracking
   totalRequests: number;    // Total requests made
   lastUsed?: Date;         // Last time provider was used
+  lastFailure?: Date;      // Last failure timestamp
+  lastError?: string;      // Last error message
 }
 
 export interface ProviderStats {
@@ -51,6 +53,7 @@ export class ProviderRoutingManager {
   private chainId: number = 1; // Default to mainnet
   private readonly MAX_FAILURES = 3; // Auto-suspend after 3 failures
   private readonly SUSPEND_DURATION = 5 * 60 * 1000; // 5 minutes
+  private readonly ERROR_TRACK_WINDOW = 60 * 1000; // Track errors within 1 minute window
 
   private constructor() {
     this.initializeDefaultProviders();
@@ -70,7 +73,7 @@ export class ProviderRoutingManager {
     // Alchemy - highest weight, most reliable
     this.addProvider({
       name: 'alchemy',
-      weight: 10,  // Increased weight since it's the only working provider
+      weight: 7,  // Primary provider with good weight
       enabled: true,
       suspended: false,
       overrideCount: -1, // Normal routing
@@ -82,12 +85,12 @@ export class ProviderRoutingManager {
       totalRequests: 0
     });
 
-    // Infura - disabled by default to avoid auth popups until properly implemented
+    // Infura - backup provider with lower weight
     this.addProvider({
       name: 'infura',
-      weight: 0,  // Zero weight means it won't be selected
-      enabled: false,  // Disabled to prevent auth issues
-      suspended: true,  // Suspended until implemented
+      weight: 5,  // Lower weight as backup provider
+      enabled: true,  // Enabled as backup (user will fix API keys)
+      suspended: false,  // Active for failover
       overrideCount: -1,
       failureCount: 0,
       avgResponseTime: 0,
@@ -525,10 +528,79 @@ export class ProviderRoutingManager {
   }
 
   /**
+   * Track provider failure - called on ANY error
+   */
+  trackProviderFailure(providerName: string, error: any): void {
+    const config = this.providers.get(providerName);
+    if (!config) return;
+
+    // Store error details
+    config.lastFailure = new Date();
+    config.lastError = error?.message || error?.toString() || 'Unknown error';
+    config.failureCount++;
+
+    log.warn(`[ProviderRouting] Provider ${providerName} failed (${config.failureCount}/${this.MAX_FAILURES}):`, config.lastError);
+
+    // Record failure metrics
+    this.recordProviderMetrics(providerName, 0, false);
+
+    // Auto-suspend if max failures reached
+    if (config.failureCount >= this.MAX_FAILURES) {
+      this.suspendProvider(providerName);
+      log.error(`[ProviderRouting] Provider ${providerName} suspended after ${this.MAX_FAILURES} failures`);
+    }
+  }
+
+  /**
+   * Reset provider status after successful request
+   */
+  resetProviderStatus(providerName: string): void {
+    const config = this.providers.get(providerName);
+    if (!config) return;
+
+    // Only reset if there were recent failures
+    if (config.failureCount > 0) {
+      log.info(`[ProviderRouting] Provider ${providerName} recovered, resetting failure count`);
+      config.failureCount = 0;
+      config.lastError = undefined;
+    }
+  }
+
+  /**
+   * Get healthy providers (not failed or suspended)
+   */
+  getHealthyProviders(): string[] {
+    const healthy: string[] = [];
+    const now = new Date();
+
+    for (const [name, config] of this.providers) {
+      if (!config.enabled || config.suspended) continue;
+
+      // Check if suspension expired
+      if (config.suspendedUntil && config.suspendedUntil <= now) {
+        config.suspended = false;
+        config.suspendedUntil = undefined;
+        config.failureCount = 0; // Reset on resume
+        log.info(`[ProviderRouting] Provider ${name} suspension expired`);
+      }
+
+      // Include if healthy (no recent failures or low failure rate)
+      if (!config.suspended && config.failureCount < this.MAX_FAILURES) {
+        healthy.push(name);
+      }
+    }
+
+    return healthy;
+  }
+
+  /**
    * Handle provider failure with auto-failover
    */
   async handleProviderFailure(failedProvider: string, error?: any): Promise<Provider> {
     log.warn(`[ProviderRouting] Provider ${failedProvider} failed, attempting failover`);
+
+    // Track the failure (works for ANY error type)
+    this.trackProviderFailure(failedProvider, error);
 
     // Check if this is an authentication error (401 or auth popup)
     const isAuthError = error && (
@@ -543,24 +615,24 @@ export class ProviderRoutingManager {
       log.error(`[ProviderRouting] Authentication error for ${failedProvider}, disabling provider`);
       // Immediately disable provider to prevent further auth popups
       this.disableProvider(failedProvider);
-    } else {
-      // Record normal failure
-      this.recordProviderMetrics(failedProvider, 0, false);
     }
 
-    // Get next provider excluding the failed one
-    const availableProviders = this.getAvailableProviders()
-      .filter(p => p.name !== failedProvider);
+    // Get healthy providers excluding the failed one
+    const healthyProviders = this.getHealthyProviders()
+      .filter(name => name !== failedProvider);
 
-    if (availableProviders.length === 0) {
-      log.error('[ProviderRouting] No alternative providers available, using public RPC as last resort');
-      // Return a fake provider that won't cause auth issues
-      // This should trigger the app to use the public RPC URLs we configured
+    if (healthyProviders.length === 0) {
+      log.error('[ProviderRouting] No healthy providers available');
       throw new Error('All providers failed. Please check your RPC configuration.');
     }
 
-    // Select next provider
-    const nextProvider = this.getWeightedRandomProvider(availableProviders);
+    // Get configs for healthy providers
+    const availableConfigs = healthyProviders
+      .map(name => this.providers.get(name))
+      .filter((config): config is ProviderConfig => config !== undefined);
+
+    // Select next provider using weighted random selection
+    const nextProvider = this.getWeightedRandomProvider(availableConfigs);
     log.info(`[ProviderRouting] Failing over to provider: ${nextProvider}`);
 
     return this.getProviderInstance(nextProvider);
