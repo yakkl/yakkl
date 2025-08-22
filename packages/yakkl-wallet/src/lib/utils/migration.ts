@@ -278,6 +278,9 @@ export class MigrationUtils {
     if (legacySettings.isProLevel || legacySettings.plan === 'pro') {
       return PlanType.YAKKL_PRO;
     }
+    if (legacySettings.isProLevel || legacySettings.plan === 'pro_plus') {
+      return PlanType.YAKKL_PRO_PLUS;
+    }
     if (legacySettings.plan === 'enterprise') {
       return PlanType.ENTERPRISE;
     }
@@ -345,18 +348,6 @@ export const FEATURE_COMPARISON = {
     'Multiple accounts',
     'DApp connection',
     'Hardware wallet support'
-  ],
-  preview2: [
-    'All legacy features',
-    'Enhanced UI/UX',
-    'Feature-based access control',
-    'Subscription management',
-    'Crypto payment gateway',
-    'AI assistance (Pro)',
-    'Advanced analytics (Pro)',
-    'White-label support',
-    'Real-time notifications',
-    'Improved security'
   ],
   new: [
     'Enhanced UI/UX',

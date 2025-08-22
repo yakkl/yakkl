@@ -32,9 +32,15 @@ export class StandardNewsManager implements INewsManager {
 	private readonly STANDARD_REFRESH_INTERVAL = 60; // minutes
 
 	private readonly PRO_FEED_LIMIT = 50;
-	private readonly PRO_BOOKMARK_LIMIT = 1000;
+	private readonly PRO_BOOKMARK_LIMIT = 500;
 	private readonly PRO_ARTICLES_PER_FEED = 50;
-	private readonly PRO_REFRESH_INTERVAL = 5; // minutes
+	private readonly PRO_REFRESH_INTERVAL = 10; // minutes
+
+	// TODO: Update to Pro Plus if needed
+	private readonly PRO_PLUS_FEED_LIMIT = 100;
+	private readonly PRO_PLUS_BOOKMARK_LIMIT = 2000;
+	private readonly PRO_PLUS_ARTICLES_PER_FEED = 100;
+	private readonly PRO_PLUS_REFRESH_INTERVAL = 5; // minutes
 
 	async initialize(planType: PlanType): Promise<void> {
 		this.planType = planType;
@@ -46,7 +52,7 @@ export class StandardNewsManager implements INewsManager {
 	}
 
 	isAdvancedFeaturesEnabled(): boolean {
-		return this.planType === PlanType.YAKKL_PRO || this.planType === PlanType.ENTERPRISE;
+		return this.planType === PlanType.YAKKL_PRO || this.planType === PlanType.YAKKL_PRO_PLUS || this.planType === PlanType.ENTERPRISE;
 	}
 
 	private async loadBookmarks(): Promise<void> {

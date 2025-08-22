@@ -8,6 +8,7 @@ const envPath = fs.existsSync('.env') ? '.env' : '.env.standard';
 dotenv.config({ path: envPath });
 
 const isPro = process.env.YAKKL_PRO === 'true';
+const isProPlus = process.env.YAKKL_PRO_PLUS === 'true';
 const isPrivate = process.env.YAKKL_PRIVATE === 'true';
 
 // Fallback shim path if overlay is missing
@@ -20,7 +21,12 @@ export function getYakklAliases() {
 	};
 
 	try {
-		if (isPro && fs.existsSync('./pro/overlay')) {
+		if (isProPlus && fs.existsSync('./pro_plus/overlay')) {
+			aliases['$pro_plus'] = path.resolve('./pro_plus/overlay');
+		} else if (isProPlus) {
+			console.warn('⚠️  Pro Plus overlay not found, falling back to shim.');
+			aliases['$pro_plus'] = fallbackShim;
+		} else if (isPro && fs.existsSync('./pro/overlay')) {
 			aliases['$pro'] = path.resolve('./pro/overlay');
 		} else if (isPro) {
 			console.warn('⚠️  Pro overlay not found, falling back to shim.');

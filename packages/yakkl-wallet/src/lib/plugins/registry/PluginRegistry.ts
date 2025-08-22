@@ -82,7 +82,7 @@ export class PluginRegistry {
 			}
 
 			// Load appropriate implementations based on plan
-			if (planType === PlanType.YAKKL_PRO || planType === PlanType.ENTERPRISE) {
+			if (planType === PlanType.YAKKL_PRO || planType === PlanType.YAKKL_PRO_PLUS || planType === PlanType.ENTERPRISE) {
 				this.managers = await this.loadProManagers();
 			} else {
 				this.managers = await this.loadStandardManagers();
@@ -187,7 +187,7 @@ export class PluginRegistry {
 	 * Get available features based on plan type
 	 */
 	private getAvailableFeatures(planType: PlanType): PluginFeatures {
-		const isAdvanced = planType === PlanType.YAKKL_PRO || planType === PlanType.ENTERPRISE;
+		const isAdvanced = planType === PlanType.YAKKL_PRO || planType === PlanType.YAKKL_PRO_PLUS || planType === PlanType.ENTERPRISE;
 
 		return {
 			advancedTrading: isAdvanced,

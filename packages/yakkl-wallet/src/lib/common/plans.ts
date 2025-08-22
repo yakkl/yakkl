@@ -39,22 +39,28 @@ export const PlanMetadata: Record<
 		priority: 5,
 		description: 'Advanced wallet security and analytics'
 	},
+	yakkl_pro_plus: {
+		label: 'YAKKL PRO+',
+		color: 'pink',
+		priority: 6,
+		description: 'Advanced professional wallet security and analytics'
+	},
 	business: {
 		label: 'Business',
 		color: 'blue',
-		priority: 6,
+		priority: 7,
 		description: 'Multi-account tools for teams'
 	},
 	institution: {
 		label: 'Institution',
 		color: 'indigo',
-		priority: 7,
+		priority: 8,
 		description: 'Access controls and audit logging'
 	},
 	enterprise: {
 		label: 'Enterprise',
 		color: 'purple',
-		priority: 8,
+		priority: 9,
 		description: 'Custom contracts and integrations'
 	}
 };

@@ -45,6 +45,16 @@ const PRO_FEATURES = [
   'network_diagnostics' // Advanced troubleshooting tools
 ] as const;
 
+const PRO_PLUS_FEATURES = [
+  ...PRO_FEATURES,
+  'ai_assistant_plus',
+  'multiple_visualizations',
+  'rapid_support',
+  'custom_features',
+  'access_to_innovation_lab',
+  'advanced_pro_plus_security'
+] as const;
+
 const ENTERPRISE_FEATURES = [
   ...PRO_FEATURES,
   'white_label',
@@ -64,6 +74,7 @@ const PAYMENT_FEATURES = [
 export const FEATURES = {
   [PlanType.EXPLORER_MEMBER]: BASIC_FEATURES,
   [PlanType.YAKKL_PRO]: PRO_FEATURES,
+  [PlanType.YAKKL_PRO_PLUS]: PRO_PLUS_FEATURES,
   [PlanType.ENTERPRISE]: ENTERPRISE_FEATURES,
   PAYMENT: PAYMENT_FEATURES
 } as const;
@@ -72,6 +83,7 @@ export const FEATURES = {
 export const PLAN_FEATURES = {
   BASIC: BASIC_FEATURES,
   PRO: PRO_FEATURES,
+  PRO_PLUS: PRO_PLUS_FEATURES,
   ENTERPRISE: ENTERPRISE_FEATURES
 } as const;
 
@@ -79,6 +91,7 @@ export const PLAN_FEATURES = {
 export type FeatureKey =
   | typeof BASIC_FEATURES[number]
   | typeof PRO_FEATURES[number]
+  | typeof PRO_PLUS_FEATURES[number]
   | typeof ENTERPRISE_FEATURES[number];
 
 // Helper function to check if a feature is available

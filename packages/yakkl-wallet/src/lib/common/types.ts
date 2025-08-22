@@ -146,6 +146,7 @@ export enum RegisteredType {
 	FOUNDING_MEMBER = 'founding_member',
 	EARLY_ADOPTER = 'early_adopter',
 	YAKKL_PRO = 'yakkl_pro',
+	YAKKL_PRO_PLUS = 'yakkl_pro_plus',
 	INSTITUTION = 'institution',
 	BUSINESS = 'business',
 	ENTERPRISE = 'enterprise'
@@ -157,6 +158,7 @@ export enum PlanType {
 	FOUNDING_MEMBER = 'founding_member',
 	EARLY_ADOPTER = 'early_adopter',
 	YAKKL_PRO = 'yakkl_pro',
+	YAKKL_PRO_PLUS = 'yakkl_pro_plus',
 	INSTITUTION = 'institution',
 	BUSINESS = 'business',
 	ENTERPRISE = 'enterprise'
@@ -177,6 +179,7 @@ export enum PromoClassificationType {
 	FOUNDING_MEMBER = 'founding_member',
 	EARLY_ADOPTER = 'early_adopter',
 	YAKKL_PRO = 'yakkl_pro',
+	YAKKL_PRO_PLUS = 'yakkl_pro_plus',
 	INFLUENCER = 'influencer',
 	EMPLOYEE = 'employee',
 	SPECIAL = 'special',
