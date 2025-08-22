@@ -702,12 +702,65 @@ function createWalletCacheStore() {
 			});
 		},
 
-		// Switch active account without clearing cache
-		switchAccount(address: string) {
+		// Switch active account and ensure data is loaded
+		async switchAccount(address: string) {
+			const normalizedAddress = address.toLowerCase();
+			const currentState = get({ subscribe });
+			
+			console.log('[WalletCache] Switching account to:', normalizedAddress);
+			
+			// Step 1: Update active account address and clear rollups for clean transition
 			update((cache) => ({
 				...cache,
-				activeAccountAddress: address.toLowerCase()
+				activeAccountAddress: normalizedAddress,
+				// Clear portfolio rollups to force recalculation
+				portfolioRollups: {
+					...cache.portfolioRollups,
+					byAccountChain: {},
+					byAccount: {},
+					byChain: {},
+					grandTotal: {
+						totalValue: 0n,
+						tokenCount: 0,
+						accountCount: 0,
+						chainCount: 0,
+						nativeTokenValue: 0n,
+						erc20TokenValue: 0n,
+						lastCalculated: new Date(),
+						breakdown: {
+							byTokenAddress: {},
+							byChain: {},
+							byAccount: {}
+						}
+					}
+				}
 			}));
+			
+			// Step 2: Check if we have cache for this account
+			const accountCache = this.getAccountCache(currentState.activeChainId, normalizedAddress);
+			
+			// Step 3: If no cache or empty cache, trigger initialization
+			if (!accountCache || !accountCache.tokens || accountCache.tokens.length === 0) {
+				console.log('[WalletCache] No cache for account, triggering sync manager initialization');
+				
+				// Import and use cache sync manager to initialize account data
+				// Using dynamic import to avoid circular dependency
+				const { CacheSyncManager } = await import('$lib/services/cache-sync.service');
+				const syncManager = CacheSyncManager.getInstance();
+				
+				// Initialize account data (this will fetch tokens, prices, transactions)
+				await syncManager.initializeCurrentAccount();
+				
+				// Force immediate sync to ensure data is loaded
+				await syncManager.syncCurrentAccount();
+			} else {
+				console.log('[WalletCache] Cache exists for account, recalculating rollups');
+				
+				// If cache exists, just recalculate rollups with existing data
+				await this.calculateAllRollups();
+			}
+			
+			console.log('[WalletCache] Account switch complete');
 		},
 
 		// Switch active chain without clearing cache
@@ -2201,6 +2254,7 @@ export const allTransactionsByNetworkAndAccount = derived(walletCacheStore, ($ca
 // Track last known good values to prevent flickering
 let lastKnownPortfolioValue: bigint = 0n;
 let lastKnownAccount: string | null = null;
+let isAccountSwitching = false;
 
 // Enhanced: Use rollup data if available, fallback to direct calculation
 export const currentPortfolioValue = derived(walletCacheStore, ($cache) => {
@@ -2208,18 +2262,25 @@ export const currentPortfolioValue = derived(walletCacheStore, ($cache) => {
 
 	// Validate inputs first
 	if (!activeChainId || !activeAccountAddress) {
-		console.log('currentPortfolioValue: Missing activeChainId or activeAccountAddress, using last known:', lastKnownPortfolioValue, {
-			activeChainId,
-			activeAccountAddress
-		});
-		return lastKnownPortfolioValue;  // Return last known instead of 0
+		console.log('currentPortfolioValue: Missing activeChainId or activeAccountAddress, returning 0');
+		return 0n;  // Return 0 when no account selected
 	}
 
-	// Reset if account changed
-	if (lastKnownAccount && lastKnownAccount !== activeAccountAddress) {
+	// Detect account change and reset cached value
+	if (lastKnownAccount !== activeAccountAddress) {
+		console.log('currentPortfolioValue: Account changed from', lastKnownAccount, 'to', activeAccountAddress);
 		lastKnownPortfolioValue = 0n;
+		lastKnownAccount = activeAccountAddress;
+		isAccountSwitching = true;
+		
+		// Set a flag to track when switching is complete
+		setTimeout(() => {
+			isAccountSwitching = false;
+		}, 100);
+		
+		// Return 0 immediately during account switch to avoid showing stale data
+		return 0n;
 	}
-	lastKnownAccount = activeAccountAddress;
 
 	// Try to get from rollup first (faster) with better error handling
 	if (portfolioRollups && portfolioRollups.byAccountChain) {
@@ -2241,7 +2302,8 @@ export const currentPortfolioValue = derived(walletCacheStore, ($cache) => {
 				lastKnownPortfolioValue = value;
 			}
 			console.log('currentPortfolioValue from rollup (cents) >>>>>>>>>>', value, '→ dollars:', Number(value) / 100, 'key:', key);
-			return value > 0n ? value : lastKnownPortfolioValue;
+			// During account switching, don't use cached values
+			return value > 0n ? value : (isAccountSwitching ? 0n : lastKnownPortfolioValue);
 		} else {
 			console.log('currentPortfolioValue: Rollup found but no totalValue', { key, rollup, availableKeys });
 		}
@@ -2255,13 +2317,14 @@ export const currentPortfolioValue = derived(walletCacheStore, ($cache) => {
 	// Fallback to direct calculation with better error handling
 	const accountCache = chainAccountCache[activeChainId]?.[activeAccountAddress];
 	if (!accountCache) {
-		console.log('currentPortfolioValue: No account cache available, using last known', {
+		console.log('currentPortfolioValue: No account cache available', {
 			activeChainId,
 			activeAccountAddress,
-			lastKnown: lastKnownPortfolioValue,
+			isAccountSwitching,
 			availableChains: Object.keys(chainAccountCache)
 		});
-		return lastKnownPortfolioValue;  // Return last known instead of 0
+		// During account switching, return 0 instead of cached value
+		return isAccountSwitching ? 0n : lastKnownPortfolioValue;
 	}
 
 	// CRITICAL: Calculate fresh value from token data, don't rely on cached portfolio value

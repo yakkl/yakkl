@@ -141,7 +141,7 @@ function createViewStore() {
 
 		// Initialize ViewCacheManager
 		viewCacheManager = ViewCacheManager.getInstance();
-		viewCacheManager.registerUpdateListener(updateListenerId, handleCacheUpdate);
+		viewCacheManager.registerUpdateListener(handleCacheUpdate, updateListenerId);
 
 		// Load initial data
 		await refreshAllViews();
@@ -379,7 +379,7 @@ function createViewStore() {
 		};
 
 		try {
-			let cache: ViewCache<any>;
+			let cache: ViewCache;
 
 			switch (viewType) {
 				case 'accounts':
@@ -473,7 +473,7 @@ function createViewStore() {
 	function destroy() {
 		stopAutoRefresh();
 		if (viewCacheManager) {
-			viewCacheManager.unregisterUpdateListener(updateListenerId);
+			viewCacheManager.unregisterUpdateListener(handleCacheUpdate);
 		}
 		log.info('[ViewStore] Destroyed');
 	}

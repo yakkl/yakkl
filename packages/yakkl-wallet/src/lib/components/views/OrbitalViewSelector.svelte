@@ -43,13 +43,46 @@
 				return '0.00';
 			}
 
-			// Format as currency
-			return new Intl.NumberFormat('en-US', {
-				minimumFractionDigits: 2,
-				maximumFractionDigits: 2
-			}).format(numValue);
+			// Format as currency - use compact notation for large numbers
+			if (numValue >= 1000000) {
+				return new Intl.NumberFormat('en-US', {
+					notation: 'compact',
+					minimumFractionDigits: 1,
+					maximumFractionDigits: 1
+				}).format(numValue).replace('M', 'M').replace('K', 'K');
+			} else {
+				return new Intl.NumberFormat('en-US', {
+					minimumFractionDigits: 2,
+					maximumFractionDigits: 2
+				}).format(numValue);
+			}
 		} catch {
 			return '0.00';
+		}
+	}
+
+	// Get responsive font size for orbital view
+	function getResponsiveFontSize(value: any): string {
+		try {
+			let numValue: number;
+			if (value && typeof value === 'number') {
+				numValue = value / 100;
+			} else if (value && typeof value === 'bigint') {
+				numValue = Number(value) / 100;
+			} else if (value) {
+				numValue = BigNumberishUtils.toNumber(value) / 100;
+			} else {
+				return 'text-lg';
+			}
+
+			// Inverse sizing for circular container - smaller text for larger values
+			if (numValue >= 10000000) return 'text-xs'; // ≥$10M
+			if (numValue >= 1000000) return 'text-sm';  // ≥$1M
+			if (numValue >= 100000) return 'text-base';  // ≥$100K
+			if (numValue >= 10000) return 'text-lg';     // ≥$10K
+			return 'text-xl'; // <$10K
+		} catch {
+			return 'text-lg';
 		}
 	}
 
@@ -156,7 +189,7 @@
 		import('$app/navigation').then(({ goto }) => {
 			switch(viewId) {
 				case 'dashboard':
-					goto('/dashboard');
+					goto('/home');
 					break;
 				case 'accounts':
 					goto('/accounts');
@@ -297,34 +330,50 @@
 		<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full blur-3xl animate-pulse"></div>
 	</div>
 
-	<!-- Central hub -->
-	<div class="portfolio-hub">
-		{#if showTotal}
-			<div class="total-value">
-				<span class="text-xs opacity-75">Portfolio</span>
-				<div class="text-lg font-bold">
-					${formatPortfolioValue(portfolioTotal)}
+	<!-- Central hub with tooltip -->
+	<div class="portfolio-hub-container">
+		<SimpleTooltip text="Combined value across all your accounts and networks" position="top">
+			<div class="portfolio-hub">
+			{#if showTotal}
+				<div class="total-value">
+					<div class="flex flex-col items-center">
+						<span class="text-[10px] opacity-90 leading-none">Total</span>
+						<span class="text-xs opacity-90 leading-tight -mt-0.5">Portfolio</span>
+					</div>
+					<div class="{getResponsiveFontSize(portfolioTotal)} font-bold mt-1 transition-all duration-300">
+						${formatPortfolioValue(portfolioTotal)}
+					</div>
 				</div>
-			</div>
-		{:else}
-			<div class="hub-icon">
-				<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={views.find(v => v.id === selectedView)?.icon} />
-				</svg>
-			</div>
-		{/if}
+			{:else}
+				<div class="hub-icon">
+					<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={views.find(v => v.id === selectedView)?.icon} />
+					</svg>
+				</div>
+			{/if}
 
-		{#if $isRefreshing}
-			<div class="absolute inset-0 rounded-full border-4 border-t-transparent border-white/30 animate-spin"></div>
-		{/if}
+			{#if $isRefreshing}
+				<div class="absolute inset-0 rounded-full border-4 border-t-transparent border-white/30 animate-spin"></div>
+			{/if}
+			</div>
+		</SimpleTooltip>
+	</div>
 
-		<!-- Active view indicator arrow -->
-		<div class="active-indicator" style="transform: rotate({-$rotation}deg)">
-			<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-				<path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+	<!-- Active view indicator arrow (stationary on right of selected item) -->
+	{#if selectedView}
+		{@const selectedViewData = views.find(v => v.id === selectedView)}
+		{@const angleRad = ((selectedViewData?.angle || 0) + $rotation) * Math.PI / 180}
+		{@const arrowX = 200 + Math.cos(angleRad) * 190}
+		{@const arrowY = 200 + Math.sin(angleRad) * 190}
+		<div 
+			class="active-indicator-arrow"
+			style="left: {arrowX}px; top: {arrowY}px; transform: translate(-50%, -50%) rotate({(selectedViewData?.angle || 0) + $rotation}deg);"
+		>
+			<svg width="20" height="20" viewBox="0 0 20 20">
+				<path d="M 5 10 L 15 5 L 15 15 Z" fill="currentColor"/>
 			</svg>
 		</div>
-	</div>
+	{/if}
 
 	<!-- Orbiting cards -->
 	<div
@@ -413,8 +462,15 @@
 		cursor: grabbing;
 	}
 
-	.portfolio-hub {
+	.portfolio-hub-container {
 		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		z-index: 10;
+	}
+
+	.portfolio-hub {
 		width: 120px;
 		height: 120px;
 		border-radius: 50%;
@@ -426,7 +482,6 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		z-index: 10;
 		box-shadow:
 			0 0 40px rgba(59, 130, 246, 0.5),
 			inset 0 0 20px rgba(255, 255, 255, 0.2);
@@ -434,15 +489,23 @@
 		border: 2px solid rgba(255, 255, 255, 0.3);
 	}
 
-	.active-indicator {
+	.active-indicator-arrow {
 		position: absolute;
-		right: -30px;
-		top: 50%;
-		transform-origin: -90px center;
-		color: #3b82f6;
-		filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-		transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+		z-index: 15;
 		pointer-events: none;
+		color: #10b981;
+		filter: drop-shadow(0 2px 8px rgba(16, 185, 129, 0.5));
+		animation: pulse-arrow 2s ease-in-out infinite;
+		transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+	}
+
+	@keyframes pulse-arrow {
+		0%, 100% {
+			filter: drop-shadow(0 2px 8px rgba(16, 185, 129, 0.5));
+		}
+		50% {
+			filter: drop-shadow(0 2px 12px rgba(16, 185, 129, 0.8));
+		}
 	}
 
 	.total-value {

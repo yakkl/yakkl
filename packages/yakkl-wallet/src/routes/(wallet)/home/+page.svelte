@@ -69,7 +69,6 @@
   let showPincodeModal = $state(false);
   let isVisible = $state(get(visibilityStore));
   let pendingAction = $state<'show' | 'hide' | null>(null);
-  let previousNativePrice = $state<number | null>(null);
   let nativePriceDirection = $state<'up' | 'down' | null>(null);
   let selectedTransaction = $state(null);
   let showTransactionDetailModal = $state(false);
@@ -528,17 +527,43 @@
   // Track native price changes and update direction indicator
   $effect(() => {
     try {
-      // Use simple number comparisons since nativePrice is already a number
-      if (nativePrice && nativePrice > 0 && previousNativePrice !== null && previousNativePrice > 0) {
-        if (nativePrice > previousNativePrice) {
-          nativePriceDirection = 'up';
-        } else if (nativePrice < previousNativePrice) {
-          nativePriceDirection = 'down';
+      if (!nativePrice || nativePrice <= 0) {
+        return; // No price to track
+      }
+
+      const chainId = chain?.chainId;
+      if (!chainId) {
+        return; // No chain to track
+      }
+
+      // Try to get stored price from localStorage
+      const storedPriceKey = `native_price_${chainId}`;
+      const storedPrice = localStorage.getItem(storedPriceKey);
+      
+      if (storedPrice) {
+        const stored = parseFloat(storedPrice);
+        if (stored > 0 && stored !== nativePrice) {
+          // Set direction based on comparison with stored price
+          if (nativePrice > stored) {
+            nativePriceDirection = 'up';
+          } else {
+            nativePriceDirection = 'down';
+          }
+        } else {
+          // Same price or invalid stored price
+          // Show up arrow for positive sentiment on first load
+          if (!nativePriceDirection) {
+            nativePriceDirection = 'up';
+          }
         }
+      } else {
+        // No stored price - first time seeing this chain
+        // Default to up arrow for positive sentiment
+        nativePriceDirection = 'up';
       }
-      if (nativePrice && nativePrice > 0) {
-        previousNativePrice = nativePrice;
-      }
+
+      // Always store current price for next comparison
+      localStorage.setItem(storedPriceKey, nativePrice.toString());
     } catch (error) {
       console.error('Error in native price tracking effect:', error);
     }

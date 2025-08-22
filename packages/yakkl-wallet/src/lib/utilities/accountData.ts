@@ -127,11 +127,11 @@ export async function collectAccountData(
 /**
  * Enhanced function that provides immediate cached data and progressive updates
  */
-export function collectAccountDataProgressive(
+export async function collectAccountDataProgressive(
 	accounts: YakklAccount[],
 	wallet: Wallet,
 	onUpdate: (data: AccountData[]) => void
-): AccountData[] {
+): Promise<AccountData[]> {
 	const price = get(yakklPricingStore)?.price ?? 0;
 	const currency = new Intl.NumberFormat('en-US', {
 		style: 'currency',
@@ -141,8 +141,8 @@ export function collectAccountDataProgressive(
 	});
 
 	// Step 1: Create initial data array with cached balances or loading states
-	const initialData: AccountData[] = accounts.map((account) => {
-		const cached = balanceCacheManager.getCachedBalance(account.address);
+	const initialData: AccountData[] = await Promise.all(accounts.map(async (account) => {
+		const cached = await balanceCacheManager.getCachedBalance(account.address);
 
 		if (cached) {
 			const quantityFormatted = (Number(cached.balance) / 1e18).toFixed(6);
@@ -176,7 +176,7 @@ export function collectAccountDataProgressive(
 				isStale: false
 			};
 		}
-	});
+	}));
 
 	// Step 2: Start progressive balance loading with timeout (only if cached data is old)
 	const loadingPromises = initialData.map(async (accountData, index) => {
