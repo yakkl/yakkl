@@ -123,13 +123,11 @@ export class Infura extends AbstractProvider {
 		privateKey: string | null,
 		blockchains: string[] = [
 			'Ethereum',
-			'Solana',
 			'Optimism',
 			'Polygon',
 			'Base',
 			'Arbitrum',
 			'Avalanche',
-			'Celo'
 		],
 		chainIds: number[] = [1, 10, 69, 137, 80001, 42161, 421611, 11155111],
 		blockchain: string = 'Ethereum',
@@ -144,11 +142,11 @@ export class Infura extends AbstractProvider {
 	}
 
 	async connect(): Promise<void> {
-		// Implementation for connecting to Alchemy
+		// Implementation for connecting to Infura
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
 	async request(method: string, params: any[]): Promise<any> {
-		// Implementation for sending requests to Alchemy
+		// Implementation for sending requests to Infura
 	}
 }

@@ -28,8 +28,8 @@ import { getAddressesForDomain, verifyDomainConnected } from './verifyDomainConn
 import { onDappListener } from './dapp';
 import { getCurrentlySelectedData } from '$lib/common/shortcuts';
 import { BackgroundIntervalService } from '$lib/services/background-interval.service';
-import { BackgroundPriceService } from '../../../../background/services/background-price.service';
-import { BackgroundTransactionService } from '../../../../background/services/background-transaction.service';
+import { BackgroundPriceService } from '$lib/services/background-price.service';
+import { BackgroundTransactionService } from '$lib/services/background-transaction.service';
 import { IdleManager } from '$lib/managers/IdleManager';
 import { getYakklSettings } from '$lib/common/stores';
 
