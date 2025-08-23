@@ -62,10 +62,13 @@
 		if (!useRealData) return demoTokens;
 		
 		const cache = $walletCacheStore;
-		if (!cache?.tokens) return demoTokens;
+		const { activeChainId, activeAccountAddress, chainAccountCache } = cache;
+		const accountTokens = chainAccountCache?.[activeChainId]?.[activeAccountAddress]?.tokens || [];
+		
+		if (accountTokens.length === 0) return demoTokens;
 		
 		// Transform real tokens
-		return Object.values(cache.tokens).slice(0, 20).map((token: any) => ({
+		return accountTokens.slice(0, 20).map((token: any) => ({
 			symbol: token.symbol,
 			name: token.name,
 			value: token.balance || 0,

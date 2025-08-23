@@ -14,12 +14,13 @@
 
   let {
     show = $bindable(false),
+    fromToken: initialFromToken = null,
     onClose = null,
     onSwap = null
   } = $props();
 
   // State
-  let fromToken = $state<TokenDisplay | null>(null);
+  let fromToken = $state<TokenDisplay | null>(initialFromToken);
   let toToken = $state<TokenDisplay | null>(null);
   let fromAmount = $state('');
   let toAmount = $state('');

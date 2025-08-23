@@ -1,5 +1,7 @@
 // rpc/RPCBase.ts
 import { log } from '$lib/common/logger-wrapper';
+import { EnhancedKeyManager } from '$lib/sdk/security/EnhancedKeyManager';
+import { ProviderConfigAdapter, type CompatibleProviderConfig } from '$lib/sdk/types/adapters';
 
 export interface RPCOptions {
 	baseURL: string;
@@ -7,6 +9,12 @@ export interface RPCOptions {
 	headers?: Record<string, string>;
 	maxRetries?: number;
 	timeout?: number; // milliseconds
+}
+
+export interface ProviderConfig {
+	baseURL: string;
+	apiKey: string | null;
+	network: string;
 }
 
 export class RPCBase {
@@ -90,5 +98,203 @@ export class RPCBase {
 		log.info(`[RPCBase] Sending request:`, false, { method, params });
 
 		return this.fetchWithRetry(payload, headers);
+	}
+
+	/**
+	 * Get standardized provider configuration for any provider and chain
+	 * This centralizes all provider URL patterns and API key retrieval
+	 */
+	static async getProviderConfig(provider: string, chainId: number): Promise<ProviderConfig | null> {
+		// Try cached config first
+		const cached = ProviderConfigAdapter.getCachedConfig(provider, chainId);
+		if (cached) {
+			return cached;
+		}
+		
+		return this.loadProviderConfig(provider, chainId);
+	}
+
+	/**
+	 * Get cached provider configuration synchronously
+	 */
+	static getProviderConfigSync(provider: string, chainId: number): ProviderConfig | null {
+		return ProviderConfigAdapter.getCachedConfig(provider, chainId);
+	}
+
+	/**
+	 * Load provider configuration (internal method)
+	 */
+	static async loadProviderConfig(provider: string, chainId: number): Promise<ProviderConfig | null> {
+		const providerLower = provider.toLowerCase();
+		let apiKey: string | null = null;
+		let baseURL = '';
+		let network = '';
+
+		// Get API key based on provider using EnhancedKeyManager
+		const keyManager = EnhancedKeyManager.getInstance();
+		await keyManager.initialize();
+		
+		switch (providerLower) {
+			case 'alchemy':
+				apiKey = await keyManager.getKey('alchemy', 'read');
+				break;
+			case 'infura':
+				apiKey = process.env.INFURA_API_KEY || process.env.VITE_INFURA_API_KEY || null;
+				break;
+			case 'quicknode':
+				apiKey = process.env.QUICKNODE_API_KEY || process.env.VITE_QUICKNODE_API_KEY || null;
+				break;
+			case 'yakkl':
+				apiKey = process.env.YAKKL_RPC_KEY || null;
+				break;
+			default:
+				log.warn(`[RPCBase] Unknown provider: ${provider}`);
+				return null;
+		}
+
+		if (!apiKey) {
+			log.error(`[RPCBase] No API key found for provider: ${provider}`);
+			return null;
+		}
+
+		// Build URL based on provider and chain
+		switch (providerLower) {
+			case 'alchemy':
+				switch (chainId) {
+					case 1:
+						baseURL = `https://eth-mainnet.g.alchemy.com/v2/${apiKey}`;
+						network = 'mainnet';
+						break;
+					case 11155111:
+						baseURL = `https://eth-sepolia.g.alchemy.com/v2/${apiKey}`;
+						network = 'sepolia';
+						break;
+					case 137:
+						baseURL = `https://polygon-mainnet.g.alchemy.com/v2/${apiKey}`;
+						network = 'polygon';
+						break;
+					case 80001:
+						baseURL = `https://polygon-mumbai.g.alchemy.com/v2/${apiKey}`;
+						network = 'polygon-mumbai';
+						break;
+					case 42161:
+						baseURL = `https://arb-mainnet.g.alchemy.com/v2/${apiKey}`;
+						network = 'arbitrum';
+						break;
+					case 10:
+						baseURL = `https://opt-mainnet.g.alchemy.com/v2/${apiKey}`;
+						network = 'optimism';
+						break;
+					default:
+						// Default to mainnet
+						baseURL = `https://eth-mainnet.g.alchemy.com/v2/${apiKey}`;
+						network = 'mainnet';
+				}
+				break;
+
+			case 'infura':
+				switch (chainId) {
+					case 1:
+						baseURL = `https://mainnet.infura.io/v3/${apiKey}`;
+						network = 'mainnet';
+						break;
+					case 11155111:
+						baseURL = `https://sepolia.infura.io/v3/${apiKey}`;
+						network = 'sepolia';
+						break;
+					case 137:
+						baseURL = `https://polygon-mainnet.infura.io/v3/${apiKey}`;
+						network = 'polygon';
+						break;
+					case 80001:
+						baseURL = `https://polygon-mumbai.infura.io/v3/${apiKey}`;
+						network = 'polygon-mumbai';
+						break;
+					case 42161:
+						baseURL = `https://arbitrum-mainnet.infura.io/v3/${apiKey}`;
+						network = 'arbitrum';
+						break;
+					case 10:
+						baseURL = `https://optimism-mainnet.infura.io/v3/${apiKey}`;
+						network = 'optimism';
+						break;
+					default:
+						// Default to mainnet
+						baseURL = `https://mainnet.infura.io/v3/${apiKey}`;
+						network = 'mainnet';
+				}
+				break;
+
+			case 'quicknode':
+				// QuickNode URLs are custom per user, this is a template
+				switch (chainId) {
+					case 1:
+						baseURL = `https://eth-mainnet.quicknode.pro/${apiKey}`;
+						network = 'mainnet';
+						break;
+					case 11155111:
+						baseURL = `https://sepolia.quicknode.pro/${apiKey}`;
+						network = 'sepolia';
+						break;
+					case 137:
+						baseURL = `https://polygon-mainnet.quicknode.pro/${apiKey}`;
+						network = 'polygon';
+						break;
+					default:
+						baseURL = `https://eth-mainnet.quicknode.pro/${apiKey}`;
+						network = 'mainnet';
+				}
+				break;
+
+			case 'yakkl':
+				// Future YAKKL RPC endpoints
+				switch (chainId) {
+					case 1:
+						baseURL = `https://rpc.yakkl.com/ethereum/mainnet?key=${apiKey}`;
+						network = 'mainnet';
+						break;
+					case 11155111:
+						baseURL = `https://rpc.yakkl.com/ethereum/sepolia?key=${apiKey}`;
+						network = 'sepolia';
+						break;
+					case 137:
+						baseURL = `https://rpc.yakkl.com/polygon/mainnet?key=${apiKey}`;
+						network = 'polygon';
+						break;
+					default:
+						baseURL = `https://rpc.yakkl.com/ethereum/mainnet?key=${apiKey}`;
+						network = 'mainnet';
+				}
+				break;
+		}
+
+		const config = {
+			baseURL,
+			apiKey,
+			network
+		};
+		
+		// Cache the config
+		ProviderConfigAdapter.cacheConfig(`${provider}-${chainId}`, config);
+		
+		return config;
+	}
+
+	/**
+	 * Initialize provider configs - should be called at startup
+	 */
+	static async initializeConfigs(): Promise<void> {
+		const providers = ['alchemy', 'infura'];
+		const chainIds = [1, 5, 137, 80001]; // Common chain IDs
+		
+		for (const provider of providers) {
+			for (const chainId of chainIds) {
+				try {
+					await this.getProviderConfig(provider, chainId);
+				} catch (error) {
+					log.warn(`[RPCBase] Failed to initialize ${provider} config for chain ${chainId}`);
+				}
+			}
+		}
 	}
 }

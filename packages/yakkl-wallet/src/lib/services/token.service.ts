@@ -183,10 +183,12 @@ export class TokenService extends BaseService {
 								const priceManager = new PriceManager();
 								const pair = `${token.symbol.toUpperCase()}-USD`;
 								try {
+									// Initialize the price manager before use
+									await priceManager.initialize();
 									const priceData = await priceManager.getMarketPrice(pair);
 									price = priceData.price;
 								} catch (err) {
-									console.warn(`[TokenService] Could not fetch price for ${pair}`);
+									console.warn(`[TokenService] Could not fetch price for ${pair}:`, err);
 									// Use some realistic default prices for main tokens to get UI working
 									const defaultPrices: Record<string, number> = {
 										ETH: 3579.97,

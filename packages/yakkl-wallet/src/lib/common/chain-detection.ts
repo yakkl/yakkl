@@ -9,8 +9,8 @@ import { detectBlockchainAddress } from './address-detector';
 // Re-export types from the main modules
 export type {
 	ChainConfig,
-	ChainActivity,
-	ChainResolutionResult
+	ChainResolutionResult,
+	ChainActivity
 } from './chain-resolver';
 
 // Import the core functions

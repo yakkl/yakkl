@@ -39,15 +39,13 @@
 	import { safeLogout } from '$lib/common/safeNavigate';
 	import { decryptData } from '$lib/common/encryption';
 	import { isEncryptedData } from '$lib/common/misc';
-	import WalletManager from '$lib/managers/WalletManager';
-	import type { Wallet } from '$lib/managers/Wallet';
+	import { blockchainServiceManager } from '$lib/sdk/BlockchainServiceManager';
 	import { formatEther } from '$lib/utilities/utilities';
 
 	// type RuntimePort = Runtime.Port | undefined;
 
 	let currentlySelected: YakklCurrentlySelected;
 	let yakklMiscStore: string;
-	let wallet: Wallet;
 
 	let showConfirm = $state(false);
 	let showSuccess = $state(false);
@@ -125,20 +123,13 @@
 
 		// Estimate gas if not provided
 		if (!transaction.gasLimit) {
-			const blockchain = wallet?.getBlockchain();
-			if (blockchain?.isSmartContractSupported()) {
-				const isSmartContract = await blockchain.isSmartContract(transaction.to as string);
-				gasLimit = isSmartContract
-					? BigInt(ETH_BASE_SCA_GAS_UNITS)
-					: BigInt(ETH_BASE_EOA_GAS_UNITS);
+			// Use basic gas estimates without provider dependency
+			gasLimit = BigInt(ETH_BASE_EOA_GAS_UNITS);
 
-				// Add extra gas for data
-				if (transaction.data) {
-					const dataLength = (transaction.data as string).length - 2;
-					gasLimit = BigInt(gasLimit) + BigInt(dataLength * 68);
-				}
-			} else {
-				gasLimit = BigInt(ETH_BASE_EOA_GAS_UNITS);
+			// Add extra gas for data
+			if (transaction.data) {
+				const dataLength = (transaction.data as string).length - 2;
+				gasLimit = BigInt(gasLimit) + BigInt(dataLength * 68);
 			}
 
 			// Check for user override
@@ -220,15 +211,6 @@
 						transaction = params[0] as TransactionRequest;
 						address = transaction.from as string;
 
-						if (!wallet) {
-							wallet = WalletManager.getInstance(
-								['Alchemy'],
-								['Ethereum'],
-								chainId,
-								import.meta.env.VITE_ALCHEMY_API_KEY_PROD
-							);
-						}
-
 						await formatTransactionForDisplay();
 						message = `Sign transaction from ${transaction.from} to ${transaction.to}`;
 						log.info('Sign: eth_signTransaction:', false, transaction);
@@ -263,15 +245,11 @@
 				yakklMiscStore = getMiscStore();
 				chainId = currentlySelected.shortcuts.chainId as number;
 
-				// Initialize wallet for eth_signTransaction
-				if (method === 'eth_signTransaction') {
-					wallet = WalletManager.getInstance(
-						['Alchemy'],
-						['Ethereum'],
-						chainId,
-						import.meta.env.VITE_ALCHEMY_API_KEY_PROD
-					);
-				}
+				// Initialize blockchain service manager
+				await blockchainServiceManager.initialize({
+					defaultChainId: chainId,
+					autoSetupProviders: true
+				});
 
 				const sessionInfo = (await browserAPI.runtimeSendMessage({
 					type: 'REQUEST_SESSION_PORT',
@@ -410,13 +388,15 @@
 			transaction.type = transaction.type ?? 2; // Default to EIP-1559
 			transaction.chainId = chainId;
 
-			// Create a signer with the private key
-			await wallet.setSigner((account.data as AccountData).privateKey);
+			// Get provider from SDK
+			const provider = blockchainServiceManager.getProvider();
+			if (!provider) {
+				await handleReject('Provider not available.');
+				return;
+			}
 
-			// Get the blockchain provider from wallet
-			const blockchain = wallet.getBlockchain();
-			const provider = blockchain.getProvider();
-			const signer = provider.getSigner();
+			// Create signer from private key
+			const signer = await provider.getSigner((account.data as AccountData).privateKey);
 
 			// Sign the transaction (but don't send it)
 			const signedTx = await signer.signTransaction(transaction);
