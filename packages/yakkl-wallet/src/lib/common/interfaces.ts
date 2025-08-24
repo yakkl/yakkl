@@ -295,7 +295,7 @@ export interface PriceData {
 }
 
 export interface PriceProvider {
-	getAPIKey(): string;
+	getAPIKey(): string | Promise<string>;
 	getMarketPrice(pair: string): Promise<MarketPriceData>; // Enchanced version of getPrice
 	getName(): string;
 	getProviderPairFormat(pair: string): Promise<string> | Promise<[string, string]>;

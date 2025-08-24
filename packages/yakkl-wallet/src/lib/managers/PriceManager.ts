@@ -2,32 +2,50 @@ import type { PriceData, PriceProvider, WeightedProvider } from '$lib/common/int
 import { CoinbasePriceProvider } from './providers/price/coinbase/CoinbasePriceProvider';
 import { CoingeckoPriceProvider } from './providers/price/coingecko/CoingeckoPriceProvider';
 import { log } from '$lib/managers/Logger';
-
-// import { AlchemyPriceProvider } from './providers/price/alchemy/AlchemyPriceProvider';
 // import { KrakenPriceProvider } from './providers/price/kraken/KrakenPriceProvider';
+
+// NOTE: Not importing blockchain providers for pricing to avoid API charges
+// AlchemyPriceProvider and similar should only be used for blockchain operations
 
 export class PriceManager {
 	private weightedProviders: WeightedProvider[];
 	private totalWeight: number;
 	private readonly DEFAULT_WEIGHT = 1;
 
-	constructor(weightedProviders: WeightedProvider[] = PriceManager.getDefaultProviders()) {
-		if (!weightedProviders || weightedProviders.length === 0) {
-			throw new Error('At least one provider must be specified');
-		}
-
-		this.weightedProviders = this.normalizeWeights(weightedProviders);
+	constructor(weightedProviders?: WeightedProvider[]) {
+		// Initialize with empty providers, will be set asynchronously
+		this.weightedProviders = weightedProviders || [];
 		this.totalWeight = this.calculateTotalWeight();
 	}
 
-	static getDefaultProviders(): WeightedProvider[] {
-		return [
-			// { provider: new AlchemyPriceProvider(), weight: 2 },
+	/**
+	 * Initialize the price manager asynchronously
+	 */
+	async initialize(weightedProviders?: WeightedProvider[]): Promise<void> {
+		const providers = weightedProviders || await PriceManager.getDefaultProviders();
+		
+		if (!providers || providers.length === 0) {
+			throw new Error('At least one provider must be specified');
+		}
+
+		this.weightedProviders = this.normalizeWeights(providers);
+		this.totalWeight = this.calculateTotalWeight();
+	}
+
+	static async getDefaultProviders(): Promise<WeightedProvider[]> {
+		const providers: WeightedProvider[] = [
 			{ provider: new CoinbasePriceProvider(), weight: 8 },
 			{ provider: new CoingeckoPriceProvider(), weight: 5 }
 			// { provider: new KrakenPriceProvider(), weight: 1 },
 			// Add other providers with their weights...
 		];
+
+		// NOTE: Not using blockchain providers (Alchemy, Infura, etc.) for pricing
+		// to avoid API charges. These providers should only be used for blockchain
+		// operations like transactions, balances, etc.
+		// Price data should come from free providers like Coinbase, Coingecko, etc.
+
+		return providers;
 	}
 
 	private normalizeWeights(providers: WeightedProvider[]): WeightedProvider[] {
@@ -71,7 +89,8 @@ export class PriceManager {
 			const price = await provider.getMarketPrice(pair);
 			return price;
 		} catch (error) {
-			log.error(`Error fetching price from ${provider.getName()}:`, false, error);
+			const providerName = provider ? provider.getName() : 'unknown provider';
+			log.error(`Error fetching price from ${providerName}:`, false, error);
 			// Retry with a different provider
 			return this.getMarketPrice(
 				pair,

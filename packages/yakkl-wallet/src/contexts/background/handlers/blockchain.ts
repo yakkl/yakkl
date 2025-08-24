@@ -1,6 +1,6 @@
 import type { MessageHandlerFunc, MessageResponse } from './MessageHandler';
 import { BlockchainExplorer } from '$lib/managers/providers/explorer/BlockchainExplorer';
-import { AlchemyTransactionFetcher } from '$lib/managers/providers/explorer/AlchemyTransactionFetcher';
+// AlchemyTransactionFetcher import removed - using SDK explorer routing manager
 import { getYakklCurrentlySelected } from '$lib/common/stores';
 import { log } from '$lib/common/logger-wrapper';
 import { sendToExtensionUI } from '$lib/common/safeMessaging';

@@ -8,6 +8,11 @@
 
 YAKKL Smart Wallet v2 is a secure, feature-rich browser extension wallet designed for both individual users and enterprises. Built with SvelteKit and TypeScript, it provides advanced security features, multi-chain support, and a seamless user experience.
 
+### Misc Information
+
+https://icons.duckduckgo.com/ip3/yakkl.com.ico = {domain} = yakkl.com or whatever you're looking for
+https://t0.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://yakkl.com&size=64  - {domain} = yakkl.com or whatever you're looking for
+
 ### Key Features
 
 - 🔐 **Enterprise Security**: JWT-based authentication, secure session management, and advanced lock mechanisms
@@ -39,7 +44,7 @@ The wallet uses a sophisticated browser extension architecture:
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - pnpm 8+
 - Chrome/Brave browser for testing
 
@@ -139,7 +144,7 @@ Configure in `settings.json`:
 # Unit tests
 pnpm test:unit
 
-# Integration tests  
+# Integration tests
 pnpm test:integration
 
 # E2E tests

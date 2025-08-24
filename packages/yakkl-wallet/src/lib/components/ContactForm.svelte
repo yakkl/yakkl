@@ -7,8 +7,7 @@
 	import { dateString } from '$lib/common/datetime';
 	import { onMount } from 'svelte';
 	import { yakklCurrentlySelectedStore, yakklContactsStore } from '$lib/common/stores';
-	import WalletManager from '$lib/managers/WalletManager';
-	import type { Wallet } from '$lib/managers/Wallet';
+	import { blockchainServiceManager } from '$lib/sdk/BlockchainServiceManager';
 	import { VERSION } from '$lib/common/constants';
 	import { log } from '$lib/managers/Logger';
 
@@ -28,7 +27,7 @@
 	}: Props = $props();
 
 	const blockchains = ['Ethereum', 'Base', 'Optimism', 'Bitcoin'];
-	let wallet: Wallet;
+	// Removed wallet instance - using SDK instead
 	let currentlySelected;
 	let addressType = 'EOA';
 
@@ -88,12 +87,11 @@
 
 	onMount(async () => {
 		currentlySelected = $yakklCurrentlySelectedStore;
-		wallet = WalletManager.getInstance(
-			['Alchemy'],
-			['Ethereum'],
-			currentlySelected!.shortcuts.chainId ?? 1,
-			import.meta.env.VITE_ALCHEMY_API_KEY_PROD
-		);
+		// Initialize blockchain service manager
+		await blockchainServiceManager.initialize({
+			defaultChainId: currentlySelected!.shortcuts.chainId ?? 1,
+			autoSetupProviders: true
+		});
 	});
 
 	async function verifyContact(fname: string, faddress: string, falias: string, fnote: string) {

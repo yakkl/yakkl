@@ -1,6 +1,6 @@
 {
 	"keys": {
-		"ALCHEMY_API_KEY_PROD": {
+		"ALCHEMY_API_KEY_PROD_1": {
 			"category": "blockchain",
 			"isRequired": false,
 			"description": "Alchemy API key for production environment",

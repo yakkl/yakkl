@@ -39,7 +39,7 @@ export class SigningManager {
 			}
 
 			// Move to a function that gets the api key based on the chainId and network
-			const apiKey = this.keyManager.getKey('ALCHEMY_API_KEY_PROD');
+			const apiKey = this.keyManager.getKey('ALCHEMY_API_KEY_PROD_1');
 
 			if (!apiKey) {
 				log.warn('API key not found in environment variables, using fallback');

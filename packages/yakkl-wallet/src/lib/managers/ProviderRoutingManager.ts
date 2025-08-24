@@ -7,6 +7,7 @@
 import type { Provider } from './Provider';
 import ProviderFactory from './ProviderFactory';
 import { log } from '$lib/common/logger-wrapper';
+import { EnhancedKeyManager } from '$lib/sdk/security/EnhancedKeyManager';
 
 export interface ProviderConfig {
   name: string;
@@ -136,7 +137,7 @@ export class ProviderRoutingManager {
         if (!config || !config.enabled) {
           throw new Error(`Provider ${options.forceProvider} not available`);
         }
-        return this.getProviderInstance(options.forceProvider);
+        return await this.getProviderInstance(options.forceProvider);
       }
 
       // 2. Check current provider override
@@ -146,7 +147,7 @@ export class ProviderRoutingManager {
           // Time-based override takes precedence
           if (config.overrideUntil && config.overrideUntil > new Date()) {
             log.debug(`[ProviderRouting] Using time-override provider: ${this.currentProvider}`);
-            return this.getProviderInstance(this.currentProvider);
+            return await this.getProviderInstance(this.currentProvider);
           }
 
           // Count-based override
@@ -154,12 +155,12 @@ export class ProviderRoutingManager {
             if (config.overrideCount === 0) {
               // Permanent override
               log.debug(`[ProviderRouting] Using permanent-override provider: ${this.currentProvider}`);
-              return this.getProviderInstance(this.currentProvider);
+              return await this.getProviderInstance(this.currentProvider);
             } else if (config.overrideCount > 0) {
               // Decrement count
               config.overrideCount--;
               log.debug(`[ProviderRouting] Using count-override provider: ${this.currentProvider}, remaining: ${config.overrideCount}`);
-              return this.getProviderInstance(this.currentProvider);
+              return await this.getProviderInstance(this.currentProvider);
             }
           }
 
@@ -188,7 +189,7 @@ export class ProviderRoutingManager {
 
       // 4. Normal weighted random selection
       const selectedName = this.getWeightedRandomProvider(availableProviders);
-      const provider = this.getProviderInstance(selectedName);
+      const provider = await this.getProviderInstance(selectedName);
 
       // Update last used
       const config = this.providers.get(selectedName);
@@ -284,7 +285,7 @@ export class ProviderRoutingManager {
   /**
    * Get provider instance (NEVER store API keys in variables)
    */
-  private getProviderInstance(name: string): Provider {
+  private async getProviderInstance(name: string): Promise<Provider> {
     const config = this.providers.get(name);
     if (!config) {
       throw new Error(`Provider ${name} not found`);
@@ -292,10 +293,10 @@ export class ProviderRoutingManager {
 
     // Create provider with API key directly from environment
     // SECURITY: Never assign API keys to variables
+    const apiKey = await this.getProviderApiKey(name);
     const provider = ProviderFactory.createProvider({
       name: config.name,
-      // API key accessed directly in the factory based on provider name
-      apiKey: this.getProviderApiKey(name),
+      apiKey: apiKey,
       chainId: this.chainId
     });
 
@@ -306,17 +307,15 @@ export class ProviderRoutingManager {
    * Get provider API key directly from environment
    * SECURITY: This should only be called from background context
    */
-  private getProviderApiKey(name: string): string | null {
-    // SECURITY: Direct access only, never store in variables
-    switch(name.toLowerCase()) {
-      case 'alchemy':
-        return process.env.ALCHEMY_API_KEY || null;
-      case 'infura':
-        return process.env.INFURA_API_KEY || null;
-      case 'quicknode':
-        return process.env.QUICKNODE_API_KEY || null;
-      default:
-        return null;
+  private async getProviderApiKey(name: string): Promise<string | null> {
+    // Use EnhancedKeyManager for secure key access
+    try {
+      const keyManager = EnhancedKeyManager.getInstance();
+      await keyManager.initialize();
+      return await keyManager.getKey(name.toLowerCase(), 'read');
+    } catch (error) {
+      console.warn(`Failed to get API key for ${name}:`, error);
+      return null;
     }
   }
 
@@ -635,7 +634,7 @@ export class ProviderRoutingManager {
     const nextProvider = this.getWeightedRandomProvider(availableConfigs);
     log.info(`[ProviderRouting] Failing over to provider: ${nextProvider}`);
 
-    return this.getProviderInstance(nextProvider);
+    return await this.getProviderInstance(nextProvider);
   }
 
   /**

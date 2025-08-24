@@ -302,10 +302,22 @@
         {#each bookmarks as bookmark, index}
           <div class="bookmark-item group" draggable="false">
             <div class="bookmark-content" draggable="false">
-              <!-- Content Type Icon -->
-              <span class="content-icon text-2xl">
-                {contentTypeIcons[bookmark.contentType]}
-              </span>
+              <!-- Favicon or Content Type Icon -->
+              {#if bookmark.imageUrl && bookmark.url}
+                <div class="favicon-container">
+                  <img 
+                    src={bookmark.imageUrl} 
+                    alt={bookmark.title}
+                    class="favicon-img"
+                    loading="lazy"
+                    onerror="this.onerror=null; this.src='/images/yakkl-logo.png';"
+                  />
+                </div>
+              {:else}
+                <span class="content-icon text-2xl">
+                  {contentTypeIcons[bookmark.contentType]}
+                </span>
+              {/if}
 
               <!-- Main Content -->
               <div class="flex-1">
@@ -373,7 +385,15 @@
             <div class="card bg-base-100 shadow-xl" draggable="false">
               <figure class="px-4 pt-4">
                 {#if bookmark.imageUrl}
-                  <img src={bookmark.imageUrl} alt={bookmark.title} class="rounded-xl" />
+                  <div class="card-favicon-container">
+                    <img 
+                      src={bookmark.imageUrl} 
+                      alt={bookmark.title} 
+                      class="card-favicon-img rounded-xl"
+                      loading="lazy"
+                      onerror="this.onerror=null; this.src='/images/yakkl-logo.png';"
+                    />
+                  </div>
                 {:else}
                   <div class="placeholder-image">
                     <span class="text-4xl">{contentTypeIcons[bookmark.contentType]}</span>
@@ -558,5 +578,33 @@
 
   .notes-indicator {
     @apply flex gap-1;
+  }
+
+  /* Favicon styles for crisp, centered rendering */
+  .favicon-container {
+    @apply flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-lg overflow-hidden;
+    background: transparent;
+  }
+
+  .favicon-img {
+    @apply max-w-full max-h-full;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+
+  .card-favicon-container {
+    @apply w-full h-32 flex items-center justify-center bg-base-200 rounded-xl overflow-hidden;
+  }
+
+  .card-favicon-img {
+    @apply max-w-[80%] max-h-[80%];
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
   }
 </style>

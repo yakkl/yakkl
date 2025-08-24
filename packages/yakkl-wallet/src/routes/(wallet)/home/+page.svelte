@@ -389,13 +389,13 @@
   const grandTotalStore = grandTotalPortfolioValue;
   
   let isMultiChain = $state(false);
-  let grandTotal = $state(0);
+  let grandTotal = $state(0n);
   
   // Subscribe to stores in effect
   $effect(() => {
     const unsubIsMulti = isMultiChainStore.subscribe(v => isMultiChain = v);
     const unsubGrand = grandTotalStore.subscribe(v => {
-      grandTotal = v;
+      grandTotal = v || 0n;
       console.log('Derived grandTotal:', v?.toString() || '0');
     });
     

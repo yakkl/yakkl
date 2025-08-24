@@ -136,7 +136,7 @@ export class KeyManager {
 	 */
 	private initializeDefaultConfigs(): void {
 		// Blockchain provider keys
-		this.registerKey('ALCHEMY_API_KEY_PROD', 'blockchain', false);
+		this.registerKey('ALCHEMY_API_KEY_PROD_1', 'blockchain', false);
 		this.registerKey('ALCHEMY_API_KEY_DEV', 'blockchain', false);
 		this.registerKey('BLOCKNATIVE_API_KEY', 'blockchain', false);
 		this.registerKey('INFURA_API_KEY', 'blockchain', false);
@@ -213,7 +213,7 @@ export class KeyManager {
 
 				if (!value) {
 					value = process.env[`VITE_${envKey}`];
-					if (value) source = `process.env.VITE_${envKey}`;
+					if (value) source = `process.env.VITE_${envKey}`; // Fallback to VITE_ prefixed version
 				}
 			}
 

@@ -15,6 +15,19 @@ const STORAGE_KEY = 'yakklEnhancedBookmarks';
 const SETTINGS_KEY = 'yakklBookmarkSettings';
 const MAX_BOOKMARKS = 500;
 const MAX_NOTES_PER_BOOKMARK = 20;
+const YAKKL_DEFAULT_IMAGE = '/images/yakkl-logo.png';
+
+// Favicon service configuration - easily switchable
+// Note: Google service needs full URL, not just domain
+const FAVICON_SERVICES = {
+  direct: (domain: string) => `https://${domain}/favicon.ico`,
+  google: (url: string, size = 64) => `https://t0.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=${encodeURIComponent(url)}&size=${size}`,
+  duckduckgo: (domain: string) => `https://icons.duckduckgo.com/ip3/${domain}.ico`,
+  clearbit: (domain: string) => `https://logo.clearbit.com/${domain}` // Alternative service
+};
+
+// Primary service order (switchable)
+const FAVICON_SERVICE_ORDER = ['direct', 'google'] as const;
 
 // Helper function to parse relative date strings like "19 minutes ago"
 function parseRelativeDate(dateStr: string): string {
@@ -188,6 +201,85 @@ function createEnhancedBookmarkStore() {
     }
   }
 
+  /**
+   * Fetch favicon for a URL using configurable service chain
+   * @param url - The URL to fetch favicon for
+   * @param primaryService - Override primary service (default: 'direct')
+   * @returns Promise<string> - Favicon URL or default logo
+   */
+  async function fetchFaviconUrl(url: string, primaryService: keyof typeof FAVICON_SERVICES = 'direct'): Promise<string> {
+    if (!url) return YAKKL_DEFAULT_IMAGE;
+    
+    try {
+      const urlObj = new URL(url);
+      const domain = urlObj.hostname;
+      const origin = urlObj.origin; // Just protocol + domain, no path
+      
+      // Try services in order
+      const services = primaryService === 'direct' 
+        ? FAVICON_SERVICE_ORDER 
+        : [primaryService, ...FAVICON_SERVICE_ORDER.filter(s => s !== primaryService)];
+      
+      for (const service of services) {
+        // Google service needs origin URL (protocol + domain), others need just domain
+        const faviconUrl = service === 'google' 
+          ? FAVICON_SERVICES[service](origin) 
+          : FAVICON_SERVICES[service](domain);
+        
+        console.log(`[Favicon] Trying ${service} with URL:`, faviconUrl);
+        
+        // Skip validation for Google service - it handles fallbacks internally
+        if (service === 'google') {
+          console.log(`[Favicon] Using Google favicon service (no validation):`, faviconUrl);
+          return faviconUrl;
+        }
+        
+        // Test if favicon loads successfully for other services
+        const isValid = await testFaviconUrl(faviconUrl);
+        if (isValid) {
+          console.log(`[Favicon] Successfully fetched from ${service}:`, faviconUrl);
+          return faviconUrl;
+        }
+      }
+      
+      console.log('[Favicon] All services failed, using default');
+      return YAKKL_DEFAULT_IMAGE;
+    } catch (error) {
+      console.warn('[Favicon] Error fetching favicon:', error);
+      return YAKKL_DEFAULT_IMAGE;
+    }
+  }
+  
+  /**
+   * Test if a favicon URL is valid and loads
+   */
+  function testFaviconUrl(url: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      // Skip test in service worker context
+      if (typeof window === 'undefined' || !window.Image) {
+        resolve(true); // Assume valid in background context
+        return;
+      }
+      
+      const img = new Image();
+      const timeout = setTimeout(() => {
+        resolve(false); // Timeout after 3 seconds
+      }, 3000);
+      
+      img.onload = () => {
+        clearTimeout(timeout);
+        resolve(true);
+      };
+      
+      img.onerror = () => {
+        clearTimeout(timeout);
+        resolve(false);
+      };
+      
+      img.src = url;
+    });
+  }
+
   async function addBookmark(bookmark: Partial<EnhancedBookmark>): Promise<EnhancedBookmark> {
     // TEMPORARILY DISABLED FOR TESTING
     // Check user's bookmark limit
@@ -198,6 +290,13 @@ function createEnhancedBookmarkStore() {
     //   throw new Error(`Bookmark limit reached. Maximum ${featureAccess.bookmarks.maxCount} bookmarks allowed for your plan.`);
     // }
     
+    // Fetch favicon if imageUrl not provided and URL exists
+    let imageUrl = bookmark.imageUrl || '';
+    if (!imageUrl && bookmark.url) {
+      // For dragged URLs, always try to get the site's favicon
+      imageUrl = await fetchFaviconUrl(bookmark.url);
+    }
+    
     const newBookmark: EnhancedBookmark = {
       id: generateUniqueId(),
       bookmarkedAt: new Date().toISOString(),
@@ -205,7 +304,6 @@ function createEnhancedBookmarkStore() {
       title: bookmark.title || 'Untitled',
       subtitle: bookmark.subtitle || '',
       description: bookmark.description || '',
-      imageUrl: bookmark.imageUrl || '',
       source: bookmark.source || '',
       date: bookmark.date || new Date().toISOString(),
       url: bookmark.url || '',
@@ -214,7 +312,8 @@ function createEnhancedBookmarkStore() {
       tags: bookmark.tags || [],
       readStatus: 'unread',
       syncStatus: 'local',
-      ...bookmark
+      ...bookmark,
+      imageUrl // This overrides any imageUrl from ...bookmark spread
     } as EnhancedBookmark;
 
     return new Promise((resolve, reject) => {

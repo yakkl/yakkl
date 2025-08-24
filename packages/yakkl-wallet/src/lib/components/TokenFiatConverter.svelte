@@ -39,16 +39,27 @@
 	let usdAmount = $state(initialUsdAmount);
 	let price = $state(0);
 	let isLoading = $state(false);
+	let priceManagerInitialized = $state(false);
 
-	const priceManager = new PriceManager([
-		{ provider: new CoinbasePriceProvider(), weight: 5 },
-		{ provider: new CoingeckoPriceProvider(), weight: 3 },
-		{ provider: new KrakenPriceProvider(), weight: 2 }
-	]);
+	const priceManager = new PriceManager();
+
+	// Initialize price manager on mount
+	onMount(async () => {
+		try {
+			await priceManager.initialize([
+				{ provider: new CoinbasePriceProvider(), weight: 5 },
+				{ provider: new CoingeckoPriceProvider(), weight: 3 },
+				{ provider: new KrakenPriceProvider(), weight: 2 }
+			]);
+			priceManagerInitialized = true;
+		} catch (error) {
+			console.error('[TokenFiatConverter] Failed to initialize PriceManager:', error);
+		}
+	});
 
 	// Conversion logic
 	async function updatePrice() {
-		if (fromToken) {
+		if (fromToken && priceManagerInitialized) {
 			isLoading = true;
 			try {
 				const result = await priceManager.getMarketPrice(fromToken.symbol);

@@ -13,8 +13,7 @@ import {
 	type Filter as CustomFilter,
 	type Log as CustomLog,
 	BigNumber,
-	type FeeData,
-	error_log
+	type FeeData
 } from '$lib/common';
 import eventManager from '../../../EventManager';
 import { AbstractProvider } from '../../../Provider';
@@ -30,8 +29,11 @@ import type { Signer } from '$lib/managers/Signer';
 import { EthersConverter } from '$lib/managers/utilities/EthersConverter';
 import { ethers as ethersv6 } from 'ethers-v6';
 import { log } from '$lib/managers/Logger';
+import { EnhancedKeyManager } from '$lib/sdk/security/EnhancedKeyManager';
 import { RPCAlchemy } from '$managers/providers/network/alchemy/RPCAlchemy';
 import { providerRoutingManager } from '$lib/managers/ProviderRoutingManager';
+import { RPCBase } from '$managers/RPCBase';
+import { TypeAdapterUtils } from '$lib/sdk/types/adapters';
 
 interface AlchemyOptions {
 	apiKey?: string | null;
@@ -84,7 +86,7 @@ export class Alchemy extends AbstractProvider {
 	}
 
 	private async getAlchemy(chainId: number = 1): Promise<AlchemyAPI> {
-		this.config = getConfig(chainId);
+		this.config = await getConfig(chainId);
 		if (!this.config) {
 			throw new Error(`Invalid chain ID: ${chainId}`);
 		}
@@ -113,7 +115,7 @@ export class Alchemy extends AbstractProvider {
 
 		if (isBackgroundContext) {
 			// In background context, construct the URL directly
-			const config = getConfig(this.chainId);
+			const config = await getConfig(this.chainId);
 			if (!config?.apiKey) {
 				throw new Error('No Alchemy API key found');
 			}
@@ -204,7 +206,7 @@ export class Alchemy extends AbstractProvider {
 
 			if (isBackgroundContext) {
 				// Use RPCAlchemy in background context
-				const config = getConfig(this.chainId);
+				const config = RPCBase.getProviderConfigSync('alchemy', this.chainId) || await getConfig(this.chainId);
 				if (!config?.apiKey) {
 					throw new Error('No Alchemy API key found');
 				}
@@ -329,7 +331,7 @@ export class Alchemy extends AbstractProvider {
 
 			if (isBackgroundContext) {
 				// Use RPCAlchemy in background context
-				const config = getConfig(this.chainId);
+				const config = RPCBase.getProviderConfigSync('alchemy', this.chainId) || await getConfig(this.chainId);
 				if (!config?.apiKey) {
 					throw new Error('No Alchemy API key found');
 				}
@@ -382,7 +384,7 @@ export class Alchemy extends AbstractProvider {
 
 			if (isBackgroundContext) {
 				// Use RPCAlchemy in background context
-				const config = getConfig(this.chainId);
+				const config = RPCBase.getProviderConfigSync('alchemy', this.chainId) || await getConfig(this.chainId);
 				if (!config?.apiKey) {
 					throw new Error('No Alchemy API key found');
 				}
@@ -858,12 +860,12 @@ export class Alchemy extends AbstractProvider {
  * @param kval - Optional API key value.
  * @returns The Alchemy settings.
  */
-function getConfig(chainId: number, kval: any = undefined): AlchemySettings | undefined {
+async function getConfig(chainId: number, kval: any = undefined): Promise<AlchemySettings | undefined> {
 	try {
-		const apiKey =
-			process.env.ALCHEMY_API_KEY_PROD ||
-			process.env.VITE_ALCHEMY_API_KEY_PROD ||
-			import.meta.env.VITE_ALCHEMY_API_KEY_PROD;
+		// Get API key from EnhancedKeyManager
+		const keyManager = EnhancedKeyManager.getInstance();
+		await keyManager.initialize();
+		const apiKey = await keyManager.getKey('alchemy', 'read');
 
 		let api = kval ?? apiKey; // Set defaults
 		let network = AlchemyNetwork.ETH_MAINNET;

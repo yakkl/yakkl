@@ -249,7 +249,7 @@
     <div class="max-w-6xl mx-auto">
       <!-- Category Filter -->
       <div class="flex justify-center gap-2 mb-6">
-        {#each ['all', 'navigation', 'portfolio', 'network'] as category}
+        {#each (['all', 'navigation', 'portfolio', 'network'] as const) as category}
           <button
             class="px-6 py-2 rounded-full font-medium transition-all duration-300 {
               selectedCategory === category 
@@ -304,7 +304,7 @@
 
           <!-- Quality Settings -->
           <div class="flex items-center gap-2">
-            {#each ['low', 'medium', 'high'] as q}
+            {#each (['low', 'medium', 'high'] as const) as q}
               <button
                 class="px-3 py-1 rounded-lg text-xs font-medium transition-all {
                   quality === q 

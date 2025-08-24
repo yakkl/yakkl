@@ -2,14 +2,17 @@
 import { fetchJson } from '@ethersproject/web';
 import type { MarketPriceData, PriceProvider } from '$lib/common/interfaces';
 import { log } from '$lib/managers/Logger';
+import { EnhancedKeyManager } from '$lib/sdk/security/EnhancedKeyManager';
 
 export class AlchemyPriceProvider implements PriceProvider {
-	getAPIKey(): string {
-		return (
-			process.env.ALCHEMY_API_KEY_PROD ||
-			process.env.VITE_ALCHEMY_API_KEY_PROD ||
-			import.meta.env.VITE_ALCHEMY_API_KEY_PROD
-		);
+	private keyManager = EnhancedKeyManager.getInstance();
+
+	async getAPIKey(): Promise<string> {
+		const key = await this.keyManager.getKey('alchemy', 'read');
+		if (!key) {
+			throw new Error('No Alchemy API key available for price requests');
+		}
+		return key;
 	}
 
 	getName() {
@@ -32,11 +35,12 @@ export class AlchemyPriceProvider implements PriceProvider {
 
 			pair = await this.getProviderPairFormat(pair);
 
+			const apiKey = await this.getAPIKey();
 			const json = await fetchJson({
 				url: `https://api.g.alchemy.com/prices/v1/tokens/by-symbol?symbols=${pair}`,
 				headers: {
 					Accept: 'application/json',
-					Authorization: `Bearer ${this.getAPIKey()}`
+					Authorization: `Bearer ${apiKey}`
 				}
 			});
 

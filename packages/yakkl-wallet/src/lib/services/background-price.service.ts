@@ -17,6 +17,7 @@ import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
 import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
 import Decimal from 'decimal.js';
 import type { TokenCache } from '$lib/stores/wallet-cache.store';
+import { safeUpdateToken, fixZeroValues, isValidTokenData, safeMergeTokens } from '$lib/utilities/cache-protection';
 
 export class BackgroundPriceService {
   private static instance: BackgroundPriceService | null = null;
@@ -69,7 +70,8 @@ export class BackgroundPriceService {
 
   private constructor() {
     this.priceManager = new PriceManager();
-    log.info('[BackgroundPriceService] Service initialized');
+    // Note: PriceManager needs async initialization, done in start()
+    log.info('[BackgroundPriceService] Service constructor called');
   }
 
   static getInstance(): BackgroundPriceService {
@@ -84,6 +86,15 @@ export class BackgroundPriceService {
    */
   async start(): Promise<void> {
     log.info('[BackgroundPriceService] Starting price update service');
+
+    // Initialize PriceManager with providers
+    try {
+      await this.priceManager.initialize();
+      log.info('[BackgroundPriceService] PriceManager initialized with providers');
+    } catch (error) {
+      log.error('[BackgroundPriceService] Failed to initialize PriceManager:', error);
+      throw error;
+    }
 
     // Do initial update
     await this.updateAllPrices();
@@ -147,8 +158,12 @@ export class BackgroundPriceService {
           }
 
           // Update prices for each token
-          for (const token of cache.tokens) {
+          for (let i = 0; i < cache.tokens.length; i++) {
+            const token = cache.tokens[i];
             try {
+              // Prepare update data
+              let updateData: any = { ...token };
+              
               // Try to get quantity from addressTokenCache if balance is missing or zero
               if ((!token.balance || token.balance === '0' || token.balance === '0n') && addressTokenCache && Array.isArray(addressTokenCache)) {
                 // Look for this token in addressTokenCache array
@@ -163,8 +178,8 @@ export class BackgroundPriceService {
                   const quantity = BigNumberishUtils.toBigInt(cachedToken.quantity);
                   if (quantity && quantity > 0n) {
                     const decimals = token.decimals || 18;
-                    token.balance = BigNumberishUtils.fromWeiToNumber(quantity, decimals).toString();
-                    log.debug(`[BackgroundPriceService] Using quantity from addressTokenCache for ${token.symbol}: ${token.balance}`);
+                    updateData.balance = BigNumberishUtils.fromWeiToNumber(quantity, decimals).toString();
+                    log.debug(`[BackgroundPriceService] Using quantity from addressTokenCache for ${token.symbol}: ${updateData.balance}`);
                   }
                 }
               }
@@ -173,39 +188,43 @@ export class BackgroundPriceService {
 
               if (price !== null && price > 0) {
                 // Update token with new price
-                token.price = price;
-                token.priceLastUpdated = new Date().toISOString();
-              } else if (token.price && token.price > 0) {
-                // Keep existing valid price if new fetch returned 0 or null
-                log.debug(`[BackgroundPriceService] Keeping existing price for ${token.symbol}: ${token.price} (new price was ${price})`);
+                updateData.price = price;
+                updateData.priceLastUpdated = new Date().toISOString();
+              }
+              
+              // Use safe update to preserve valid cached data
+              const updatedToken = safeUpdateToken(token, updateData);
+              cache.tokens[i] = updatedToken;
+              
+              if (updatedToken.price && updatedToken.price > 0) {
 
                 // Calculate value (balance * price) using proper BigNumber math
                 try {
                   // Balance might be stored as 'balance' or 'qty' field
-                  const tokenBalance = token.balance || token.qty || token.quantity;
+                  const tokenBalance = updatedToken.balance || (updatedToken as any).qty || (updatedToken as any).quantity;
                   let balanceDecimal: Decimal;
 
-                  console.log(`[BackgroundPriceService] Processing token ${token.symbol}:`, {
+                  console.log(`[BackgroundPriceService] Processing token ${updatedToken.symbol}:`, {
                     balance: tokenBalance,
-                    price,
-                    address: token.address,
-                    decimals: token.decimals
+                    price: updatedToken.price,
+                    address: updatedToken.address,
+                    decimals: updatedToken.decimals
                   });
 
                   if (!tokenBalance || tokenBalance === '0' || tokenBalance === '0n') {
-                    token.value = 0n;
-                    console.log(`[BackgroundPriceService] Zero balance for ${token.symbol}`);
+                    // Don't set value to 0, let cache protection handle it
+                    console.log(`[BackgroundPriceService] Zero balance for ${updatedToken.symbol}, preserving cached value`);
                     continue;
                   }
 
                   // Get correct decimals for each token
-                  let decimals = token.decimals;
+                  let decimals = updatedToken.decimals;
                   if (typeof decimals === 'bigint') {
                     decimals = Number(decimals);
                   }
                   if (!decimals || decimals === 0) {
                     // Set known decimals for common tokens
-                    switch (token.symbol?.toUpperCase()) {
+                    switch (updatedToken.symbol?.toUpperCase()) {
                       case 'USDC':
                       case 'USDT':
                         decimals = 6;
@@ -238,22 +257,22 @@ export class BackgroundPriceService {
                   }
 
                   // Multiply balance by price to get USD value
-                  const valueDecimal = balanceDecimal.times(price);
+                  const valueDecimal = balanceDecimal.times(updatedToken.price);
 
                   // Store as cents (multiply by 100) as BigInt
                   const valueInCents = valueDecimal.times(100).toFixed(0);
 
                   // Bounds checking
                   if (new Decimal(valueInCents).gt(Number.MAX_SAFE_INTEGER)) {
-                    console.log(`[BackgroundPriceService] Value too large for ${token.symbol}: ${valueDecimal.toString()}`);
-                    token.value = BigInt(Number.MAX_SAFE_INTEGER);
+                    console.log(`[BackgroundPriceService] Value too large for ${updatedToken.symbol}: ${valueDecimal.toString()}`);
+                    cache.tokens[i].value = BigInt(Number.MAX_SAFE_INTEGER);
                   } else {
-                    token.value = BigInt(valueInCents);
+                    cache.tokens[i].value = BigInt(valueInCents);
                   }
 
                   // Ensure value is set on the token
-                  if (!token.value || token.value === 0n) {
-                    console.log(`[BackgroundPriceService] Token value is zero after calculation for ${token.symbol}:`, {
+                  if (!cache.tokens[i].value || cache.tokens[i].value === 0n) {
+                    console.log(`[BackgroundPriceService] Token value is zero after calculation for ${updatedToken.symbol}:`, {
                       balance: tokenBalance,
                       balanceDecimal: balanceDecimal.toString(),
                       price,
@@ -263,23 +282,23 @@ export class BackgroundPriceService {
                   }
 
                   updatedTokenCount++;
-                  console.log(`[BackgroundPriceService] CRITICAL VALUE UPDATE for ${token.symbol}:`, {
+                  console.log(`[BackgroundPriceService] CRITICAL VALUE UPDATE for ${updatedToken.symbol}:`, {
                     originalBalance: tokenBalance?.toString(),
                     decimals,
                     standardizedBalance: standardizedBalance,
                     balanceDecimal: balanceDecimal.toString(),
-                    price,
+                    price: updatedToken.price,
                     valueDecimal: valueDecimal.toString(),
                     valueInCents,
-                    finalValue: token.value?.toString()
+                    finalValue: cache.tokens[i].value?.toString()
                   });
                 } catch (error) {
-                  log.error(`[BackgroundPriceService] Error calculating value for ${token.symbol}:`, error);
-                  token.value = 0n;
+                  log.error(`[BackgroundPriceService] Error calculating value for ${updatedToken.symbol}:`, error);
+                  // Don't set value to 0, preserve cached value
                   continue;
                 }
               } else {
-                log.debug(`[BackgroundPriceService] No price for ${token.symbol}`);
+                log.debug(`[BackgroundPriceService] No price for ${updatedToken.symbol}`);
                 failedTokenCount++;
               }
             } catch (error) {
@@ -407,6 +426,18 @@ export class BackgroundPriceService {
    */
   async forceUpdate(): Promise<void> {
     log.info('[BackgroundPriceService] Force update requested');
+    
+    // Ensure PriceManager is initialized
+    if (!this.priceManager || this.priceManager.getAvailableProviders().length === 0) {
+      try {
+        await this.priceManager.initialize();
+        log.info('[BackgroundPriceService] PriceManager initialized on force update');
+      } catch (error) {
+        log.error('[BackgroundPriceService] Failed to initialize PriceManager on force update:', error);
+        return;
+      }
+    }
+    
     await this.updateAllPrices();
   }
 
