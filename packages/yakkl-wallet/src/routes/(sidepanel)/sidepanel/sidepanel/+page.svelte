@@ -24,8 +24,9 @@
 	import { log } from '$lib/common/logger-wrapper';
 	import { setBadgeText } from '$lib/utilities/utilities';
 	import Copyright from '$lib/components/Copyright.svelte';
-	import BookmarkedArticles from '$lib/components/BookmarkedArticles.svelte';
+	import EnhancedBookmarks from '$lib/components/EnhancedBookmarks.svelte';
 	import { ExtensionRSSFeedService } from '$lib/managers/ExtensionRSSFeedService';
+	import { enhancedBookmarkStore } from '$lib/stores/enhancedBookmark.store';
 	// import LockedSectionCard from '$lib/components/LockedSectionCard.svelte';
 	import { isProLevel } from '$lib/common/utils';
 	import Upgrade from '$lib/components/Upgrade.svelte';
@@ -227,6 +228,22 @@
 	onMount(async () => {
 		try {
 			if (!browserSvelte) return;
+			
+			// Listen for bookmark messages from context menu
+			if (browser_ext) {
+				browser_ext.runtime.onMessage.addListener(async (message) => {
+					if (message.target === 'sidepanel') {
+						if (message.type === 'ADD_BOOKMARK') {
+							await enhancedBookmarkStore.addBookmark(message.data);
+							log.info('Bookmark added from context menu');
+						} else if (message.type === 'ADD_BOOKMARK_WITH_NOTE') {
+							const bookmark = await enhancedBookmarkStore.addBookmark(message.data);
+							// TODO: Open note editor for this bookmark
+							log.info('Bookmark added with note request from context menu');
+						}
+					}
+				});
+			}
 
 
 
@@ -436,18 +453,16 @@
 					{/if}
 				</div>
 
-				<!-- Bookmarked Articles Card -->
+				<!-- Enhanced Bookmarks Card (Now Free!) -->
 				<div class="yakkl-card relative z-10 hover:shadow-lg transition-all duration-300">
-					<BookmarkedArticles
+					<EnhancedBookmarks
 						{onComplete}
 						show={true}
-						{locked}
-						lockedFooter={UpgradeFooter}
-						lockedFooterProps={{
-							onUpgrade: () => (showUpgradeModal = true),
-							text: 'Unlock bookmarking features by',
-							buttonText: 'Upgrading today!'
-						}}
+						locked={false}
+						footer={null}
+						footerProps={{}}
+						lockedFooter={null}
+						lockedFooterProps={{}}
 					/>
 				</div>
 

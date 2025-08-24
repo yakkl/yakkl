@@ -5,6 +5,7 @@ import path from 'path';
 const scanPath = './src';
 const illegal = process.env.YAKKL_PRIVATE !== 'true' ? ['$private/'] : [];
 if (process.env.YAKKL_PRO !== 'true') illegal.push('$pro/');
+if (process.env.YAKKL_PRO_PLUS !== 'true') illegal.push('$pro_plus/');
 
 let error = false;
 function scan(dir) {

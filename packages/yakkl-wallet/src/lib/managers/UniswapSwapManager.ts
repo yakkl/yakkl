@@ -39,6 +39,7 @@ import { Token } from './Token';
 import { EVMToken } from './tokens/evm/EVMToken';
 import { EthersConverter } from './utilities/EthersConverter';
 import { log } from '$lib/common/logger-wrapper';
+import { blockchainServiceManager } from '$lib/sdk/BlockchainServiceManager';
 
 const SUPPORTED_STABLECOINS = ['USDC', 'USDT', 'DAI', 'BUSD'];
 
@@ -147,10 +148,18 @@ export class UniswapSwapManager extends SwapManager {
 		isExactIn: boolean = true,
 		fee: number = 3000
 	): Promise<SwapPriceData> {
-		const provider = new ethers.AlchemyProvider(
-			'mainnet',
-			import.meta.env.VITE_ALCHEMY_API_KEY_PROD
-		);
+		// Get provider from blockchain service manager
+		const sdkProvider = blockchainServiceManager.getProvider();
+		if (!sdkProvider) {
+			throw new Error('No blockchain provider available');
+		}
+		
+		// Get the underlying ethers provider for compatibility
+		// TODO: Need to add getEthersProvider method to IProvider or use direct RPC calls
+		// For now, temporarily disable this functionality
+		throw new Error('getEthersProvider method not available on IProvider - needs to be implemented');
+		
+		/*
 		const quoterV2ABI = [
 			{
 				inputs: [
@@ -282,6 +291,7 @@ export class UniswapSwapManager extends SwapManager {
 		}
 
 		throw new Error('Token pools not found');
+		*/
 	}
 
 	async getQuote(

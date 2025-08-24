@@ -5,6 +5,7 @@ import { handleBrowserAPIPortConnection } from './handlers/browser-api-port.hand
 import { createSafeMessageHandler } from '$lib/common/messageChannelValidator';
 import browser from 'webextension-polyfill';
 import { log } from '$lib/common/logger-wrapper';
+import { bookmarkContextMenu } from './extensions/chrome/contextMenu';
 
 // Initialize background cache services on extension install/startup
 // This ensures cache services run continuously from the moment the extension is installed
@@ -201,7 +202,15 @@ browser.runtime.onMessage.addListener(safeMessageHandler as any);
 // This runs independently of UI and persists across sessions
 async function initializeBackgroundServices() {
   try {
-    console.log('Background: Initializing transaction monitoring service...');
+    console.log('Background: Initializing background services...');
+
+    // Initialize context menu for bookmarking
+    try {
+      await bookmarkContextMenu.initialize();
+      console.log('Background: Context menu service initialized successfully');
+    } catch (error) {
+      console.error('Background: Failed to initialize context menu:', error);
+    }
 
     // Get transaction monitor instance
     const txMonitor = TransactionMonitorService.getInstance();
@@ -216,9 +225,10 @@ async function initializeBackgroundServices() {
     await txMonitor.start();
 
     console.log('Background: Transaction monitoring started successfully');
+    console.log('Background: All background services initialized successfully');
 
   } catch (error) {
-    console.error('Background: Failed to initialize transaction monitoring:', error);
+    console.error('Background: Failed to initialize background services:', error);
   }
 }
 

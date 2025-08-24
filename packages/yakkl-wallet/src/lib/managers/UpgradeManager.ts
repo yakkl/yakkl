@@ -120,6 +120,8 @@ export class UpgradeManager {
 				status: 'Updating local data...'
 			});
 
+			// TODO: Update to Pro Plus if needed
+
 			// Update local data
 			if (isEncryptedData(profile.data)) {
 				const decryptedData = (await decryptData(

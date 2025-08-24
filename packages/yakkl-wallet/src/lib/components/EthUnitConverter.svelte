@@ -48,11 +48,8 @@
 		return '';
 	});
 
-	const priceManager = new PriceManager([
-		{ provider: new CoinbasePriceProvider(), weight: 5 },
-		{ provider: new CoingeckoPriceProvider(), weight: 3 },
-		{ provider: new KrakenPriceProvider(), weight: 2 }
-	]);
+	const priceManager = new PriceManager();
+	let priceManagerInitialized = $state(false);
 
 	// ETH conversion functions
 	function weiToGwei(wei: string): string {
@@ -156,6 +153,10 @@
 
 	// Fetch ETH price
 	async function fetchEthPrice() {
+		if (!priceManagerInitialized) {
+			console.warn('[EthUnitConverter] PriceManager not initialized yet');
+			return;
+		}
 		try {
 			const result = await priceManager.getMarketPrice('ETH-USD');
 			ethPrice = result && typeof result === 'object' && 'price' in result 
@@ -245,7 +246,19 @@
 	}
 
 	onMount(async () => {
-		if (showUsdValue) {
+		// Initialize price manager first
+		try {
+			await priceManager.initialize([
+				{ provider: new CoinbasePriceProvider(), weight: 5 },
+				{ provider: new CoingeckoPriceProvider(), weight: 3 },
+				{ provider: new KrakenPriceProvider(), weight: 2 }
+			]);
+			priceManagerInitialized = true;
+		} catch (error) {
+			console.error('[EthUnitConverter] Failed to initialize PriceManager:', error);
+		}
+
+		if (showUsdValue && priceManagerInitialized) {
 			await fetchEthPrice();
 		}
 

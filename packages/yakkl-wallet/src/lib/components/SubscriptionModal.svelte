@@ -65,7 +65,7 @@
 
   async function selectPlan(plan: any) {
     selectedPlan = plan;
-    
+
     if (plan.price === 0) {
       // Free plan, no payment needed
       await subscribeToPlan();
@@ -82,7 +82,7 @@
 
     try {
       let response;
-      
+
       if (selectedPlan.price === 0) {
         // Cancel current subscription for free plan
         if (currentSubscription) {
@@ -96,7 +96,7 @@
           error = 'Please select a payment method';
           return;
         }
-        
+
         response = await subscriptionService.subscribeToPlan(
           selectedPlan.id,
           selectedPaymentMethod.id,
@@ -107,9 +107,9 @@
       if (response.success) {
         // Update plan store
         await planStore.upgradeTo(selectedPlan.type);
-        
+
         step = 'confirmation';
-        
+
         uiStore.showSuccess(
           'Subscription Updated',
           `Successfully ${selectedPlan.price === 0 ? 'downgraded to' : 'upgraded to'} ${selectedPlan.name} plan!`
@@ -133,10 +133,10 @@
 
       if (response.success) {
         // Update plan store
-        await planStore.upgradeTo(PlanType.YAKKL_PRO);
-        
+        await planStore.upgradeTo(PlanType.YAKKL_PRO); // TODO: Update to Pro Plus if needed
+
         step = 'confirmation';
-        
+
         uiStore.showSuccess(
           'Trial Started',
           'Your Pro trial has been activated!'
@@ -157,7 +157,7 @@
     loading = true;
     try {
       const response = await subscriptionService.validateCoupon(couponCode);
-      
+
       if (response.success && response.data?.valid) {
         couponDiscount = response.data;
         uiStore.showSuccess('Coupon Applied', `${response.data.discount}% discount applied!`);
@@ -193,7 +193,7 @@
 
   function calculateDiscountedPrice(plan: any): number {
     if (!couponDiscount) return plan.price;
-    
+
     if (couponDiscount.type === 'percent') {
       return plan.price * (1 - couponDiscount.discount / 100);
     } else {
@@ -207,6 +207,8 @@
         return 'text-gray-600 dark:text-gray-400';
       case PlanType.YAKKL_PRO:
         return 'text-blue-600 dark:text-blue-400';
+      case PlanType.YAKKL_PRO_PLUS:
+        return 'text-pink-600 dark:text-pink-400';
       case PlanType.ENTERPRISE:
         return 'text-purple-600 dark:text-purple-400';
       default:
@@ -227,15 +229,15 @@
       role="dialog"
       aria-modal="true"
       tabindex="0">
-      
+
       <!-- Header -->
       <div class="flex items-center justify-between mb-4">
         <div class="flex items-center gap-2">
           <span class="text-xl">⭐</span>
           <span class="font-bold text-xl">Subscription Plans</span>
         </div>
-        <button 
-          class="text-2xl text-gray-400 hover:text-red-500 transition-colors" 
+        <button
+          class="text-2xl text-gray-400 hover:text-red-500 transition-colors"
           onclick={closeModal}
           aria-label="Close modal"
         >
@@ -275,7 +277,7 @@
                     Most Popular
                   </div>
                 {/if}
-                
+
                 {#if userPlan === plan.type}
                   <div class="absolute -top-3 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-xs font-semibold">
                     Current Plan
@@ -310,14 +312,30 @@
                     </button>
                   {:else if plan.type === PlanType.YAKKL_PRO && !onTrial && userPlan === PlanType.EXPLORER_MEMBER}
                     <!-- Show trial option for Pro plan -->
-                    <button 
+                    <button
                       class="w-full p-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg font-semibold hover:from-purple-600 hover:to-pink-600 transition-all"
                       onclick={() => startTrial(plan.id)}
                       disabled={loading}
                     >
                       Start Free Trial
                     </button>
-                    <button 
+                    <button
+                      class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm"
+                      onclick={() => selectPlan(plan)}
+                      disabled={loading}
+                    >
+                      Subscribe Now
+                    </button>
+                  {:else if plan.type === PlanType.YAKKL_PRO_PLUS && !onTrial && (userPlan === PlanType.YAKKL_PRO || userPlan === PlanType.EXPLORER_MEMBER)}
+                    <!-- Show trial option for Pro Plus plan -->
+                    <button
+                      class="w-full p-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg font-semibold hover:from-purple-600 hover:to-pink-600 transition-all"
+                      onclick={() => startTrial(plan.id)}
+                      disabled={loading}
+                    >
+                      Start Free Trial
+                    </button>
+                    <button
                       class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm"
                       onclick={() => selectPlan(plan)}
                       disabled={loading}
@@ -325,7 +343,7 @@
                       Subscribe Now
                     </button>
                   {:else}
-                    <button 
+                    <button
                       class="w-full p-3 {plan.price === 0 ? 'bg-gray-600 hover:bg-gray-700' : 'bg-blue-600 hover:bg-blue-700'} text-white rounded-lg font-semibold transition-colors"
                       onclick={() => selectPlan(plan)}
                       disabled={loading}
@@ -362,15 +380,16 @@
 
             <!-- Coupon Code -->
             <div>
+              <!-- svelte-ignore a11y_label_has_associated_control -->
               <label class="block text-sm font-medium mb-2">Coupon Code (Optional)</label>
               <div class="flex gap-2">
-                <input 
-                  type="text" 
-                  bind:value={couponCode} 
-                  placeholder="Enter coupon code" 
+                <input
+                  type="text"
+                  bind:value={couponCode}
+                  placeholder="Enter coupon code"
                   class="flex-1 p-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-zinc-900 dark:text-white"
                 />
-                <button 
+                <button
                   class="px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
                   onclick={validateCoupon}
                   disabled={!couponCode.trim() || loading}
@@ -387,6 +406,7 @@
 
             <!-- Payment Methods -->
             <div>
+              <!-- svelte-ignore a11y_label_has_associated_control -->
               <label class="block text-sm font-medium mb-2">Payment Method</label>
               {#if paymentMethods.length === 0}
                 <div class="text-center py-8 text-gray-500">
@@ -398,7 +418,7 @@
               {:else}
                 <div class="space-y-2">
                   {#each paymentMethods as method}
-                    <button 
+                    <button
                       class="w-full p-3 border rounded-lg text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors {selectedPaymentMethod?.id === method.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700'}"
                       onclick={() => selectedPaymentMethod = method}
                     >
@@ -421,13 +441,13 @@
 
             <!-- Action Buttons -->
             <div class="flex gap-3">
-              <button 
+              <button
                 class="flex-1 p-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                 onclick={() => step = 'plans'}
               >
                 Back
               </button>
-              <button 
+              <button
                 class="flex-1 p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-60"
                 onclick={subscribeToPlan}
                 disabled={!selectedPaymentMethod || loading}
@@ -460,7 +480,7 @@
                 </div>
               {/if}
             {/if}
-            <button 
+            <button
               class="w-full p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold"
               onclick={closeModal}
             >

@@ -2,7 +2,8 @@ import { writable, derived, get } from 'svelte/store';
 import { browser } from '$app/environment';
 import { verify } from '$lib/common/security';
 import { getYakklSettings, getMiscStore, setMiscStore } from '$lib/common/stores';
-import type { Profile } from '$lib/common/interfaces';
+import type { Profile, ProfileData } from '$lib/common/interfaces';
+import { decryptData, isEncryptedData } from '$lib/common';
 import { log } from '$lib/common/logger-wrapper';
 import { sessionManager, type SessionState } from '$lib/managers/SessionManager';
 import { jwtManager } from '$lib/utilities/jwt';
@@ -241,9 +242,22 @@ function createAuthStore() {
 					throw new Error('Authentication validation failed: ' + validation.reason);
 				}
 
-				// Get user's plan level for JWT
-				const settings = await getYakklSettings();
-				const planLevel = settings?.plan?.type || 'explorer_member';
+				// Get user's plan level for JWT from ProfileData (authoritative source)
+				let planLevel = 'explorer_member';
+				if (profile?.data) {
+					if (isEncryptedData(profile.data)) {
+						const miscStore = getMiscStore();
+						const profileData = await decryptData(profile.data, miscStore) as ProfileData;
+						if (profileData?.planType) {
+							planLevel = profileData.planType;
+						}
+					} else {
+						const profileData = profile.data as ProfileData;
+						if (profileData?.planType) {
+							planLevel = profileData.planType;
+						}
+					}
+				}
 
 				// Start session with JWT token generation
 				const jwtToken = await sessionManager.startSession(

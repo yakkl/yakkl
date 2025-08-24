@@ -71,7 +71,6 @@
       if (typeof window === 'undefined') return;
 
       const settings = await browser.storage.local.get(STORAGE_YAKKL_SETTINGS);
-      console.log('[Login] settings >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', settings);
 
 			let jwtToken: string | undefined;
 
@@ -97,17 +96,12 @@
 			const loginString = normalizedUsername + '.nfs.id' + password;
 
 			// Call the existing verify function - this is your core authentication
-			log.info('Login.svelte: Starting verification for user:', false, normalizedUsername);
-      console.log('[Login] loginString >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', loginString);
 			const profile = await verify(loginString);
 
 			if (!profile) {
 				log.warn('Login.svelte: Verification returned no profile');
 				throw 'Invalid credentials or profile not found';
 			}
-
-			log.info('Login.svelte: Verification successful, profile received');
-      console.log('[Login] profile >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', profile);
 
 			// Get the digest that was set during verification
 			// This is important as it's used for decryption throughout the app
@@ -116,6 +110,14 @@
 			if (!digest) {
 				throw 'Authentication succeeded but failed to retrieve security digest';
 			}
+
+      // For testing...
+        const settings1 = await getNormalizedSettings();
+
+        log.info('Login.svelte: settings1 =', false, settings1);
+        log.info('Login.svelte: settings1.plan =', false, settings1?.plan);
+        log.info('Login.svelte: settings1.plan.type =', false, settings1?.plan?.type);
+        console.log('[Login] settings1 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', settings1);
 
 			log.info('Login.svelte: profile =', false, profile, digest);
 			if (props.generateJWT) {

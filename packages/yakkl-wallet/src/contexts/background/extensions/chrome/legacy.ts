@@ -16,18 +16,17 @@ export async function getRPCAlchemy(chainId: any, apiKeyOverride: string = '') {
 	if (!apiKey) {
 		try {
 			const keyManagerInstance = await getKeyManager();
-			apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD');
+			apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD_1');
 		} catch (error) {
 			log.warn('Could not get API key from KeyManager, using fallback', false, error);
 		}
 	}
 
-	if (!apiKey) {
-		apiKey =
-			process.env.ALCHEMY_API_KEY_PROD ||
-			process.env.VITE_ALCHEMY_API_KEY_PROD ||
-			import.meta.env.VITE_ALCHEMY_API_KEY_PROD;
-	}
+	// TODO: Remove this legacy code - API keys should come from SDK
+	// This is commented out as part of the SDK migration
+	// if (!apiKey) {
+	//   apiKey = await EnhancedKeyManager.getInstance().getApiKey('alchemy');
+	// }
 
 	// If still no key, use a reasonable fallback mechanism
 	if (!apiKey) {
@@ -87,7 +86,7 @@ export async function estimateGas(
 		const rpcAlchemy = await getRPCAlchemy(chainId, apiKeyOverride);
 		return await rpcAlchemy.estimateGas(params);
 		// const keyManagerInstance = await keyManager;
-		// const apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD');
+		// const apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD_1');
 		// if (!apiKey) {
 		//   throw new Error('API key not configured');
 		// }
@@ -110,7 +109,7 @@ export async function getBlock(
 		const result = await rpcAlchemy.getBlock(block as BlockTag);
 		return result;
 		// const keyManagerInstance = await keyManager;
-		// const apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD');
+		// const apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD_1');
 		// const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
 		// return await provider.core.getBlock(block as BlockTag, fullTx);
 	} catch (e) {
@@ -124,7 +123,7 @@ export async function getLatestBlock(chainId: any, apiKeyOverride: string = '') 
 		const rpcAlchemy = await getRPCAlchemy(chainId, apiKeyOverride);
 		return await rpcAlchemy.getBlock('latest');
 		// const keyManagerInstance = await keyManager;
-		// const apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD');
+		// const apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD_1');
 		// const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
 		// return await provider.core.getBlock('latest');
 	} catch (e) {
@@ -143,7 +142,7 @@ export async function ethCall(
 		const rpcAlchemy = await getRPCAlchemy(chainId, apiKeyOverride);
 		return await rpcAlchemy.ethCall(transaction, blockTag);
 		// const keyManagerInstance = await keyManager;
-		// const apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD');
+		// const apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD_1');
 		// const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
 		// return await provider.core.call(transaction, blockTag || 'latest');
 	} catch (e) {
@@ -158,7 +157,7 @@ export async function getGasPrice(chainId: any) {
 		const rpcAlchemy = await getRPCAlchemy(chainId);
 		return await rpcAlchemy.getGasPrice();
 		// const keyManagerInstance = await keyManager;
-		// const apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD');
+		// const apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD_1');
 		// const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
 		// return await provider.core.getGasPrice();
 	} catch (e) {
@@ -205,7 +204,7 @@ export async function getBalance(
 		const rpcAlchemy = await getRPCAlchemy(chainId, apiKeyOverride);
 		return await rpcAlchemy.getBalance(address, blockTag);
 		// const keyManagerInstance = await keyManager;
-		// const apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD');
+		// const apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD_1');
 		// const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
 		// return await provider.core.getBalance(address, blockTag || 'latest');
 	} catch (e) {
@@ -224,7 +223,7 @@ export async function getCode(
 		const rpcAlchemy = await getRPCAlchemy(chainId, apiKeyOverride);
 		return await rpcAlchemy.getCode(address, blockTag);
 		// const keyManagerInstance = await keyManager;
-		// const apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD');
+		// const apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD_1');
 		// const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
 		// return await provider.core.getCode(address, blockTag || 'latest');
 	} catch (e) {
@@ -243,7 +242,7 @@ export async function getNonce(
 		const rpcAlchemy = await getRPCAlchemy(chainId, apiKeyOverride);
 		return await rpcAlchemy.getNonce(address, blockTag);
 		// const keyManagerInstance = await keyManager;
-		// const apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD');
+		// const apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD_1');
 		// const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
 		// return await provider.core.getTransactionCount(address, blockTag || 'latest');
 	} catch (e) {
@@ -261,7 +260,7 @@ export async function getTransactionReceipt(
 		const rpcAlchemy = await getRPCAlchemy(chainId, apiKeyOverride);
 		return await rpcAlchemy.getTransactionReceipt(txHash);
 		// const keyManagerInstance = await keyManager;
-		// const apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD');
+		// const apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD_1');
 		// const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
 		// return await provider.core.getTransactionReceipt(txHash);
 	} catch (e) {
@@ -275,7 +274,7 @@ export async function getTransaction(chainId: any, txHash: string, apiKeyOverrid
 		const rpcAlchemy = await getRPCAlchemy(chainId, apiKeyOverride);
 		return await rpcAlchemy.getTransaction(txHash);
 		// const keyManagerInstance = await keyManager;
-		// const apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD');
+		// const apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD_1');
 		// const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
 		// return await provider.core.getTransaction(txHash);
 	} catch (e) {
@@ -289,7 +288,7 @@ export async function getLogs(chainId: any, filter: any, apiKeyOverride: string 
 		const rpcAlchemy = await getRPCAlchemy(chainId, apiKeyOverride);
 		return await rpcAlchemy.getLogs(filter);
 		// const keyManagerInstance = await keyManager;
-		// const apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD');
+		// const apiKey = keyManagerInstance.getKey('ALCHEMY_API_KEY_PROD_1');
 		// const provider = new Alchemy(getProviderConfig(chainId, apiKey || ''));
 		// return await provider.core.getLogs(filter);
 	} catch (e) {

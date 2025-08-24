@@ -29,8 +29,7 @@
 	} from '$lib/common';
 	import { decryptData } from '$lib/common/encryption';
 	import { isEncryptedData } from '$lib/common/misc';
-	import WalletManager from '$lib/managers/WalletManager';
-	import type { Wallet } from '$lib/managers/Wallet';
+	import { blockchainServiceManager } from '$lib/sdk/BlockchainServiceManager';
 	import { log } from '$lib/common/logger-wrapper';
 	import { sessionToken, verifySessionToken } from '$lib/common/auth/session';
 	import type { BackgroundPendingRequest } from '$lib/common/interfaces';
@@ -48,7 +47,6 @@
 
 	// State management with Svelte 5 syntax
 	let currentlySelected: YakklCurrentlySelected;
-	let wallet: Wallet;
 	let yakklMiscStore: string;
 
 	let showConfirm = $state(false);
@@ -150,18 +148,13 @@
 
 		// Estimate gas if not provided
 		if (!transaction.gasLimit) {
-			const blockchain = wallet?.getBlockchain();
-			if (blockchain?.isSmartContractSupported()) {
-				const isSmartContract = await blockchain.isSmartContract(transaction.to as string);
-				gasLimit = isSmartContract ? ETH_BASE_SCA_GAS_UNITS : ETH_BASE_EOA_GAS_UNITS;
+			// Use basic gas estimates without provider dependency
+			gasLimit = ETH_BASE_EOA_GAS_UNITS;
 
-				// Add extra gas for data
-				if (transaction.data) {
-					const dataLength = (transaction.data as string).length - 2; // Remove '0x'
-					gasLimit = BigInt(gasLimit) + BigInt(dataLength * 68);
-				}
-			} else {
-				gasLimit = ETH_BASE_EOA_GAS_UNITS;
+			// Add extra gas for data
+			if (transaction.data) {
+				const dataLength = (transaction.data as string).length - 2; // Remove '0x'
+				gasLimit = BigInt(gasLimit) + BigInt(dataLength * 68);
 			}
 
 			// Check for user override
@@ -212,13 +205,11 @@
 				yakklMiscStore = getMiscStore();
 				chainId = currentlySelected.shortcuts.chainId as number;
 
-				// Initialize wallet
-				wallet = WalletManager.getInstance(
-					['Alchemy'],
-					['Ethereum'],
-					chainId,
-					import.meta.env.VITE_ALCHEMY_API_KEY_PROD
-				);
+				// Initialize blockchain service manager
+				await blockchainServiceManager.initialize({
+					defaultChainId: chainId,
+					autoSetupProviders: true
+				});
 
 				// Request session port
 				const sessionInfo = (await browserAPI.runtimeSendMessage({
@@ -336,8 +327,16 @@
 			transaction.type = 2; // EIP-1559
 			transaction.chainId = chainId;
 
-			// Send transaction
-			tx = await wallet.sendTransaction(transaction);
+			// Get provider from SDK
+			const provider = blockchainServiceManager.getProvider();
+			if (!provider) {
+				await handleReject('Provider not available.');
+				return;
+			}
+
+			// Create signer and send transaction
+			const signer = await provider.getSigner((account.data as AccountData).privateKey);
+			tx = await signer.sendTransaction(transaction);
 
 			if (tx?.hash) {
 				// Send successful response

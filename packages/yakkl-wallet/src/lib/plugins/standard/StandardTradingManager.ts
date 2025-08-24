@@ -24,7 +24,7 @@ export class StandardTradingManager implements ITradingManager {
 	}
 
 	isAdvancedFeaturesEnabled(): boolean {
-		return this.planType === PlanType.YAKKL_PRO || this.planType === PlanType.ENTERPRISE;
+		return this.planType === PlanType.YAKKL_PRO || this.planType === PlanType.YAKKL_PRO_PLUS || this.planType === PlanType.ENTERPRISE;
 	}
 
 	/**
@@ -60,24 +60,24 @@ export class StandardTradingManager implements ITradingManager {
 	}
 
 	/**
-	 * Get technical analysis - PRO feature
+	 * Get technical analysis - PRO+ feature
 	 */
 	async getTechnicalAnalysis(symbol: string): Promise<TechnicalIndicators> {
 		throw new UpgradeRequiredError(
-			'Technical analysis indicators require a PRO plan',
+			'Technical analysis indicators require a PRO+ plan',
 			'Technical Analysis',
-			'PRO'
+			'PRO+'
 		);
 	}
 
 	/**
-	 * Get trading analysis - PRO feature
+	 * Get trading analysis - PRO+ feature
 	 */
 	async getTradingAnalysis(symbol: string): Promise<TradingAnalysis> {
 		throw new UpgradeRequiredError(
-			'AI-powered trading analysis requires a PRO plan',
+			'AI-powered trading analysis requires a PRO+ plan',
 			'Trading Analysis',
-			'PRO'
+			'PRO+'
 		);
 	}
 

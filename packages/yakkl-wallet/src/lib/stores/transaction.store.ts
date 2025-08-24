@@ -432,12 +432,16 @@ function createTransactionStore() {
           ensureServicesInitialized();
           const cachedTxs = await cacheManager!.getCachedTransactions(
             account.address,
-            chainId,
-            'newest'
+            chainId
           );
 
           if (cachedTxs) {
-            allTransactions.push(...cachedTxs);
+            // Map TransactionData to TransactionDisplay
+            const displayTxs = cachedTxs.map(tx => ({
+              ...tx,
+              type: tx.type || 'transfer' // Ensure type field exists
+            } as TransactionDisplay));
+            allTransactions.push(...displayTxs);
           }
         }
       }

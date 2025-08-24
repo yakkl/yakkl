@@ -145,12 +145,14 @@ function createAccountStore() {
           log.warn('[AccountStore] Failed to persist account switch:', false, error);
         }
 
-        // Update wallet cache store with the new active account
-        walletCacheStore.switchAccount(address);
+        // CRITICAL: Await wallet cache switch to ensure data is loaded
+        // This now handles all data initialization for the new account
+        await walletCacheStore.switchAccount(address);
 
-        // Notify token store to refresh immediately by importing and calling refresh
-        // This ensures immediate update rather than waiting for subscription
-        tokenStore.refresh(true);
+        // No need to call tokenStore.refresh() - the cache switch handles everything
+        // The token store will automatically update via its subscription to currentAccount
+        
+        log.info('[AccountStore] Account switch complete, cache initialized');
 
         return true;
       }

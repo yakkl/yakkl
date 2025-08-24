@@ -2,26 +2,30 @@ import { EventEmitter } from 'events';
 import { log } from '$lib/managers/Logger';
 import { EIP1193_ERRORS } from './eip-types';
 import { getYakklCurrentlySelected } from '$lib/common/stores';
+import { EnhancedKeyManager } from '$lib/sdk/security/EnhancedKeyManager';
 
-// Get Alchemy API key from environment
-function getAlchemyApiKey(chainId: string = '0x1'): string {
-	// In a real implementation, this would get the API key from environment variables
-	// or a secure storage mechanism based on the chain ID
-	const apiKey =
-		process.env.ALCHEMY_API_KEY_PROD ||
-		process.env.VITE_ALCHEMY_API_KEY_PROD ||
-		import.meta.env.VITE_ALCHEMY_API_KEY_PROD;
-
-	if (!apiKey) {
-		log.warn('No Alchemy API key found', false);
+// Get Alchemy API key from EnhancedKeyManager
+async function getAlchemyApiKey(chainId: string = '0x1'): Promise<string> {
+	try {
+		const keyManager = EnhancedKeyManager.getInstance();
+		await keyManager.initialize();
+		const apiKey = await keyManager.getKey('alchemy', 'read');
+		
+		if (!apiKey) {
+			log.warn('No Alchemy API key found', false);
+			return '';
+		}
+		
+		return apiKey;
+	} catch (error) {
+		log.error('Error getting Alchemy API key', false, error);
+		return '';
 	}
-
-	return apiKey;
 }
 
 // Get Alchemy RPC URL for a chain
-function getAlchemyRpcUrl(chainId: string = '0x1'): string {
-	const apiKey = getAlchemyApiKey(chainId);
+async function getAlchemyRpcUrl(chainId: string = '0x1'): Promise<string> {
+	const apiKey = await getAlchemyApiKey(chainId);
 	const chainIdNum = parseInt(chainId, 16);
 
 	// Map chain IDs to network names
@@ -67,8 +71,8 @@ async function makeAlchemyRequest(
 	params: any[],
 	chainId: string = '0x1'
 ): Promise<any> {
-	const url = getAlchemyRpcUrl(chainId);
-	const apiKey = getAlchemyApiKey(chainId);
+	const url = await getAlchemyRpcUrl(chainId);
+	const apiKey = await getAlchemyApiKey(chainId);
 
 	if (!apiKey) {
 		throw new Error('No Alchemy API key available');

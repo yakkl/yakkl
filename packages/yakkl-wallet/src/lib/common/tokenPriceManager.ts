@@ -14,9 +14,15 @@ let priceUpdater: { subscribe: any; fetchPrices: (tokens: TokenData[]) => Promis
 const fetchingActive = writable(false); // Prevents duplicate fetches
 
 // Initialize priceManager and priceUpdater before any usage
-function initializePriceUpdater() {
+async function initializePriceUpdater() {
 	if (!priceManager) {
 		priceManager = new PriceManager();
+		// Initialize the price manager with providers
+		try {
+			await priceManager.initialize();
+		} catch (error) {
+			log.error('[tokenPriceManager] Failed to initialize PriceManager:', false, error);
+		}
 	}
 	if (!priceUpdater) {
 		priceUpdater = createPriceUpdater(priceManager);
@@ -27,7 +33,7 @@ function initializePriceUpdater() {
 export async function updateTokenPrices() {
 	// Ensure priceUpdater is initialized before use
 	if (!priceUpdater) {
-		initializePriceUpdater();
+		await initializePriceUpdater();
 	}
 
 	if (get(fetchingActive)) return; // Prevent concurrent fetches
@@ -129,23 +135,26 @@ export async function updateTokenPrices() {
 // Get the TimerManager instance
 const timerManager = TimerManager.getInstance();
 
-if (!timerManager.hasTimer('tokenPriceUpdater')) {
-	log.info('Setting up token price updater timer');
-	initializePriceUpdater(); // Use the new initialization function
-	// Setup a timer to call `updateTokenPrices()` every 15s
-	timerManager.addTimer(
-		'tokenPriceUpdater',
-		async () => {
-			await updateTokenPrices();
-		},
-		TIMER_TOKEN_PRICE_CYCLE_TIME
-	);
-}
+// Setup price updater timer asynchronously
+(async () => {
+	if (!timerManager.hasTimer('tokenPriceUpdater')) {
+		log.info('Setting up token price updater timer');
+		await initializePriceUpdater(); // Use the new initialization function
+		// Setup a timer to call `updateTokenPrices()` every 15s
+		timerManager.addTimer(
+			'tokenPriceUpdater',
+			async () => {
+				await updateTokenPrices();
+			},
+			TIMER_TOKEN_PRICE_CYCLE_TIME
+		);
+	}
 
-if (!timerManager.isRunning('tokenPriceUpdater')) {
-	log.info('Starting token price updater timer');
-	timerManager.startTimer('tokenPriceUpdater');
-}
+	if (!timerManager.isRunning('tokenPriceUpdater')) {
+		log.info('Starting token price updater timer');
+		timerManager.startTimer('tokenPriceUpdater');
+	}
+})();
 
 // Run initial update immediately to populate prices
 updateTokenPrices().then(() => {

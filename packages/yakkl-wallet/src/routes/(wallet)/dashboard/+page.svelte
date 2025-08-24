@@ -263,47 +263,48 @@
 	<!-- Modals -->
 	{#if showSendModal}
 		<SendModal
-			bind:showModal={showSendModal}
+			bind:show={showSendModal}
 			{selectedToken}
 		/>
 	{/if}
 	
 	{#if showSwapModal}
 		<SwapModal
-			bind:showModal={showSwapModal}
+			bind:show={showSwapModal}
 			fromToken={selectedToken}
 		/>
 	{/if}
 	
 	{#if showReceiveModal}
 		<Receive
-			bind:showModal={showReceiveModal}
+			bind:show={showReceiveModal}
 		/>
 	{/if}
 	
 	{#if showBuyModal}
 		<BuyModal
-			bind:showModal={showBuyModal}
+			bind:show={showBuyModal}
 		/>
 	{/if}
 	
 	{#if showAddTokenModal}
 		<AddCustomToken
-			bind:showModal={showAddTokenModal}
+			bind:show={showAddTokenModal}
 		/>
 	{/if}
 	
 	{#if showTokenDetailModal && selectedToken}
 		<TokenDetailModal
-			bind:showModal={showTokenDetailModal}
+			bind:show={showTokenDetailModal}
 			token={selectedToken}
 		/>
 	{/if}
 	
 	{#if showTransactionDetailModal && selectedTransaction}
 		<TransactionDetailModal
-			bind:showModal={showTransactionDetailModal}
+			bind:show={showTransactionDetailModal}
 			transaction={selectedTransaction}
+			onClose={() => showTransactionDetailModal = false}
 		/>
 	{/if}
 </div>

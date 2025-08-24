@@ -34,7 +34,7 @@ export class StandardAccountManager implements IAccountManager {
 	}
 
 	isAdvancedFeaturesEnabled(): boolean {
-		return this.planType === PlanType.YAKKL_PRO || this.planType === PlanType.ENTERPRISE;
+		return this.planType === PlanType.YAKKL_PRO || this.planType === PlanType.YAKKL_PRO_PLUS || this.planType === PlanType.ENTERPRISE;
 	}
 
 	private async loadAccounts(): Promise<void> {

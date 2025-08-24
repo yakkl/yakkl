@@ -348,76 +348,109 @@ export class SubscriptionService extends BaseService {
 
   private async getDefaultPlans(): Promise<ServiceResponse<SubscriptionPlan[]>> {
     const plans: SubscriptionPlan[] = [
-      {
-        id: 'explorer_member',
-        name: 'Explorer',
-        type: PlanType.EXPLORER_MEMBER,
-        price: 0,
-        currency: 'USD',
-        interval: 'month',
-        features: [
-          'Send & Receive Crypto',
-          'View Balances',
-          'Basic Security',
-          'Major Networks Only',
-          'Community Support'
-        ]
-      },
-      {
-        id: 'pro-monthly',
-        name: 'Pro',
-        type: PlanType.YAKKL_PRO,
-        price: 8.00,
-        currency: 'USD',
-        interval: 'month',
-        features: [
-          'Everything in Explorer',
-          'Token Swapping',
-          'AI Assistant',
-          'Advanced Analytics',
-          'All Networks & Testnets',
-          'Priority Support',
-          'Hardware Wallet Support',
-          'Advanced Security'
-        ],
-        popular: true
-      },
-      {
-        id: 'pro-yearly',
-        name: 'Pro',
-        type: PlanType.YAKKL_PRO,
-        price: 80.00,
-        currency: 'USD',
-        interval: 'year',
-        features: [
-          'Everything in Explorer',
-          'Token Swapping',
-          'AI Assistant',
-          'Advanced Analytics',
-          'All Networks & Testnets',
-          'Priority Support',
-          'Hardware Wallet Support',
-          'Advanced Security'
-        ],
-        discount: 17 // 2 months free
-      },
-      {
-        id: 'enterprise',
-        name: 'Enterprise',
-        type: PlanType.ENTERPRISE,
-        price: 999.99,
-        currency: 'USD',
-        interval: 'month',
-        features: [
-          'Everything in Pro',
-          'White Label Solutions',
-          'Custom Branding',
-          'Dedicated Support',
-          'Custom Features',
-          'SLA Guarantees'
-        ]
-      }
-    ];
+			{
+				id: 'explorer_member',
+				name: 'Explorer',
+				type: PlanType.EXPLORER_MEMBER,
+				price: 0,
+				currency: 'USD',
+				interval: 'month',
+				features: [
+					'Send & Receive Crypto',
+					'Full Swap Functionality',
+					'View Balances',
+					'Strong Security',
+					'Major Networks Only',
+					'Community Support'
+				]
+			},
+			{
+				id: 'pro-monthly',
+				name: 'Pro',
+				type: PlanType.YAKKL_PRO,
+				price: 10.0,
+				currency: 'USD',
+				interval: 'month',
+				features: [
+					'Everything in Explorer',
+					'AI Assistant',
+					'Advanced Analytics',
+					'All Networks & Testnets',
+					'Priority Support',
+					'Hardware Wallet Support',
+					'Advanced Security'
+				],
+				popular: true
+			},
+			{
+				id: 'pro-yearly',
+				name: 'Pro',
+				type: PlanType.YAKKL_PRO,
+				price: 100.0,
+				currency: 'USD',
+				interval: 'year',
+				features: [
+					'Everything in Explorer',
+					'AI Assistant',
+					'Advanced Analytics',
+					'All Networks & Testnets',
+					'Priority Support',
+					'Hardware Wallet Support',
+					'Advanced Security'
+				],
+				discount: 17 // 2 months free
+			},
+			{
+				id: 'pro_plus-monthly',
+				name: 'Pro+',
+				type: PlanType.YAKKL_PRO_PLUS, // TODO: Maybe we add a Plus Plan Add-on? or MAX Plan?
+				price: 14.0,
+				currency: 'USD',
+				interval: 'month',
+				features: [
+					'Everything in Pro',
+					'AI Assistant Plus',
+					'Multiple Visualizations to data',
+					'Rapid Support',
+					'Custom Features',
+					'Access to Innovation Lab',
+					'Advanced Pro+ Security'
+				]
+			},
+			{
+				id: 'pro_plus-yearly',
+				name: 'Pro+',
+				type: PlanType.YAKKL_PRO_PLUS,
+				price: 140.0,
+				currency: 'USD',
+				interval: 'year',
+				features: [
+					'Everything in Pro',
+					'AI Assistant Plus',
+					'Multiple Visualizations to data',
+					'Rapid Support',
+					'Custom Features',
+					'Access to Innovation Lab',
+					'Advanced Pro+ Security'
+				]
+			},
+			{
+				id: 'enterprise',
+				name: 'Enterprise',
+				type: PlanType.ENTERPRISE,
+				price: 999.99, // TODO: Update to actual price and add other pricing options
+				currency: 'USD',
+				interval: 'month',
+				features: [
+					'Everything in Pro',
+					'White Label Solutions',
+					'Custom Branding',
+					'Dedicated Support',
+					'Custom Features',
+					'SLA Guarantees'
+				]
+			}
+		];
 
     return { success: true, data: plans };
   }

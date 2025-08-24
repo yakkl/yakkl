@@ -14,7 +14,7 @@
     onSend?: (token: TokenDisplay) => void;
   }
 
-  let { show = false, token = null, onClose = () => {}, onSend = () => {} }: Props = $props();
+  let { show = $bindable(false), token = null, onClose = () => {}, onSend = () => {} }: Props = $props();
 
   // Check if token is native (ETH, MATIC, etc.)
   const isNativeToken = $derived(

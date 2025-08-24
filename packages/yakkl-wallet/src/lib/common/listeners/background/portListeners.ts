@@ -27,6 +27,7 @@ import { sessionPortManager } from '$lib/managers/SessionPortManager';
 import { showPopupForMethod } from '$lib/managers/DAppPopupManager';
 import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 import { BackgroundJWTValidatorService } from '$lib/services/background-jwt-validator.service';
+import { EnhancedKeyManager } from '$lib/sdk/security/EnhancedKeyManager';
 import { showEIP6963Popup } from '$contexts/background/extensions/chrome/eip-6963';
 
 // Initialize timer manager
@@ -425,11 +426,10 @@ export async function onPortExternalListener(message: any, port: Runtime.Port): 
 		const externalData = event;
 		externalData.sender = sender;
 
-		// NOTE: Later, this should be moved to a function that gets the api key based on the chainId and network
-		const apiKey =
-			process.env.ALCHEMY_API_KEY_PROD ||
-			process.env.VITE_ALCHEMY_API_KEY_PROD ||
-			import.meta.env.VITE_ALCHEMY_API_KEY_PROD;
+		// Get API key from EnhancedKeyManager
+		const keyManager = EnhancedKeyManager.getInstance();
+		await keyManager.initialize();
+		const apiKey = await keyManager.getKey('alchemy', 'read');
 
 		// Track the activity
 		activity = {
@@ -563,8 +563,9 @@ export async function onPortExternalListener(message: any, port: Runtime.Port): 
 			case 'eth_getBlockByNumber':
 				if (yakklCurrentlySelected?.shortcuts?.chainId) {
 					const block = event?.params[0] ?? 'latest';
+					const fullTx = event?.params[1] ?? false;
 					let value;
-					getBlock(yakklCurrentlySelected.shortcuts.chainId, block, apiKey).then((result) => {
+					getBlock(yakklCurrentlySelected.shortcuts.chainId, block, fullTx).then((result) => {
 						value = result;
 						port.postMessage({
 							id: event.id,
