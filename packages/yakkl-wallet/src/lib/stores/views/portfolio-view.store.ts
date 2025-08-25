@@ -13,6 +13,7 @@ import { derived, get, type Readable } from 'svelte/store';
 import { BaseViewStore } from './base-view.store';
 import type { BigNumberish } from '$lib/common/bignumber';
 import { log } from '$lib/common/logger-wrapper';
+import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
 
 /**
  * Portfolio data structure
@@ -452,8 +453,8 @@ class PortfolioViewStore extends BaseViewStore<PortfolioViewState> {
     
     // By token allocation
     const byToken: AllocationBreakdown[] = tokens
-      .filter(t => Number(t.totalValueCents) > 0)
-      .sort((a, b) => Number(b.totalValueCents - a.totalValueCents))
+      .filter(t => BigNumberishUtils.toNumberSafe(t.totalValueCents) > 0)
+      .sort((a, b) => BigNumberishUtils.compareSafe(b.totalValueCents, a.totalValueCents))
       .slice(0, 10)
       .map((token, index) => ({
         id: token.id,
@@ -472,7 +473,7 @@ class PortfolioViewStore extends BaseViewStore<PortfolioViewState> {
     });
     
     const byChain: AllocationBreakdown[] = Array.from(chainMap.entries())
-      .sort((a, b) => Number(b[1] - a[1]))
+      .sort((a, b) => BigNumberishUtils.compareSafe(b[1], a[1]))
       .map(([chainId, value], index) => {
         const network = networks.find(n => n.chainId === chainId);
         return {
@@ -487,7 +488,7 @@ class PortfolioViewStore extends BaseViewStore<PortfolioViewState> {
     
     // By account allocation
     const byAccount: AllocationBreakdown[] = accounts
-      .sort((a, b) => Number(b.totalValueCents - a.totalValueCents))
+      .sort((a, b) => BigNumberishUtils.compareSafe(b.totalValueCents, a.totalValueCents))
       .map((account, index) => ({
         id: account.address,
         name: account.alias || `Account ${index + 1}`,

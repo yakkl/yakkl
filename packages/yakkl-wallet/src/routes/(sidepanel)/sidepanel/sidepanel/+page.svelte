@@ -48,7 +48,7 @@
 	let showFooter = $state(true);
 	let showTokenFiatConverter = $state(false);
 	let init = $state(false);
-	let locked = $state(true);
+	let locked = $state(false); // No longer locked
 	let foundingUser = $state(false);
 	let tokensLockedCount = $state(0); // Show all tokens for both Basic and Pro
 	let newsfeedsLockedCount = $state(6);
@@ -58,12 +58,13 @@
 	let showDynamicNewsfeeds = $state(false);
 	// let showLegalTerms = $state(false);
 	let isAgreed = $state(false);
-	let planType = $state('yakkl_pro (Trial)');
+	// let planType = $state('yakkl_pro (Trial)');
 	let trialEnds = $state('2025-07-01');
 
 	// List of crypto news RSS feeds
 	const cryptoFeeds = [
     'https://feeds.feedburner.com/InvestingHaven',
+    'https://deepnewz.com/feed-crypto.xml',
     'https://www.ft.com/cryptofinance?format=rss/?utm_source=yakkl&utm_medium=extension',
     'https://seekingalpha.com/feeds/cryptocompare/cryptos/?utm_source=yakkl&utm_medium=extension',
     'https://finbold.com/category/cryptocurrency-news/feed/?utm_source=yakkl&utm_medium=extension',
@@ -228,7 +229,7 @@
 	onMount(async () => {
 		try {
 			if (!browserSvelte) return;
-			
+
 			// Listen for bookmark messages from context menu
 			if (browser_ext) {
 				browser_ext.runtime.onMessage.addListener(async (message) => {
@@ -266,10 +267,10 @@
 				return;
 			} else {
 				init = true;
-				locked = (await isProLevel()) ? false : true;
+				// locked = (await isProLevel()) ? false : true;
 				tokensLockedCount = 0; // Show all tokens for both Basic and Pro
 				newsfeedsLockedCount = (await isProLevel()) ? 10 : 4;
-				planType = (await isProLevel()) ? 'yakkl_pro' : 'explorer_member';
+				// planType = (await isProLevel()) ? 'yakkl_pro' : 'explorer_member';
 				trialEnds = settings.plan?.trialEndDate || null;
 			}
 
@@ -321,7 +322,7 @@
 				locked = (await isProLevel()) ? false : true;
 				tokensLockedCount = 0; // Show all tokens for both Basic and Pro
 				newsfeedsLockedCount = (await isProLevel()) ? 10 : 4;
-				planType = (await isProLevel()) ? 'yakkl_pro' : 'explorer_member';
+				// planType = (await isProLevel()) ? 'yakkl_pro' : 'explorer_member';
 				trialEnds = settings.plan?.trialEndDate || null;
 
 				// Load default tokens and update stores
@@ -382,9 +383,9 @@
 		showControls={false}
 	/> -->
 
-	<div class="flex justify-end px-4 py-2">
+	<!-- <div class="flex justify-end px-4 py-2">
 		<PlanBadge planType={planType} trialEnds={trialEnds} />
-	</div>
+	</div> -->
 
 	<ScrollIndicator>
 		<main class="flex-1 overflow-y-auto px-5 pb-4 relative z-10">
@@ -463,6 +464,7 @@
 						footerProps={{}}
 						lockedFooter={null}
 						lockedFooterProps={{}}
+						minHeight="375px"
 					/>
 				</div>
 
@@ -556,15 +558,14 @@
 
   {#if showFooter}
   <footer
-		class="yakkl-footer fixed-bottom h-[6rem] backdrop-blur-sm text-xs text-center flex flex-col items-center justify-center gap-1 relative z-10"
-	>
+		class="yakkl-footer fixed-bottom h-[6rem] backdrop-blur-sm text-xs text-center flex flex-col items-center justify-center gap-1 relative z-10">
 		<div class="inline-flex items-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-3 py-1 rounded-full text-xs font-medium shadow-md">
 			<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
 			</svg>
 			YAKKL Insights
 		</div>
-		<Copyright />
+		<Copyright overridePlanType={true} />
 	</footer>
 	{/if}
 </div>

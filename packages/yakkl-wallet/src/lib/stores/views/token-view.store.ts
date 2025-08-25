@@ -12,6 +12,7 @@
 import { derived, get, type Readable } from 'svelte/store';
 import { BaseViewStore } from './base-view.store';
 import type { BigNumberish } from '$lib/common/bignumber';
+import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
 import { log } from '$lib/common/logger-wrapper';
 
 /**
@@ -733,7 +734,7 @@ export const favoriteTokens = derived(
 export const topTokens = derived(
   tokenViewStore.data,
   $store => [...$store.tokens]
-    .sort((a, b) => Number(b.totalValueCents - a.totalValueCents))
+    .sort((a, b) => BigNumberishUtils.compareSafe(b.totalValueCents, a.totalValueCents))
     .slice(0, 10)
 );
 

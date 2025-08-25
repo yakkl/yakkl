@@ -28,9 +28,11 @@
   const isVisible = $derived($visibilityStore);
   const account = $derived($currentAccount);
   const chain = $derived($currentChain);
-  // For now, default to FOUNDING_MEMBER for demonstration
-  // In production, this should come from $currentPlan properly
-  const plan = $derived($currentPlan || PlanType.FOUNDING_MEMBER);
+  const plan = $derived($currentPlan || PlanType.EXPLORER_MEMBER);
+
+  $effect(() => {
+    console.log('PortfolioOverviewSimple - plan:', plan);
+  });
 
   // Format value for display
   const formattedValue = $derived(() => {
@@ -72,7 +74,7 @@
 
 <!-- Main container with shadow and hover effect like original -->
 <div class="{className} rounded-2xl p-6 shadow-md hover:shadow-lg transition-all duration-300"
-     style="background-color: {getPlanBadgeColor()}20">
+     style="background-color: {getPlanBadgeColor(plan)}20">
   <div class="space-y-3">
     <!-- Header with badge -->
     <div class="flex items-start justify-between gap-2">
@@ -83,9 +85,9 @@
           </span>
           <span
             class="px-2 py-0.5 text-white text-[10px] font-bold rounded-full whitespace-nowrap"
-            style="background-color: {getPlanBadgeColor()}"
+            style="background-color: {getPlanBadgeColor(plan)}"
           >
-            {getPlanBadgeText()}
+            {getPlanBadgeText(plan)}
           </span>
         </div>
         <span class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 block">

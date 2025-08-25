@@ -203,7 +203,7 @@
                       </div>
                       {#if account.balance || account.value}
                         <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          Balance: ${account.value ? BigNumberishUtils.toNumber(account.value).toFixed(2) : '0.00'}
+                          Balance: ${account.value ? BigNumberishUtils.toNumberSafe(account.value).toFixed(2) : '0.00'}
                         </div>
                       {/if}
                     </div>

@@ -3,7 +3,7 @@
 // export { PlanType };
 
 import { PlanType } from "$lib/common/types";
-export { PlanType };
+// export { PlanType };
 
 // Define feature arrays first to avoid circular reference
 const BASIC_FEATURES = [
@@ -45,6 +45,16 @@ const PRO_FEATURES = [
   'network_diagnostics' // Advanced troubleshooting tools
 ] as const;
 
+const FOUNDING_MEMBER_FEATURES = [
+  ...PRO_FEATURES,
+  'founding_member_features'
+] as const;
+
+const EARLY_ADOPTER_FEATURES = [
+  ...PRO_FEATURES,
+  'early_adopter_features'
+] as const;
+
 const PRO_PLUS_FEATURES = [
   ...PRO_FEATURES,
   'ai_assistant_plus',
@@ -76,6 +86,8 @@ export const FEATURES = {
   [PlanType.YAKKL_PRO]: PRO_FEATURES,
   [PlanType.YAKKL_PRO_PLUS]: PRO_PLUS_FEATURES,
   [PlanType.ENTERPRISE]: ENTERPRISE_FEATURES,
+  [PlanType.FOUNDING_MEMBER]: FOUNDING_MEMBER_FEATURES,
+  [PlanType.EARLY_ADOPTER]: EARLY_ADOPTER_FEATURES,
   PAYMENT: PAYMENT_FEATURES
 } as const;
 
@@ -84,6 +96,8 @@ export const PLAN_FEATURES = {
   BASIC: BASIC_FEATURES,
   PRO: PRO_FEATURES,
   PRO_PLUS: PRO_PLUS_FEATURES,
+  FOUNDING_MEMBER: FOUNDING_MEMBER_FEATURES,
+  EARLY_ADOPTER: EARLY_ADOPTER_FEATURES,
   ENTERPRISE: ENTERPRISE_FEATURES
 } as const;
 
@@ -92,6 +106,8 @@ export type FeatureKey =
   | typeof BASIC_FEATURES[number]
   | typeof PRO_FEATURES[number]
   | typeof PRO_PLUS_FEATURES[number]
+  | typeof FOUNDING_MEMBER_FEATURES[number]
+  | typeof EARLY_ADOPTER_FEATURES[number]
   | typeof ENTERPRISE_FEATURES[number];
 
 // Helper function to check if a feature is available

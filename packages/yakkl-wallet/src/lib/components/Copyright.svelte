@@ -7,9 +7,10 @@
 	interface Props {
 		planType?: string | null;
 		className?: string;
+    overridePlanType?: boolean;
 	}
 
-	let { planType = null, className = '' }: Props = $props();
+	let { planType = null, className = '', overridePlanType = false }: Props = $props();
 
 	/**
 	 * The registered type retrieved from Yakkl settings.
@@ -18,12 +19,15 @@
 	let registered: string = $state('');
 
 	onMount(async () => {
+
+    // TODO: ProfileData.planType is used now instead yakklSettings.plan.type
 		getYakklSettingsDirect().then(async (result) => {
 			const yakklSettings = result as YakklSettings;
 			if (yakklSettings && yakklSettings.plan) {
 				registered = yakklSettings.plan.type;
 			}
 		});
+
 	});
 
 	// Format plan type for display (remove underscores and capitalize)
@@ -42,7 +46,7 @@
 
 <div class={`flex items-center gap-2 justify-center ${className}`}>
 	<!-- Blue highlighted plan type at the beginning -->
-	{#if displayPlan}
+	{#if displayPlan && !overridePlanType}
 		<span class="inline-flex items-center px-2 py-0.5 rounded-full shadow text-[10px] font-semibold opacity-80
 			bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-200">
 			{displayPlan}

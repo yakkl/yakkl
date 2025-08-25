@@ -1,0 +1,296 @@
+<script lang="ts">
+  import { onMount, onDestroy } from 'svelte';
+  import type { MenuItemStandard, MenuContext } from './types';
+  import { calculateSubmenuPosition, getViewportBounds, adjustMenuPosition } from './utils';
+  
+  let {
+    item,
+    depth = 0,
+    context,
+    className = ''
+  }: {
+    item: MenuItemStandard;
+    depth: number;
+    context: MenuContext;
+    className?: string;
+  } = $props();
+
+  let itemElement: HTMLElement;
+  let submenuElement: HTMLElement;
+  let submenuOpen = $state(false);
+  let hoverTimeout: number | null = null;
+  let leaveTimeout: number | null = null;
+  let submenuId = `submenu-${Math.random().toString(36).substr(2, 9)}`;
+
+  const HOVER_DELAY = 150;
+  const LEAVE_DELAY = 300;
+
+  $effect(() => {
+    if (submenuOpen && submenuElement && itemElement) {
+      positionSubmenu();
+    }
+  });
+
+  function positionSubmenu() {
+    if (!submenuElement || !itemElement) return;
+    
+    const viewport = getViewportBounds();
+    const position = calculateSubmenuPosition(
+      itemElement,
+      submenuElement,
+      viewport,
+      depth
+    );
+    
+    adjustMenuPosition(submenuElement, position);
+  }
+
+  function handleMouseEnter() {
+    if (!item.children || item.children.length === 0) return;
+    
+    if (leaveTimeout) {
+      clearTimeout(leaveTimeout);
+      leaveTimeout = null;
+    }
+    
+    if (!submenuOpen) {
+      hoverTimeout = window.setTimeout(() => {
+        submenuOpen = true;
+        context.closeSubmenus(submenuId);
+        hoverTimeout = null;
+      }, HOVER_DELAY);
+    }
+  }
+
+  function handleMouseLeave() {
+    if (!item.children || item.children.length === 0) return;
+    
+    if (hoverTimeout) {
+      clearTimeout(hoverTimeout);
+      hoverTimeout = null;
+    }
+    
+    leaveTimeout = window.setTimeout(() => {
+      submenuOpen = false;
+      leaveTimeout = null;
+    }, LEAVE_DELAY);
+  }
+
+  function handleClick(e: MouseEvent) {
+    if (item.disabled) {
+      e.preventDefault();
+      return;
+    }
+
+    if (item.children && item.children.length > 0) {
+      e.preventDefault();
+      submenuOpen = !submenuOpen;
+      if (submenuOpen) {
+        context.closeSubmenus(submenuId);
+      }
+    } else {
+      if (item.action) {
+        e.preventDefault();
+        const result = item.action();
+        if (result instanceof Promise) {
+          result.then(() => {
+            if (!item.preventClose) {
+              context.closeAll();
+            }
+          });
+        } else {
+          if (!item.preventClose) {
+            context.closeAll();
+          }
+        }
+      } else if (item.href) {
+        // Let the default link behavior happen
+        if (!item.preventClose) {
+          context.closeAll();
+        }
+      }
+    }
+  }
+
+  function handleKeyDown(e: KeyboardEvent) {
+    switch (e.key) {
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        handleClick(e as unknown as MouseEvent);
+        break;
+      case 'ArrowRight':
+        if (item.children && item.children.length > 0) {
+          e.preventDefault();
+          submenuOpen = true;
+        }
+        break;
+      case 'ArrowLeft':
+        if (submenuOpen) {
+          e.preventDefault();
+          submenuOpen = false;
+        }
+        break;
+      case 'Escape':
+        if (submenuOpen) {
+          e.preventDefault();
+          submenuOpen = false;
+        } else {
+          context.onClose();
+        }
+        break;
+    }
+  }
+
+  function renderIcon(icon: typeof item.icon) {
+    if (!icon) return null;
+    
+    if (typeof icon === 'string') {
+      // Emoji or text icon
+      return icon;
+    } else if (typeof icon === 'object' && 'svg' in icon) {
+      // SVG string
+      return icon.svg;
+    } else if (typeof icon === 'object' && 'emoji' in icon) {
+      // Emoji object
+      return icon.emoji;
+    }
+    // Component - handled in template
+    return null;
+  }
+
+  onMount(() => {
+    if (item.children && item.children.length > 0) {
+      context.registerSubmenu(submenuId, () => {
+        submenuOpen = false;
+      });
+    }
+  });
+
+  onDestroy(() => {
+    if (hoverTimeout) clearTimeout(hoverTimeout);
+    if (leaveTimeout) clearTimeout(leaveTimeout);
+    if (item.children && item.children.length > 0) {
+      context.unregisterSubmenu(submenuId);
+    }
+  });
+
+  const hasChildren = $derived(item.children && item.children.length > 0);
+  const isDisabled = $derived(item.disabled || false);
+  const iconContent = $derived(renderIcon(item.icon));
+</script>
+
+{#if item.href && !hasChildren}
+  <a
+    bind:this={itemElement}
+    href={item.href}
+    class={`yakkl-menu-item ${hasChildren ? 'yakkl-menu-item-with-children' : ''} ${isDisabled ? 'disabled' : ''} ${item.className || ''} ${className}`}
+    role="menuitem"
+    aria-disabled={isDisabled}
+    aria-haspopup={hasChildren ? 'menu' : undefined}
+    aria-expanded={hasChildren ? submenuOpen : undefined}
+    tabindex={isDisabled ? -1 : 0}
+    onmouseenter={handleMouseEnter}
+    onmouseleave={handleMouseLeave}
+    onclick={handleClick}
+    onkeydown={handleKeyDown}
+  >
+    {#if item.icon}
+      <span class="yakkl-menu-icon">
+        {#if typeof item.icon === 'object' && 'component' in item.icon}
+          <item.icon.component />
+        {:else if iconContent}
+          {@html iconContent}
+        {/if}
+      </span>
+    {/if}
+    
+    <span class="yakkl-menu-label">{item.label}</span>
+    
+    {#if item.badge}
+      <span class={`yakkl-menu-badge ${item.badgeClass || ''}`}>
+        {item.badge}
+      </span>
+    {/if}
+    
+    {#if item.shortcut}
+      <span class="yakkl-menu-shortcut">
+        {item.shortcut}
+      </span>
+    {/if}
+    
+    {#if hasChildren}
+      <span class="yakkl-submenu-indicator">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+        </svg>
+      </span>
+    {/if}
+  </a>
+{:else}
+  <button
+    bind:this={itemElement}
+    class={`yakkl-menu-item ${hasChildren ? 'yakkl-menu-item-with-children' : ''} ${isDisabled ? 'disabled' : ''} ${item.className || ''} ${className}`}
+    role="menuitem"
+    aria-disabled={isDisabled}
+    aria-haspopup={hasChildren ? 'menu' : undefined}
+    aria-expanded={hasChildren ? submenuOpen : undefined}
+    tabindex={isDisabled ? -1 : 0}
+    disabled={isDisabled}
+    onmouseenter={handleMouseEnter}
+    onmouseleave={handleMouseLeave}
+    onclick={handleClick}
+    onkeydown={handleKeyDown}
+  >
+    {#if item.icon}
+      <span class="yakkl-menu-icon">
+        {#if typeof item.icon === 'object' && 'component' in item.icon}
+          <item.icon.component />
+        {:else if iconContent}
+          {@html iconContent}
+        {/if}
+      </span>
+    {/if}
+    
+    <span class="yakkl-menu-label">{item.label}</span>
+    
+    {#if item.badge}
+      <span class={`yakkl-menu-badge ${item.badgeClass || ''}`}>
+        {item.badge}
+      </span>
+    {/if}
+    
+    {#if item.shortcut}
+      <span class="yakkl-menu-shortcut">
+        {item.shortcut}
+      </span>
+    {/if}
+    
+    {#if hasChildren}
+      <span class="yakkl-submenu-indicator">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+        </svg>
+      </span>
+    {/if}
+  </button>
+{/if}
+
+{#if hasChildren && submenuOpen}
+  <div
+    bind:this={submenuElement}
+    class="yakkl-submenu"
+    role="menu"
+    aria-label={`${item.label} submenu`}
+    onmouseenter={handleMouseEnter}
+    onmouseleave={handleMouseLeave}
+  >
+    {#await import('./SubMenu.svelte') then { default: SubMenu }}
+      <SubMenu
+        items={item.children}
+        depth={depth + 1}
+        {context}
+      />
+    {/await}
+  </div>
+{/if}

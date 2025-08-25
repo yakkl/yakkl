@@ -320,7 +320,7 @@
               if (typeof qtyValue === 'number') {
                 qty = isFinite(qtyValue) ? qtyValue : 0;
               } else {
-                const qtyNum = BigNumberishUtils.toNumber(qtyValue);
+                const qtyNum = BigNumberishUtils.toNumberSafe(qtyValue);
                 qty = isFinite(qtyNum) ? qtyNum : 0;
               }
             }
@@ -360,12 +360,12 @@
   // Reactive values from stores - memoized to prevent unnecessary recalculations
   let account = $state(null);
   let chain = $state(null);
-  
+
   // Subscribe to account and chain stores
   $effect(() => {
     const unsubAccount = currentAccount.subscribe(v => account = v);
     const unsubChain = currentChain.subscribe(v => chain = v);
-    
+
     return () => {
       unsubAccount();
       unsubChain();
@@ -373,7 +373,7 @@
   });
   // Use store subscription for reactivity - derived will maintain the subscription
   let tokenList = $derived($displayTokens || []);
-  
+
   // Debug token data
   $effect(() => {
     console.log('[HomePage] Token data update:', {
@@ -387,10 +387,10 @@
   // Store values need to be accessed differently in derived
   const isMultiChainStore = isMultiChainView;
   const grandTotalStore = grandTotalPortfolioValue;
-  
+
   let isMultiChain = $state(false);
   let grandTotal = $state(0n);
-  
+
   // Subscribe to stores in effect
   $effect(() => {
     const unsubIsMulti = isMultiChainStore.subscribe(v => isMultiChain = v);
@@ -398,7 +398,7 @@
       grandTotal = v || 0n;
       console.log('Derived grandTotal:', v?.toString() || '0');
     });
-    
+
     return () => {
       unsubIsMulti();
       unsubGrand();
@@ -495,28 +495,6 @@
     }
   });
 
-  // Debug native token price
-  // $effect(() => {
-  //   try {
-  //     if (nativeToken) {
-  //       console.log('Native token debug:', {
-  //         symbol: nativeToken.symbol,
-  //         price: nativeToken.price,
-  //         value: nativeToken.value,
-  //         qty: (nativeToken as any).qty || new BigNumber((nativeToken as any).balance || '0').toNumber() || 0,
-  //         chainId: nativeToken.chainId
-  //       });
-
-        // Check if the price looks like a portfolio value
-        // if (nativeToken.price && nativeToken.price > 10000) {
-        //   console.log('WARNING: Native token price looks like portfolio value!', nativeToken.price);
-        // }
-  //     }
-  //   } catch (error) {
-  //     handleError(error, 'native token debug effect');
-  //   }
-  // });
-
   // Calculate native token value for account display using simple multiplication
   let accountNativeValue = $derived.by(() => {
     try {
@@ -552,7 +530,7 @@
       // Try to get stored price from localStorage
       const storedPriceKey = `native_price_${chainId}`;
       const storedPrice = localStorage.getItem(storedPriceKey);
-      
+
       if (storedPrice) {
         const stored = parseFloat(storedPrice);
         if (stored > 0 && stored !== nativePrice) {
@@ -759,10 +737,10 @@
   function safeFormatBalance(balance: string | number | BigNumberish): string {
     try {
       if (typeof balance === 'string' || typeof balance === 'number') {
-        const balanceNum = new BigNumber(balance).toNumber();
+        const balanceNum = BigNumber.toNumber(balance);
         return balanceNum !== null && isFinite(balanceNum) ? balanceNum.toFixed(4) : '0.0000';
       } else {
-        const balanceNum = BigNumberishUtils.toNumber(balance);
+        const balanceNum = BigNumberishUtils.toNumberSafe(balance);
         return isFinite(balanceNum) ? balanceNum.toFixed(4) : '0.0000';
       }
     } catch (error) {
