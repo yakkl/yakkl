@@ -16,6 +16,7 @@ import type { BigNumberish } from '$lib/common/bignumber';
 import type { Token } from '$lib/managers/Token';
 // import type { Runtime } from 'webextension-polyfill';
 import type { EthereumBigNumber } from './bignumber-ethereum';
+import type { VaultReference } from '$lib/interfaces/vault.interface';
 
 // Session Info is used to check if the session is valid and if the port is open - mainly used for the dapp popups
 export interface SessionInfo {
@@ -856,6 +857,7 @@ export interface ProfileData {
 	primaryAccounts: YakklPrimaryAccount[];
 	importedAccounts: YakklAccount[]; // Independent accounts - These accounts have no relation to any primary or subaccount but do use the account model
 	watchList: YakklWatch[]; // If you want to see data from any of your other centralized exchanges or something different
+	vaultReferences?: VaultReference[]; // References to secure vaults (keys stored in yakkl-security)
 	meta?: unknown | null | undefined; // This is a placeholder for any additional data that is not part of the standard profile
 }
 
