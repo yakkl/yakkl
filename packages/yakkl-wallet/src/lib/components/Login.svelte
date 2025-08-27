@@ -2,15 +2,13 @@
 <script lang="ts">
 	import { createForm } from 'svelte-forms-lib';
 	import { verify } from '$lib/common/security';
-	import { getContextTypeStore, getMiscStore, getYakklSettings } from '$lib/common/stores';
+	import { getContextTypeStore, getMiscStore } from '$lib/common/stores';
 	import { log } from '$lib/common/logger-wrapper';
 	import { authStore } from '$lib/stores/auth-store';
 	import AuthError from '$lib/components/AuthError.svelte';
 	import AuthenticationLoader from '$lib/components/AuthenticationLoader.svelte';
-	import { sessionManager } from '$lib/managers/SessionManager';
 	import { jwtManager } from '$lib/utilities/jwt';
-	import { getNormalizedSettings, STORAGE_YAKKL_SETTINGS } from '$lib/common';
-  import browser from '$lib/common/browser-wrapper';
+	import { getNormalizedSettings } from '$lib/common';
 
 	// Props using runes syntax
 	const props = $props<{
@@ -70,8 +68,6 @@
 		try {
       if (typeof window === 'undefined') return;
 
-      const settings = await browser.storage.local.get(STORAGE_YAKKL_SETTINGS);
-
 			let jwtToken: string | undefined;
 
 			// We'll handle session management after navigation
@@ -99,8 +95,8 @@
 			const profile = await verify(loginString);
 
 			if (!profile) {
-				log.warn('Login.svelte: Verification returned no profile');
-				throw 'Invalid credentials or profile not found';
+				log.warn('Login.svelte: Verification returned no profile information');
+				throw 'Invalid credentials or profile information not found';
 			}
 
 			// Get the digest that was set during verification
@@ -111,22 +107,8 @@
 				throw 'Authentication succeeded but failed to retrieve security digest';
 			}
 
-      // For testing...
-        const settings1 = await getNormalizedSettings();
-
-        log.info('Login.svelte: settings1 =', false, settings1);
-        log.info('Login.svelte: settings1.plan =', false, settings1?.plan);
-        log.info('Login.svelte: settings1.plan.type =', false, settings1?.plan?.type);
-        console.log('[Login] settings1 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', settings1);
-
-			log.info('Login.svelte: profile =', false, profile, digest);
 			if (props.generateJWT) {
         const settings = await getNormalizedSettings();
-
-        log.info('Login.svelte: settings =', false, settings);
-        log.info('Login.svelte: settings.plan =', false, settings?.plan);
-        log.info('Login.svelte: settings.plan.type =', false, settings?.plan?.type);
-        console.log('[Login] settings >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', settings);
 
         const planLevel = settings?.plan?.type || 'explorer_member';
 

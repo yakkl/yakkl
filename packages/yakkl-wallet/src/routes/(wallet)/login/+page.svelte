@@ -1,26 +1,22 @@
 <script lang="ts">
   import Login from '$lib/components/Login.svelte';
-  import { syncStorageToStore, yakklUserNameStore } from '$lib/common/stores';
+  import { yakklUserNameStore } from '$lib/common/stores';
   import { safeLogout } from '$lib/common/safeNavigate';
-  import { startActivityTracking } from '$lib/common/messaging';
   import { log } from '$lib/common/logger-wrapper';
   import type { Profile, YakklSettings } from '$lib/common/interfaces';
-  import { getNormalizedSettings, PlanType } from '$lib/common';
+  import { getNormalizedSettings, PATH_LEGAL_TOS, PlanType, VERSION } from '$lib/common';
   import { setLocks } from '$lib/common/locks';
   import ErrorNoAction from '$lib/components/ErrorNoAction.svelte';
   import { onMount } from 'svelte';
-  import { protectedContexts } from '$lib/common/globals';
   import { goto } from '$app/navigation';
-  // import { browser_ext } from '$lib/common/environment';
   import browser from '$lib/common/browser-wrapper';
 
   // State
   let showError = $state(false);
   let errorValue = $state('');
-  let planType = $state(PlanType.EXPLORER_MEMBER);
+  // let planType = $state(PlanType.EXPLORER_MEMBER);
   let yakklSettings: YakklSettings | null = $state(null);
   let isInitializing = $state(false);
-  let initError = $state<string | null>(null);
 
   // Format plan type for display
   function formatPlanType(plan: string): string {
@@ -33,36 +29,28 @@
   }
 
   onMount(async () => {
-    console.log('[Login] Starting login page initialization...');
-
     // Show login form IMMEDIATELY - no spinner, no delay
     isInitializing = false;
-    planType = PlanType.EXPLORER_MEMBER;
+    // planType = PlanType.EXPLORER_MEMBER;
 
     // Load settings in background (non-blocking)
     getNormalizedSettings().then(async (settings) => {
       if (settings) {
         yakklSettings = settings;
-        planType = settings?.plan?.type ?? PlanType.EXPLORER_MEMBER;
+        // planType = settings?.plan?.type ?? PlanType.EXPLORER_MEMBER;
 
         // Check legal agreement (but don't block login form)
         if (!settings.init || !settings.legal?.termsAgreed) {
-          console.log('[Login] User needs to complete legal agreement');
-          await goto('/legal');
+          await goto(PATH_LEGAL_TOS);
         }
       }
     }).catch(error => {
-      console.log('[Login] Settings load failed (non-critical):', error);
+      log.warn('[Login] Settings load failed (non-critical):', false, error);
     });
   });
 
   // Handle successful login - FAST PATH
   async function onSuccess(profile: Profile, digest: string, isMinimal: boolean, jwtToken?: string) {
-    log.debug('[LOGIN onSuccess] FAST PATH:', false, {
-      profile: profile.username,
-      hasDigest: !!digest
-    });
-
     try {
       // Set the username in the global store
       $yakklUserNameStore = profile.username || '';
@@ -78,7 +66,6 @@
         }).catch(err => {
           log.warn('[LOGIN] Failed to notify IdleManager of login verification:', false, err);
         });
-        log.debug('[LOGIN] Notified IdleManager of successful authentication');
       }
 
       // Minimal background work only
@@ -87,14 +74,12 @@
           // Just unlock - skip heavy operations
           await setLocks(false, PlanType.EXPLORER_MEMBER);
         } catch (e) {
-          console.log('Background unlock error:', e);
+          log.warn('[LOGIN onSuccess] Background unlock error:', false, e);
         }
       }, 10);
 
       // Navigate IMMEDIATELY - no waiting
       await goto('/home');
-
-      log.info('[LOGIN onSuccess] User logged in successfully');
     } catch (error) {
       log.error('[LOGIN onSuccess] Error during login:', false, error);
       showError = true;
@@ -136,7 +121,7 @@
       <div class="mb-6">
         <img src="/images/logoBullFav128x128.png" alt="YAKKL" class="w-20 h-20 mx-auto" />
         <h1 class="text-2xl font-bold text-zinc-900 dark:text-white mt-4">YAKKL Smart Wallet</h1>
-        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Preview 2.0</p>
+        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Version: {VERSION}</p>
       </div>
 
         <!-- Login form - shown immediately -->
@@ -154,19 +139,13 @@
         />
 
       <!-- Plan type display -->
-      {#if planType && !isInitializing}
+      <!-- {#if planType && !isInitializing}
         <div class="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
           <p class="text-xs text-zinc-500 dark:text-zinc-400">
             Plan: {formatPlanType(planType)}
           </p>
         </div>
-      {/if}
+      {/if} -->
     </div>
   </div>
 </div>
-
-<style>
-  /* .yakkl-card {
-    @apply bg-white dark:bg-zinc-800 rounded-lg shadow-lg;
-  } */
-</style>

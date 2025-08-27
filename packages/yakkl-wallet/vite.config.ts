@@ -9,7 +9,8 @@ import { viteStaticCopy } from 'vite-plugin-static-copy';
 import mockBrowserPolyfill from './vite-plugin-mock-browser-polyfill';
 import { getYakklAliases } from './vite.alias.config';
 
-const htmlContent = fs.readFileSync(path.resolve('static/snippet-terms.html'), 'utf-8');
+const htmlTosContent = fs.readFileSync(path.resolve('static/snippet-tos.html'), 'utf-8');
+const htmlPrivacyContent = fs.readFileSync(path.resolve('static/snippet-privacy.html'), 'utf-8');
 
 // Ensure NODE_ENV is set
 if (!process.env.NODE_ENV) {
@@ -25,7 +26,8 @@ export default defineConfig(({ mode }) => {
 	return {
 		plugins: [
 			replace({
-				___HTML_SNIPPET___: htmlContent,
+				___HTML_SNIPPET_TOS___: htmlTosContent,
+				___HTML_SNIPPET_PRIVACY___: htmlPrivacyContent,
 				preventAssignment: true
 			}),
 			mockBrowserPolyfill() as any,

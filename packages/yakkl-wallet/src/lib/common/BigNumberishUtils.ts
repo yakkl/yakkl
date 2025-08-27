@@ -31,6 +31,39 @@ export namespace BigNumberishUtils {
 		return num;
 	}
 
+	/**
+	 * Safe version of toNumber that returns 0 instead of throwing.
+	 * Use for UI sorting and display where errors should not crash the app.
+	 */
+	export function toNumberSafe(value: BigNumberish | bigint | undefined | null): number {
+		if (value === null || value === undefined) {
+			return 0;
+		}
+		
+		try {
+			// Handle bigint type directly
+			if (typeof value === 'bigint') {
+				// Check for overflow
+				if (value > BigInt(Number.MAX_SAFE_INTEGER)) {
+					return Number.MAX_SAFE_INTEGER;
+				}
+				if (value < BigInt(Number.MIN_SAFE_INTEGER)) {
+					return Number.MIN_SAFE_INTEGER;
+				}
+				return Number(value);
+			}
+			
+			const num = BigNumber.toNumber(value);
+			if (num === null || !isFinite(num) || isNaN(num)) {
+				return 0;
+			}
+			return num;
+		} catch (error) {
+			// Silently return 0 for UI stability
+			return 0;
+		}
+	}
+
 	export function toDecimal(value: BigNumberish, decimals = 18): Decimal {
 		const bigint = toBigInt(value);
 		return new Decimal(bigint.toString()).div(`1e${decimals}`);
@@ -42,6 +75,30 @@ export namespace BigNumberishUtils {
 		if (bnA < bnB) return -1;
 		if (bnA > bnB) return 1;
 		return 0;
+	}
+
+	/**
+	 * Safe version of compare that handles undefined/null values.
+	 * Use for array sorting where values might be missing.
+	 */
+	export function compareSafe(a: BigNumberish | bigint | undefined | null, b: BigNumberish | bigint | undefined | null): number {
+		// Handle undefined/null cases
+		if (a === undefined || a === null) {
+			if (b === undefined || b === null) return 0;
+			return -1; // undefined/null sorts before defined values
+		}
+		if (b === undefined || b === null) {
+			return 1; // defined values sort after undefined/null
+		}
+		
+		try {
+			return compare(a, b);
+		} catch (error) {
+			// Fall back to safe number comparison
+			const aNum = toNumberSafe(a);
+			const bNum = toNumberSafe(b);
+			return aNum < bNum ? -1 : aNum > bNum ? 1 : 0;
+		}
 	}
 
 	export function add(a: BigNumberish, b: BigNumberish): bigint {

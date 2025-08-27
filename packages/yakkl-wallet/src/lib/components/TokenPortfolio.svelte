@@ -6,6 +6,7 @@
 	import ProtectedValue from './ProtectedValue.svelte';
 	import { log } from '$lib/common/logger-wrapper';
 	import { BigNumber } from '$lib/common/bignumber';
+	import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
 	// Import portfolio stability service for stable token data
 	import { portfolioStability, PortfolioState } from '$lib/services/portfolio-stability.service';
 
@@ -316,8 +317,9 @@ $effect(() => {
 						return sortOrder === 'asc' ? aPrice - bPrice : bPrice - aPrice;
 
 					case 'quantity':
-						const aQty = a.qty || 0;
-						const bQty = b.qty || 0;
+						// Safe conversion to prevent BigInt errors
+						const aQty = BigNumberishUtils.toNumberSafe(a.qty) || 0;
+						const bQty = BigNumberishUtils.toNumberSafe(b.qty) || 0;
 						return sortOrder === 'asc' ? aQty - bQty : bQty - aQty;
 
 					default:

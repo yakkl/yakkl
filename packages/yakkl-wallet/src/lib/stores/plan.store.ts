@@ -242,6 +242,16 @@ function createPlanStore() {
       };
     },
 
+    setPlan(plan: PlanType) {
+      set({
+        plan: {
+          type: plan,
+          features: getFeaturesForPlan(plan) as string[]
+        },
+        loading: false
+      });
+    },
+
     reset() {
       // Reset to default state
       set({

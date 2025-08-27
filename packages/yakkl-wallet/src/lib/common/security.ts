@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { decryptData, digestMessage } from '$lib/common/encryption';
+import { decryptData, digestMessage, encryptData } from '$lib/common/encryption';
 import type {
 	AccountData,
 	CurrentlySelectedData,
@@ -12,10 +12,15 @@ import {
 	getProfile,
 	setMiscStore,
 	getYakklCurrentlySelected,
-	getMiscStore
+	getMiscStore,
+  setYakklSettings,
+  setYakklSettingsStorage,
 } from '$lib/common/stores';
 import { log } from '$lib/common/logger-wrapper';
 import { storeEncryptedHash, storeSessionToken } from './auth/session';
+import { getNormalizedSettings } from './utils';
+import { planStore } from '$lib/stores';
+import { setUserPlan } from '$lib/utils/features';
 
 export interface AccountKey {
 	address: string;
@@ -47,7 +52,7 @@ export async function verify(id: string): Promise<Profile | undefined> {
 			let profileData: ProfileData;
 
 			try {
-				profileData = (await decryptData(profile.data, digest)) as ProfileData;
+				profileData = await decryptData(profile.data, digest) as ProfileData;
 			} catch (decryptError) {
 				log.error('Failed to decrypt profile data', false, decryptError);
 				throw 'Invalid credentials - decryption failed';
@@ -60,19 +65,20 @@ export async function verify(id: string): Promise<Profile | undefined> {
 					throw 'Invalid profile data after decryption';
 				}
 
-				// Additional validation: ensure username from Profile matches
-				// Note: username is stored at the Profile level, not ProfileData level
-				// This validation ensures the profile data belongs to the correct user
-
 				setMiscStore(digest); // Works for client side
 
-				console.log('[VERIFY] About to call storeEncryptedHash with digest:', {
-					digestLength: digest?.length,
-					digestSample: digest?.substring(0, 10) + '...'
-				});
+        const settings = await getNormalizedSettings();
+        settings.plan.type = profileData.planType;
+        await setYakklSettings(settings);
+        await setYakklSettingsStorage(settings);
 
-				const sessionToken: SessionToken = await storeEncryptedHash(digest); // Works for background context
+        // Set the plan directly
+        setUserPlan(profileData.planType);
+        planStore.setPlan(profileData.planType);
 
+        const sessionToken: SessionToken = await storeEncryptedHash(digest); // Works for background context
+
+        // TODO: Remove this
 				console.log('[VERIFY] storeEncryptedHash returned:', {
 					sessionToken,
 					hasToken: !!sessionToken?.token,

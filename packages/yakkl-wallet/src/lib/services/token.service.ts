@@ -247,8 +247,9 @@ export class TokenService extends BaseService {
 			// Sort by value descending, but put zero-value main tokens at the end
 			activeTokens.sort((a, b) => {
 				// Convert values to numbers for comparison
-				const aValue = typeof a.value === 'number' ? a.value : BigNumberishUtils.toNumber(a.value || 0);
-				const bValue = typeof b.value === 'number' ? b.value : BigNumberishUtils.toNumber(b.value || 0);
+				// Use safe conversion for potentially large token values
+				const aValue = typeof a.value === 'number' ? a.value : BigNumberishUtils.toNumberSafe(a.value || 0);
+				const bValue = typeof b.value === 'number' ? b.value : BigNumberishUtils.toNumberSafe(b.value || 0);
 
 				if (aValue === 0 && bValue === 0) {
 					// Both have zero value, sort main tokens first
@@ -328,11 +329,11 @@ export class TokenService extends BaseService {
 				const existingValue =
 					typeof existing.value === 'number'
 						? existing.value
-						: BigNumberishUtils.toNumber(existing.value || 0);
+						: BigNumberishUtils.toNumberSafe(existing.value || 0);
 				const tokenValue =
 					typeof token.value === 'number'
 						? token.value
-						: BigNumberishUtils.toNumber(token.value || 0);
+						: BigNumberishUtils.toNumberSafe(token.value || 0);
 				existing.value = existingValue + tokenValue;
 				// Keep the same price (should be similar across chains)
 				existing.price = token.price || existing.price;

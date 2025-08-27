@@ -23,6 +23,8 @@
     footerProps?: Record<string, any>;
     lockedFooter?: any;
     lockedFooterProps?: Record<string, any>;
+    minHeight?: string;
+    maxHeight?: string;
   }
 
   let {
@@ -32,7 +34,9 @@
     footer = $bindable(null),
     footerProps = $bindable({}),
     lockedFooter = $bindable(null),
-    lockedFooterProps = $bindable({})
+    lockedFooterProps = $bindable({}),
+    minHeight = $bindable('300px'),
+    maxHeight = $bindable('750px')
   }: Props = $props();
 
   let showUpgradeModal = $state(false);
@@ -241,8 +245,8 @@
   bind:show
   title="Bookmarked Articles"
   icon={BookmarkIcon}
-  minHeight="300px"
-  maxHeight="750px"
+  {minHeight}
+  {maxHeight}
   locked={false}
   lockMessage=""
   showButton={false}
@@ -264,10 +268,10 @@
     ondragleave={handleDragLeave}
     ondrop={handleDrop}
   >
-    <!-- Bookmark counter - TEMPORARILY SHOWING ALL FOR TESTING -->
+    <!-- Bookmark counter -->
     <div class="flex justify-between items-center mb-2">
       <div class="text-sm text-base-content/60">
-        <span class="badge badge-primary badge-sm">Testing Mode</span>
+        <!-- <span class="badge badge-primary badge-sm">Testing Mode</span> -->
         <span class="ml-2">{bookmarkCount} bookmarks</span>
       </div>
     </div>
