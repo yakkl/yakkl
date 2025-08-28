@@ -8,6 +8,12 @@ node_modules/
 !docs/**/*.md
 !docs/*.md
 
+# Map files
+**/*.map
+
+# Docs build artifacts
+packages/yakkl-wallet/docs/build/
+
 # Also keep any README.md anywhere
 !README.md
 !**/README.md
