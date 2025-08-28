@@ -366,7 +366,7 @@ export class Infura extends AbstractProvider {
 				lastBaseFeePerGas: baseFeePerGas || 0n,
 				maxFeePerGas: baseFeePerGas ? baseFeePerGas * 2n : 0n,
 				maxPriorityFeePerGas: baseFeePerGas ? BigInt('1500000000') : 0n, // 1.5 gwei default
-				gasPrice: BigNumber.from(gasPrice.toString())
+				gasPrice: gasPrice
 			};
 			
 			eventManager.emit('feeData', { feeData });

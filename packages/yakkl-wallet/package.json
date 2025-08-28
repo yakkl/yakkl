@@ -21,6 +21,8 @@
 		"check:public": "node ./check-no-pro-private-imports.mjs",
 		"copy:security": "node ./scripts/copy-security-files.js",
 		"dev:chrome": "pnpm run check:public && pnpm run copy:security && NODE_ENV=development VITE_LOG_LEVEL=debug npm run build:env:dev && NODE_ENV=development webpack -c webpack.config.cjs && NODE_ENV=development DEV_MODE=true vite build && NODE_ENV=development node ./buildSveltekitForCSP.mjs",
+		"dev:chrome:summary": "node ./scripts/build-summary.js dev:chrome",
+		"build:summary": "node ./scripts/build-summary.js",
 		"dev:chrome:proprv": "pnpm run copy:security && NODE_ENV=development VITE_LOG_LEVEL=debug npm run build:env:dev && NODE_ENV=development webpack -c webpack.config.cjs && NODE_ENV=development DEV_MODE=true vite build && NODE_ENV=development node ./buildSveltekitForCSP.mjs",
 		"dev:core": "pnpm run check:public && NODE_ENV=development VITE_LOG_LEVEL=debug VITE_YAKKL_CORE=true npm run build:env:dev && NODE_ENV=development webpack -c webpack.config.cjs && NODE_ENV=development DEV_MODE=true vite build && NODE_ENV=development node ./buildSveltekitForCSP.mjs",
 		"build:chrome": "pnpm run check:public && pnpm run copy:security && NODE_ENV=production npm run build:env:prod && NODE_ENV=production webpack -c webpack.config.cjs && NODE_ENV=production vite build && NODE_ENV=production node ./buildSveltekitForCSP.mjs",

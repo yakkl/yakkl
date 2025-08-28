@@ -44,7 +44,11 @@ export { EmbeddedAPI } from './apis/EmbeddedAPI';
 export { RemoteAPI } from './apis/RemoteAPI';
 export { IntegrationAPI } from './apis/IntegrationAPI';
 
+// Interfaces (browser-agnostic abstractions)
+export * from './interfaces';
+
 // Utilities
+export * from './utils';
 export { createWallet } from './utils/factory';
 export { validateMod } from './utils/validation';
 export { Logger } from './utils/Logger';

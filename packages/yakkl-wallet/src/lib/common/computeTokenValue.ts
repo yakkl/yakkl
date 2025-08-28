@@ -1,5 +1,5 @@
 import type { TokenData } from './interfaces';
-import { EthereumBigNumber } from './bignumber-ethereum';
+import { BigNumber } from './bignumber';
 import type { BigNumberish } from './bignumber';
 
 /**
@@ -8,10 +8,10 @@ import type { BigNumberish } from './bignumber';
  * @returns { balance: BigNumberish, value: BigNumberish }
  */
 export function computeTokenValue(token: TokenData): { balance: BigNumberish; value: BigNumberish } {
-	// Use EthereumBigNumber for precise calculations
-	const balance = token?.balance ? EthereumBigNumber.from(token.balance) : EthereumBigNumber.from(0);
+	// Use BigNumber for precise calculations
+	const balance = token?.balance ? BigNumber.from(token.balance) : BigNumber.from(0);
 
-	const price = token?.price?.price ? EthereumBigNumber.from(token.price.price) : EthereumBigNumber.from(0);
+	const price = token?.price?.price ? BigNumber.from(token.price.price) : BigNumber.from(0);
 	const value = balance.mul(price);
 
 	return {

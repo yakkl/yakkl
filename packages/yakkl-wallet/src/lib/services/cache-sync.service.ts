@@ -16,7 +16,7 @@ import { loadDefaultTokens } from '$lib/managers/tokens/loadDefaultTokens';
 import { BigNumberishUtils } from '../common/BigNumberishUtils';
 import { DecimalMath } from '../common/DecimalMath';
 import { BigNumber } from '$lib/common/bignumber';
-import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
+// EthereumBigNumber removed - using generic BigNumber
 import Decimal from 'decimal.js';
 import { compareTokenData, hasChanged } from '$lib/utils/deepCompare';
 

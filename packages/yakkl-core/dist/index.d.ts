@@ -21,6 +21,8 @@ export type { Account, Network, Transaction, SignedTransaction, Balance, WalletC
 export { EmbeddedAPI } from './apis/EmbeddedAPI';
 export { RemoteAPI } from './apis/RemoteAPI';
 export { IntegrationAPI } from './apis/IntegrationAPI';
+export * from './interfaces';
+export * from './utils';
 export { createWallet } from './utils/factory';
 export { validateMod } from './utils/validation';
 export { Logger } from './utils/Logger';

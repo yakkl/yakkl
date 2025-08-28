@@ -10,7 +10,7 @@ import {
 	type Log
 } from '$lib/common';
 import { Signer } from '../../../Signer';
-import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
+import { BigNumber } from '$lib/common/bignumber';
 import type { Provider } from '../../../Provider';
 import { log } from '../../../Logger';
 
@@ -51,7 +51,7 @@ export class EthereumSigner extends Signer {
 	 * Converts custom BigNumberish to ethersv6.BigNumberish (as a hex string)
 	 */
 	private toEthersHex(value: BigNumberish | null | undefined): string | null | undefined {
-		if (value instanceof EthereumBigNumber) {
+		if (value instanceof BigNumber) {
 			return value.toHex();
 		}
 		if (typeof value === 'bigint') {

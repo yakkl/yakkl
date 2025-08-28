@@ -4,6 +4,7 @@
 
 import { EventEmitter } from 'eventemitter3';
 import { ethers } from 'ethers';
+const { Wallet } = ethers;
 import type { WalletEngine } from './WalletEngine';
 import type { 
   Transaction, 
@@ -81,7 +82,7 @@ export class TransactionManager extends EventEmitter<TransactionManagerEvents> {
       const connectedWallet = wallet.connect(provider);
 
       // Prepare transaction
-      const txRequest: ethers.TransactionRequest = {
+      const txRequest = {
         to: transaction.to,
         value: transaction.value,
         data: transaction.data,
@@ -100,7 +101,7 @@ export class TransactionManager extends EventEmitter<TransactionManagerEvents> {
       const signedTxResponse = await connectedWallet.signTransaction(populatedTx);
 
       // Parse the signed transaction
-      const parsedTx = ethers.Transaction.from(signedTxResponse);
+      const parsedTx = ethers.utils.parseTransaction(signedTxResponse);
 
       const signedTransaction: SignedTransaction = {
         transaction: {
@@ -109,12 +110,12 @@ export class TransactionManager extends EventEmitter<TransactionManagerEvents> {
           gasPrice: populatedTx.gasPrice?.toString(),
           maxFeePerGas: populatedTx.maxFeePerGas?.toString(),
           maxPriorityFeePerGas: populatedTx.maxPriorityFeePerGas?.toString(),
-          nonce: populatedTx.nonce || 0
+          nonce: populatedTx.nonce ? Number(populatedTx.nonce) : 0
         },
         signature: {
-          r: parsedTx.signature!.r,
-          s: parsedTx.signature!.s,
-          v: parsedTx.signature!.v || 0
+          r: parsedTx.r!,
+          s: parsedTx.s!,
+          v: parsedTx.v || 0
         },
         hash: parsedTx.hash!,
         serialized: signedTxResponse
@@ -269,16 +270,16 @@ export class TransactionManager extends EventEmitter<TransactionManagerEvents> {
 
       const feeData = await provider.getFeeData();
 
-      // For EIP-1559 networks
+      // For EIP-1559 networks  
       if (feeData.maxFeePerGas && feeData.maxPriorityFeePerGas) {
-        const baseFee = feeData.maxFeePerGas - feeData.maxPriorityFeePerGas;
-        const slowPriority = feeData.maxPriorityFeePerGas / 2n;
-        const fastPriority = feeData.maxPriorityFeePerGas * 2n;
+        const baseFee = feeData.maxFeePerGas.sub(feeData.maxPriorityFeePerGas);
+        const slowPriority = feeData.maxPriorityFeePerGas.div(2);
+        const fastPriority = feeData.maxPriorityFeePerGas.mul(2);
 
         return {
-          slow: (baseFee + slowPriority).toString(),
+          slow: baseFee.add(slowPriority).toString(),
           standard: feeData.maxFeePerGas.toString(),
-          fast: (baseFee + fastPriority).toString(),
+          fast: baseFee.add(fastPriority).toString(),
           maxFeePerGas: feeData.maxFeePerGas.toString(),
           maxPriorityFeePerGas: feeData.maxPriorityFeePerGas.toString()
         };

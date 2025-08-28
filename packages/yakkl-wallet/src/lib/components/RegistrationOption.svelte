@@ -1,6 +1,6 @@
 <script lang="ts">
-	// NOTE: This is for the RegistrationOption component. The RegistrationOptionModal is only for the RegistrationOption component. Restore requires a valid account to be created first. So, removed restore from here for now.
-	// TODO: Fix architecture limitation - import/restore requires an account to exist first. Consider creating temporary account for these operations.
+	// NOTE: With vault pattern implementation, import/restore no longer requires pre-existing accounts
+	// The vault stores encrypted key material independently of account creation
 	import { onMount } from 'svelte';
 	import { getYakklSettings } from '$lib/common/stores';
 	import { shouldShowProFeatures } from '$lib/common/token-analytics';
@@ -12,8 +12,8 @@
 		/// <reference types="svelte" />
 		title?: string;
 		onCreate: () => void;
-		onImport: () => void; // NOTE: import and restore will not work if there is no account created first. Need to either create a tmp account and restore or move this to another component.
-		onRestore: () => void;
+		onImport: () => void; // Now works without pre-existing accounts using vault pattern
+		onRestore: () => void; // Now works without pre-existing accounts using vault pattern
 	}
 
 	let {

@@ -774,6 +774,7 @@
     if (isVisible) {
       // Hiding values doesn't require PIN
       visibilityStore.set(false);
+      pendingAction = null;
       notificationService.show({
         title: 'Values Hidden',
         message: 'Sensitive values are now hidden',
@@ -790,6 +791,7 @@
   function handlePinVerified(_digestedPin: string) {
     if (pendingAction === 'show') {
       visibilityStore.set(true);
+      isVisible = true;
       notificationService.show({
         title: 'Values Visible',
         message: 'Sensitive values are now visible',

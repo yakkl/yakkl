@@ -395,8 +395,9 @@ function createTokenStore() {
                 if (newBalance !== undefined) {
                   const balanceBigInt = BigNumberishUtils.toBigInt(newBalance);
                   const price = token.price || 0;
+                  // Calculate value in cents, ensuring we convert to integer before BigInt
                   const value = balanceBigInt > 0n && price > 0
-                    ? BigNumberishUtils.toBigInt((Number(balanceBigInt) / 1e18) * price * 100) // Convert to cents
+                    ? BigInt(Math.floor((Number(balanceBigInt) / 1e18) * price * 100)) // Convert to cents, floor to integer
                     : 0n;
 
                   return {

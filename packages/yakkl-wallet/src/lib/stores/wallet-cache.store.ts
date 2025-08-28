@@ -24,7 +24,6 @@ import { log } from '$lib/common/logger-wrapper';
 import { BigNumber, type BigNumberish } from '$lib/common/bignumber';
 import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
 import * as ethers from 'ethers';
-import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
 import { PortfolioRollupService } from '$lib/services/portfolio-rollup.service';
 import { toSmallestUnit, DEFAULT_CURRENCY } from '$lib/config/currencies';
 import { compareWalletCacheData, hasChanged, compareTokenData } from '$lib/utils/deepCompare';
@@ -1049,7 +1048,7 @@ function createWalletCacheStore() {
 							balanceWei = BigNumber.toBigInt(token.balance) || 0n;
 						}
 						updated = true;
-						const fiatValue = EthereumBigNumber.toFiat(balanceWei, price);
+						const fiatValue = BigNumber.toFiat(balanceWei, price);
 						return {
 							...token,
 							price: price,
@@ -1123,7 +1122,7 @@ function createWalletCacheStore() {
 								balanceWei = BigNumber.toBigInt(token.balance) || 0n;
 							}
 							// Use precision-safe calculation for value
-							const fiatValue = EthereumBigNumber.toFiat(balanceWei, newPrice);
+							const fiatValue = BigNumber.toFiat(balanceWei, newPrice);
 							// Store as smallest unit for the currency
 							let value = toSmallestUnit(fiatValue, DEFAULT_CURRENCY);
 
@@ -1656,7 +1655,7 @@ function createWalletCacheStore() {
 							const balanceStr = newBalanceBigInt.toString();
 							const price = token.price || 0;
 							// toFiat now correctly handles wei balance and USD price
-							const fiatValue = EthereumBigNumber.toFiat(newBalanceBigInt, price);
+							const fiatValue = BigNumber.toFiat(newBalanceBigInt, price);
 							// Store as smallest unit for the currency
 							const value = toSmallestUnit(fiatValue, DEFAULT_CURRENCY);
 

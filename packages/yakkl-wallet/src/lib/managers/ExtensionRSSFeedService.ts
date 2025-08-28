@@ -52,20 +52,38 @@ export class ExtensionRSSFeedService {
 		}
 
 		try {
-			// Direct fetch - no CORS proxy needed in extension!
-			const response = await fetch(feedUrl, {
+			// ALWAYS use proxy for ALL feeds to prevent preload warnings
+			// DeepNewz and other sites send preload headers even for RSS/XML responses
+			let fetchUrl = feedUrl;
+			
+			// Use a CORS proxy that strips HTTP headers and returns clean content
+			// This prevents any preload warnings from appearing in Chrome Extension Manager
+			fetchUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(feedUrl)}`;
+			log.debug('Using proxy to prevent preload warnings:', false, feedUrl);
+			
+			// Fetch through proxy which strips problematic HTTP headers
+			const response = await fetch(fetchUrl, {
 				headers: {
 					'User-Agent': 'YAKKL Smart Wallet Extension/' + VERSION,
-					Accept: 'application/rss+xml, application/xml, text/xml'
+					Accept: 'application/rss+xml, application/xml, text/xml',
+					// Hints to prevent unnecessary resource preloading
+					'X-Purpose': 'preview',
+					'X-Moz': 'prefetch'
 				},
-				credentials: 'omit'
+				credentials: 'omit',
+				mode: 'cors',
+				cache: 'default'
 			});
 
 			if (!response.ok) {
 				throw new Error(`Failed to fetch RSS feed: ${response.statusText}`);
 			}
 
-			const text = await response.text();
+			let text = await response.text();
+			
+			// Aggressively clean the response to prevent preload warnings
+			text = this.cleanRSSResponse(text);
+			
 			const feed = await this.parseRSSFeed(text, feedUrl);
 
 			// Cache the feed
@@ -226,6 +244,40 @@ export class ExtensionRSSFeedService {
 			});
 			return { content: '', quality: 'minimal' };
 		}
+	}
+
+	private cleanRSSResponse(text: string): string {
+		// Check if this is actually RSS/XML
+		if (!text.includes('<?xml') && !text.includes('<rss') && !text.includes('<feed')) {
+			// This might be HTML returned instead of RSS
+			// Some sites return HTML on certain RSS endpoints
+			log.warn('RSS endpoint returned HTML instead of XML');
+		}
+		
+		// Remove all preload link tags that cause browser warnings
+		// These patterns catch various preload formats
+		text = text.replace(/<link[^>]*rel=["']?preload["']?[^>]*>/gi, '');
+		text = text.replace(/<link[^>]*rel=["']?prefetch["']?[^>]*>/gi, '');
+		text = text.replace(/<link[^>]*rel=["']?dns-prefetch["']?[^>]*>/gi, '');
+		text = text.replace(/<link[^>]*rel=["']?preconnect["']?[^>]*>/gi, '');
+		text = text.replace(/<link[^>]*rel=["']?modulepreload["']?[^>]*>/gi, '');
+		
+		// Remove Next.js specific preload patterns
+		text = text.replace(/<link[^>]*\/_next\/static[^>]*>/gi, '');
+		
+		// Remove any link tags with .woff, .woff2, .ttf, .otf extensions
+		text = text.replace(/<link[^>]*\.(woff2?|ttf|otf)[^>]*>/gi, '');
+		
+		// Remove inline preload scripts
+		text = text.replace(/<script[^>]*>.*?\.preload.*?<\/script>/gis, '');
+		
+		// Remove preload from any remaining link tags
+		text = text.replace(/(\<link[^>]*?)rel=["']?preload["']?([^>]*?>)/gi, '$1$2');
+		
+		// Clean up any font-face declarations that might trigger loads
+		text = text.replace(/<style[^>]*>.*?@font-face.*?<\/style>/gis, '');
+		
+		return text;
 	}
 
 	private extractArticleContent(html: string): {

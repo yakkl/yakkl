@@ -62,10 +62,11 @@
 	let trialEnds = $state('2025-07-01');
 
 	// List of crypto news RSS feeds
+	// Note: Some feeds like DeepNewz will use a proxy automatically to prevent preload warnings
 	const cryptoFeeds = [
     'https://feeds.feedburner.com/InvestingHaven',
-    'https://deepnewz.com/feed-crypto.xml',
-    'https://www.ft.com/cryptofinance?format=rss/?utm_source=yakkl&utm_medium=extension',
+    'https://deepnewz.com/feed-crypto.xml', // Will use proxy automatically
+    'https://www.ft.com/cryptofinance?format=rss/?utm_source=yakkl&utm_medium=extension', // Will use proxy automatically
     'https://seekingalpha.com/feeds/cryptocompare/cryptos/?utm_source=yakkl&utm_medium=extension',
     'https://finbold.com/category/cryptocurrency-news/feed/?utm_source=yakkl&utm_medium=extension',
     'https://blog.kraken.com/feed/?utm_source=yakkl&utm_medium=extension',
@@ -75,7 +76,7 @@
 		'https://www.coindesk.com/arc/outboundfeeds/rss/?utm_source=yakkl&utm_medium=extension',
 		'https://thedefiant.io/api/feed',
 		'https://cryptopotato.com/feed/',
-		'https://www.cnbc.com/id/10000664/device/rss/rss.html',
+		'https://www.cnbc.com/id/10000664/device/rss/rss.html', // Will use proxy automatically
 		'https://cryptoslate.com/feed/',
 		'https://www.cryptobreaking.com/feed/'
 	];
@@ -229,6 +230,52 @@
 	onMount(async () => {
 		try {
 			if (!browserSvelte) return;
+			
+			// Suppress font preload warnings in production
+			// These warnings appear when RSS feeds from sites like DeepNewz include
+			// preload directives for fonts that aren't used in RSS content
+			if (typeof window !== 'undefined' && window.console) {
+				const originalWarn = console.warn;
+				const originalError = console.error;
+				
+				// Create a filter for known harmless warnings
+				const suppressedPatterns = [
+					/was preloaded using link preload but not used/i,
+					/The resource .* was preloaded/i,
+					/preload.*not used within/i,
+					/font.*preload/i,
+					/\.woff2.*preload/i
+				];
+				
+				// Override console.warn
+				console.warn = function(...args) {
+					const message = args[0]?.toString() || '';
+					const shouldSuppress = suppressedPatterns.some(pattern => pattern.test(message));
+					
+					if (!shouldSuppress) {
+						originalWarn.apply(console, args);
+					} else {
+						// In dev mode, log as debug instead of completely hiding
+						if (__DEV__) {
+							log.debug('Suppressed warning:', false, message);
+						}
+					}
+				};
+				
+				// Also catch window error events for preload warnings
+				window.addEventListener('error', function(event) {
+					const message = event.message || '';
+					const shouldSuppress = suppressedPatterns.some(pattern => pattern.test(message));
+					
+					if (shouldSuppress) {
+						event.preventDefault();
+						event.stopPropagation();
+						if (__DEV__) {
+							log.debug('Suppressed error event:', false, message);
+						}
+					}
+				}, true);
+			}
 
 			// Listen for bookmark messages from context menu
 			if (browser_ext) {

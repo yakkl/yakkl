@@ -186,10 +186,9 @@ export function isBigNumberish(value: any): value is BigNumberish {
 
 // Utility function to convert BigNumberish values to hex string
 export function toHex(value: BigNumberish): string {
-	if (isBigNumber(value)) {
-		return value.toHex();
-	}
-	const hex = BigNumber.from(value).toHex();
+	// Always use BigNumber.from to ensure we have the correct type
+	const bigNumberValue = BigNumber.from(value);
+	const hex = bigNumberValue.toHex();
 	return hex.length % 2 === 0 ? hex : '0x0' + hex.slice(2);
 }
 

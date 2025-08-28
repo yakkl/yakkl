@@ -1,4 +1,11 @@
 export function portal(node: HTMLElement) {
+  // Guard against SSR execution
+  if (typeof document === 'undefined') {
+    return {
+      destroy() {}
+    };
+  }
+  
   const portalTarget = document.body;
   
   // Move the node to body
