@@ -92,7 +92,7 @@ export default defineConfig(({ mode }) => {
 			'process.env.BROWSER': JSON.stringify(false)
 		},
 		optimizeDeps: {
-			include: ['dexie', 'webextension-polyfill'],
+			include: ['dexie', 'webextension-polyfill', '@yakkl/core'],
 			exclude: [
 				'ethers',
 				'**/*.tmp/**/*', // Exclude .tmp directories - the .tmp items here do not seem to be working as expected. I will keep it and handle it another way.
@@ -112,7 +112,8 @@ export default defineConfig(({ mode }) => {
 			}
 		},
 		ssr: {
-			noExternal: ['@walletconnect/web3wallet', '@walletconnect/core'],
+			noExternal: [
+				'@yakkl/core','@walletconnect/web3wallet', '@walletconnect/core'],
 			external: ['webextension-polyfill', 'crypto-browserify']
 		},
 		server: {

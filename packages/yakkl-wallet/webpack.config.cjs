@@ -104,16 +104,33 @@ module.exports = {
 		alias: {
 			'process/browser': require.resolve('process/browser'),
 			'webextension-polyfill': require.resolve('webextension-polyfill'),
-			'dexie': require.resolve('dexie') // Force resolution to a single dexie instance
+			'dexie': require.resolve('dexie'), // Force resolution to a single dexie instance
+			// Add SvelteKit path aliases for webpack
+			'$lib': path.resolve(__dirname, './src/lib'),
+			'$base': path.resolve(__dirname, './src'),
+			'$static': path.resolve(__dirname, './src/static'),
+			'$components': path.resolve(__dirname, './src/lib/components'),
+			'$routes': path.resolve(__dirname, './src/routes'),
+			'$managers': path.resolve(__dirname, './src/lib/managers'),
+			'$plugins': path.resolve(__dirname, './src/lib/plugins'),
+			'$contexts': path.resolve(__dirname, './src/contexts')
 		},
 		fallback: {
 			crypto: require.resolve('crypto-browserify'),
 			stream: require.resolve('stream-browserify'),
 			vm: require.resolve('vm-browserify'),
 			process: require.resolve('process/browser'),
-			events: require.resolve('events/')
+			events: require.resolve('events/'),
+			url: require.resolve('url/')
 		}
 	},
+	ignoreWarnings: [
+		// Ignore dynamic import warnings from DiscoveryProtocol (these are expected for plugin loading)
+		{
+			module: /DiscoveryProtocol/,
+			message: /Critical dependency: the request of a dependency is an expression/
+		}
+	],
 	plugins: [
 		// Add error guards at the beginning of content.js and inpage.js bundles
 		new webpack.BannerPlugin({

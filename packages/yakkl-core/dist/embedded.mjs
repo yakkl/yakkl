@@ -1,8 +1,8 @@
-import { E as t, I, R as n, W as o } from "./IntegrationAPI-BrnntV9A.mjs";
+import { E, I, R, W } from "./IntegrationAPI-DTOxywBx.mjs";
 export {
-  t as EmbeddedAPI,
+  E as EmbeddedAPI,
   I as IntegrationAPI,
-  n as RemoteAPI,
-  o as WalletEngine
+  R as RemoteAPI,
+  W as WalletEngine
 };
 //# sourceMappingURL=embedded.mjs.map

@@ -21,7 +21,7 @@ import type {
 	TransactionRequest,
 	TransactionResponse
 } from './types';
-import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
+import { BigNumber } from '$lib/common/bignumber';
 import type { ExactInputParams, ExactInputSingleParams } from '$lib/common/ISwapRouter';
 import IUniswapV3FactoryJSON from '@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Factory.sol/IUniswapV3Factory.json';
 const IUniswapV3FactoryABI = IUniswapV3FactoryJSON;
@@ -798,8 +798,8 @@ export class UniswapSwapManager extends SwapManager {
 			path: [tokenIn.address, ADDRESSES.WETH, tokenOut.address],
 			recipient,
 			deadline,
-			amountIn: EthereumBigNumber.from(amountIn).toBigInt() ?? 0n,
-			amountOutMinimum: EthereumBigNumber.from(amountOutMin).toBigInt() ?? 0n
+			amountIn: BigNumber.from(amountIn).toBigInt() ?? 0n,
+			amountOutMinimum: BigNumber.from(amountOutMin).toBigInt() ?? 0n
 		};
 
 		if (!this.routerContract) throw new Error('Router contract not initialized');

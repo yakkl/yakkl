@@ -11,7 +11,7 @@
 // import IUniswapV3PoolABI from '@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Pool.sol/IUniswapV3Pool.json';
 // import IUniswapV3FactoryABI from '@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Factory.sol/IUniswapV3Factory.json';
 // import IQuoterV2ABI from '@uniswap/v3-periphery/artifacts/contracts/lens/QuoterV2.sol/QuoterV2.json';
-// // import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
+// // import { BigNumber } from '$lib/common/bignumber';
 // import { BigNumber, YAKKL_FEE_BASIS_POINTS, type BigNumberish } from '$lib/common';
 // import {  safeConvertBigIntToNumber } from '$lib/utilities/utilities';
 // import JSBI from 'jsbi';
@@ -128,7 +128,7 @@
 //     //   throw new Error( 'Pool does not exist for tier' );
 //     // }
 
-//     const amountInBigInt = EthereumBigNumber.toBigInt( amountIn );
+//     const amountInBigInt = BigNumber.toBigInt( amountIn );
 //     if ( !amountInBigInt ) throw new Error( 'Invalid amount' );
 
 //     debug_log( 'UniswapPriceProvider - getSwapPriceOut - amountInBigInt:', amountInBigInt );
@@ -208,7 +208,7 @@
 
 //     const price = 0;
 
-//     debug_log( 'UniswapPriceProvider - getSwapPriceOut - amountOut:', amountOut, 'amountOutWithFee:', amountOutWithFee, 'feeAmount:', feeAmount, 'feeWei:', EthereumBigNumber.toWei( feeAmount ), 'amountIn:', amountInBigInt, 'price:', price );
+//     debug_log( 'UniswapPriceProvider - getSwapPriceOut - amountOut:', amountOut, 'amountOutWithFee:', amountOutWithFee, 'feeAmount:', feeAmount, 'feeWei:', BigNumber.toWei( feeAmount ), 'amountIn:', amountInBigInt, 'price:', price );
 
 //     const priceImpact = ( ( Number( amountOut ) - Number( amountOutWithFee ) ) / Number( amountOut ) ) * 100;
 
@@ -259,7 +259,7 @@
 //     priceIn.price = priceIn.price * ( 1 - convertBasisPointsToDecimal( this.feeBasisPoints ) ); // This will be changed later
 //     priceOut.price = priceOut.price * ( 1 - convertBasisPointsToDecimal( this.feeBasisPoints ) );
 
-//     const amountOutBigInt = EthereumBigNumber.toBigInt( amountOut ) ?? 0n; // Adjust if necessary
+//     const amountOutBigInt = BigNumber.toBigInt( amountOut ) ?? 0n; // Adjust if necessary
 //     if ( amountOutBigInt === 0n ) {
 //       return {
 //         provider: this.getName(),

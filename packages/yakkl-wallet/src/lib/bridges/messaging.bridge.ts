@@ -4,55 +4,14 @@
  */
 
 import browser from 'webextension-polyfill';
-
-// TODO: Import from @yakkl/core when package is properly set up
-// import type { IMessageBus, Message, MessageHandler, MessageOptions, MessageSender, UnsubscribeFn } from '@yakkl/core/interfaces';
-
-// Temporary local definitions until @yakkl/core is properly set up
-export interface IMessageBus {
-  send<TData = any, TResponse = any>(
-    channel: string,
-    data: TData,
-    options?: MessageOptions
-  ): Promise<TResponse>;
-  post<TData = any>(channel: string, data: TData, options?: MessageOptions): void;
-  listen<TData = any>(channel: string, handler: MessageHandler<TData>): UnsubscribeFn;
-  once<TData = any>(channel: string, handler: MessageHandler<TData>): UnsubscribeFn;
-  removeAllListeners(channel?: string): void;
-  connect?(): Promise<void>;
-  disconnect?(): Promise<void>;
-  isConnected?(): boolean;
-}
-
-export interface MessageOptions {
-  target?: string | number;
-  timeout?: number;
-  priority?: 'low' | 'normal' | 'high';
-  broadcast?: boolean;
-}
-
-export interface Message<T = any> {
-  id?: string;
-  channel: string;
-  data: T;
-  sender?: MessageSender;
-  timestamp?: number;
-  error?: Error | string;
-}
-
-export interface MessageSender {
-  tabId?: number;
-  frameId?: number;
-  url?: string;
-  id?: string;
-}
-
-export type MessageHandler<T = any> = (
-  message: Message<T>,
-  sender?: MessageSender
-) => void | Promise<any>;
-
-export type UnsubscribeFn = () => void;
+import type { 
+  IMessageBus, 
+  Message, 
+  MessageHandler, 
+  MessageOptions, 
+  MessageSender, 
+  UnsubscribeFn 
+} from '@yakkl/core';
 
 export class BrowserMessagingBridge implements IMessageBus {
   private listeners = new Map<string, Set<MessageHandler>>();

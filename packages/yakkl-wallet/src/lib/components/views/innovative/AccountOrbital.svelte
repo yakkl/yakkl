@@ -337,8 +337,4 @@
 		cursor: grab;
 	}
 
-	/* Disable cursor changes when interaction is disabled */
-	.account-orbital[aria-disabled="true"] {
-		cursor: default;
-	}
 </style>

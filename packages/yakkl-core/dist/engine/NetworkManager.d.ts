@@ -2,7 +2,6 @@
  * NetworkManager - Manages blockchain networks and connections
  */
 import { EventEmitter } from 'eventemitter3';
-import { ethers } from 'ethers';
 import type { WalletEngine } from './WalletEngine';
 import type { Network } from './types';
 export interface NetworkManagerEvents {
@@ -55,7 +54,7 @@ export declare class NetworkManager extends EventEmitter<NetworkManagerEvents> {
     /**
      * Get provider for network
      */
-    getProvider(networkId?: string): ethers.JsonRpcProvider | null;
+    getProvider(networkId?: string): any | null;
     /**
      * Test connection to a network
      */

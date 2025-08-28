@@ -68,7 +68,7 @@ export interface FeeData {
 	lastBaseFeePerGas: bigint;
 	maxFeePerGas: bigint;
 	maxPriorityFeePerGas: bigint;
-	gasPrice: BigNumber | null;
+	gasPrice: bigint | null;
 }
 
 /**

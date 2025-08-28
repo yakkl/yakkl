@@ -1,1 +1,0 @@
-{"version":3,"file":"D59oTG1g.js","sources":["../../../../../../src/lib/common/globals.ts"],"sourcesContent":["export const protectedContexts = ['popup-wallet', 'popup-dapp'];\n"],"names":["protectedContexts"],"mappings":"AAAa,MAAAA,kBAAoB,CAAC,eAAgB"}

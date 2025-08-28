@@ -215,8 +215,12 @@
 					fill="url(#sun-gradient)"
 					filter="url(#glow)"
 					class="cursor-pointer"
+					role="button"
+					tabindex="0"
+					aria-label="{galaxyData.center.name}: {formatValue(galaxyData.center.value)}"
 					onmouseenter={() => hoveredObject = galaxyData.center}
 					onmouseleave={() => hoveredObject = null}
+					onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); }}}
 				/>
 				<!-- Solar flares -->
 				{#each [0, 72, 144, 216, 288] as angle}
@@ -253,8 +257,12 @@
 							opacity="0.9"
 							filter="url(#glow)"
 							class="cursor-pointer"
+							role="button"
+							tabindex="0"
+							aria-label="{obj.name}: {formatValue(obj.value)}"
 							onmouseenter={() => hoveredObject = obj}
 							onmouseleave={() => hoveredObject = null}
+							onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); }}}
 						/>
 						<!-- Object label -->
 						<text
@@ -288,8 +296,12 @@
 						fill="#94a3b8"
 						opacity="0.6"
 						class="cursor-pointer"
+						role="button"
+						tabindex="0"
+						aria-label="{asteroid.name}: {formatValue(asteroid.value)}"
 						onmouseenter={() => hoveredObject = asteroid}
 						onmouseleave={() => hoveredObject = null}
+						onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); }}}
 					/>
 					<text
 						y="-5"

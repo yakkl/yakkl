@@ -1,24 +1,23 @@
 {
 	"extends": "./.svelte-kit/tsconfig.json",
 	"compilerOptions": {
-		"baseUrl": ".",
 		"paths": {
-			"$lib": ["src/lib"],
-			"$lib/*": ["src/lib/*"],
-			"$base": ["src"],
-			"$base/*": ["src/*"],
-			"$static": ["src/static"],
-			"$static/*": ["src/static/*"],
-			"$components": ["src/lib/components"],
-			"$components/*": ["src/lib/components/*"],
-			"$routes": ["src/routes"],
-			"$routes/*": ["src/routes/*"],
-			"$managers": ["src/lib/managers"],
-			"$managers/*": ["src/lib/managers/*"],
-			"$plugins": ["src/lib/plugins"],
-			"$plugins/*": ["src/lib/plugins/*"],
-			"$contexts": ["src/contexts"],
-			"$contexts/*": ["src/contexts/*"]
+			"$lib": ["./src/lib"],
+			"$lib/*": ["./src/lib/*"],
+			"$base": ["./src"],
+			"$base/*": ["./src/*"],
+			"$static": ["./src/static"],
+			"$static/*": ["./src/static/*"],
+			"$components": ["./src/lib/components"],
+			"$components/*": ["./src/lib/components/*"],
+			"$routes": ["./src/routes"],
+			"$routes/*": ["./src/routes/*"],
+			"$managers": ["./src/lib/managers"],
+			"$managers/*": ["./src/lib/managers/*"],
+			"$plugins": ["./src/lib/plugins"],
+			"$plugins/*": ["./src/lib/plugins/*"],
+			"$contexts": ["./src/contexts"],
+			"$contexts/*": ["./src/contexts/*"]
 		},
 		"verbatimModuleSyntax": true,
 		"allowSyntheticDefaultImports": true,
@@ -42,12 +41,12 @@
 		"types": ["chrome", "svelte", "vite/client", "node", "@sveltejs/kit"]
 	},
 	"include": [
-		"src",
-		"src/**/*.d.ts",
-		"src/**/*.ts",
-		"src/**/*.js",
-		"src/**/*.svelte",
-		"src/**/*.svelte"
+		"./src",
+		"./src/**/*.d.ts",
+		"./src/**/*.ts",
+		"./src/**/*.js",
+		"./src/**/*.svelte",
+		"./src/**/*.svelte"
 	],
-	"exclude": ["**/node_modules/**", "**v1**", "dist", "src/lib/browser-polyfill-wrapper.ts", "src/lib/polyfill-mock.js", "src/lib/crypto-ssr-mock.js", "src/routes/lib.tmp/**", "**/*.tmp"]
+	"exclude": ["**/node_modules/**", "**v1**", "dist", "./src/lib/browser-polyfill-wrapper.ts", "./src/lib/polyfill-mock.js", "./src/lib/crypto-ssr-mock.js", "./src/routes/lib.tmp/**", "**/*.tmp"]
 }

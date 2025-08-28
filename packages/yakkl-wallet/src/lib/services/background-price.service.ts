@@ -13,7 +13,7 @@ import {
   STORAGE_YAKKL_ADDRESS_TOKEN_CACHE
 } from '$lib/common/constants';
 import { BigNumber } from '$lib/common/bignumber';
-import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
+// EthereumBigNumber removed - using generic BigNumber
 import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
 import Decimal from 'decimal.js';
 import type { TokenCache } from '$lib/stores/wallet-cache.store';
@@ -248,7 +248,7 @@ export class BackgroundPriceService {
                   // Now convert to Decimal for calculation
                   if (BigNumberishUtils.isRawBalance(tokenBalance, decimals)) {
                     // Balance is in raw format (smallest units), convert it
-                    balanceDecimal = BigNumberishUtils.toDecimal(tokenBalance, decimals);
+                    balanceDecimal = new Decimal(BigNumberishUtils.toDecimal(tokenBalance, decimals));
                     console.log(`[BackgroundPriceService] Converting raw balance for ${token.symbol}: ${tokenBalance} (${decimals} decimals) -> ${balanceDecimal.toString()} tokens`);
                   } else {
                     // Balance is already human-readable

@@ -3,65 +3,22 @@
  * Implements ILogger interface with browser console and optional remote logging
  */
 
-// TODO: Import from @yakkl/core when package is properly set up
-// import type { ILogger, LogLevel, LogEntry, LoggerConfig } from '@yakkl/core/interfaces';
-
-// Temporary local definitions until @yakkl/core is properly set up
-export interface ILogger {
-  debug(message: string, ...args: any[]): void;
-  info(message: string, ...args: any[]): void;
-  warn(message: string, ...args: any[]): void;
-  error(message: string, error?: any, ...args: any[]): void;
-  fatal?(message: string, error?: any, ...args: any[]): void;
-  trace?(message: string, ...args: any[]): void;
-  child?(context: Record<string, any>): ILogger;
-  setLevel?(level: LogLevel): void;
-  getLevel?(): LogLevel;
-  time?(label: string): void;
-  timeEnd?(label: string): void;
-  group?(label: string): void;
-  groupEnd?(): void;
-  clear?(): void;
-}
-
-export enum LogLevel {
-  TRACE = 0,
-  DEBUG = 1,
-  INFO = 2,
-  WARN = 3,
-  ERROR = 4,
-  FATAL = 5,
-  SILENT = 6
-}
-
-export interface LoggerConfig {
-  level?: LogLevel;
-  timestamps?: boolean;
-  stackTraces?: boolean;
-  formatter?: (level: string, message: string, ...args: any[]) => string;
-  transports?: LogTransport[];
-  context?: Record<string, any>;
-}
-
-export interface LogTransport {
-  name: string;
-  write(entry: LogEntry): void | Promise<void>;
-  flush?(): void | Promise<void>;
-  close?(): void | Promise<void>;
-}
-
-export interface LogEntry {
-  level: LogLevel;
-  message: string;
-  args?: any[];
-  error?: Error;
-  timestamp: Date;
-  context?: Record<string, any>;
-}
+import type { 
+  ILogger, 
+  LogEntry, 
+  LoggerConfig,
+  LogTransport
+} from '@yakkl/core';
+import * as YakklCore from '@yakkl/core';
 import { browser_ext } from '$lib/common/environment';
 
+// Import LogLevel from namespace and re-export for backward compatibility
+const LogLevel = YakklCore.LogLevel;
+type LogLevelType = typeof LogLevel[keyof typeof LogLevel];
+export { LogLevel };
+
 export class BrowserLoggerBridge implements ILogger {
-  private level: LogLevel;
+  private level: LogLevelType;
   private context: Record<string, any>;
   private config: LoggerConfig;
   
@@ -126,11 +83,11 @@ export class BrowserLoggerBridge implements ILogger {
     });
   }
   
-  setLevel(level: LogLevel): void {
+  setLevel(level: LogLevelType): void {
     this.level = level;
   }
   
-  getLevel(): LogLevel {
+  getLevel(): LogLevelType {
     return this.level;
   }
   
@@ -156,7 +113,7 @@ export class BrowserLoggerBridge implements ILogger {
   
   // Private methods
   
-  private shouldLog(level: LogLevel): boolean {
+  private shouldLog(level: LogLevelType): boolean {
     return level >= this.level;
   }
   
@@ -204,7 +161,7 @@ export class BrowserLoggerBridge implements ILogger {
     return `${timestamp}${contextStr}${message}`;
   }
   
-  private getLogLevelFromMethod(method: string): LogLevel {
+  private getLogLevelFromMethod(method: string): LogLevelType {
     switch (method) {
       case 'debug': return LogLevel.DEBUG;
       case 'info': return LogLevel.INFO;

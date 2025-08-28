@@ -180,15 +180,16 @@
 
           <!-- Import Seed Phrase -->
           <div>
-            <label class="label">
+            <label for="seed-phrase-input" class="label">
               <span class="label-text">Seed Phrase</span>
             </label>
             <textarea
+              id="seed-phrase-input"
               bind:value={testSeedPhrase}
               class="textarea textarea-bordered w-full"
               rows="2"
               placeholder="Enter seed phrase..."
-            />
+            ></textarea>
             <input
               type="password"
               bind:value={importPassword}
@@ -206,10 +207,11 @@
 
           <!-- Import Private Key -->
           <div>
-            <label class="label">
+            <label for="private-key-input" class="label">
               <span class="label-text">Private Key</span>
             </label>
             <input
+              id="private-key-input"
               type="text"
               bind:value={testPrivateKey}
               class="input input-bordered w-full"
@@ -240,6 +242,7 @@
                        ? 'bg-primary/10 border-primary' 
                        : 'border-base-300 hover:bg-base-200'}"
               onclick={() => selectVault(vault)}
+              onkeydown={(e) => e.key === 'Enter' && selectVault(vault)}
               role="button"
               tabindex="0"
             >

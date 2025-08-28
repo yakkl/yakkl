@@ -4,6 +4,8 @@
 
 import { EventEmitter } from 'eventemitter3';
 import { ethers } from 'ethers';
+const { Wallet } = ethers;
+const { isAddress, getAddress } = ethers.utils;
 import type { WalletEngine } from './WalletEngine';
 import type { Account, AccountType } from './types';
 
@@ -60,7 +62,7 @@ export class AccountManager extends EventEmitter<AccountManagerEvents> {
         address: wallet.address,
         name: name || `Account ${this.accounts.size + 1}`,
         type: 'eoa',
-        publicKey: wallet.signingKey.publicKey,
+        publicKey: wallet.publicKey,
         derivationPath: undefined, // For random wallets
         ens: undefined,
         username: undefined,
@@ -121,7 +123,7 @@ export class AccountManager extends EventEmitter<AccountManagerEvents> {
         address: wallet.address,
         name: name || `Imported Account`,
         type: 'eoa',
-        publicKey: wallet.signingKey.publicKey,
+        publicKey: wallet.publicKey,
         derivationPath: undefined,
         ens: undefined,
         username: undefined,
@@ -161,7 +163,7 @@ export class AccountManager extends EventEmitter<AccountManagerEvents> {
 
     try {
       // Validate address
-      if (!ethers.isAddress(address)) {
+      if (!isAddress(address)) {
         throw new Error('Invalid address');
       }
 
@@ -176,7 +178,7 @@ export class AccountManager extends EventEmitter<AccountManagerEvents> {
       // Create account object
       const account: Account = {
         id: this.generateId(),
-        address: ethers.getAddress(address), // Checksum address
+        address: getAddress(address), // Checksum address
         name: name || `Watch-Only Account`,
         type: 'watched',
         publicKey: '', // Not available for watch-only
@@ -348,7 +350,7 @@ export class AccountManager extends EventEmitter<AccountManagerEvents> {
    */
   async signMessage(accountId: string, message: string): Promise<string> {
     const privateKey = await this.getPrivateKey(accountId);
-    const wallet = new ethers.Wallet(privateKey);
+    const wallet = new Wallet(privateKey);
     return wallet.signMessage(message);
   }
 

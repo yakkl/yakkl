@@ -33,23 +33,17 @@ export {
   LogLevel
 } from './logger.bridge';
 
-// Type exports are now from the local bridge files until @yakkl/core is set up
+// Re-export types from @yakkl/core for convenience
 export type { 
-  IStorage
-} from './storage.bridge';
-
-export type {
+  IStorage,
   IMessageBus,
   Message,
   MessageHandler,
   MessageOptions,
   MessageSender,
-  UnsubscribeFn
-} from './messaging.bridge';
-
-export type {
+  UnsubscribeFn,
   ILogger,
   LogEntry,
   LoggerConfig,
   LogTransport
-} from './logger.bridge';
+} from '@yakkl/core';

@@ -197,6 +197,8 @@
 					fill="url(#gradient-{link.source}-{link.target})"
 					opacity={selectedCategory ? (relatedToSelected ? 0.8 : 0.2) : (isHovered ? 0.8 : 0.5)}
 					class="transition-opacity duration-300 cursor-pointer"
+					role="img"
+					aria-label="Flow from {link.source} to {link.target}: {formatValue(link.value)}"
 					onmouseenter={() => hoveredFlow = `${link.source}-${link.target}`}
 					onmouseleave={() => hoveredFlow = null}
 				/>
@@ -211,7 +213,11 @@
 					<g
 						transform="translate({node.x}, {node.y})"
 						class="cursor-pointer"
+						role="button"
+						tabindex="0"
+						aria-label="{node.label}: {formatValue(node.value)}"
 						onclick={() => selectedCategory = selectedCategory === node.id ? null : node.id}
+						onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectedCategory = selectedCategory === node.id ? null : node.id; }}}
 						onmouseenter={() => selectedCategory = node.id}
 						onmouseleave={() => selectedCategory = null}
 					>

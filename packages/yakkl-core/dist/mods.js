@@ -1,2 +1,7 @@
-"use strict";Object.defineProperty(exports,Symbol.toStringTag,{value:"Module"});const o=require("./DiscoveryProtocol--RRJFQsX.js");exports.DiscoveryProtocol=o.DiscoveryProtocol;exports.ModLoader=o.ModLoader;exports.ModRegistry=o.ModRegistry;
+"use strict";
+Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
+const DiscoveryProtocol = require("./DiscoveryProtocol-D-qfIqfp.js");
+exports.DiscoveryProtocol = DiscoveryProtocol.DiscoveryProtocol;
+exports.ModLoader = DiscoveryProtocol.ModLoader;
+exports.ModRegistry = DiscoveryProtocol.ModRegistry;
 //# sourceMappingURL=mods.js.map

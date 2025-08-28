@@ -18,6 +18,12 @@ packages/yakkl-wallet/docs/build/
 !README.md
 !**/README.md
 
+# Map files
+**/*.map
+
+# Docs build artifacts
+packages/yakkl-wallet/docs/build/
+
 # Closed-source packages (completely ignored)
 packages/yakkl-ai-private/
 packages/yakkl-security/

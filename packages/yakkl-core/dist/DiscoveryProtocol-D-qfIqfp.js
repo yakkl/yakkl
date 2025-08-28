@@ -1,0 +1,870 @@
+"use strict";
+const eventemitter3 = require("eventemitter3");
+var _documentCurrentScript = typeof document !== "undefined" ? document.currentScript : null;
+class Logger {
+  constructor(context, level = 1) {
+    this.context = context;
+    this.level = level;
+  }
+  debug(message, ...args) {
+    if (this.level <= 0) {
+      console.debug(`[${this.context}] ${message}`, ...args);
+    }
+  }
+  info(message, ...args) {
+    if (this.level <= 1) {
+      console.info(`[${this.context}] ${message}`, ...args);
+    }
+  }
+  warn(message, error) {
+    if (this.level <= 2) {
+      if (error) {
+        console.warn(`[${this.context}] ${message}`, error);
+      } else {
+        console.warn(`[${this.context}] ${message}`);
+      }
+    }
+  }
+  error(message, error) {
+    if (this.level <= 3) {
+      if (error) {
+        console.error(`[${this.context}] ${message}`, error);
+      } else {
+        console.error(`[${this.context}] ${message}`);
+      }
+    }
+  }
+  setLevel(level) {
+    this.level = level;
+  }
+}
+class ModLoader {
+  constructor() {
+    this.loadedModules = /* @__PURE__ */ new Map();
+    this.systemMods = /* @__PURE__ */ new Map();
+    this.logger = new Logger("ModLoader");
+    this.registerSystemMods();
+  }
+  /**
+   * Load a mod by ID
+   */
+  async load(modId) {
+    this.logger.info(`Loading mod: ${modId}`);
+    try {
+      if (this.loadedModules.has(modId)) {
+        const module2 = this.loadedModules.get(modId);
+        return this.instantiateMod(module2);
+      }
+      const sources = await this.resolveModSources(modId);
+      for (const source of sources) {
+        try {
+          const module2 = await this.loadFromSource(modId, source);
+          if (module2) {
+            this.loadedModules.set(modId, module2);
+            return this.instantiateMod(module2);
+          }
+        } catch (error) {
+          this.logger.warn(`Failed to load from ${source.type}: ${source.location}`, error);
+          continue;
+        }
+      }
+      throw new Error(`Mod ${modId} not found in any source`);
+    } catch (error) {
+      this.logger.error(`Failed to load mod ${modId}`, error);
+      throw error;
+    }
+  }
+  /**
+   * Get list of user-installed mods
+   */
+  async getUserMods() {
+    try {
+      const stored = localStorage.getItem("yakkl:userMods");
+      if (stored) {
+        return JSON.parse(stored);
+      }
+      return [];
+    } catch (error) {
+      this.logger.warn("Failed to get user mods", error);
+      return [];
+    }
+  }
+  /**
+   * Install a mod
+   */
+  async install(modId, source) {
+    this.logger.info(`Installing mod: ${modId} from ${source.type}`);
+    try {
+      const module2 = await this.loadFromSource(modId, source);
+      if (!module2) {
+        throw new Error("Failed to load mod module");
+      }
+      await this.validateMod(module2);
+      const userMods = await this.getUserMods();
+      if (!userMods.includes(modId)) {
+        userMods.push(modId);
+        localStorage.setItem("yakkl:userMods", JSON.stringify(userMods));
+      }
+      this.loadedModules.set(modId, module2);
+      this.logger.info(`Mod ${modId} installed successfully`);
+    } catch (error) {
+      this.logger.error(`Failed to install mod ${modId}`, error);
+      throw error;
+    }
+  }
+  /**
+   * Uninstall a mod
+   */
+  async uninstall(modId) {
+    this.logger.info(`Uninstalling mod: ${modId}`);
+    try {
+      const userMods = await this.getUserMods();
+      const updated = userMods.filter((id) => id !== modId);
+      localStorage.setItem("yakkl:userMods", JSON.stringify(updated));
+      this.loadedModules.delete(modId);
+      await this.cleanupModStorage(modId);
+      this.logger.info(`Mod ${modId} uninstalled successfully`);
+    } catch (error) {
+      this.logger.error(`Failed to uninstall mod ${modId}`, error);
+      throw error;
+    }
+  }
+  /**
+   * Check if a mod is available
+   */
+  async isAvailable(modId) {
+    try {
+      const sources = await this.resolveModSources(modId);
+      return sources.length > 0;
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * Get mod manifest without loading the mod
+   */
+  async getManifest(modId) {
+    try {
+      const sources = await this.resolveModSources(modId);
+      for (const source of sources) {
+        try {
+          const manifest = await this.loadManifestFromSource(modId, source);
+          if (manifest) {
+            return manifest;
+          }
+        } catch {
+          continue;
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+  /**
+   * Private methods
+   */
+  registerSystemMods() {
+    this.systemMods.set("basic-portfolio", async () => {
+      throw new Error("System mod basic-portfolio not implemented");
+    });
+    this.systemMods.set("account-manager", async () => {
+      throw new Error("System mod account-manager not implemented");
+    });
+    this.systemMods.set("network-manager", async () => {
+      throw new Error("System mod network-manager not implemented");
+    });
+  }
+  async resolveModSources(modId) {
+    const sources = [];
+    if (this.systemMods.has(modId)) {
+      sources.push({
+        type: "system",
+        location: modId,
+        verified: true
+      });
+    }
+    sources.push({
+      type: "local",
+      location: `/src/routes/preview2/lib/mods/${modId}/index.ts`,
+      verified: true
+    });
+    sources.push({
+      type: "npm",
+      location: `@yakkl/mod-${modId}`,
+      verified: false
+    });
+    sources.push({
+      type: "url",
+      location: `https://registry.yakkl.com/mods/${modId}/latest.js`,
+      verified: true
+    });
+    return sources;
+  }
+  async loadFromSource(modId, source) {
+    switch (source.type) {
+      case "system":
+        return this.loadSystemMod(modId);
+      case "local":
+        return this.loadLocalMod(source.location);
+      case "npm":
+        return this.loadNpmMod(source.location);
+      case "url":
+        return this.loadUrlMod(source.location);
+      default:
+        throw new Error(`Unknown source type: ${source.type}`);
+    }
+  }
+  async loadSystemMod(modId) {
+    const loader = this.systemMods.get(modId);
+    if (!loader) {
+      throw new Error(`System mod ${modId} not found`);
+    }
+    try {
+      return await loader();
+    } catch (error) {
+      this.logger.warn(`System mod ${modId} not implemented`, error);
+      return null;
+    }
+  }
+  async loadLocalMod(location) {
+    try {
+      return await import(
+        /* @vite-ignore */
+        location
+      );
+    } catch (error) {
+      throw new Error(`Failed to load local mod: ${error}`);
+    }
+  }
+  async loadNpmMod(packageName) {
+    try {
+      return await import(
+        /* @vite-ignore */
+        packageName
+      );
+    } catch (error) {
+      throw new Error(`Failed to load NPM mod: ${error}`);
+    }
+  }
+  async loadUrlMod(url) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      const code = await response.text();
+      if (!code.includes("export")) {
+        throw new Error("Invalid mod format - no exports found");
+      }
+      const blob = new Blob([code], { type: "application/javascript" });
+      const moduleUrl = URL.createObjectURL(blob);
+      try {
+        const module2 = await import(
+          /* @vite-ignore */
+          moduleUrl
+        );
+        return module2;
+      } finally {
+        URL.revokeObjectURL(moduleUrl);
+      }
+    } catch (error) {
+      throw new Error(`Failed to load remote mod: ${error}`);
+    }
+  }
+  async loadManifestFromSource(modId, source) {
+    try {
+      switch (source.type) {
+        case "system":
+        case "local":
+          const manifestUrl = source.location.replace("/index.ts", "/manifest.json");
+          const response = await fetch(manifestUrl);
+          if (response.ok) {
+            return await response.json();
+          }
+          return null;
+        case "npm":
+          const module2 = await this.loadNpmMod(source.location);
+          return module2?.manifest || null;
+        case "url":
+          const registryUrl = source.location.replace("/latest.js", "/manifest.json");
+          const manifestResponse = await fetch(registryUrl);
+          if (manifestResponse.ok) {
+            return await manifestResponse.json();
+          }
+          return null;
+        default:
+          return null;
+      }
+    } catch {
+      return null;
+    }
+  }
+  instantiateMod(module2) {
+    const ModClass = module2.default || module2.Mod || Object.values(module2)[0];
+    if (!ModClass || typeof ModClass !== "function") {
+      throw new Error("Invalid mod format - no mod class found");
+    }
+    return new ModClass();
+  }
+  async validateMod(module2) {
+    const mod = this.instantiateMod(module2);
+    if (!mod.manifest) {
+      throw new Error("Mod missing manifest");
+    }
+    if (!mod.manifest.id || !mod.manifest.name || !mod.manifest.version) {
+      throw new Error("Mod manifest missing required fields");
+    }
+    const requiredMethods = ["initialize", "destroy", "isLoaded", "isActive"];
+    for (const method of requiredMethods) {
+      if (typeof mod[method] !== "function") {
+        throw new Error(`Mod missing required method: ${method}`);
+      }
+    }
+    this.logger.debug(`Mod ${mod.manifest.id} validation passed`);
+  }
+  async cleanupModStorage(modId) {
+    try {
+      const prefix = `mod:${modId}:`;
+      const keys = Object.keys(localStorage).filter((k) => k.startsWith(prefix));
+      keys.forEach((k) => localStorage.removeItem(k));
+      this.logger.debug(`Cleaned up storage for mod ${modId}`);
+    } catch (error) {
+      this.logger.warn(`Failed to cleanup storage for mod ${modId}`, error);
+    }
+  }
+}
+class ModRegistry extends eventemitter3.EventEmitter {
+  constructor(engine) {
+    super();
+    this.loadedMods = /* @__PURE__ */ new Map();
+    this.manifests = /* @__PURE__ */ new Map();
+    this.enhancements = /* @__PURE__ */ new Map();
+    this.permissions = /* @__PURE__ */ new Map();
+    this.engine = engine;
+    this.loader = new ModLoader();
+    this.logger = new Logger("ModRegistry");
+  }
+  /**
+   * Initialize the registry
+   */
+  async initialize() {
+    this.logger.info("Initializing mod registry");
+    try {
+      await this.loadSystemMods();
+      await this.loadUserMods();
+      await this.detectEnhancements();
+      this.logger.info(`Registry initialized with ${this.loadedMods.size} mods`);
+    } catch (error) {
+      this.logger.error("Failed to initialize registry", error);
+      throw error;
+    }
+  }
+  /**
+   * Load a mod by ID
+   */
+  async load(modId) {
+    const existing = this.loadedMods.get(modId);
+    if (existing) {
+      return existing;
+    }
+    this.logger.info(`Loading mod: ${modId}`);
+    try {
+      const mod = await this.loader.load(modId);
+      await this.validatePermissions(mod);
+      await mod.initialize(this.engine);
+      this.loadedMods.set(modId, mod);
+      this.manifests.set(modId, mod.manifest);
+      this.permissions.set(modId, mod.manifest.permissions);
+      await this.checkEnhancements(mod);
+      this.emit("mod:loaded", mod);
+      this.logger.info(`Mod loaded successfully: ${modId}`);
+      return mod;
+    } catch (error) {
+      this.logger.error(`Failed to load mod: ${modId}`, error);
+      this.emit("mod:error", modId, error);
+      throw error;
+    }
+  }
+  /**
+   * Unload a mod
+   */
+  async unload(modId) {
+    const mod = this.loadedMods.get(modId);
+    if (!mod) {
+      return;
+    }
+    this.logger.info(`Unloading mod: ${modId}`);
+    try {
+      this.removeEnhancements(modId);
+      await mod.destroy();
+      this.loadedMods.delete(modId);
+      this.manifests.delete(modId);
+      this.permissions.delete(modId);
+      this.emit("mod:unloaded", modId);
+      this.logger.info(`Mod unloaded: ${modId}`);
+    } catch (error) {
+      this.logger.error(`Failed to unload mod: ${modId}`, error);
+      throw error;
+    }
+  }
+  /**
+   * Get all loaded mods
+   */
+  getLoaded() {
+    return Array.from(this.loadedMods.values());
+  }
+  /**
+   * Get mod by ID
+   */
+  get(modId) {
+    return this.loadedMods.get(modId) || null;
+  }
+  /**
+   * Check if mod is loaded
+   */
+  isLoaded(modId) {
+    return this.loadedMods.has(modId);
+  }
+  /**
+   * Get mod manifest
+   */
+  getManifest(modId) {
+    return this.manifests.get(modId) || null;
+  }
+  /**
+   * Get all manifests
+   */
+  getAllManifests() {
+    return Array.from(this.manifests.values());
+  }
+  /**
+   * Get mods by category
+   */
+  getByCategory(category) {
+    return Array.from(this.loadedMods.values()).filter((v) => v.manifest.category === category);
+  }
+  /**
+   * Get mods by tier
+   */
+  getByTier(tier) {
+    return Array.from(this.loadedMods.values()).filter((v) => v.manifest.tier === tier);
+  }
+  /**
+   * Get enhancements for a mod
+   */
+  getEnhancements(modId) {
+    return this.enhancements.get(modId) || [];
+  }
+  /**
+   * Get all enhancements
+   */
+  getAllEnhancements() {
+    const all = [];
+    for (const enhancements of this.enhancements.values()) {
+      all.push(...enhancements);
+    }
+    return all;
+  }
+  /**
+   * Destroy the registry
+   */
+  async destroy() {
+    this.logger.info("Destroying mod registry");
+    const modIds = Array.from(this.loadedMods.keys());
+    await Promise.all(modIds.map((id) => this.unload(id)));
+    this.loadedMods.clear();
+    this.manifests.clear();
+    this.enhancements.clear();
+    this.permissions.clear();
+    this.removeAllListeners();
+  }
+  /**
+   * Load system mods (built-in)
+   */
+  async loadSystemMods() {
+    const systemMods = [
+      "basic-portfolio",
+      "send-receive",
+      "network-manager",
+      "account-manager"
+    ];
+    for (const modId of systemMods) {
+      try {
+        await this.load(modId);
+      } catch (error) {
+        this.logger.warn(`Failed to load system mod: ${modId}`, error);
+      }
+    }
+  }
+  /**
+   * Load user-installed mods
+   */
+  async loadUserMods() {
+    try {
+      const userMods = await this.loader.getUserMods();
+      for (const modId of userMods) {
+        try {
+          await this.load(modId);
+        } catch (error) {
+          this.logger.warn(`Failed to load user mod: ${modId}`, error);
+        }
+      }
+    } catch (error) {
+      this.logger.warn("Failed to load user mods", error);
+    }
+  }
+  /**
+   * Validate mod permissions
+   */
+  async validatePermissions(mod) {
+    const manifest = mod.manifest;
+    const config = this.engine.getConfig();
+    if (config.restrictions.includes("enterprise-only") && manifest.tier !== "enterprise") {
+      throw new Error(`Mod ${manifest.id} not allowed in enterprise-only mode`);
+    }
+    for (const permission of manifest.permissions) {
+      if (!this.isPermissionGranted(permission, config)) {
+        throw new Error(`Permission ${permission} not granted for mod ${manifest.id}`);
+      }
+    }
+  }
+  /**
+   * Check if permission is granted
+   */
+  isPermissionGranted(permission, config) {
+    return true;
+  }
+  /**
+   * Detect potential enhancements between mods
+   */
+  async detectEnhancements() {
+    const mods = Array.from(this.loadedMods.values());
+    for (const mod of mods) {
+      await this.checkEnhancements(mod);
+    }
+  }
+  /**
+   * Check enhancements for a specific mod
+   */
+  async checkEnhancements(mod) {
+    const manifest = mod.manifest;
+    for (const targetId of manifest.enhances) {
+      const targetMod = this.loadedMods.get(targetId);
+      if (targetMod) {
+        const canEnhance = await mod.enhance(targetMod);
+        if (canEnhance) {
+          const enhancement = {
+            sourceMod: manifest.id,
+            targetMod: targetId,
+            type: "feature",
+            description: `${manifest.name} enhances ${targetMod.manifest.name}`,
+            active: true
+          };
+          this.addEnhancement(enhancement);
+        }
+      }
+    }
+  }
+  /**
+   * Add an enhancement
+   */
+  addEnhancement(enhancement) {
+    const existing = this.enhancements.get(enhancement.targetMod) || [];
+    existing.push(enhancement);
+    this.enhancements.set(enhancement.targetMod, existing);
+    this.emit("enhancement:added", enhancement);
+    this.logger.info(`Enhancement added: ${enhancement.sourceMod} → ${enhancement.targetMod}`);
+  }
+  /**
+   * Remove enhancements for a mod
+   */
+  removeEnhancements(modId) {
+    for (const [targetId, enhancements] of this.enhancements.entries()) {
+      const filtered = enhancements.filter((e) => e.sourceMod !== modId);
+      if (filtered.length !== enhancements.length) {
+        this.enhancements.set(targetId, filtered);
+        const removed = enhancements.filter((e) => e.sourceMod === modId);
+        removed.forEach((e) => this.emit("enhancement:removed", e));
+      }
+    }
+    this.enhancements.delete(modId);
+  }
+}
+class DiscoveryProtocol extends eventemitter3.EventEmitter {
+  constructor(engine) {
+    super();
+    this.discoveredMods = /* @__PURE__ */ new Map();
+    this.discoveredPeers = /* @__PURE__ */ new Map();
+    this.scanInterval = null;
+    this.running = false;
+    this.engine = engine;
+    this.logger = new Logger("DiscoveryProtocol");
+  }
+  /**
+   * Start the discovery protocol
+   */
+  async start() {
+    if (this.running) return;
+    this.logger.info("Starting mod discovery protocol");
+    try {
+      await this.scanEnvironment();
+      this.scanInterval = setInterval(() => {
+        this.scanEnvironment().catch((error) => {
+          this.logger.warn("Discovery scan failed", error);
+        });
+      }, 3e4);
+      await this.setupPeerDetection();
+      this.running = true;
+    } catch (error) {
+      this.logger.error("Failed to start discovery protocol", error);
+      throw error;
+    }
+  }
+  /**
+   * Stop the discovery protocol
+   */
+  async stop() {
+    if (!this.running) return;
+    this.logger.info("Stopping mod discovery protocol");
+    if (this.scanInterval) {
+      clearInterval(this.scanInterval);
+      this.scanInterval = null;
+    }
+    await this.teardownPeerDetection();
+    this.discoveredMods.clear();
+    this.discoveredPeers.clear();
+    this.running = false;
+  }
+  /**
+   * Manually scan for mods
+   */
+  async scan() {
+    return this.scanEnvironment();
+  }
+  /**
+   * Get all discovered mods
+   */
+  getDiscoveredMods() {
+    return Array.from(this.discoveredMods.values());
+  }
+  /**
+   * Get all discovered peers
+   */
+  getDiscoveredPeers() {
+    return Array.from(this.discoveredPeers.values());
+  }
+  /**
+   * Check if a specific mod is available in the environment
+   */
+  isModAvailable(modId) {
+    return this.discoveredMods.has(modId);
+  }
+  /**
+   * Private methods
+   */
+  async scanEnvironment() {
+    const discovered = [];
+    try {
+      const sources = ["registry", "local", "environment", "peer"];
+      for (const source of sources) {
+        try {
+          const mods = await this.scanSource(source);
+          discovered.push(...mods);
+        } catch (error) {
+          this.logger.debug(`Failed to scan ${source}`, error);
+        }
+      }
+      const newMods = [];
+      for (const mod of discovered) {
+        if (!this.discoveredMods.has(mod.manifest.id)) {
+          newMods.push(mod);
+        }
+        this.discoveredMods.set(mod.manifest.id, mod);
+      }
+      if (newMods.length > 0) {
+        this.emit("mod:discovered", newMods);
+        this.logger.info(`Discovered ${newMods.length} new mods`);
+      }
+      return discovered;
+    } catch (error) {
+      this.logger.error("Environment scan failed", error);
+      return [];
+    }
+  }
+  async scanSource(source) {
+    switch (source) {
+      case "registry":
+        return this.scanRegistry();
+      case "local":
+        return this.scanLocal();
+      case "environment":
+        return this.scanEnvironmentMods();
+      case "peer":
+        return this.scanPeerMods();
+      default:
+        return [];
+    }
+  }
+  async scanRegistry() {
+    try {
+      const response = await fetch("https://registry.yakkl.com/api/mods/featured");
+      if (!response.ok) {
+        throw new Error(`Registry request failed: ${response.status}`);
+      }
+      const data = await response.json();
+      return data.mods.map((manifest) => ({
+        source: "registry",
+        manifest,
+        verified: true,
+        available: true,
+        installUrl: `https://registry.yakkl.com/mods/${manifest.id}/install`
+      }));
+    } catch (error) {
+      this.logger.debug("Registry scan failed", error);
+      return [];
+    }
+  }
+  async scanLocal() {
+    try {
+      const localMods = [];
+      if (typeof { url: typeof document === "undefined" ? require("url").pathToFileURL(__filename).href : _documentCurrentScript && _documentCurrentScript.tagName.toUpperCase() === "SCRIPT" && _documentCurrentScript.src || new URL("DiscoveryProtocol-D-qfIqfp.js", document.baseURI).href } !== "undefined" && false) ;
+      return localMods;
+    } catch (error) {
+      this.logger.debug("Local scan failed", error);
+      return [];
+    }
+  }
+  async scanEnvironmentMods() {
+    try {
+      const mods = [];
+      const modElements = document.querySelectorAll("[data-yakkl-mod]");
+      for (let i = 0; i < modElements.length; i++) {
+        const element = modElements[i];
+        try {
+          const modData = element.getAttribute("data-yakkl-mod");
+          if (modData) {
+            const manifest = JSON.parse(modData);
+            mods.push({
+              source: "environment",
+              manifest,
+              verified: false,
+              available: true
+            });
+          }
+        } catch {
+        }
+      }
+      this.setupPostMessageListener();
+      return mods;
+    } catch (error) {
+      this.logger.debug("Environment scan failed", error);
+      return [];
+    }
+  }
+  async scanPeerMods() {
+    const mods = [];
+    for (const peer of this.discoveredPeers.values()) {
+      for (const modId of peer.mods) {
+        mods.push({
+          source: "peer",
+          manifest: { id: modId, name: modId, version: "1.0.0" },
+          verified: false,
+          available: true
+        });
+      }
+    }
+    return mods;
+  }
+  async setupPeerDetection() {
+    if (typeof window !== "undefined") {
+      this.broadcastPresence().catch((error) => {
+        this.logger.debug("Failed to broadcast initial presence", error);
+      });
+      window.addEventListener("message", this.handlePeerMessage.bind(this));
+      setInterval(() => {
+        this.broadcastPresence().catch((error) => {
+          this.logger.debug("Failed to broadcast periodic presence", error);
+        });
+      }, 6e4);
+    }
+  }
+  async teardownPeerDetection() {
+    if (typeof window !== "undefined") {
+      window.removeEventListener("message", this.handlePeerMessage.bind(this));
+    }
+  }
+  async broadcastPresence() {
+    try {
+      const presence = {
+        type: "yakkl:presence",
+        id: this.generatePeerId(),
+        version: "2.0.0",
+        mods: (await this.engine.getLoadedMods()).map((m) => m.manifest.id),
+        capabilities: ["mod-discovery", "cross-enhancement"],
+        timestamp: Date.now()
+      };
+      if (window.parent !== window) {
+        window.parent.postMessage(presence, "*");
+      }
+      for (let i = 0; i < window.frames.length; i++) {
+        try {
+          window.frames[i].postMessage(presence, "*");
+        } catch {
+        }
+      }
+    } catch (error) {
+      this.logger.debug("Failed to broadcast presence", error);
+    }
+  }
+  handlePeerMessage(event) {
+    try {
+      const data = event.data;
+      if (data.type === "yakkl:presence") {
+        const peer = {
+          id: data.id,
+          type: "webapp",
+          // Assume webapp for now
+          version: data.version,
+          mods: data.mods || [],
+          capabilities: data.capabilities || []
+        };
+        this.discoveredPeers.set(peer.id, peer);
+        this.emit("peer:detected", peer);
+        this.logger.debug(`Discovered peer: ${peer.id} with ${peer.mods.length} mods`);
+      }
+    } catch (error) {
+      this.logger.debug("Failed to handle peer message", error);
+    }
+  }
+  setupPostMessageListener() {
+    window.addEventListener("message", (event) => {
+      try {
+        const data = event.data;
+        if (data.type === "yakkl:mod-announcement") {
+          const discoveredMod = {
+            source: "environment",
+            manifest: data.manifest,
+            verified: data.verified || false,
+            available: true
+          };
+          this.discoveredMods.set(data.manifest.id, discoveredMod);
+          this.emit("mod:discovered", [discoveredMod]);
+        }
+      } catch {
+      }
+    });
+  }
+  generatePeerId() {
+    if (!localStorage.getItem("yakkl:peerId")) {
+      const id = `peer_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem("yakkl:peerId", id);
+    }
+    return localStorage.getItem("yakkl:peerId");
+  }
+}
+exports.DiscoveryProtocol = DiscoveryProtocol;
+exports.Logger = Logger;
+exports.ModLoader = ModLoader;
+exports.ModRegistry = ModRegistry;
+//# sourceMappingURL=DiscoveryProtocol-D-qfIqfp.js.map

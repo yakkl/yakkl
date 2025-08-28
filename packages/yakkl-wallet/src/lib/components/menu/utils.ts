@@ -231,8 +231,12 @@ export function adjustMenuPosition(
   menu.classList.add(`menu-${position.direction}`);
 }
 
-export function createPortal(element: HTMLElement, target: HTMLElement = document.body): void {
-  target.appendChild(element);
+export function createPortal(element: HTMLElement, target?: HTMLElement): void {
+  // Guard against SSR execution
+  if (typeof document === 'undefined') return;
+  
+  const actualTarget = target || document.body;
+  actualTarget.appendChild(element);
 }
 
 export function removePortal(element: HTMLElement): void {
@@ -240,6 +244,9 @@ export function removePortal(element: HTMLElement): void {
 }
 
 export function preventBodyScroll(prevent: boolean): void {
+  // Guard against SSR execution
+  if (typeof document === 'undefined') return;
+  
   if (prevent) {
     document.body.style.overflow = 'hidden';
     document.body.dataset.scrollLocked = 'true';

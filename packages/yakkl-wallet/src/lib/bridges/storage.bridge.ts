@@ -4,27 +4,7 @@
  */
 
 import browser from 'webextension-polyfill';
-
-// TODO: Import from @yakkl/core when package is properly set up
-// import type { IStorage } from '@yakkl/core/interfaces';
-
-// Temporary local definition until @yakkl/core is properly set up
-export interface IStorage {
-  get<T = any>(key: string): Promise<T | null>;
-  getMultiple<T = any>(keys: string[]): Promise<Record<string, T | null>>;
-  set<T = any>(key: string, value: T): Promise<void>;
-  setMultiple<T = any>(items: Record<string, T>): Promise<void>;
-  remove(key: string): Promise<void>;
-  removeMultiple(keys: string[]): Promise<void>;
-  clear(): Promise<void>;
-  getKeys(): Promise<string[]>;
-  has(key: string): Promise<boolean>;
-  getInfo?(): Promise<{
-    bytesInUse?: number;
-    quota?: number;
-    usage?: number;
-  }>;
-}
+import type { IStorage } from '@yakkl/core';
 
 export class BrowserStorageBridge implements IStorage {
   private area: 'local' | 'sync';

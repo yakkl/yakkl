@@ -1,7 +1,7 @@
 import { RPCBase, type RPCOptions } from '$managers/RPCBase';
 import { log } from '$lib/common/logger-wrapper';
 import { ensureHexFormat, type BlockTag } from '$lib/common';
-import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
+import { BigNumber } from '$lib/common/bignumber';
 
 export class RPCAlchemy extends RPCBase {
 	protected requestQueue: Array<() => Promise<any>> = [];
@@ -206,11 +206,11 @@ export class RPCAlchemy extends RPCBase {
 		}
 	}
 
-	async getGasPrice(): Promise<EthereumBigNumber> {
+	async getGasPrice(): Promise<bigint> {
 		try {
 			log.info('[RPCAlchemy] Getting gas price', false);
 			const result = await this.request('eth_gasPrice');
-			return EthereumBigNumber.from(result);
+			return BigInt(result);
 		} catch (error) {
 			log.error('[RPCAlchemy] Error getting gas price', false, error);
 			throw error;
