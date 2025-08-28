@@ -82,6 +82,7 @@
 				// Get JWT token from auth store if available
 				jwtToken = authStore.getCurrentJWTToken() || undefined;
 
+        isLoggingIn = false;
 				props.onSuccess(profile, digest, minimumAuth, jwtToken);
 				return;
 			}
@@ -123,6 +124,7 @@
 			}
 
 			// Call success handler with profile, digest, minimal flag, and optional JWT
+      isLoggingIn = false;
 			props.onSuccess(profile, digest, minimumAuth, jwtToken);
 		} catch (e) {
 			// Increment retry count
@@ -144,6 +146,7 @@
 				errorMessage += ' - Maximum retry attempts reached.';
 			}
 
+      isLoggingIn = false;
 			showError = true;
 			log.error('Login verification failed', false, { error: e, retryCount, maxRetries });
 			props.onError(e);

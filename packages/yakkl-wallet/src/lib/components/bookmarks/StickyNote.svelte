@@ -211,6 +211,7 @@
           style="--dot-color: {colors[c as typeof color]}"
           onclick={() => handleColorChange(c as typeof color)}
           title="Change to {c}"
+          aria-label="Change note color to {c}"
         >
           <span class="color-ring"></span>
         </button>
@@ -223,6 +224,7 @@
           class="action-btn delete"
           onclick={handleDelete}
           title="Delete note"
+          aria-label="Delete this note"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
@@ -235,6 +237,7 @@
         class="action-btn close"
         onclick={onClose}
         title="Close"
+        aria-label="Close sticky note"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />

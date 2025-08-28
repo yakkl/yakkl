@@ -42,49 +42,30 @@ function getBrowserFromGlobal(): Browser | null {
 }
 
 /**
- * Inject the browser polyfill script into the page
+ * Wait for the browser polyfill to be available
+ * The script is loaded statically in app.html
  */
-async function injectPolyfillScript(): Promise<void> {
+async function waitForPolyfill(): Promise<void> {
   if (!isBrowser()) return;
 
-  // Check if script is already injected
-  const existingScript = document.querySelector('script[data-browser-polyfill]');
-  if (existingScript) {
-    // Wait for it to load
-    return new Promise((resolve) => {
-      if ((window as any).browser?.runtime?.id) {
-        resolve();
-      } else {
-        existingScript.addEventListener('load', () => resolve());
-      }
-    });
+  // Check if already available
+  if (getBrowserFromGlobal()) {
+    return;
   }
 
-  // Inject the script
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = '/ext/browser-polyfill.js';
-    script.setAttribute('data-browser-polyfill', 'true');
-    script.async = false; // Load synchronously to ensure it's available
-
-    script.onload = () => {
-      // Give it a moment to initialize
-      setTimeout(() => resolve(), 10);
-    };
-
-    script.onerror = (error) => {
-      console.error('[browser-polyfill-unified] Failed to load polyfill script:', error);
-      reject(new Error('Failed to load browser polyfill'));
-    };
-
-    // Insert at the beginning of head to load early
-    const head = document.head || document.getElementsByTagName('head')[0];
-    if (head.firstChild) {
-      head.insertBefore(script, head.firstChild);
-    } else {
-      head.appendChild(script);
+  // Wait for the script to load (max 5 seconds)
+  const maxWait = 5000;
+  const checkInterval = 50;
+  const maxChecks = maxWait / checkInterval;
+  
+  for (let i = 0; i < maxChecks; i++) {
+    if (getBrowserFromGlobal()) {
+      return;
     }
-  });
+    await new Promise(resolve => setTimeout(resolve, checkInterval));
+  }
+  
+  throw new Error('Browser polyfill failed to load after 5 seconds');
 }
 
 /**
@@ -106,11 +87,11 @@ async function loadBrowserAPI(): Promise<Browser> {
         return browser;
       }
 
-      // In browser environment, try to inject the polyfill
+      // In browser environment, wait for the polyfill to load
       if (isBrowser()) {
-        await injectPolyfillScript();
+        await waitForPolyfill();
 
-        // Check again after injection
+        // Check again after waiting
         browser = getBrowserFromGlobal();
         if (browser) {
           cachedBrowser = browser;

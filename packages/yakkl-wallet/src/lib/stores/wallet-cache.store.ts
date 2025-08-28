@@ -1,3 +1,4 @@
+// wallet-cache.store.ts
 import { writable, derived, get } from 'svelte/store';
 import {
 	getYakklCurrentlySelected,
@@ -8,7 +9,7 @@ import {
 	setObjectInLocalStorage as setObjectInBackgroundStorage,
 	getObjectFromLocalStorage as getObjectFromBackgroundStorage
 } from '$lib/common/backgroundStorage';
-import type { YakklAccount, TokenDisplay, TransactionDisplay, ChainDisplay } from '$lib/types';
+import type { YakklAccount, TransactionDisplay } from '$lib/types';
 import { AccountTypeCategory } from '$lib/common/types';
 import type {
 	PortfolioRollup,
@@ -26,13 +27,11 @@ import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
 import * as ethers from 'ethers';
 import { PortfolioRollupService } from '$lib/services/portfolio-rollup.service';
 import { toSmallestUnit, DEFAULT_CURRENCY } from '$lib/config/currencies';
-import { compareWalletCacheData, hasChanged, compareTokenData } from '$lib/utils/deepCompare';
+import { compareWalletCacheData, compareTokenData } from '$lib/utils/deepCompare';
 
 // Cache version for migrations
 const CACHE_VERSION = VERSION;
 const CACHE_KEY = 'yakklWalletCache';
-
-console.log('[WalletCache] WalletCacheStore loaded');
 
 // Helper functions to use appropriate storage based on context
 const isBackgroundContext = typeof window === 'undefined';
@@ -519,6 +518,7 @@ function createWalletCacheStore() {
 
 				// CRITICAL DEBUG: Log what we loaded from storage
 				console.log('[WalletCache] CRITICAL - Loaded from storage:', {
+          hydrated,
 					hasCache: !!hydrated,
 					activeAccount: hydrated.activeAccountAddress,
 					activeChain: hydrated.activeChainId,
@@ -531,6 +531,7 @@ function createWalletCacheStore() {
 					const accountCache = hydrated.chainAccountCache?.[hydrated.activeChainId]?.[hydrated.activeAccountAddress];
 					if (accountCache) {
 						console.log('[WalletCache] CRITICAL - Active account cache:', {
+              accountCache,
 							tokenCount: accountCache.tokens?.length || 0,
 							portfolioValue: accountCache.portfolio?.totalValue?.toString(),
 							firstThreeTokens: accountCache.tokens?.slice(0, 3).map(t => ({
@@ -547,7 +548,7 @@ function createWalletCacheStore() {
 				}
 
 				set(hydrated);
-				log.info(`[WalletCache] Loaded from ${isBackgroundContext ? 'background' : 'client'} storage`, false);
+				console.log(`[WalletCache] Loaded from ${isBackgroundContext ? 'background' : 'client'} storage`);
 
 				// CRITICAL FIX: Check if we have token data but missing rollups and force recalculation
 				const hasTokenData = Object.values(hydrated.chainAccountCache).some(chainData =>
@@ -557,11 +558,11 @@ function createWalletCacheStore() {
 				const hasValidRollups = hydrated.portfolioRollups?.grandTotal?.totalValue !== undefined;
 
 				if (hasTokenData && !hasValidRollups) {
-					log.info('[WalletCache] Token data found but rollups missing - will trigger calculation after initialization', false);
+					console.log('[WalletCache] Token data found but rollups missing - will trigger calculation after initialization');
 				}
 			} else {
 				// No cache exists, create new one
-				log.info('[WalletCache] Initializing with new enhanced cache structure', false);
+				log.info('[WalletCache] Initializing with new enhanced cache structure');
         console.log('[WalletCache] Initializing with new enhanced cache structure');
 				const newCache = getDefaultCache();
 				set(newCache);
@@ -575,9 +576,8 @@ function createWalletCacheStore() {
 					...cache,
 					activeAccountAddress: currentlySelected.shortcuts.address.toLowerCase()
 				}));
-				log.info(
+				console.log(
 					'[WalletCache] Synced active account from storage:',
-					false,
 					currentlySelected.shortcuts.address
 				);
 			}
@@ -588,9 +588,8 @@ function createWalletCacheStore() {
 					...cache,
 					activeChainId: currentlySelected.shortcuts.chainId
 				}));
-				log.info(
+				console.log(
 					'[WalletCache] Synced active chain from storage:',
-					false,
 					currentlySelected.shortcuts.chainId
 				);
         console.log('[WalletCache] Synced active chain from storage:', currentlySelected.shortcuts.chainId);
@@ -645,16 +644,16 @@ function createWalletCacheStore() {
 			);
 
 			if (hasTokenData) {
-				log.info('[WalletCache] Token data found during initialization - calculating rollups', false);
+				console.log('[WalletCache] Token data found during initialization - calculating rollups');
 				// Use setTimeout to avoid blocking initialization
 				setTimeout(async () => {
 					await this.calculateAllRollups();
 					// Force recalculation of all portfolio values from token data
 					await this.recalculateAllPortfolios();
-					log.info('[WalletCache] Initialization rollups and portfolio recalculation completed', false);
+					console.log('[WalletCache] Initialization rollups and portfolio recalculation completed');
 				}, 50);
 			} else {
-				log.info('[WalletCache] No token data found during initialization', false, {
+				console.log('[WalletCache] No token data found during initialization', {
 					chainAccountCache: Object.keys(currentState.chainAccountCache),
 					activeAccount: currentState.activeAccountAddress,
 					activeChain: currentState.activeChainId
@@ -666,7 +665,7 @@ function createWalletCacheStore() {
 		async updateFromStorage(newCache: WalletCacheController) {
 			// Validate the new cache has data
 			if (!newCache || typeof newCache !== 'object') {
-				log.warn('[WalletCache] Invalid cache data from storage');
+				console.warn('[WalletCache] Invalid cache data from storage');
 				return;
 			}
 
@@ -675,7 +674,7 @@ function createWalletCacheStore() {
 
 			// CRITICAL FIX: Only update if data has actually changed
 			if (!compareWalletCacheData(currentCache, newCache)) {
-				log.debug('[WalletCache] No changes detected in storage update, skipping reactive update');
+				console.debug('[WalletCache] No changes detected in storage update, skipping reactive update');
 				return;
 			}
 
@@ -691,7 +690,7 @@ function createWalletCacheStore() {
 				// Hydrate dates
 				const hydrated = hydrateDates(updatedCache);
 
-				log.debug('[WalletCache] Updated from storage change - data actually changed', false, {
+				console.debug('[WalletCache] Updated from storage change - data actually changed', {
 					activeAccount: hydrated.activeAccountAddress,
 					activeChain: hydrated.activeChainId,
 					hasRollups: !!hydrated.portfolioRollups?.grandTotal
@@ -705,9 +704,9 @@ function createWalletCacheStore() {
 		async switchAccount(address: string) {
 			const normalizedAddress = address.toLowerCase();
 			const currentState = get({ subscribe });
-			
-			console.log('[WalletCache] Switching account to:', normalizedAddress);
-			
+
+			console.log('[WalletCache] Switching account to:', normalizedAddress, currentState);
+
 			// Step 1: Update active account address and clear rollups for clean transition
 			update((cache) => ({
 				...cache,
@@ -734,31 +733,31 @@ function createWalletCacheStore() {
 					}
 				}
 			}));
-			
+
 			// Step 2: Check if we have cache for this account
 			const accountCache = this.getAccountCache(currentState.activeChainId, normalizedAddress);
-			
+
 			// Step 3: If no cache or empty cache, trigger initialization
 			if (!accountCache || !accountCache.tokens || accountCache.tokens.length === 0) {
 				console.log('[WalletCache] No cache for account, triggering sync manager initialization');
-				
+
 				// Import and use cache sync manager to initialize account data
 				// Using dynamic import to avoid circular dependency
 				const { CacheSyncManager } = await import('$lib/services/cache-sync.service');
 				const syncManager = CacheSyncManager.getInstance();
-				
+
 				// Initialize account data (this will fetch tokens, prices, transactions)
 				await syncManager.initializeCurrentAccount();
-				
+
 				// Force immediate sync to ensure data is loaded
 				await syncManager.syncCurrentAccount();
 			} else {
 				console.log('[WalletCache] Cache exists for account, recalculating rollups');
-				
+
 				// If cache exists, just recalculate rollups with existing data
 				await this.calculateAllRollups();
 			}
-			
+
 			console.log('[WalletCache] Account switch complete');
 		},
 
@@ -826,7 +825,7 @@ function createWalletCacheStore() {
 
 				// Track the update source for debugging
 				const stackTrace = new Error().stack?.split('\n').slice(2, 4).join(' <- ');
-				log.info('[WalletCache] Token update check:', false, {
+				console.log('[WalletCache] Token update check:', {
 					hasExistingValue,
 					hasPortfolioValue,
 					existingTokenCount: accountCache.tokens.length,
@@ -836,9 +835,8 @@ function createWalletCacheStore() {
 				});
 
 				if (isCompletelyEmpty && accountCache.tokens.length > 0) {
-					log.error(
+					console.error(
 						'[WalletCache] BLOCKING empty token update - would lose existing data',
-						false,
 						{ existingCount: accountCache.tokens.length }
 					);
 					return cache;
@@ -846,9 +844,8 @@ function createWalletCacheStore() {
 
 				// Enhanced protection: Prevent clearing existing data when getting all zeros
 				if ((hasExistingValue || hasPortfolioValue) && allNewTokensZero) {
-					log.error(
+					console.error(
 						'[WalletCache] BLOCKING all-zero update - preserving existing values',
-						false,
 						{
 							existingPortfolioValue: accountCache.portfolio.totalValue.toString(),
 							existingTokensWithValue: accountCache.tokens.filter(t => {
@@ -866,18 +863,16 @@ function createWalletCacheStore() {
 				// CRITICAL FIX: Check if token data has actually changed to prevent unnecessary updates
 				const hasTokenDataChanged = compareTokenData(accountCache.tokens, tokens);
 				if (!hasTokenDataChanged) {
-					log.debug(
-						`[WalletCache] Token data unchanged for ${normalizedAddress} on chain ${chainId}, skipping update`,
-						false
+					console.debug(
+						`[WalletCache] Token data unchanged for ${normalizedAddress} on chain ${chainId}, skipping update`
 					);
 					return cache;
 				}
 
 				// Always update if we have any token data - even with 0 balances
 				// Token metadata, prices, and the existence of tokens is valuable information
-				log.info(
+				console.log(
 					`[WalletCache] Updating tokens for ${normalizedAddress} on chain ${chainId} - data changed`,
-					false,
 					{ tokenCount: tokens.length }
 				);
 
@@ -911,17 +906,17 @@ function createWalletCacheStore() {
 						}
 
 						console.log('[WalletCache] Calculating token value balanceInEth: ========================================>>>>>', { balanceInEth, price });
-						
+
 						// EthereumBigNumber.toFiat expects balance in ETH (not wei!)
 						// It will multiply the ETH amount by the price
 						const fiatValue = parseFloat(balanceInEth) * price;
-						
+
 						console.log('[WalletCache] Calculating token value fiat: ========================================>>>>>', { fiatValue });
-						
+
 						// Convert to cents (multiply by 100) and store as BigInt
 						const valueInCents = Math.round(fiatValue * 100);
 						const value = BigInt(valueInCents);
-						
+
 						console.log('[WalletCache] Calculating token value value: ========================================>>>>>', { value });
 						return value;
 					} catch (error) {
@@ -1002,9 +997,8 @@ function createWalletCacheStore() {
 					return tokenValue > 0n;
 				}).length;
 
-				log.info(
-					`[WalletCache] Updated portfolio: $${accountCache.portfolio.totalValue.toString()} (${tokensWithValue} tokens with value out of ${validatedTokens.length} total)`,
-					false
+				console.log(
+					`[WalletCache] Updated portfolio: $${accountCache.portfolio.totalValue.toString()} (${tokensWithValue} tokens with value out of ${validatedTokens.length} total)`
 				);
 
 				// Trigger rollup update for this account immediately
@@ -1026,7 +1020,7 @@ function createWalletCacheStore() {
 				const accountCache = newCache.chainAccountCache[chainId]?.[normalizedAddress];
 
 				if (!accountCache) {
-					log.warn('[WalletCache] No cache for native token price update', false, {
+					console.warn('[WalletCache] No cache for native token price update', {
 						chainId,
 						address
 					});
@@ -1072,9 +1066,8 @@ function createWalletCacheStore() {
 					};
 
 					accountCache.lastPriceUpdate = new Date();
-					log.info(
+					console.log(
 						'[WalletCache] Updated native token price and recalculated portfolio',
-						false,
 						{ chainId, address, price, newTotal: accountCache.portfolio.totalValue.toString() }
 					);
 
@@ -1134,9 +1127,8 @@ function createWalletCacheStore() {
 							};
 						} else if (newPrice === 0 && token.price && token.price > 0) {
 							// PROTECTION: Don't update to zero price if we had a valid price
-							log.warn(
-								`[WalletCache] Ignoring zero price update for ${token.symbol}, keeping ${token.price}`,
-								false
+							console.warn(
+								`[WalletCache] Ignoring zero price update for ${token.symbol}, keeping ${token.price}`
 							);
 						}
 
@@ -1151,9 +1143,8 @@ function createWalletCacheStore() {
 
 					// PROTECTION: Don't update to zero if we had value before
 					if (hadValue && newTotalValue === 0n) {
-						log.error(
+						console.error(
 							'[WalletCache] Price update would zero portfolio - SKIPPING recalculation',
-							false,
 							{
 								address,
 								oldValue: accountCache.portfolio.totalValue.toString(),
@@ -1194,7 +1185,7 @@ function createWalletCacheStore() {
 				const accountCache = newCache.chainAccountCache[chainId]?.[normalizedAddress];
 
 				if (!accountCache) {
-					log.warn('[WalletCache] No cache for portfolio recalculation', false, {
+					console.warn('[WalletCache] No cache for portfolio recalculation', {
 						chainId,
 						address
 					});
@@ -1211,9 +1202,8 @@ function createWalletCacheStore() {
 					tokenCount: accountCache.tokens.length
 				};
 
-				log.info(
-					`[WalletCache] Forced portfolio recalculation: $${accountCache.portfolio.totalValue.toString()} (${accountCache.tokens.length} tokens)`,
-					false
+				console.log(
+					`[WalletCache] Forced portfolio recalculation: $${accountCache.portfolio.totalValue.toString()} (${accountCache.tokens.length} tokens)`
 				);
 
 				return newCache;
@@ -1284,9 +1274,8 @@ function createWalletCacheStore() {
 				const stackTrace = new Error().stack?.split('\n').slice(2, 4).join(' <- ');
 
 				if (isEmptyUpdate && hasExistingTransactions) {
-					log.error(
+					console.error(
 						'[WalletCache] BLOCKING empty transaction update - preserving existing transactions',
-						false,
 						{
 							existingCount: accountCache.transactions.transactions.length,
 							firstThreeTxs: accountCache.transactions.transactions.slice(0, 3).map(tx => ({
@@ -1349,9 +1338,8 @@ function createWalletCacheStore() {
 						cacheLocation: `chainAccountCache[${chainId}][${normalizedAddress}].transactions`
 					});
 
-					log.info(
+					console.log(
 						`[WalletCache] Updated transactions for ${normalizedAddress}`,
-						false,
 						{ previous: accountCache.transactions.transactions.length, new: transactions.length, merged: mergedTransactions.length }
 					);
 				}
@@ -1388,7 +1376,7 @@ function createWalletCacheStore() {
 
 					try {
 						let balanceInEth: string;
-						
+
 						if (balance.includes('.')) {
 							// Already in ETH/token format
 							balanceInEth = balance;
@@ -1667,9 +1655,8 @@ function createWalletCacheStore() {
 							};
 						} else if (newBalanceBigInt === 0n && newBalances.has(tokenKey)) {
 							// Only set to 0 if explicitly provided in the update
-							log.info(
+							console.log(
 								`[WalletCache] Explicitly setting ${token.symbol} balance to 0`,
-								false,
 								{ address: token.address }
 							);
 							return {
@@ -1801,7 +1788,7 @@ function createWalletCacheStore() {
 					tokenCount: newCache.portfolioRollups.grandTotal.tokenCount
 				};
 
-				log.debug('[WalletCache] Account rollup updated', false, { address: normalizedAddress });
+				console.debug('[WalletCache] Account rollup updated', { address: normalizedAddress });
 
 				return newCache;
 			});
@@ -1852,7 +1839,7 @@ function createWalletCacheStore() {
 					tokenCount: newCache.portfolioRollups.grandTotal.tokenCount
 				};
 
-				log.debug('[WalletCache] Chain rollup updated', false, { chainId });
+				console.debug('[WalletCache] Chain rollup updated', { chainId });
 
 				return newCache;
 			});
@@ -1939,7 +1926,7 @@ function createWalletCacheStore() {
 					newCache.accountMetadata.accountDetails = metadata.accountDetails;
 				}
 
-				log.debug('[WalletCache] Account metadata updated', false);
+				console.debug('[WalletCache] Account metadata updated');
 
 				return newCache;
 			});
@@ -1984,7 +1971,7 @@ function createWalletCacheStore() {
 					};
 				}
 
-				log.debug('[WalletCache] Include in portfolio flag updated', false, {
+				console.debug('[WalletCache] Include in portfolio flag updated', {
 					address: normalizedAddress,
 					include
 				});
@@ -2018,7 +2005,7 @@ function createWalletCacheStore() {
 					tokenCount: accountCache.tokens.length
 				};
 
-				log.debug(`[WalletCache] Recalculated portfolio for ${normalizedAddress} on chain ${chainId}:`, false, {
+				console.debug(`[WalletCache] Recalculated portfolio for ${normalizedAddress} on chain ${chainId}:`, {
 					totalValue: newTotalValue.toString(),
 					tokenCount: accountCache.tokens.length,
 					tokensWithValue: accountCache.tokens.filter(t => BigNumber.toBigInt(t.value || 0) > 0n).length
@@ -2039,7 +2026,7 @@ function createWalletCacheStore() {
 				// Ensure dates are properly hydrated
 				const hydrated = hydrateDates(newCache);
 
-				log.debug('[WalletCache] Updated from coordinator', false, {
+				console.debug('[WalletCache] Updated from coordinator', {
 					hasRollups: !!hydrated.portfolioRollups?.grandTotal,
 					grandTotal: hydrated.portfolioRollups?.grandTotal?.totalValue?.toString()
 				});
@@ -2083,7 +2070,7 @@ function createWalletCacheStore() {
 					};
 				}
 
-				log.debug('[WalletCache] Rollups recalculated from prices', false);
+				console.debug('[WalletCache] Rollups recalculated from prices');
 
 				return newCache;
 			});
@@ -2148,7 +2135,7 @@ function createWalletCacheStore() {
 					newCache.chainAccountCache[chainId][address].lastTransactionRefresh = new Date();
 				}
 
-				log.debug('[WalletCache] Transaction updated from coordinator', false, { hash });
+				console.debug('[WalletCache] Transaction updated from coordinator', { hash });
 
 				return newCache;
 			});
@@ -2271,12 +2258,12 @@ export const currentPortfolioValue = derived(walletCacheStore, ($cache) => {
 		lastKnownPortfolioValue = 0n;
 		lastKnownAccount = activeAccountAddress;
 		isAccountSwitching = true;
-		
+
 		// Set a flag to track when switching is complete
 		setTimeout(() => {
 			isAccountSwitching = false;
 		}, 100);
-		
+
 		// Return 0 immediately during account switch to avoid showing stale data
 		return 0n;
 	}

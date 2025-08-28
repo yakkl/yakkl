@@ -4,7 +4,7 @@
   import { safeLogout } from '$lib/common/safeNavigate';
   import { log } from '$lib/common/logger-wrapper';
   import type { Profile, YakklSettings } from '$lib/common/interfaces';
-  import { getNormalizedSettings, PATH_LEGAL_TOS, PlanType, VERSION } from '$lib/common';
+  import { getNormalizedSettings, PATH_LEGAL_TOS, PlanType, simpleLockWallet, VERSION } from '$lib/common';
   import { setLocks } from '$lib/common/locks';
   import ErrorNoAction from '$lib/components/ErrorNoAction.svelte';
   import { onMount } from 'svelte';
@@ -31,7 +31,8 @@
   onMount(async () => {
     // Show login form IMMEDIATELY - no spinner, no delay
     isInitializing = false;
-    // planType = PlanType.EXPLORER_MEMBER;
+
+    await simpleLockWallet(); // Force lock wallet immediately - only sets badge and icon lock state plus settings
 
     // Load settings in background (non-blocking)
     getNormalizedSettings().then(async (settings) => {
@@ -72,7 +73,7 @@
       setTimeout(async () => {
         try {
           // Just unlock - skip heavy operations
-          await setLocks(false, PlanType.EXPLORER_MEMBER);
+          await setLocks(false);
         } catch (e) {
           log.warn('[LOGIN onSuccess] Background unlock error:', false, e);
         }
