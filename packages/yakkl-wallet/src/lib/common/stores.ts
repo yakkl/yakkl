@@ -39,8 +39,7 @@ import {
 	STORAGE_YAKKL_TOKENDATA_CUSTOM,
 	STORAGE_YAKKL_COMBINED_TOKENS,
 	STORAGE_YAKKL_TOKEN_CACHE,
-  STORAGE_YAKKL_WALLET_CACHE,
-  STORAGE_YAKKL_ADDRESS_TOKEN_CACHE
+ STORAGE_YAKKL_ADDRESS_TOKEN_CACHE
 } from '$lib/common/constants';
 
 import { encryptData, decryptData } from '$lib/common/encryption';
@@ -77,14 +76,12 @@ import type { Blockchain } from '$lib/managers/Blockchain';
 import type { Provider } from '$lib/managers/Provider';
 import type { TokenService } from '$lib/managers/blockchains/evm/TokenService';
 import { tokens } from './stores/tokens';
-import { getYakklCurrentlySelected } from '../stores/account-utils';
-// import { timerManagerStore } from '$lib/managers/TimerManager';
 import { log } from '$lib/common/logger-wrapper';
-// import { AccountTypeCategory, NetworkType } from '$lib/common/types';
 import type { RSSItem } from '$lib/managers/ExtensionRSSFeedService';
-import { BigNumber, type BigNumberish } from '$lib/common/bignumber';
+import { BigNumber } from '$lib/common/bignumber';
 import { browser_ext } from '$lib/common/environment';
 import { walletCacheStore } from '$lib/stores/wallet-cache.store';
+import { detectBrowserContext } from './browserContext';
 
 // Svelte writeable stores
 export const alert = writable({
@@ -341,12 +338,12 @@ export function storageChange(changes: any) {
 		// Handle yakklWalletCache updates
 		if (changes.yakklWalletCache) {
 			// Import and update the wallet cache store
-        console.log('yakklWalletCache', changes.yakklWalletCache.newValue);
+        console.log('[stores.ts] storageChange: yakklWalletCache', changes.yakklWalletCache.newValue);
         // Should we add yakklWalletCacheStore.set(changes.yakklWalletCache.newValue);
         walletCacheStore.loadFromStorage();
 		}
 	} catch (error) {
-		log.error(error);
+		console.error('[stores.ts] storageChange: Error:', error);
 		throw error;
 	}
 }
@@ -354,6 +351,8 @@ export function storageChange(changes: any) {
 // Prioritized store loading for specific stores
 export async function syncStorageToStore(storeName?: string): Promise<void> {
 	if (storeName) {
+    console.log('[stores.ts] syncStorageToStore: storeName:', storeName);
+
 		// Load a specific store
 		try {
 			switch (storeName) {
@@ -411,11 +410,13 @@ export async function syncStorageToStore(storeName?: string): Promise<void> {
 					break;
 			}
 		} catch (error) {
-			log.error(`Error syncing store ${storeName}:`, false, error);
+			console.error(`[stores.ts] syncStorageToStore: Error syncing store ${storeName}:`, error);
 			throw error;
 		}
 		return;
 	}
+
+  console.log('[stores.ts] syncStorageToStore: Loading all stores');
 
 	// Load all stores (original behavior)
 	try {
@@ -479,7 +480,7 @@ export async function syncStorageToStore(storeName?: string): Promise<void> {
 		yakklWalletBlockchainsStore.set(yakklWalletBlockchains);
 		yakklWalletProvidersStore.set(yakklWalletProviders);
 	} catch (error) {
-		log.error('Error syncing stores:', false, error);
+		console.error('[stores.ts] syncStorageToStore: Error syncing stores:', error);
 		throw error; // Rethrow so that load() can catch it
 	}
 }
@@ -866,7 +867,7 @@ export async function getYakklRegisteredData(
 
 		return value || null; // Return an empty object or provide a default value if necessary
 	} catch (error) {
-		log.error('Error in getYakklRegisteredData:', false, error);
+		console.error('[stores.ts] getYakklRegisteredData: Error:', error);
 		throw error;
 	}
 }
@@ -885,7 +886,7 @@ export async function getYakklContacts(id?: string, persona?: string): Promise<Y
 
 		return value || []; // Return an empty array or provide a default value if necessary
 	} catch (error) {
-		log.error('Error in getYakklContacts:', false, error);
+		console.error('[stores.ts] getYakklContacts: Error:', error);
 		throw error;
 	}
 }
@@ -905,7 +906,7 @@ export async function getYakklTokenData(id?: string, persona?: string): Promise<
 		if (value) setYakklTokenDataStore(value);
 		return value || []; // Return an empty array or provide a default value if necessary
 	} catch (error) {
-		log.error('Error in getYakklTokenData:', false, error);
+		console.error('[stores.ts] getYakklTokenData: Error:', error);
 		throw error;
 	}
 }
@@ -925,7 +926,7 @@ export async function getYakklTokenDataCustom(id?: string, persona?: string): Pr
 		if (value) setYakklTokenDataCustomStore(value);
 		return value || []; // Return an empty array or provide a default value if necessary
 	} catch (error) {
-		log.error('Error in getYakklTokenDataCustom:', false, error);
+		console.error('[stores.ts] getYakklTokenDataCustom: Error:', error);
 		throw error;
 	}
 }
@@ -945,7 +946,7 @@ export async function getYakklCombinedTokens(id?: string, persona?: string): Pro
 		if (value) setYakklCombinedTokenStore(value);
 		return value || []; // Return an empty array or provide a default value if necessary
 	} catch (error) {
-		log.error('Error in getYakklCombinedTokens:', false, error);
+		console.error('[stores.ts] getYakklCombinedTokens: Error:', error);
 		throw error;
 	}
 }
@@ -967,7 +968,7 @@ export async function getYakklCombinedTokensDirect(id?: string, persona?: string
 		if (value) setYakklCombinedTokenStore(value);
 		return value || []; // Return an empty array or provide a default value if necessary
 	} catch (error) {
-		log.error('Error in getYakklCombinedTokensDirect:', false, error);
+		console.error('[stores.ts] getYakklCombinedTokensDirect: Error:', error);
 		return []; // Return empty array instead of throwing
 	}
 }
@@ -990,7 +991,7 @@ export async function getYakklChats(id?: string, persona?: string): Promise<Yakk
 		}
 		return value || [];
 	} catch (error) {
-		log.error('Error in getYakklChats:', false, error);
+		console.error('[stores.ts] getYakklChats: Error:', error);
 		return [];
 	}
 }
@@ -1005,7 +1006,7 @@ export async function getYakklWalletBlockchains(): Promise<string[]> {
 		}
 		return value || []; // Return an empty array or provide a default value if necessary
 	} catch (error) {
-		log.error('Error in getYakklWalletBlockchains:', false, error);
+		console.error('[stores.ts] getYakklWalletBlockchains: Error:', error);
 		throw error;
 	}
 }
@@ -1020,7 +1021,7 @@ export async function getYakklWalletProviders(): Promise<string[]> {
 		}
 		return value || []; // Return an empty array or provide a default value if necessary
 	} catch (error) {
-		log.error('Error in getYakklWalletProviders:', false, error);
+		console.error('[stores.ts] getYakklWalletProviders: Error:', error);
 		throw error;
 	}
 }
@@ -1047,7 +1048,7 @@ export async function getYakklConnectedDomains(
 
 		return value || []; // Return an empty array or provide a default value if necessary
 	} catch (error) {
-		log.error('Error in getYakklConnectedDomains:', false, error);
+		console.error('[stores.ts] getYakklConnectedDomains: Error:', error);
 		throw error;
 	}
 }
@@ -1066,7 +1067,7 @@ export async function getPreferences(id?: string, persona?: string): Promise<Pre
 
 		return value; // Return an empty object or provide a default value if necessary
 	} catch (error) {
-		log.error('Error in getPreferences:', false, error);
+		console.error('[stores.ts] getPreferences: Error:', error);
 		throw error;
 	}
 }
@@ -1085,7 +1086,7 @@ export async function getYakklSettings(id?: string, persona?: string): Promise<Y
 
 		return value; // Return an empty object or provide a default value if necessary
 	} catch (error) {
-		log.error('Error in getYakklSettings:', false, error);
+		console.error('[stores.ts] getYakklSettings: Error:', error);
 		throw error;
 	}
 }
@@ -1106,7 +1107,7 @@ export async function getYakklSettingsDirect(id?: string, persona?: string): Pro
 
 		return value; // Return an empty object or provide a default value if necessary
 	} catch (error) {
-		log.error('Error in getYakklSettingsDirect:', false, error);
+		console.error('[stores.ts] getYakklSettingsDirect: Error:', error);
 		return null; // Return null instead of throwing to handle initialization gracefully
 	}
 }
@@ -1125,13 +1126,57 @@ export async function getProfile(id?: string, persona?: string): Promise<Profile
 
 		return value; // Return an empty object or provide a default value if necessary
 	} catch (error) {
-		log.error('Error in getProfile:', false, error);
+		console.error('[stores.ts] getProfile: Error:', error);
 		throw error;
 	}
 }
 
 // Re-export from the utility module to break circular dependency
-export { getYakklCurrentlySelected } from '../stores/account-utils';
+// export { getYakklCurrentlySelected } from '../stores/account-utils';
+
+export async function getYakklCurrentlySelected(
+	id?: string,
+	persona?: string
+): Promise<YakklCurrentlySelected> {
+	try {
+		// Use context-aware storage for background context
+		const context = detectBrowserContext();
+		const isBackground = context === 'background';
+		console.log(
+			'[getYakklCurrentlySelected] Browser context:',
+			context,
+			'isBackground:',
+			isBackground
+		);
+
+		// const value = isBackground
+		// 	? await getFromStorage<YakklCurrentlySelected>(STORAGE_YAKKL_CURRENTLY_SELECTED)
+		// 	: await getObjectFromLocalStorage<YakklCurrentlySelected>(STORAGE_YAKKL_CURRENTLY_SELECTED);
+
+    const value = await getObjectFromLocalStorage<YakklCurrentlySelected>(
+			STORAGE_YAKKL_CURRENTLY_SELECTED
+		);
+
+		console.log('[getYakklCurrentlySelected] Raw value from storage:', value);
+		console.log('[getYakklCurrentlySelected] Value type:', typeof value);
+
+		if (id && persona) {
+			// TODO: Implement this later
+		}
+
+		// If no value or value is a string, return default values
+		if (!value || typeof value === 'string') {
+			console.warn('[getYakklCurrentlySelected] No currently selected Yakkl found, using defaults', value);
+      return yakklCurrentlySelected; // Default values - models/dataModels.ts
+		}
+		return value;
+	} catch (error) {
+		log.error('Error in getYakklCurrentlySelected:', false, error);
+		throw error;
+	}
+}
+
+
 
 export async function getYakklWatchList(id?: string, persona?: string): Promise<YakklWatch[]> {
 	// eslint-disable-next-line no-useless-catch
@@ -1148,7 +1193,7 @@ export async function getYakklWatchList(id?: string, persona?: string): Promise<
 
 		return value || [];
 	} catch (error) {
-		log.error('Error in getYakklWatchList:', false, error);
+		console.error('[stores.ts] getYakklWatchList: Error:', error);
 		throw error;
 	}
 }
@@ -1176,9 +1221,14 @@ export async function getYakklBlockedList(id?: string, persona?: string): Promis
 export async function getYakklAccounts(id?: string, persona?: string): Promise<YakklAccount[]> {
 	// eslint-disable-next-line no-useless-catch
 	try {
+		console.log('[getYakklAccounts] Loading accounts from storage...');
 		const value = await getObjectFromLocalStorage<YakklAccount[]>(STORAGE_YAKKL_ACCOUNTS);
+		console.log('[getYakklAccounts] Raw value:', value);
+		console.log('[getYakklAccounts] Value type:', typeof value);
+
 		if (typeof value === 'string') {
 			// Handle the case where value is a string, which shouldn't happen in this context
+			console.error('[getYakklAccounts] ERROR: String value received from storage:', value);
 			throw new Error('Unexpected string value received from local storage');
 		}
 
@@ -1186,9 +1236,12 @@ export async function getYakklAccounts(id?: string, persona?: string): Promise<Y
 			// TODO: Implement this later
 		}
 
-		return value || [];
+		const accounts = value || [];
+		console.log('[getYakklAccounts] Returning accounts count:', accounts.length);
+		return accounts;
 	} catch (error) {
 		log.error('Error in getYakklAccounts:', false, error);
+		console.error('[getYakklAccounts] ERROR:', error);
 		throw error;
 	}
 }
@@ -1548,7 +1601,25 @@ export async function setProfileStorage(values: Profile) {
 }
 
 // Re-export from the utility module to break circular dependency
-export { setYakklCurrentlySelectedStorage } from '../stores/account-utils';
+// export { setYakklCurrentlySelectedStorage } from '../stores/account-utils';
+export async function setYakklCurrentlySelectedStorage(values: YakklCurrentlySelected) {
+	try {
+    if (
+      values.shortcuts.address.trim().length === 0 ||
+      values.shortcuts.accountName.trim().length === 0
+    ) {
+      throw new Error(
+        'Attempting to save yakklCurrentlySelected with no address or no account name. Select a default account and retry.'
+      );
+    }
+
+		yakklCurrentlySelectedStore.set(values);
+		await setObjectInLocalStorage(STORAGE_YAKKL_CURRENTLY_SELECTED, values);
+	} catch (error) {
+		log.error('Error in setYakklCurrentlySelectedStorage:', false, error);
+		throw error;
+	}
+}
 
 export async function setYakklWatchListStorage(values: YakklWatch[]) {
 	try {

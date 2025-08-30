@@ -1,16 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { log } from '$lib/managers/Logger';
 import { browserAPI } from '$lib/services/browser-api.service';
-// import { browser_ext } from './environment';
-import type { Browser } from 'webextension-polyfill';
-
-let browser: Browser;
-
-if (typeof window === 'undefined') {
-  browser = await import ('webextension-polyfill');
-} else {
-  browser = await import ('./environment').then(m => m.browser_ext);
-}
+import { browser_ext as browser } from './environment';
 
 // Note: This file is used for client contexts only.
 // Background contexts use the backgroundStorage.ts file.
@@ -38,9 +29,13 @@ export const getObjectFromLocalStorage = async <T>(
 	timeoutMs = 1000
 ): Promise<T | null> => {
 	try {
+		console.log('[getObjectFromLocalStorage] Getting key:', key, 'useBrowserAPI:', useBrowserAPI);
+		console.log('[getObjectFromLocalStorage] Browser available:', !!browser, 'storage:', !!browser?.storage?.local);
+		
     // if (!useBrowserAPI && browser_ext?.storage?.local) {
     if (browser) {
       const result = await browser.storage.local.get(key);
+      console.log('[getObjectFromLocalStorage] Result for', key, ':', result);
       return result[key] as T;
     } else if (useBrowserAPI) {
       let storagePromise = browserAPI.storageGet(key);

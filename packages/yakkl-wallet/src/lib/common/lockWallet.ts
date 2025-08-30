@@ -4,17 +4,15 @@ import { setBadgeText, setIconLock } from '$lib/utilities/utilities';
 import { stopActivityTracking } from './messaging';
 import { removeTimers } from './timers';
 import { removeListeners } from './listeners';
-import { setMiscStore, resetStores, setYakklTokenDataCustomStorage, yakklTokenDataCustomStore } from './stores';
+import { setMiscStore, resetStores } from './stores';
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from './storage';
-import { resetTokenDataStoreValues } from './resetTokenDataStoreValues';
-import { get } from 'svelte/store';
 import { STORAGE_YAKKL_CURRENTLY_SELECTED, STORAGE_YAKKL_SETTINGS } from './constants';
 import { browserAPI } from '$lib/services/browser-api.service';
 import type { Browser } from 'webextension-polyfill';
-import { walletCacheStore } from '$lib/stores/wallet-cache.store';
 import { SingletonWindowManager } from '$lib/managers/SingletonWindowManager';
 import { invalidateJWT } from '$lib/utilities/jwt-background';
 import type { YakklCurrentlySelected } from './interfaces';
+import { setLocks } from './locks';
 
 /**
  * Internal function to perform the actual lock operations
@@ -23,22 +21,22 @@ import type { YakklCurrentlySelected } from './interfaces';
 async function performLockWallet(reason: string = 'manual', tokenToInvalidate?: string): Promise<void> {
   console.log(`[lockWallet] === STARTING FAST LOGOUT === Reason: ${reason}`);
   const startTime = Date.now();
-  
+
   // Step 1: Send close windows message (fire-and-forget)
   try {
     const isBackgroundContext = typeof (globalThis as any).importScripts !== 'undefined';
     const isClientContext = typeof window !== 'undefined' && !isBackgroundContext;
-    
+
     if (isClientContext) {
       // Try to get browser API quickly
       let browserApi: any = null;
-      
+
       if (typeof chrome !== 'undefined' && chrome?.runtime?.sendMessage) {
         browserApi = chrome;
       } else if (typeof window !== 'undefined' && (window as any).browser?.runtime?.sendMessage) {
         browserApi = (window as any).browser;
       }
-      
+
       // Fire-and-forget message - don't await
       if (browserApi?.runtime?.sendMessage) {
         browserApi.runtime.sendMessage({ type: 'closeAllWindows', reason }).catch(() => {
@@ -49,7 +47,7 @@ async function performLockWallet(reason: string = 'manual', tokenToInvalidate?: 
   } catch (error) {
     // Ignore and continue
   }
-  
+
   // Step 2: Run all cleanup operations in parallel for speed
   try {
     console.log('[lockWallet] Starting parallel cleanup...');
@@ -60,7 +58,7 @@ async function performLockWallet(reason: string = 'manual', tokenToInvalidate?: 
     // 1. CRITICAL: Invalidate JWT token (keep this awaited for security)
     if (tokenToInvalidate || typeof invalidateJWT === 'function') {
       cleanupPromises.push(
-        invalidateJWT(tokenToInvalidate).catch(err => 
+        invalidateJWT(tokenToInvalidate).catch(err =>
           console.warn('[lockWallet] JWT invalidation failed:', err?.message)
         )
       );
@@ -107,12 +105,12 @@ async function performLockWallet(reason: string = 'manual', tokenToInvalidate?: 
       removeListeners();
       setMiscStore('');
       resetStores();
-      
+
       // Clear session storage
       if (typeof sessionStorage !== 'undefined') {
         sessionStorage.removeItem('wallet-authenticated');
       }
-      
+
       // Reset window manager
       SingletonWindowManager.reset();
     } catch (error) {
@@ -124,38 +122,38 @@ async function performLockWallet(reason: string = 'manual', tokenToInvalidate?: 
 
     // Wait only for critical operations (JWT invalidation and storage updates)
     await Promise.allSettled(cleanupPromises);
-    
+
     const elapsed = Date.now() - startTime;
     console.log(`[lockWallet] ✓ FAST LOGOUT COMPLETED in ${elapsed}ms - Reason: ${reason}`);
-    
+
   } catch (error) {
     console.error('[lockWallet] Error during cleanup:', error);
-    
+
     // Emergency cleanup - ensure critical data is cleared
     try {
       console.log('[lockWallet] Performing emergency cleanup...');
-      
+
       // Clear stores
       if (typeof resetStores === 'function') {
         resetStores();
       }
-      
+
       // Clear session storage
       if (typeof sessionStorage !== 'undefined') {
         sessionStorage.clear();
       }
-      
+
       // Clear misc store
       if (typeof setMiscStore === 'function') {
         setMiscStore('');
       }
-      
+
       console.log('[lockWallet] Emergency cleanup completed');
     } catch (emergencyError) {
       console.error('[lockWallet] Emergency cleanup failed:', emergencyError);
     }
   }
-  
+
   console.log('[lockWallet] === LOGOUT COMPLETED ===');
 }
 
@@ -170,7 +168,7 @@ export async function lockWallet(reason: string = 'manual', tokenToInvalidate?: 
     await performLockWallet(reason, tokenToInvalidate);
   } catch (error) {
     console.error('[lockWallet] Operation failed:', error);
-    
+
     // Emergency cleanup - just clear stores synchronously
     try {
       resetStores();
@@ -181,6 +179,16 @@ export async function lockWallet(reason: string = 'manual', tokenToInvalidate?: 
     } catch (e) {
       // Ignore cleanup errors
     }
+  }
+}
+
+export async function simpleLockWallet(): Promise<void> {
+  try {
+    setBadgeText('').catch(() => {});
+    setIconLock().catch(() => {});
+    setLocks(true, false);
+  } catch (error) {
+    console.error('[simpleLockWallet] Operation failed:', error);
   }
 }
 

@@ -8,15 +8,18 @@ import { PlanType } from './types';
 import { invalidateJWT } from '$lib/utilities/jwt-background';
 
 // Will keep this for now but may want to deprecate it and use the new background script to handle locks
-
-export async function setLocks(locked: boolean = true, planType?: PlanType, tokenToInvalidate?: string) {
+// locked: true = lock, false = unlock
+// invalidatejwt: true = invalidate JWT if locked, false = don't invalidate JWT
+// planType: the plan type to set (default is EXPLORER_MEMBER) to force lowest plan type
+// tokenToInvalidate: the token to invalidate (optional)
+export async function setLocks(locked: boolean = true, invalidatejwt: boolean = true, planType: PlanType = PlanType.EXPLORER_MEMBER, tokenToInvalidate?: string) {
 	try {
 		let dirty = false;
 
 		log.info('setLocks', false, { locked, planType });
 
 		// If locking, invalidate JWT token for additional security
-		if (locked) {
+		if (locked && invalidatejwt) {
 			try {
 				await invalidateJWT(tokenToInvalidate);
 				log.debug('JWT token invalidated during lock');
@@ -73,6 +76,7 @@ export async function setLocks(locked: boolean = true, planType?: PlanType, toke
 					dirty = true;
 				}
 			}
+
 			if (dirty) yakklCurrentlySelectedStore.set(yakklCurrentlySelected);
 
 			log.info('setLocks', false, { yakklCurrentlySelected });

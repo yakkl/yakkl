@@ -14,6 +14,7 @@ export const load = async ({ url }: any) => {
   const currentPath = url.pathname;
 
   if (publicRoutes.some(route => currentPath.startsWith(route))) {
+    console.log('[(wallet)/+layout.ts] Public route, skipping authentication check');
     return {};
   }
 
@@ -40,22 +41,26 @@ export const load = async ({ url }: any) => {
           break;
       }
 
+      console.log('[(wallet)/+layout.ts] Redirecting to', redirectPath);
+
       // Redirect to appropriate page
       await goto(redirectPath, { replaceState: true });
       return { authenticated: false };
     }
 
     // Authentication valid - proceed with route
+    console.log('[(wallet)/+layout.ts] Authentication valid, proceeding with route');
     return { authenticated: true };
 
   } catch (error) {
     // Handle redirect errors
+    console.error('[(wallet)/+layout.ts] Authentication check failed:', error);
     if (error && typeof error === 'object' && 'status' in error && 'location' in error) {
       throw error;
     }
 
     // For any other error, redirect to login
-    console.error('Authentication check failed:', error);
+    console.error('[(wallet)/+layout.ts] Authentication check failed, redirecting to', PATH_LOGIN);
     await goto(PATH_LOGIN, { replaceState: true });
     return { authenticated: false };
   }

@@ -65,7 +65,7 @@
 	// Note: Some feeds like DeepNewz will use a proxy automatically to prevent preload warnings
 	const cryptoFeeds = [
     'https://feeds.feedburner.com/InvestingHaven',
-    'https://deepnewz.com/feed-crypto.xml', // Will use proxy automatically
+    // 'https://deepnewz.com/feed-crypto.xml', // Will use proxy automatically
     'https://www.ft.com/cryptofinance?format=rss/?utm_source=yakkl&utm_medium=extension', // Will use proxy automatically
     'https://seekingalpha.com/feeds/cryptocompare/cryptos/?utm_source=yakkl&utm_medium=extension',
     'https://finbold.com/category/cryptocurrency-news/feed/?utm_source=yakkl&utm_medium=extension',
@@ -230,14 +230,14 @@
 	onMount(async () => {
 		try {
 			if (!browserSvelte) return;
-			
+
 			// Suppress font preload warnings in production
 			// These warnings appear when RSS feeds from sites like DeepNewz include
 			// preload directives for fonts that aren't used in RSS content
 			if (typeof window !== 'undefined' && window.console) {
 				const originalWarn = console.warn;
 				const originalError = console.error;
-				
+
 				// Create a filter for known harmless warnings
 				const suppressedPatterns = [
 					/was preloaded using link preload but not used/i,
@@ -246,12 +246,12 @@
 					/font.*preload/i,
 					/\.woff2.*preload/i
 				];
-				
+
 				// Override console.warn
 				console.warn = function(...args) {
 					const message = args[0]?.toString() || '';
 					const shouldSuppress = suppressedPatterns.some(pattern => pattern.test(message));
-					
+
 					if (!shouldSuppress) {
 						originalWarn.apply(console, args);
 					} else {
@@ -261,12 +261,12 @@
 						}
 					}
 				};
-				
+
 				// Also catch window error events for preload warnings
 				window.addEventListener('error', function(event) {
 					const message = event.message || '';
 					const shouldSuppress = suppressedPatterns.some(pattern => pattern.test(message));
-					
+
 					if (shouldSuppress) {
 						event.preventDefault();
 						event.stopPropagation();

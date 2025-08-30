@@ -8,9 +8,9 @@
   import TokenPortfolio from "$lib/components/TokenPortfolio.svelte";
   import AddCustomToken from "$lib/components/AddCustomToken.svelte";
   import AIHelpButton from "$lib/components/AIHelpButton.svelte";
-  // import AdvancedAnalytics from "$lib/components/pro/AdvancedAnalytics.svelte";
-  // import SecureRecovery from "$lib/components/private/SecureRecovery.svelte";
-  // import ExtensionDashboard from "$lib/components/extensions/ExtensionDashboard.svelte";
+  import AdvancedAnalytics from "$lib/components/pro/AdvancedAnalytics.svelte";
+  import SecureRecovery from "$lib/components/private/SecureRecovery.svelte";
+  import ExtensionDashboard from "$lib/components/extensions/ExtensionDashboard.svelte";
   import Upgrade from "$lib/components/Upgrade.svelte";
   import TokenDetailModal from "$lib/components/TokenDetailModal.svelte";
   import PortfolioDetailsModal from "$lib/components/PortfolioDetailsModal.svelte";
@@ -32,27 +32,20 @@
 	import { get } from 'svelte/store';
 	import PincodeVerify from '$lib/components/PincodeVerify.svelte';
 	import ProtectedValue from '$lib/components/ProtectedValue.svelte';
-  // Removed unused imports
   import { VERSION, type YakklCurrentlySelected } from '$lib/common';
   import { nativeTokenPriceService } from '$lib/services/native-token-price.service';
   import { uiJWTValidatorService } from '$lib/services/ui-jwt-validator.service';
   import { log } from '$lib/common/logger-wrapper';
   import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
-  // Removed unused import - DecimalMath
   import { BigNumber, type BigNumberish } from '$lib/common/bignumber';
-  import { authStore } from '$lib/stores/auth-store';
   import { BrowserAPIPortService } from '$lib/services/browser-api-port.service';
   import { storageSyncService } from '$lib/services/storage-sync.service';
   import { portfolioStability } from '$lib/services/portfolio-stability.service';
-  import { getNativeTokenSymbol, isNativeToken } from '$lib/utils/native-token.utils';
-  import { simpleWalletCache, currentTokens, currentTransactions, currentPortfolioValue } from '$lib/stores/simple-wallet-cache.store';
-  import { getYakklCurrentlySelected, setMiscStore } from '$lib/common/stores';
+  import { isNativeToken } from '$lib/utils/native-token.utils';
+  import { simpleWalletCache } from '$lib/stores/simple-wallet-cache.store';
+  import { getYakklCurrentlySelected } from '$lib/common/stores';
   import { STORAGE_YAKKL_TOKEN_CACHE, STORAGE_YAKKL_TRANSACTIONS_CACHE } from '$lib/common/constants';
-	// import { browser_ext } from '$lib/common/environment';
   import browser from '$lib/common/browser-wrapper';
-
-  // Initialize core integration dynamically to prevent SSR issues
-  // let initializeCore: (() => Promise<void>) | null = null;
 
   // State
   let showSendModal = $state(false);
@@ -74,7 +67,6 @@
   let showTransactionDetailModal = $state(false);
   let hasInitialLoad = $state(false);
   let transactionListData = $state<any>(null);
-  // let browserFeatures = $state<BrowserFeatures | null>(null);
   let navigationMode = $state<'orbital' | 'traditional'>('orbital');
   let currentlySelected = $state<YakklCurrentlySelected | null>(null);
 
@@ -82,8 +74,6 @@
   let hasError = $state(false);
   let errorMessage = $state('');
   let showDebugPanel = $state(false); // Toggle with keyboard shortcut or dev mode
-
-  // Removed unused safeLog function
 
   function handleError(error: any, context: string) {
     const errorMsg = `Error in ${context}: ${error?.message || error}`;
@@ -124,14 +114,7 @@
       try {
         if (typeof window === 'undefined') return;
 
-        console.log('[Home] FAST PATH - Loading immediately');
-
-        // Restore digest from session if available (from fast login)
-        const digest = sessionStorage.getItem('wallet-digest');
-        if (digest) {
-          setMiscStore(digest);
-          console.log('[Home] Restored digest from fast login');
-        }
+        console.log('[(wallet)/home/+page.svelte] FAST PATH - Loading immediately');
 
         currentlySelected = await getYakklCurrentlySelected();
         const chainId = currentlySelected?.shortcuts?.chainId || 1;
@@ -149,20 +132,20 @@
             // Load tokens immediately if available
             if (stored[STORAGE_YAKKL_TOKEN_CACHE] && stored[STORAGE_YAKKL_TOKEN_CACHE][cacheKey]) {
               const tokens = stored[STORAGE_YAKKL_TOKEN_CACHE][cacheKey];
-              console.log('[Home] Found cached tokens, displaying immediately:', tokens.length);
+              console.log('[(wallet)/home/+page.svelte] Found cached tokens, displaying immediately:', tokens.length);
               simpleWalletCache.updateTokens(tokens);
             } else {
-              console.log('[Home] No cached tokens found for', cacheKey);
+              console.log('[(wallet)/home/+page.svelte] No cached tokens found for', cacheKey);
             }
 
             // Load transactions if available
             if (stored[STORAGE_YAKKL_TRANSACTIONS_CACHE] && stored[STORAGE_YAKKL_TRANSACTIONS_CACHE][cacheKey]) {
               const txs = stored[STORAGE_YAKKL_TRANSACTIONS_CACHE][cacheKey];
-              console.log('[Home] Found cached transactions:', txs.length);
+              console.log('[(wallet)/home/+page.svelte] Found cached transactions:', txs.length);
               simpleWalletCache.updateTransactions(txs);
             }
           } catch (e) {
-            console.log('[Home] Storage read error (non-critical):', e);
+            console.log('[(wallet)/home/+page.svelte] Storage read error (non-critical):', e);
           }
         }
 
@@ -180,7 +163,7 @@
               if (changes[STORAGE_YAKKL_TOKEN_CACHE]) {
                 const newTokens = changes[STORAGE_YAKKL_TOKEN_CACHE].newValue;
                 if (newTokens && newTokens[cacheKey]) {
-                  console.log('[Home] Tokens updated from background:', newTokens[cacheKey].length);
+                  console.log('[(wallet)/home/+page.svelte] Tokens updated from background:', newTokens[cacheKey].length);
                   simpleWalletCache.updateTokens(newTokens[cacheKey]);
                 }
               }
@@ -189,14 +172,14 @@
               if (changes[STORAGE_YAKKL_TRANSACTIONS_CACHE]) {
                 const newTxs = changes[STORAGE_YAKKL_TRANSACTIONS_CACHE].newValue;
                 if (newTxs && newTxs[cacheKey]) {
-                  console.log('[Home] Transactions updated from background:', newTxs[cacheKey].length);
+                  console.log('[(wallet)/home/+page.svelte] Transactions updated from background:', newTxs[cacheKey].length);
                   simpleWalletCache.updateTransactions(newTxs[cacheKey]);
                 }
               }
             });
 
             // Request fresh data from background
-            console.log('[Home] Requesting fresh data from background');
+            console.log('[(wallet)/home/+page.svelte] Requesting fresh data from background');
             browser.runtime.sendMessage({
               method: 'yakkl_refreshTokens',
               params: {
@@ -204,9 +187,9 @@
                 address,
                 force: true
               }
-            }).catch((e: any) => console.log('[Home] Background message failed:', e));
+            }).catch((e: any) => console.log('[(wallet)/home/+page.svelte] Background message failed:', e));
           } catch (e) {
-            console.log('[Home] Background setup error (non-critical):', e);
+            console.log('[(wallet)/home/+page.svelte] Background setup error (non-critical):', e);
           }
         }, 100); // Small delay to ensure UI renders first
 
@@ -214,9 +197,9 @@
         if (sessionStorage.getItem('wallet-authenticated') === 'true') {
           try {
             uiJWTValidatorService.start();
-            console.log('onMount: UI JWT validation service started');
+            console.log('[(wallet)/home/+page.svelte] onMount: UI JWT validation service started');
           } catch (e) {
-            console.log('JWT validation error (non-critical):', e);
+            console.log('[(wallet)/home/+page.svelte] JWT validation error (non-critical):', e);
           }
         }
       } catch (error) {
@@ -252,15 +235,15 @@
 
         // Stop native token price updates
         nativeTokenPriceService.stopAutomaticUpdates();
-        console.log('onMount cleanup: Native token price service stopped');
+        console.log('[(wallet)/home/+page.svelte] onMount cleanup: Native token price service stopped');
 
         // Stop JWT validation service
         uiJWTValidatorService.stop();
-        console.log('onMount cleanup: UI JWT validation service stopped');
+        console.log('[(wallet)/home/+page.svelte] onMount cleanup: UI JWT validation service stopped');
 
         // Stop storage sync service
         storageSyncService.stop();
-        console.log('onMount cleanup: Storage sync service stopped');
+        console.log('[(wallet)/home/+page.svelte] onMount cleanup: Storage sync service stopped');
       } catch (error) {
         handleError(error, 'cleanup');
       }
@@ -272,16 +255,16 @@
     try {
       // Ensure account is defined before accessing properties
       if (!account) {
-        console.log('No account available yet');
+        console.log('[(wallet)/home/+page.svelte] No account available yet');
         return;
       }
 
       if (account.address && !hasInitialLoad) {
-        console.log('Account available, triggering initial data load', account?.address);
+        console.log('[(wallet)/home/+page.svelte] Account available, triggering initial data load', account?.address);
         hasInitialLoad = true;
 
         // Non-blocking refresh - stores will update reactively
-        console.log('Account changed, stores will update reactively', account?.address);
+        console.log('[(wallet)/home/+page.svelte] Account changed, stores will update reactively', account?.address);
         // tokenStore.refresh(false).catch(error => {
         //   console.log('Token refresh failed', error);
         // });
@@ -376,7 +359,7 @@
 
   // Debug token data
   $effect(() => {
-    console.log('[HomePage] Token data update:', {
+    console.log('[(wallet)/home/+page.svelte] Token data update:', {
       tokenListLength: tokenList?.length,
       firstToken: tokenList?.[0],
       displayTokensDirectly: $displayTokens?.length,
@@ -396,7 +379,7 @@
     const unsubIsMulti = isMultiChainStore.subscribe(v => isMultiChain = v);
     const unsubGrand = grandTotalStore.subscribe(v => {
       grandTotal = v || 0n;
-      console.log('Derived grandTotal:', v?.toString() || '0');
+      console.log('[(wallet)/home/+page.svelte] Derived grandTotal:', v?.toString() || '0');
     });
 
     return () => {
@@ -426,7 +409,7 @@
         return $totalPortfolioValue || 0;
       }
     } catch (error) {
-      console.error('Error calculating portfolio value:', error);
+      console.error('[(wallet)/home/+page.svelte] Error calculating portfolio value:', error);
       return 0;
     }
   });
@@ -438,7 +421,7 @@
       // This is the value for the current account on the current network only
       return $totalPortfolioValue || 0;
     } catch (error) {
-      console.error('Error calculating current account value:', error);
+      console.error('[(wallet)/home/+page.svelte] Error calculating current account value:', error);
       return 0;
     }
   });
@@ -447,7 +430,7 @@
     try {
       return $isLoadingTokens || false;
     } catch (error) {
-      console.error('Error getting loading state:', error);
+      console.error('[(wallet)/home/+page.svelte] Error getting loading state:', error);
       return false;
     }
   });
@@ -456,7 +439,7 @@
     try {
       return $lastTokenUpdate || null;
     } catch (error) {
-      console.error('Error getting last update:', error);
+      console.error('[(wallet)/home/+page.svelte] Error getting last update:', error);
       return null;
     }
   });
@@ -467,7 +450,7 @@
       // getNativeTokenSymbol(chain); // Not used, commenting out
       return tokenList.find(t => isNativeToken(t.symbol, chain));
     } catch (error) {
-      console.error('Error finding native token:', error);
+      console.error('[(wallet)/home/+page.svelte] Error finding native token:', error);
       return null;
     }
   });
@@ -490,7 +473,7 @@
       // Default to 0 if we can't extract a valid price
       return 0;
     } catch (error) {
-      console.error('Error getting native price:', error);
+      console.error('[(wallet)/home/+page.svelte] Error getting native price:', error);
       return 0;
     }
   });
@@ -510,7 +493,7 @@
       return usdValue;
     } catch (error) {
       // Just log the error, don't call handleError which modifies state
-      console.error('Error calculating account native value:', error);
+      console.error('[(wallet)/home/+page.svelte] Error calculating account native value:', error);
       return 0;
     }
   });
@@ -556,25 +539,9 @@
       // Always store current price for next comparison
       localStorage.setItem(storedPriceKey, nativePrice.toString());
     } catch (error) {
-      console.error('Error in native price tracking effect:', error);
+      console.error('[(wallet)/home/+page.svelte] Error in native price tracking effect:', error);
     }
   });
-
-  // Update direction from price service
-  // $effect(() => {
-  //   try {
-  //     if (nativeToken?.symbol) {
-  //       // DISABLED: Price direction from simulated service
-  //       // const direction = priceUpdateService.getPriceDirection(nativeToken.symbol);
-  //       // if (direction) {
-  //       //   nativePriceDirection = direction;
-  //       // }
-  //       // TODO: Implement price direction tracking with real prices
-  //     }
-  //   } catch (error) {
-  //     handleError(error, 'price direction update effect');
-  //   }
-  // });
 
   // Track modal states with proper guard to prevent infinite loop
   let lastUpgradeModalState = false;
@@ -616,7 +583,7 @@
 
   function refreshAllData(forceRefresh = false) {
     try {
-      console.log('refreshAllData: Starting data refresh...', { forceRefresh });
+      console.log('[(wallet)/home/+page.svelte] refreshAllData: Starting data refresh...', { forceRefresh });
 
       // Only use BrowserAPIPortService if we're in the browser extension context
       if (typeof window !== 'undefined' && (window as any).browser?.runtime) {
@@ -627,12 +594,12 @@
             refreshType: 'all'
           }).then((response: any) => {
             if (response?.success) {
-              console.log('refreshAllData: Background refresh completed');
+              console.log('[(wallet)/home/+page.svelte] refreshAllData: Background refresh completed');
             } else {
-              console.log('refreshAllData: Background refresh failed', response?.error);
+              console.log('[(wallet)/home/+page.svelte] refreshAllData: Background refresh failed', response?.error);
             }
           }).catch((error: any) => {
-            console.log('refreshAllData: Failed to send refresh request', error);
+            console.log('[(wallet)/home/+page.svelte] refreshAllData: Failed to send refresh request', error);
           });
         }
       }
@@ -657,7 +624,7 @@
 
   function handleSend(tx: any) {
     showSendModal = false;
-    console.log('Transaction sent:', tx);
+    console.log('[(wallet)/home/+page.svelte] Transaction sent:', tx);
 
     // Show success feedback
     uiStore.showTransactionPending(tx.hash);
@@ -669,7 +636,7 @@
 
   function handleSwap(tx: any) {
     showSwapModal = false;
-    console.log('Swap requested:', tx);
+    console.log('[(wallet)/home/+page.svelte] Swap requested:', tx);
 
     // Show swap feedback
     uiStore.showSuccess(
@@ -718,11 +685,11 @@
 
       // Validate the numeric value
       if (!isFinite(numValue) || isNaN(numValue)) {
-        console.warn('Invalid numeric value for currency formatting:', value);
+        console.warn('[(wallet)/home/+page.svelte] Invalid numeric value for currency formatting:', value);
         return '$0.00';
       }
     } catch (error) {
-      console.warn('Failed to convert value for currency formatting:', value, error);
+      console.warn('[(wallet)/home/+page.svelte] Failed to convert value for currency formatting:', value, error);
       return '$0.00';
     }
 
@@ -744,7 +711,7 @@
         return isFinite(balanceNum) ? balanceNum.toFixed(4) : '0.0000';
       }
     } catch (error) {
-      console.warn('Failed to format balance:', balance, error);
+      console.warn('[(wallet)/home/+page.svelte] Failed to format balance:', balance, error);
       return '0.0000';
     }
   }
@@ -773,6 +740,7 @@
   function handleToggleClick() {
     if (isVisible) {
       // Hiding values doesn't require PIN
+      isVisible = false;
       visibilityStore.set(false);
       pendingAction = null;
       notificationService.show({
@@ -1150,7 +1118,7 @@
   {/if}
 
   <!-- Pro Feature: Advanced Analytics -->
-  <!-- {#if canUseFeature('advanced_analytics')}
+  {#if canUseFeature('advanced_analytics')}
     <AdvancedAnalytics className="relative z-10" />
   {:else}
     <div class="yakkl-card relative z-10 p-6 text-center border-2 border-dashed border-gray-300 dark:border-gray-600">
@@ -1168,15 +1136,15 @@
         </button>
       </div>
     </div>
-  {/if} -->
+  {/if}
 
   <!-- Secure Full Recovery - Basic Feature -->
-  <!-- {#if canUseFeature('secure_recovery')}
+  {#if canUseFeature('secure_recovery')}
     <SecureRecovery className="relative z-10" />
-  {/if} -->
+  {/if}
 
   <!-- Extension System -->
-  <!-- <ExtensionDashboard className="yakkl-card relative z-10" /> -->
+  <ExtensionDashboard className="yakkl-card relative z-10" />
 
   <!-- Version Badge -->
   <div class="text-center pt-4 pb-2 relative z-10">
@@ -1187,7 +1155,8 @@
       YAKKL v{VERSION}
     </div>
     </div>
-  {/if} <!-- End normal page content -->
+  {/if}
+  <!-- End normal page content -->
 
 </div>
 

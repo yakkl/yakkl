@@ -15,8 +15,6 @@ import { getYakklCombinedTokens, getYakklTokenCache } from '$lib/common/stores';
 import { loadDefaultTokens } from '$lib/managers/tokens/loadDefaultTokens';
 import { BigNumberishUtils } from '../common/BigNumberishUtils';
 import { DecimalMath } from '../common/DecimalMath';
-import { BigNumber } from '$lib/common/bignumber';
-// EthereumBigNumber removed - using generic BigNumber
 import Decimal from 'decimal.js';
 import { compareTokenData, hasChanged } from '$lib/utils/deepCompare';
 
@@ -67,7 +65,7 @@ export class CacheSyncManager {
 		console.log('[CacheSync] Current account/chain:', { account: account?.address, chain: chain?.chainId });
 
 		if (!account || !chain) {
-			log.info('[CacheSync] No account or chain yet, skipping initialization', false);
+			console.log('[CacheSync] No account or chain yet, skipping initialization');
 			return;
 		}
 
@@ -78,7 +76,7 @@ export class CacheSyncManager {
 			// Ensure default tokens are loaded first
 			const combinedTokens = await getYakklCombinedTokens();
 			if (!combinedTokens || combinedTokens.length === 0) {
-				log.info('[CacheSync] No tokens found, loading default tokens...', false);
+				console.log('[CacheSync] No tokens found, loading default tokens...');
 				await loadDefaultTokens();
 			}
 
@@ -86,7 +84,7 @@ export class CacheSyncManager {
 			const needsInitialization = !cache || !cache.tokens.length || cache.portfolio.totalValue === 0n;
 
 			if (needsInitialization) {
-				log.info('[CacheSync] Initializing account data for', false, account.address);
+				console.log('[CacheSync] Initializing account data for', account.address);
 
 				// First time accessing this account/chain
 				// Create a minimal YakklAccount from AccountDisplay
@@ -138,19 +136,19 @@ export class CacheSyncManager {
 
 				// Mark as loaded
 				walletCacheStore.setHasEverLoaded(true);
-				log.info('[CacheSync] Initial data load completed with portfolio recalculation and ALL rollups', false);
+				console.log('[CacheSync] Initial data load completed with portfolio recalculation and ALL rollups');
 			} else {
 				// Cache exists but ensure rollups are calculated
 				const cacheState = get(walletCacheStore);
 				if (!cacheState.portfolioRollups?.grandTotal || cacheState.portfolioRollups.grandTotal.totalValue === 0n) {
-					log.info('[CacheSync] Cache exists but rollups need calculation', false);
+					console.log('[CacheSync] Cache exists but rollups need calculation');
 					await walletCacheStore.calculateAllRollups();
 				}
 			}
 		} finally {
 			// Clear initializing state
 			walletCacheStore.setInitializing(false);
-			log.info('[CacheSync] Initialization complete', false);
+			console.log('[CacheSync] Initialization complete');
 		}
 	}
 
@@ -158,7 +156,7 @@ export class CacheSyncManager {
 	async syncTokenBalances(chainId: number, address: string) {
 		console.log('[CacheSync] syncTokenBalances called', { chainId, address });
 		try {
-			log.info(`[CacheSync] Syncing token balances for ${address} on chain ${chainId}`, false);
+			console.log(`[CacheSync] Syncing token balances for ${address} on chain ${chainId}`);
 
 			// Ensure services are initialized
 			this.ensureServicesInitialized();
@@ -175,7 +173,7 @@ export class CacheSyncManager {
 			if (response.success && response.data) {
 				// Validate response data before processing
 				if (!response.data || response.data.length === 0) {
-					log.warn('[CacheSync] Token service returned empty data, skipping update', false);
+					console.warn('[CacheSync] Token service returned empty data, skipping update');
 					return;
 				}
 
@@ -189,7 +187,7 @@ export class CacheSyncManager {
 					const balanceStr = BigNumberishUtils.toString(token.balance);
 
 					// CRITICAL DEBUG: Log each token conversion
-					log.info(`[CacheSync] Converting token ${token.symbol}:`, false, {
+					console.log(`[CacheSync] Converting token ${token.symbol}:`, {
 						address: token.address,
 						originalBalance: token.balance,
 						balanceStr,
@@ -323,7 +321,7 @@ export class CacheSyncManager {
 				}
 
 				// CRITICAL DEBUG: Log all token balances for debugging
-				log.info('[CacheSync] Token balance summary:', false, {
+				console.log('[CacheSync] Token balance summary:', {
 					totalTokens: tokenCache.length,
 					tokenDetails: tokenCache.map(t => ({
 						symbol: t.symbol,
@@ -348,7 +346,7 @@ export class CacheSyncManager {
 					return balance > 0;
 				}) || false;
 
-				log.info('[CacheSync] Balance validation:', false, {
+				console.log('[CacheSync] Balance validation:', {
 					hasAnyNonZeroBalance,
 					hasExistingNonZeroTokens,
 					willSkipUpdate: !hasAnyNonZeroBalance && hasExistingNonZeroTokens,
@@ -375,9 +373,8 @@ export class CacheSyncManager {
 
 				// CRITICAL FIX: Compare token data before updating to prevent unnecessary reactive updates
 				if (existingCache && !compareTokenData(existingCache.tokens, tokenCache)) {
-					log.debug(
-						`[CacheSync] Token data unchanged for ${address} on chain ${chainId}, skipping cache update`,
-						false
+					console.debug(
+						`[CacheSync] Token data unchanged for ${address} on chain ${chainId}, skipping cache update`
 					);
 					return;
 				}
@@ -385,16 +382,15 @@ export class CacheSyncManager {
 				// Update cache only if we have valid data that has actually changed
 				walletCacheStore.updateTokens(chainId, address, tokenCache);
 
-				log.info(
+				console.log(
 					`[CacheSync] Updated ${tokenCache.length} tokens for ${address}`,
-					false,
 					tokenCache
 				);
 
 				// Verify dates are set
 				const verifyToken = tokenCache[0];
 				if (verifyToken) {
-					log.info('[CacheSync] Date verification:', false, {
+					console.log('[CacheSync] Date verification:', {
 						balanceLastUpdated: verifyToken.balanceLastUpdated,
 						priceLastUpdated: verifyToken.priceLastUpdated,
 						isDate: verifyToken.balanceLastUpdated instanceof Date
@@ -402,7 +398,7 @@ export class CacheSyncManager {
 				}
 			}
 		} catch (error) {
-			log.warn('[CacheSync] Error syncing token balances:', false, error);
+			console.warn('[CacheSync] Error syncing token balances:', error);
 		}
 	}
 
@@ -412,11 +408,11 @@ export class CacheSyncManager {
 	 */
 	private async fetchTokensDirectlyFromBlockchain(address: string, chainId: number): Promise<any> {
 		try {
-			log.info(`[CacheSync] STARTING direct blockchain fetch for ${address} on chain ${chainId}`, false);
+			console.log(`[CacheSync] STARTING direct blockchain fetch for ${address} on chain ${chainId}`);
 
 			// Get provider for direct blockchain access
 			const instances = await getInstances();
-			log.info('[CacheSync] getInstances() result:', false, {
+			console.log('[CacheSync] getInstances() result:', {
 				hasInstances: !!instances,
 				instanceCount: instances?.length || 0,
 				hasWallet: !!instances?.[0],
@@ -426,7 +422,7 @@ export class CacheSyncManager {
 			});
 
 			if (!instances || !instances[1]) {
-				log.error('[CacheSync] CRITICAL: No provider available from getInstances()', false, {
+				console.error('[CacheSync] CRITICAL: No provider available from getInstances()', {
 					instances,
 					providerIndex: instances?.[1]
 				});
@@ -434,7 +430,7 @@ export class CacheSyncManager {
 			}
 
 			const provider = instances[1].getProvider();
-			log.info('[CacheSync] Provider details:', false, {
+			console.log('[CacheSync] Provider details:', {
 				hasProvider: !!provider,
 				providerType: provider?.constructor?.name,
 				hasGetBalance: typeof provider?.getBalance === 'function',
@@ -448,26 +444,26 @@ export class CacheSyncManager {
 			// CRITICAL: Verify provider network before proceeding
 			try {
 				const network = await provider.getNetwork();
-				log.info('[CacheSync] Provider network info:', false, {
+				console.log('[CacheSync] Provider network info:', {
 					networkChainId: Number(network.chainId),
 					requested: chainId,
 					matches: Number(network.chainId) === chainId,
 					networkName: network.name
 				});
 			} catch (networkError) {
-				log.error('[CacheSync] Failed to get network info from provider:', false, networkError);
+				console.error('[CacheSync] Failed to get network info from provider:', networkError);
 			}
 
 			// Get native token balance directly
-			log.info(`[CacheSync] Getting native balance for ${address}`, false);
+			console.log(`[CacheSync] Getting native balance for ${address}`);
 			const nativeBalance = await provider.getBalance(address);
 			const nativeBalanceFormatted = ethers.formatUnits(nativeBalance, 18);
-			log.info(`[CacheSync] Native balance: ${nativeBalanceFormatted} ETH`, false);
+			console.log(`[CacheSync] Native balance: ${nativeBalanceFormatted} ETH`);
 
 			// Get ERC20 tokens directly from blockchain
-			log.info('[CacheSync] Starting ERC20 token fetch...', false);
+			console.log('[CacheSync] Starting ERC20 token fetch...');
 			const erc20Tokens = await this.fetchERC20TokensFromBlockchain(address, chainId, provider);
-			log.info(`[CacheSync] ERC20 fetch complete: ${erc20Tokens.length} tokens`, false);
+			console.log(`[CacheSync] ERC20 fetch complete: ${erc20Tokens.length} tokens`);
 
 			// Combine native + ERC20 tokens
 			const allTokens = [
@@ -484,7 +480,7 @@ export class CacheSyncManager {
 				...erc20Tokens
 			];
 
-			log.info(`[CacheSync] ✅ Successfully fetched ${allTokens.length} tokens directly from blockchain`, false, {
+			console.log(`[CacheSync] ✅ Successfully fetched ${allTokens.length} tokens directly from blockchain`, {
 				nativeBalance: nativeBalanceFormatted,
 				erc20Count: erc20Tokens.length,
 				totalTokens: allTokens.length,
@@ -497,7 +493,7 @@ export class CacheSyncManager {
 			});
 			return { success: true, data: allTokens };
 		} catch (error) {
-			log.error('[CacheSync] ❌ Direct blockchain fetch failed:', false, {
+			console.error('[CacheSync] ❌ Direct blockchain fetch failed:', {
 				error: error.message,
 				stack: error.stack,
 				address,
@@ -515,28 +511,28 @@ export class CacheSyncManager {
 			// CRITICAL DEBUG: Verify network connection and chain ID
 			const networkInfo = await provider.getNetwork();
 			const actualChainId = Number(networkInfo.chainId);
-			log.info(`[CacheSync] Provider connected to chain ${actualChainId}, expected ${chainId}`, false);
+			console.log(`[CacheSync] Provider connected to chain ${actualChainId}, expected ${chainId}`);
 
 			if (actualChainId !== chainId) {
-				log.error(`[CacheSync] CHAIN MISMATCH: Provider on chain ${actualChainId}, but fetching for chain ${chainId}`, false);
+				console.error(`[CacheSync] CHAIN MISMATCH: Provider on chain ${actualChainId}, but fetching for chain ${chainId}`);
 				// Use the actual chain ID from provider
 				chainId = actualChainId;
 			}
 
 			// Get token list from combined tokens (not from cache)
 			const combinedTokens = await getYakklCombinedTokens();
-			log.info(`[CacheSync] Total combined tokens available: ${combinedTokens?.length || 0}`, false);
+			console.log(`[CacheSync] Total combined tokens available: ${combinedTokens?.length || 0}`);
 
 			const chainTokens = combinedTokens?.filter(t => t.chainId === chainId && !t.isNative) || [];
-			log.info(`[CacheSync] Tokens for chain ${chainId}: ${chainTokens.length}`, false,
+			console.log(`[CacheSync] Tokens for chain ${chainId}: ${chainTokens.length}`,
 				chainTokens.map(t => `${t.symbol}(${t.address})`));
 
 			// Test ETH balance first to verify provider connectivity
 			try {
 				const ethBalance = await provider.getBalance(address);
-				log.info(`[CacheSync] ETH balance check: ${ethers.formatEther(ethBalance)} ETH`, false);
+				console.log(`[CacheSync] ETH balance check: ${ethers.formatEther(ethBalance)} ETH`);
 			} catch (ethError) {
-				log.error('[CacheSync] ETH balance check failed - provider may be disconnected:', false, ethError);
+				console.error('[CacheSync] ETH balance check failed - provider may be disconnected:', ethError);
 				return [];
 			}
 
@@ -549,17 +545,17 @@ export class CacheSyncManager {
 			];
 
 			// CRITICAL: Force check the specific tokens user claims to own
-			log.info(`[CacheSync] Force-checking specific tokens for account ${address}`, false);
+			console.log(`[CacheSync] Force-checking specific tokens for account ${address}`);
 
 			for (const tokenAddress of tokenAddresses) {
 				const tokenData = chainTokens.find(t => t.address.toLowerCase() === tokenAddress.toLowerCase());
 				if (!tokenData) {
-					log.warn(`[CacheSync] Token ${tokenAddress} not found in token list`, false);
+					console.warn(`[CacheSync] Token ${tokenAddress} not found in token list`);
 					continue;
 				}
 
 				try {
-					log.info(`[CacheSync] Checking balance for ${tokenData.symbol} at ${tokenData.address}`, false);
+					console.log(`[CacheSync] Checking balance for ${tokenData.symbol} at ${tokenData.address}`);
 
 					// Direct ERC20 contract call using minimal ABI
 					const contract = new ethers.Contract(tokenData.address, [
@@ -575,7 +571,7 @@ export class CacheSyncManager {
 						contract.symbol().catch(() => tokenData.symbol)
 					]);
 
-					log.info(`[CacheSync] ${tokenData.symbol} balance result:`, false, {
+					console.log(`[CacheSync] ${tokenData.symbol} balance result:`, {
 						balance: balance.toString(),
 						contractDecimals,
 						contractSymbol,
@@ -602,12 +598,12 @@ export class CacheSyncManager {
 					tokenBalances.push(tokenEntry);
 
 					if (balance > 0n) {
-						log.info(`[CacheSync] ✅ Found balance for ${tokenData.symbol}: ${balanceFormatted}`, false);
+						console.log(`[CacheSync] ✅ Found balance for ${tokenData.symbol}: ${balanceFormatted}`);
 					} else {
-						log.info(`[CacheSync] ⚠️  Zero balance for ${tokenData.symbol}: ${balanceFormatted}`, false);
+						console.log(`[CacheSync] ⚠️  Zero balance for ${tokenData.symbol}: ${balanceFormatted}`);
 					}
 				} catch (error) {
-					log.error(`[CacheSync] ❌ Error checking ${tokenData.symbol} at ${tokenData.address}:`, false, error);
+					console.error(`[CacheSync] ❌ Error checking ${tokenData.symbol} at ${tokenData.address}:`, error);
 					// Add zero balance entry for failed tokens so we can see the issue
 					tokenBalances.push({
 						address: tokenData.address,
@@ -660,19 +656,19 @@ export class CacheSyncManager {
 							price: 0,
 							value: 0n
 						});
-						log.debug(`[CacheSync] Found balance for ${tokenData.symbol}: ${balanceFormatted}`, false);
+						console.debug(`[CacheSync] Found balance for ${tokenData.symbol}: ${balanceFormatted}`);
 					}
 				} catch (error) {
 					// This is expected for tokens the user doesn't hold
-					log.debug(`[CacheSync] No balance for ${tokenData.symbol} at ${tokenData.address}`, false);
+					console.debug(`[CacheSync] No balance for ${tokenData.symbol} at ${tokenData.address}`);
 				}
 			}
 
-			log.info(`[CacheSync] Found ${tokenBalances.length} ERC20 tokens total (including zero balances)`, false);
-			log.info(`[CacheSync] Non-zero balances: ${tokenBalances.filter(t => parseFloat(t.balance) > 0).length}`, false);
+			console.log(`[CacheSync] Found ${tokenBalances.length} ERC20 tokens total (including zero balances)`);
+			console.log(`[CacheSync] Non-zero balances: ${tokenBalances.filter(t => parseFloat(t.balance) > 0).length}`);
 			return tokenBalances;
 		} catch (error) {
-			log.error('[CacheSync] ERC20 fetch failed:', false, error);
+			console.error('[CacheSync] ERC20 fetch failed:', error);
 			return [];
 		}
 	}
@@ -680,7 +676,7 @@ export class CacheSyncManager {
 	// Sync token prices for all tokens on a chain
 	async syncTokenPrices(chainId: number) {
 		try {
-			log.info(`[CacheSync] Syncing token prices for chain ${chainId}`, false);
+			console.log(`[CacheSync] Syncing token prices for chain ${chainId}`);
 
 			// Update prices using existing price manager
 			await updateTokenPrices();
@@ -719,23 +715,23 @@ export class CacheSyncManager {
 			const currentPricesArray = Array.from(currentPrices.entries());
 
 			if (!hasChanged(currentPricesArray, pricesArray)) {
-				log.debug(`[CacheSync] Token prices unchanged for chain ${chainId}, skipping price update`);
+				console.debug(`[CacheSync] Token prices unchanged for chain ${chainId}, skipping price update`);
 				return;
 			}
 
 			// Update all account caches on this chain
 			walletCacheStore.updateTokenPrices(chainId, priceMap);
 
-			log.info(`[CacheSync] Updated prices for ${priceMap.size} tokens on chain ${chainId}`, false);
+			console.log(`[CacheSync] Updated prices for ${priceMap.size} tokens on chain ${chainId}`);
 		} catch (error) {
-			log.warn('[CacheSync] Error syncing token prices:', false, error);
+			console.warn('[CacheSync] Error syncing token prices:', error);
 		}
 	}
 
 	// Sync transactions for specific account/chain
 	async syncTransactions(chainId: number, address: string) {
 		try {
-			log.info(`[CacheSync] Syncing transactions for ${address} on chain ${chainId}`, false);
+			console.log(`[CacheSync] Syncing transactions for ${address} on chain ${chainId}`);
 
 			// Ensure services are initialized
 			this.ensureServicesInitialized();
@@ -748,9 +744,8 @@ export class CacheSyncManager {
 					// Get existing cache to check if this is suspicious
 					const cache = walletCacheStore.getAccountCache(chainId, address);
 					if (cache?.transactions.transactions.length > 0) {
-						log.warn(
+						console.warn(
 							'[CacheSync] Transaction service returned empty but we have existing transactions - SKIPPING',
-							false,
 							{ existingCount: cache.transactions.transactions.length }
 						);
 						return;
@@ -774,16 +769,15 @@ export class CacheSyncManager {
 					);
 					walletCacheStore.updateTransactions(chainId, address, newTransactions, maxBlock);
 
-					log.info(
-						`[CacheSync] Added ${newTransactions.length} new transactions for ${address}`,
-						false
+					console.log(
+						`[CacheSync] Added ${newTransactions.length} new transactions for ${address}`
 					);
 				} else {
-					log.debug('[CacheSync] No new transactions to add, skipping reactive update', false);
+					console.debug('[CacheSync] No new transactions to add, skipping reactive update');
 				}
 			}
 		} catch (error) {
-			log.warn('[CacheSync] Error syncing transactions:', false, error);
+			console.warn('[CacheSync] Error syncing transactions:', error);
 		}
 	}
 
@@ -806,11 +800,11 @@ export class CacheSyncManager {
 
 	// Start auto-sync timers
 	startAutoSync() {
-		log.info('[CacheSync] Starting auto-sync', false);
+		console.log('[CacheSync] Starting auto-sync');
 
 		// Only start timers in browser environment
 		if (!browser) {
-			log.info('[CacheSync] Not in browser environment, skipping auto-sync', false);
+			console.log('[CacheSync] Not in browser environment, skipping auto-sync');
 			return;
 		}
 
@@ -852,7 +846,7 @@ export class CacheSyncManager {
 
 	// Stop auto-sync timers
 	stopAutoSync() {
-		log.info('[CacheSync] Stopping auto-sync', false);
+		console.log('[CacheSync] Stopping auto-sync');
 
 		// Only clear intervals in browser environment
 		if (!browser) {
@@ -906,7 +900,7 @@ export class CacheSyncManager {
 	async syncAllAccountsOnChain(chainId: number) {
 		const accounts = get(accountStore).accounts || [];
 
-		log.info(`[CacheSync] Syncing all ${accounts.length} accounts on chain ${chainId}`, false);
+		console.log(`[CacheSync] Syncing all ${accounts.length} accounts on chain ${chainId}`);
 
 		// Sync each account
 		for (const account of accounts) {
@@ -922,7 +916,7 @@ export class CacheSyncManager {
 	async syncAccountAllChains(address: string) {
 		const chains = get(chainStore).chains || [];
 
-		log.info(`[CacheSync] Syncing account ${address} across ${chains.length} chains`, false);
+		console.log(`[CacheSync] Syncing account ${address} across ${chains.length} chains`);
 
 		// Sync each chain
 		for (const chain of chains) {
@@ -940,14 +934,14 @@ export class CacheSyncManager {
 	 */
 	async syncPortfolioRollups() {
 		try {
-			log.info('[CacheSync] Syncing all portfolio rollups', false);
+			console.log('[CacheSync] Syncing all portfolio rollups');
 
 			// Calculate all rollups from scratch
 			await walletCacheStore.calculateAllRollups();
 
-			log.info('[CacheSync] Portfolio rollups synced successfully', false);
+			console.log('[CacheSync] Portfolio rollups synced successfully');
 		} catch (error) {
-			log.error('[CacheSync] Failed to sync portfolio rollups:', false, error);
+			console.error('[CacheSync] Failed to sync portfolio rollups:', error);
 			// Re-throw the error so callers know it failed
 			throw error;
 		}
@@ -959,13 +953,13 @@ export class CacheSyncManager {
 	 */
 	async syncAccountRollups(address: string) {
 		try {
-			log.debug('[CacheSync] Syncing rollups for account:', false, address);
+			console.debug('[CacheSync] Syncing rollups for account:', address);
 
 			await walletCacheStore.updateAccountRollup(address);
 
-			log.debug('[CacheSync] Account rollups synced:', false, address);
+			console.debug('[CacheSync] Account rollups synced:', address);
 		} catch (error) {
-			log.error('[CacheSync] Failed to sync account rollups:', false, error);
+			console.error('[CacheSync] Failed to sync account rollups:', error);
 		}
 	}
 
@@ -975,13 +969,13 @@ export class CacheSyncManager {
 	 */
 	async syncChainRollups(chainId: number) {
 		try {
-			log.debug('[CacheSync] Syncing rollups for chain:', false, chainId);
+			console.debug('[CacheSync] Syncing rollups for chain:', chainId);
 
 			await walletCacheStore.updateChainRollup(chainId);
 
-			log.debug('[CacheSync] Chain rollups synced:', false, chainId);
+			console.debug('[CacheSync] Chain rollups synced:', chainId);
 		} catch (error) {
-			log.error('[CacheSync] Failed to sync chain rollups:', false, error);
+			console.error('[CacheSync] Failed to sync chain rollups:', error);
 		}
 	}
 
@@ -991,15 +985,15 @@ export class CacheSyncManager {
 	 */
 	async syncWatchListRollups() {
 		try {
-			log.debug('[CacheSync] Syncing watch list rollups', false);
+			console.debug('[CacheSync] Syncing watch list rollups');
 
 			// This will be handled by calculateAllRollups for now
 			// In the future, we can optimize this to only recalculate watch list
 			await walletCacheStore.calculateAllRollups();
 
-			log.debug('[CacheSync] Watch list rollups synced', false);
+			console.debug('[CacheSync] Watch list rollups synced');
 		} catch (error) {
-			log.error('[CacheSync] Failed to sync watch list rollups:', false, error);
+			console.error('[CacheSync] Failed to sync watch list rollups:', error);
 		}
 	}
 
@@ -1009,15 +1003,15 @@ export class CacheSyncManager {
 	 */
 	async syncPrimaryAccountHierarchy() {
 		try {
-			log.debug('[CacheSync] Syncing primary account hierarchy rollups', false);
+			console.debug('[CacheSync] Syncing primary account hierarchy rollups');
 
 			// This will be handled by calculateAllRollups for now
 			// In the future, we can optimize this to only recalculate hierarchies
 			await walletCacheStore.calculateAllRollups();
 
-			log.debug('[CacheSync] Primary account hierarchy synced', false);
+			console.debug('[CacheSync] Primary account hierarchy synced');
 		} catch (error) {
-			log.error('[CacheSync] Failed to sync primary account hierarchy:', false, error);
+			console.error('[CacheSync] Failed to sync primary account hierarchy:', error);
 		}
 	}
 
@@ -1034,7 +1028,7 @@ export class CacheSyncManager {
 		watchListChanged?: boolean;
 	}) {
 		try {
-			log.debug('[CacheSync] Smart sync initiated', false, changes);
+			console.debug('[CacheSync] Smart sync initiated', changes);
 
 			// If specific accounts changed, update their rollups
 			if (changes.accountsChanged?.length) {
@@ -1061,9 +1055,9 @@ export class CacheSyncManager {
 				await this.syncPortfolioRollups();
 			}
 
-			log.debug('[CacheSync] Smart sync completed', false);
+			console.debug('[CacheSync] Smart sync completed');
 		} catch (error) {
-			log.error('[CacheSync] Smart sync failed:', false, error);
+			console.error('[CacheSync] Smart sync failed:', error);
 		}
 	}
 
@@ -1075,7 +1069,7 @@ export class CacheSyncManager {
 		const balanceData: Record<string, any> = {};
 
 		try {
-			log.debug(`[CacheSync] Fetching token balances for ${address} on chain ${chainId}`);
+			console.debug(`[CacheSync] Fetching token balances for ${address} on chain ${chainId}`);
 
 			// Ensure services are initialized
 			this.ensureServicesInitialized();
@@ -1103,15 +1097,15 @@ export class CacheSyncManager {
 						const balanceFormatted = ethers.formatUnits(balance, 18);
 						balanceData['0x0000000000000000000000000000000000000000'] = balanceFormatted;
 					} catch (error) {
-						log.warn(`[CacheSync] Failed to fetch native balance for ${address}`, error);
+						console.warn(`[CacheSync] Failed to fetch native balance for ${address}`, error);
 					}
 				}
 			}
 
-			log.debug(`[CacheSync] Fetched balances for ${Object.keys(balanceData).length} tokens`);
+			console.debug(`[CacheSync] Fetched balances for ${Object.keys(balanceData).length} tokens`);
 			return balanceData;
 		} catch (error) {
-			log.error(`[CacheSync] Error fetching token balances for ${address}`, error);
+			console.error(`[CacheSync] Error fetching token balances for ${address}`, error);
 			return balanceData;
 		}
 	}

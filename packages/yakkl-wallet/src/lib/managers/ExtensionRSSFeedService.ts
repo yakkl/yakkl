@@ -52,17 +52,37 @@ export class ExtensionRSSFeedService {
 		}
 
 		try {
-			// ALWAYS use proxy for ALL feeds to prevent preload warnings
-			// DeepNewz and other sites send preload headers even for RSS/XML responses
-			let fetchUrl = feedUrl;
+			// Direct fetch without any proxy
+			const feed = await this.fetchWithTimeout(feedUrl);
+			if (feed) {
+				// Cache and store the successful result
+				this.feedCache.set(feedUrl, { data: feed, timestamp: Date.now() });
+				await this.storeFeedInExtensionStorage(feedUrl, feed);
+				return feed;
+			}
+			throw new Error('Failed to parse RSS feed');
+		} catch (error) {
+			log.warn('RSS feed fetch failed:', false, { url: feedUrl, error });
 			
-			// Use a CORS proxy that strips HTTP headers and returns clean content
-			// This prevents any preload warnings from appearing in Chrome Extension Manager
-			fetchUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(feedUrl)}`;
-			log.debug('Using proxy to prevent preload warnings:', false, feedUrl);
-			
-			// Fetch through proxy which strips problematic HTTP headers
-			const response = await fetch(fetchUrl, {
+			// Fallback: Try to load from extension storage
+			const storedFeed = await this.loadFeedFromExtensionStorage(feedUrl);
+			if (storedFeed) {
+				// Update cache with stale data
+				this.feedCache.set(feedUrl, { data: storedFeed, timestamp: Date.now() });
+				return storedFeed;
+			}
+
+			// If everything failed, throw the error
+			throw error instanceof Error ? error : new Error('Failed to fetch RSS feed');
+		}
+	}
+
+	private async fetchWithTimeout(url: string): Promise<RSSFeed | null> {
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+		try {
+			const response = await fetch(url, {
 				headers: {
 					'User-Agent': 'YAKKL Smart Wallet Extension/' + VERSION,
 					Accept: 'application/rss+xml, application/xml, text/xml',
@@ -72,36 +92,30 @@ export class ExtensionRSSFeedService {
 				},
 				credentials: 'omit',
 				mode: 'cors',
-				cache: 'default'
+				cache: 'default',
+				signal: controller.signal
 			});
 
+			clearTimeout(timeoutId);
+
 			if (!response.ok) {
-				throw new Error(`Failed to fetch RSS feed: ${response.statusText}`);
+				throw new Error(`Failed to fetch RSS feed: ${response.status} ${response.statusText}`);
 			}
 
 			let text = await response.text();
 			
-			// Aggressively clean the response to prevent preload warnings
+			// Always clean the response to prevent any potential issues
 			text = this.cleanRSSResponse(text);
 			
-			const feed = await this.parseRSSFeed(text, feedUrl);
-
-			// Cache the feed
-			this.feedCache.set(feedUrl, { data: feed, timestamp: Date.now() });
-
-			// Store in extension storage for offline access
-			await this.storeFeedInExtensionStorage(feedUrl, feed);
-
-			return feed;
+			// Parse and return the feed
+			return await this.parseRSSFeed(text, url);
+			
 		} catch (error) {
-			log.warn('Error fetching RSS feed:', false, error);
-
-			// Try to load from extension storage if fetch fails
-			const storedFeed = await this.loadFeedFromExtensionStorage(feedUrl);
-			if (storedFeed) {
-				return storedFeed;
+			clearTimeout(timeoutId);
+			
+			if (error instanceof Error && error.name === 'AbortError') {
+				throw new Error('RSS feed fetch timeout');
 			}
-
 			throw error;
 		}
 	}
