@@ -137,11 +137,17 @@
 
 		try {
 			const allItems: RSSItem[] = [];
+			let successfulFeeds = 0;
+			let totalFeeds = feedUrls.length;
 
 			const feedPromises = feedUrls.map(
 				(url: string): Promise<RSSFeed | null> =>
 					rssService.fetchFeed(url).catch((err: unknown): null => {
-						log.warn(`Failed to fetch feed ${url}:`, false, err);
+						const errorMessage = err instanceof Error ? err.message : String(err);
+						// Only log warnings for non-timeout errors
+						if (!errorMessage.includes('timeout')) {
+							log.warn(`Failed to fetch feed ${url}:`, false, err);
+						}
 						return null;
 					})
 			);
@@ -150,15 +156,20 @@
 
 			feeds.forEach((feed) => {
 				if (feed) {
+					successfulFeeds++;
 					allItems.push(...feed.items.slice(0, maxItemsPerFeed));
 				}
 			});
 
 			if (allItems.length > 0) {
 				await rssStore.setArticles(allItems);
+				// Log success rate for monitoring
+				if (successfulFeeds < totalFeeds) {
+					log.debug(`RSS feeds loaded: ${successfulFeeds}/${totalFeeds} successful`);
+				}
 			} else if (newsItems.length === 0) {
 				// Only show error if we have no existing content
-				error = 'No articles found';
+				error = 'Unable to load articles. Please check your connection and try again.';
 			}
 		} catch (err) {
 			if (newsItems.length === 0) {
@@ -179,11 +190,16 @@
 
 		try {
 			const allItems: RSSItem[] = [];
+			let successfulFeeds = 0;
 
 			const feedPromises = feedUrls.map(
 				(url: string): Promise<RSSFeed | null> =>
 					rssService.fetchFeed(url).catch((err: unknown): null => {
-						log.debug(`Background update failed for ${url}:`, false, err);
+						const errorMessage = err instanceof Error ? err.message : String(err);
+						// Only log non-timeout errors in background updates
+						if (!errorMessage.includes('timeout') && !errorMessage.includes('cache')) {
+							log.debug(`Background update failed for ${url}:`, false, err);
+						}
 						return null;
 					})
 			);
@@ -192,6 +208,7 @@
 
 			feeds.forEach((feed) => {
 				if (feed) {
+					successfulFeeds++;
 					allItems.push(...feed.items.slice(0, maxItemsPerFeed));
 				}
 			});
@@ -199,6 +216,7 @@
 			if (allItems.length > 0) {
 				// Add new articles to the store (it will handle deduplication)
 				await rssStore.addArticles(allItems);
+				log.debug(`Background update: ${successfulFeeds}/${feedUrls.length} feeds successful, ${allItems.length} new items`);
 			}
 		} catch (err) {
 			log.debug('Background RSS update error:', false, err);

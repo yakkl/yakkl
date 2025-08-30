@@ -285,9 +285,14 @@
 				<g
 					transform="translate({network.x}, {network.y})"
 					class="cursor-pointer transition-all duration-300"
+					role="button"
+					tabindex="0"
 					onclick={() => selectNetwork(network.id)}
+					onkeydown={(e) => e.key === 'Enter' && selectNetwork(network.id)}
 					onmouseenter={() => hoveredNetwork = network.id}
 					onmouseleave={() => hoveredNetwork = null}
+					onfocus={() => hoveredNetwork = network.id}
+					onblur={() => hoveredNetwork = null}
 				>
 					<!-- Pulse ring for active -->
 					{#if isSelected}

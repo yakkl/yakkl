@@ -8,9 +8,21 @@ node_modules/
 !docs/**/*.md
 !docs/*.md
 
+# Map files
+**/*.map
+
+# Docs build artifacts
+packages/yakkl-wallet/docs/build/
+
 # Also keep any README.md anywhere
 !README.md
 !**/README.md
+
+# Map files
+**/*.map
+
+# Docs build artifacts
+packages/yakkl-wallet/docs/build/
 
 # Closed-source packages (completely ignored)
 packages/yakkl-ai-private/
@@ -25,9 +37,6 @@ packages/yakkl-wallet/**/*v1*
 packages/yakkl-wallet/**/v1*
 packages/yakkl-wallet/**/*v1
 
-# This is temporary
-packages/yakkl-contracts/ 
-
 # Ignore all pro/ and private/ folders recursively, but keep the folders themselves tracked
 **/pro/*
 !**/pro/.gitkeep
@@ -39,6 +48,9 @@ packages/yakkl-contracts/
 packages/yakkl-wallet/.svelte-kit/
 packages/yakkl-wallet/build/
 packages/yakkl-wallet/node_modules/
+
+# This is temporary
+packages/yakkl-contracts/ 
 
 # Contracts build artifacts
 packages/yakkl-contracts/lib/
@@ -57,6 +69,9 @@ packages/yakkl-contracts/code/*.old
 # Router service
 packages/yakkl-uniswap-alpha-router-service/dist/
 packages/yakkl-uniswap-alpha-router-service/coverage/
+
+# Wallet v1 - old version
+packages/yakkl-wallet-v1/
 
 # General patterns
 packages/yakkl-wallet/*.tmp

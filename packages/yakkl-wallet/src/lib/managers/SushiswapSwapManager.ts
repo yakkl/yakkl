@@ -13,7 +13,7 @@ import type {
 	SwapToken,
 	TransactionReceipt
 } from './types';
-import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
+import { BigNumber, EthereumBigNumber } from '$lib/common/bignumber';
 import { YAKKL_FEE_BASIS_POINTS, type BigNumberish } from '$lib/common';
 import type { AbstractContract } from './Contract';
 import type { Token } from './Token';

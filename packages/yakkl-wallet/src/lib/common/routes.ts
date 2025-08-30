@@ -1,7 +1,7 @@
 import { browserSvelte } from '$lib/common/environment';
 import { goto } from '$app/navigation';
 import { get } from 'svelte/store';
-import { PATH_LEGAL, PATH_LOGIN, PATH_REGISTER } from '$lib/common/constants';
+import { PATH_LEGAL_TOS, PATH_LOGIN, PATH_REGISTER } from '$lib/common/constants';
 import { yakklSettingsStore } from '$lib/common/stores';
 import { log } from '$lib/common/logger-wrapper';
 
@@ -12,7 +12,7 @@ export async function routeCheckWithSettings() {
 		if (yakklSettings !== null) {
 			if (yakklSettings?.legal?.termsAgreed !== true) {
 				log.warn('Terms not agreed - 1');
-				return await goto(PATH_LEGAL);
+				return await goto(PATH_LEGAL_TOS);
 			}
 			if (yakklSettings.init === false) {
 				log.warn('register');

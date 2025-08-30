@@ -79,6 +79,7 @@ function createAppStateManager() {
 
       await setPhase(AppPhase.READY);
 
+      console.log('[AppStateManager] App initialization completed', {state});
     } catch (error) {
       console.error('App initialization failed:', error);
       state.update(s => ({
@@ -144,6 +145,8 @@ function createAppStateManager() {
     }
 
     state.update(s => ({ ...s, authChecked: true }));
+
+    console.log('[AppStateManager] checkAuthentication: Authentication checked', {state});
   }
 
   async function loadCriticalStores() {
@@ -152,7 +155,9 @@ function createAppStateManager() {
       'featurePlanStore',
       'yakklSettingsStore',
       'networkStore',
-      'primaryNetworkStore'
+      'primaryNetworkStore',
+      'yakklAccounts',
+      'yakklCurrentlySelected'
     ];
 
     await Promise.all(
@@ -160,6 +165,8 @@ function createAppStateManager() {
     );
 
     state.update(s => ({ ...s, storesLoaded: true }));
+
+    console.log('[AppStateManager] loadCriticalStores: Critical stores loaded', {criticalStores, state});
   }
 
   async function loadCacheManagers() {
@@ -177,16 +184,23 @@ function createAppStateManager() {
     }));
 
     await new Promise(resolve => setTimeout(resolve, 0));
+
+    console.log('[AppStateManager] setPhase: Phase set to', phase, {state});
   }
 
   function reset() {
     state.set(initialState);
     initPromise = null;
+
+    console.log('[AppStateManager] reset: Reset state', {state});
   }
 
   async function waitForReady(timeoutMs: number = 30000): Promise<void> {
     const currentState = get(state);
+    console.log('[AppStateManager] waitForReady: Current state', {state, currentState});
+
     if (currentState.phase === AppPhase.READY) return;
+    
     if (currentState.phase === AppPhase.ERROR) {
       throw new Error(currentState.error || 'Initialization failed');
     }
@@ -211,8 +225,12 @@ function createAppStateManager() {
         unsubscribe();
         reject(new Error(`AppStateManager initialization timeout after ${timeoutMs}ms`));
       }, timeoutMs);
+
+      console.log('[AppStateManager] waitForReady: Waiting for ready state', {state});
     });
   }
+
+  console.log('[AppStateManager] createAppStateManager: AppStateManager created', {state});
 
   return {
     subscribe: state.subscribe,

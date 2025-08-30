@@ -10,6 +10,8 @@
 	import { NotificationService } from '$lib/common/notifications';
 	import { sendToBackground } from '$lib/services/message.service';
 	import { AccountTypeCategory } from '$lib/common/types';
+	import { getVaultService } from '$lib/services/vault-bridge.service';
+	import type { ImportOptions } from '$lib/interfaces/vault.interface';
 
 	interface Props {
 		show?: boolean;
@@ -88,7 +90,25 @@
 		// Normalize phrase
 		const normalizedPhrase = phrase.trim().split(/\s+/).join(' ');
 
-		// Use background handler for secure import
+		// Step 1: Import seed phrase to vault (secure storage)
+		const vaultService = getVaultService();
+		await vaultService.initialize();
+		
+		const importOptions: ImportOptions = {
+			type: 'seed',
+			data: normalizedPhrase,
+			label: accountName || 'Imported Wallet'
+		};
+		
+		const vaultId = await vaultService.importToVault(importOptions);
+		
+		// Step 2: Derive the first account from the vault
+		const derivedAccount = await vaultService.deriveAccount(vaultId, {
+			startIndex: 0,
+			label: accountName
+		});
+
+		// Step 3: Register the account with the existing system for backward compatibility
 		const response = await sendToBackground({
 			type: 'yakkl_deriveAccountFromPhrase',
 			payload: {

@@ -246,7 +246,7 @@ class AccountViewStoreImpl extends BaseViewStore<AccountViewStore> {
     
     return {
       byValue: accountArray
-        .sort((a, b) => Number(b.totalValue - a.totalValue))
+        .sort((a, b) => BigNumberishUtils.compareSafe(b.totalValue, a.totalValue))
         .map(a => a.address),
       
       byActivity: accountArray

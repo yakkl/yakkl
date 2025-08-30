@@ -392,7 +392,7 @@ class NetworkViewStoreImpl extends BaseViewStore<NetworkViewStore> {
     
     return {
       byValue: networkArray
-        .sort((a, b) => Number(b.totalValue - a.totalValue))
+        .sort((a, b) => BigNumberishUtils.compareSafe(b.totalValue, a.totalValue))
         .map(n => n.chainId),
       
       byActivity: networkArray
@@ -400,7 +400,7 @@ class NetworkViewStoreImpl extends BaseViewStore<NetworkViewStore> {
         .map(n => n.chainId),
       
       byGasPrice: networkArray
-        .sort((a, b) => Number(a.gasPrice - b.gasPrice))
+        .sort((a, b) => BigNumberishUtils.compareSafe(a.gasPrice, b.gasPrice))
         .map(n => n.chainId)
     };
   }

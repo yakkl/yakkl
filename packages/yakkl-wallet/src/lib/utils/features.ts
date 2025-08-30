@@ -4,7 +4,7 @@
  */
 
 import { PlanType, STORAGE_YAKKL_SETTINGS } from '../common';
-import { PLAN_FEATURES, type FeatureKey } from '../config/features';
+import { PLAN_FEATURES } from '../config/features';
 import { log } from './logger';
 import browser from '$lib/common/browser-wrapper';
 

@@ -2,7 +2,7 @@ import { writable, derived, get } from 'svelte/store';
 import type { AccountDisplay, LoadingState, ErrorState } from '../types';
 import { WalletService } from '../services/wallet.service';
 // Import directly from the specific function to avoid circular dependency
-import { getYakklCurrentlySelected, setYakklCurrentlySelectedStorage } from './account-utils';
+import { getYakklCurrentlySelected, setYakklCurrentlySelectedStorage } from '$lib/common/stores';
 import { walletCacheStore } from './wallet-cache.store';
 import { tokenStore } from './token.store';
 import { log } from '$lib/common/logger-wrapper';
@@ -89,7 +89,7 @@ function createAccountStore() {
       const response = await walletService.switchAccount(address);
 
       console.log('switchAccount:>>>>>>>>>>>>>>>>>>>', response);
-      
+
       if (response.success) {
         // Find the account first
         const currentState = get({ subscribe });
@@ -151,7 +151,7 @@ function createAccountStore() {
 
         // No need to call tokenStore.refresh() - the cache switch handles everything
         // The token store will automatically update via its subscription to currentAccount
-        
+
         log.info('[AccountStore] Account switch complete, cache initialized');
 
         return true;

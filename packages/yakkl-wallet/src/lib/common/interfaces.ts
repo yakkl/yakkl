@@ -15,7 +15,8 @@ import type {
 import type { BigNumberish } from '$lib/common/bignumber';
 import type { Token } from '$lib/managers/Token';
 // import type { Runtime } from 'webextension-polyfill';
-import type { EthereumBigNumber } from './bignumber-ethereum';
+import type { BigNumber } from './bignumber';
+import type { VaultReference } from '$lib/interfaces/vault.interface';
 
 // Session Info is used to check if the session is valid and if the port is open - mainly used for the dapp popups
 export interface SessionInfo {
@@ -563,8 +564,8 @@ export interface TokenData extends SwapToken {
 	change?: TokenChange[] | null; // getTokenChange(timeline)
 	price?: MarketPriceData | null; // Current price of the token. Price is in PriceData but is for the provider's price
 	value?: BigNumberish; // Changed from number - CRITICAL for financial calculations
-	quantity?: EthereumBigNumber; // User's holdings
-	lastKnownQuantity?: EthereumBigNumber; // CRITICAL: Preserved quantity to prevent resetting to 0
+	quantity?: BigNumber; // User's holdings
+	lastKnownQuantity?: BigNumber; // CRITICAL: Preserved quantity to prevent resetting to 0
 	quantityLastUpdated?: Date; // When the quantity was last updated
 	formattedValue?: string; // Formatted value for display
 	alias?: string; // Alias for the token
@@ -856,6 +857,7 @@ export interface ProfileData {
 	primaryAccounts: YakklPrimaryAccount[];
 	importedAccounts: YakklAccount[]; // Independent accounts - These accounts have no relation to any primary or subaccount but do use the account model
 	watchList: YakklWatch[]; // If you want to see data from any of your other centralized exchanges or something different
+	vaultReferences?: VaultReference[]; // References to secure vaults (keys stored in yakkl-security)
 	meta?: unknown | null | undefined; // This is a placeholder for any additional data that is not part of the standard profile
 }
 

@@ -1,8 +1,8 @@
 import { log } from '$lib/managers/Logger';
-import { Alchemy, Network, type TransactionRequest, type BlockTag, BigNumber } from 'alchemy-sdk';
+import { Alchemy, Network, type TransactionRequest, type BlockTag, BigNumber as AlchemyBigNumber } from 'alchemy-sdk';
 import { getKeyManager } from '$lib/managers/KeyManager';
 import { RPCAlchemy } from '$lib/managers/providers/network/alchemy/RPCAlchemy';
-import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
+import { BigNumber } from '$lib/common/bignumber';
 
 /**********************************************************************************************************************/
 // This section is for the Ethereum provider - Legacy version
@@ -167,12 +167,14 @@ export async function getGasPrice(chainId: any) {
 }
 
 // Create utility functions for conversions
-export function weiToGwei(wei: EthereumBigNumber): string {
-	return wei.toGwei().toString();
+export function weiToGwei(wei: AlchemyBigNumber): string {
+	// Convert Alchemy's BigNumber to our BigNumber, then to Gwei
+	const ourBigNumber = new BigNumber(wei.toString());
+	return ourBigNumber.toGwei().toString();
 }
 
 // For display purposes, you might want a formatted version
-export function formatGasPrice(wei: EthereumBigNumber): string {
+export function formatGasPrice(wei: AlchemyBigNumber): string {
 	const gweiString = weiToGwei(wei);
 	const gweiNumber = parseFloat(gweiString);
 
@@ -191,7 +193,9 @@ export function formatGasPrice(wei: EthereumBigNumber): string {
 // Create a higher-level function that combines both
 export async function getGasPriceForDisplay(chainId: any): Promise<string> {
 	const gasPriceWei = await getGasPrice(chainId);
-	return formatGasPrice(EthereumBigNumber.from(gasPriceWei));
+	// Convert bigint to AlchemyBigNumber for formatGasPrice
+	const alchemyBigNumber = AlchemyBigNumber.from(gasPriceWei.toString());
+	return formatGasPrice(alchemyBigNumber);
 }
 
 export async function getBalance(

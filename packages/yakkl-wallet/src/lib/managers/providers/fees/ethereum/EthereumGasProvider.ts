@@ -3,7 +3,7 @@
 // EthereumGasProvider.ts
 
 import { BigNumber, type BigNumberish } from '$lib/common/bignumber';
-import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
+import { BigNumber as EthereumBigNumber } from '$lib/common/bignumber';
 import {
 	type GasProvider,
 	type GasEstimate,

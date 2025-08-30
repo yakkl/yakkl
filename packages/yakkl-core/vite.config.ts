@@ -18,9 +18,14 @@ export default defineConfig({
         globals: {
           'ethers': 'ethers',
           'eventemitter3': 'EventEmitter3'
-        }
+        },
+        // Preserve export names for better compatibility
+        preserveModules: false,
+        exports: 'named'
       }
     },
+    // Disable minification to preserve export names
+    minify: false,
     sourcemap: true,
     target: 'es2020'
   },

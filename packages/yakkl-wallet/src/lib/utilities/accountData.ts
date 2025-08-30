@@ -6,7 +6,7 @@ import { balanceCacheManager } from '$lib/managers/BalanceCacheManager';
 import { log } from '$lib/managers/Logger';
 import type { BigNumberish } from '$lib/common/bignumber';
 import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
-import { EthereumBigNumber } from '$lib/common/bignumber-ethereum';
+import { BigNumber } from '$lib/common/bignumber';
 
 export interface AccountData {
 	id?: string;
@@ -82,7 +82,7 @@ export async function collectAccountData(
 			const quantity = await wallet.getBalance(account.address);
 			const quantityFormatted = BigNumberishUtils.toDecimal(BigNumberishUtils.toBigInt(quantity) / 10n ** 18n, 6);
 			// Use precision-safe calculation for total value
-			const totalValueInCents = EthereumBigNumber.toFiat(quantity, price) * 100;
+			const totalValueInCents = BigNumber.toFiat(quantity, price) * 100;
 			const totalValue = BigInt(Math.round(totalValueInCents));
 			// Convert from cents (bigint) to dollars (number) for formatting
 			const totalValueInDollars = Number(totalValue) / 100;

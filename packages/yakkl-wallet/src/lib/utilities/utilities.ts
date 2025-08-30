@@ -555,6 +555,9 @@ export async function isOnline(url = window.location.origin) {
 }
 
 export function changeBackground(id: string, image: { src: string }) {
+	// Guard against SSR execution
+	if (typeof document === 'undefined') return;
+	
 	try {
 		// document.getElementById().innerHTML="";
 		// eslint-disable-next-line @typescript-eslint/ban-ts-comment

@@ -81,7 +81,8 @@
       if (typeof qty === 'number') {
         return qty;
       } else {
-        return BigNumberishUtils.toNumber(qty);
+        // Use safe conversion to prevent crashes with large BigInt values
+        return BigNumberishUtils.toNumberSafe(qty);
       }
     } catch (error) {
       console.warn('Failed to convert quantity:', qty, error);
@@ -150,8 +151,8 @@
       if (typeof balance === 'number') {
         numBalance = balance;
       } else {
-        // Use BigNumberishUtils for safe conversion
-        numBalance = BigNumberishUtils.toNumber(balance);
+        // Use safe conversion to prevent warnings with large BigInt values
+        numBalance = BigNumberishUtils.toNumberSafe(balance);
       }
     } catch (error) {
       console.warn('Failed to convert balance for formatting:', balance, error);

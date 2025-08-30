@@ -52,38 +52,70 @@ export class ExtensionRSSFeedService {
 		}
 
 		try {
-			// Direct fetch - no CORS proxy needed in extension!
-			const response = await fetch(feedUrl, {
-				headers: {
-					'User-Agent': 'YAKKL Smart Wallet Extension/' + VERSION,
-					Accept: 'application/rss+xml, application/xml, text/xml'
-				},
-				credentials: 'omit'
-			});
-
-			if (!response.ok) {
-				throw new Error(`Failed to fetch RSS feed: ${response.statusText}`);
+			// Direct fetch without any proxy
+			const feed = await this.fetchWithTimeout(feedUrl);
+			if (feed) {
+				// Cache and store the successful result
+				this.feedCache.set(feedUrl, { data: feed, timestamp: Date.now() });
+				await this.storeFeedInExtensionStorage(feedUrl, feed);
+				return feed;
 			}
-
-			const text = await response.text();
-			const feed = await this.parseRSSFeed(text, feedUrl);
-
-			// Cache the feed
-			this.feedCache.set(feedUrl, { data: feed, timestamp: Date.now() });
-
-			// Store in extension storage for offline access
-			await this.storeFeedInExtensionStorage(feedUrl, feed);
-
-			return feed;
+			throw new Error('Failed to parse RSS feed');
 		} catch (error) {
-			log.warn('Error fetching RSS feed:', false, error);
-
-			// Try to load from extension storage if fetch fails
+			log.warn('RSS feed fetch failed:', false, { url: feedUrl, error });
+			
+			// Fallback: Try to load from extension storage
 			const storedFeed = await this.loadFeedFromExtensionStorage(feedUrl);
 			if (storedFeed) {
+				// Update cache with stale data
+				this.feedCache.set(feedUrl, { data: storedFeed, timestamp: Date.now() });
 				return storedFeed;
 			}
 
+			// If everything failed, throw the error
+			throw error instanceof Error ? error : new Error('Failed to fetch RSS feed');
+		}
+	}
+
+	private async fetchWithTimeout(url: string): Promise<RSSFeed | null> {
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+		try {
+			const response = await fetch(url, {
+				headers: {
+					'User-Agent': 'YAKKL Smart Wallet Extension/' + VERSION,
+					Accept: 'application/rss+xml, application/xml, text/xml',
+					// Hints to prevent unnecessary resource preloading
+					'X-Purpose': 'preview',
+					'X-Moz': 'prefetch'
+				},
+				credentials: 'omit',
+				mode: 'cors',
+				cache: 'default',
+				signal: controller.signal
+			});
+
+			clearTimeout(timeoutId);
+
+			if (!response.ok) {
+				throw new Error(`Failed to fetch RSS feed: ${response.status} ${response.statusText}`);
+			}
+
+			let text = await response.text();
+			
+			// Always clean the response to prevent any potential issues
+			text = this.cleanRSSResponse(text);
+			
+			// Parse and return the feed
+			return await this.parseRSSFeed(text, url);
+			
+		} catch (error) {
+			clearTimeout(timeoutId);
+			
+			if (error instanceof Error && error.name === 'AbortError') {
+				throw new Error('RSS feed fetch timeout');
+			}
 			throw error;
 		}
 	}
@@ -226,6 +258,40 @@ export class ExtensionRSSFeedService {
 			});
 			return { content: '', quality: 'minimal' };
 		}
+	}
+
+	private cleanRSSResponse(text: string): string {
+		// Check if this is actually RSS/XML
+		if (!text.includes('<?xml') && !text.includes('<rss') && !text.includes('<feed')) {
+			// This might be HTML returned instead of RSS
+			// Some sites return HTML on certain RSS endpoints
+			log.warn('RSS endpoint returned HTML instead of XML');
+		}
+		
+		// Remove all preload link tags that cause browser warnings
+		// These patterns catch various preload formats
+		text = text.replace(/<link[^>]*rel=["']?preload["']?[^>]*>/gi, '');
+		text = text.replace(/<link[^>]*rel=["']?prefetch["']?[^>]*>/gi, '');
+		text = text.replace(/<link[^>]*rel=["']?dns-prefetch["']?[^>]*>/gi, '');
+		text = text.replace(/<link[^>]*rel=["']?preconnect["']?[^>]*>/gi, '');
+		text = text.replace(/<link[^>]*rel=["']?modulepreload["']?[^>]*>/gi, '');
+		
+		// Remove Next.js specific preload patterns
+		text = text.replace(/<link[^>]*\/_next\/static[^>]*>/gi, '');
+		
+		// Remove any link tags with .woff, .woff2, .ttf, .otf extensions
+		text = text.replace(/<link[^>]*\.(woff2?|ttf|otf)[^>]*>/gi, '');
+		
+		// Remove inline preload scripts
+		text = text.replace(/<script[^>]*>.*?\.preload.*?<\/script>/gis, '');
+		
+		// Remove preload from any remaining link tags
+		text = text.replace(/(\<link[^>]*?)rel=["']?preload["']?([^>]*?>)/gi, '$1$2');
+		
+		// Clean up any font-face declarations that might trigger loads
+		text = text.replace(/<style[^>]*>.*?@font-face.*?<\/style>/gis, '');
+		
+		return text;
 	}
 
 	private extractArticleContent(html: string): {

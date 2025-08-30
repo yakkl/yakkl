@@ -4,6 +4,8 @@
 
 import { EventEmitter } from 'eventemitter3';
 import { ethers } from 'ethers';
+const { providers } = ethers;
+const { JsonRpcProvider } = providers;
 import type { WalletEngine } from './WalletEngine';
 import type { Network, NetworkFeature } from './types';
 
@@ -19,7 +21,7 @@ export interface NetworkManagerEvents {
 export class NetworkManager extends EventEmitter<NetworkManagerEvents> {
   private engine: WalletEngine;
   private networks = new Map<string, Network>();
-  private providers = new Map<string, ethers.JsonRpcProvider>();
+  private providers = new Map<string, any>(); // JsonRpcProvider instance
   private currentNetworkId: string | null = null;
   private initialized = false;
 
@@ -208,7 +210,7 @@ export class NetworkManager extends EventEmitter<NetworkManagerEvents> {
   /**
    * Get provider for network
    */
-  getProvider(networkId?: string): ethers.JsonRpcProvider | null {
+  getProvider(networkId?: string): any | null { // Returns JsonRpcProvider
     const id = networkId || this.currentNetworkId;
     if (!id) return null;
 
@@ -222,7 +224,7 @@ export class NetworkManager extends EventEmitter<NetworkManagerEvents> {
     if (!network) return null;
 
     try {
-      const provider = new ethers.JsonRpcProvider(network.rpcUrl);
+      const provider = new JsonRpcProvider(network.rpcUrl);
       this.providers.set(id, provider);
       return provider;
     } catch (error) {
@@ -236,7 +238,7 @@ export class NetworkManager extends EventEmitter<NetworkManagerEvents> {
    */
   async testConnection(network: Network): Promise<boolean> {
     try {
-      const provider = new ethers.JsonRpcProvider(network.rpcUrl);
+      const provider = new JsonRpcProvider(network.rpcUrl);
       const chainId = await provider.getNetwork();
       
       // Verify chain ID matches

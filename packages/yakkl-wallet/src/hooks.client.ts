@@ -11,6 +11,8 @@ import { initializeGlobalErrorHandlers } from '$lib/common/globalErrorHandler';
 // import { browser_ext } from '$lib/common/environment';
 import { initializeMessaging, initializeUiContext } from '$lib/common/messaging';
 import browser from '$lib/common/browser-wrapper';
+import { initializationManager } from '$lib/common/initialization-manager';
+import { initializeBrowserPolyfill } from '$lib/common/browser-polyfill-unified';
 
 console.log('[hooks.client] hooks.client.ts loaded');
 
@@ -170,87 +172,81 @@ export function getContextType(): string {
  * 2. AppStateManager - Coordinated app initialization
  * 3. This file - UI-specific setup only
  */
-export async function init() {
+async function performUIInitialization() {
 	if (!isClient) return; // Skip initialization on server
 
-	// Add timeout to prevent hanging initialization
-	const initTimeout = setTimeout(() => {
-		log.warn('Initialization timeout - forcing completion');
-		window.EXTENSION_INIT_STATE.initialized = true;
-	}, 10000); // 10 second timeout
+	log.info('[hooks.client] Starting UI initialization');
+	console.log('[hooks.client] Starting UI initialization');
+
+	// Ensure browser polyfill is loaded first
+	await initializeBrowserPolyfill();
+	console.log('[hooks.client] Browser polyfill ready');
 
 	try {
-		// Use window state to prevent multiple initializations across contexts
-		if (window.EXTENSION_INIT_STATE && window.EXTENSION_INIT_STATE.initialized) {
-			clearTimeout(initTimeout);
-			return;
-		}
+		await getYakklSettings();
+	} catch (error) {
+		console.info(`[${CONTEXT_ID}] Failed to get settings in hooks - passing on:`, error);
+	}
 
-		log.info('Starting initialization process');
-    console.log('[init] Starting initialization process');
+	// Initialize global error handlers early
+	initializeGlobalErrorHandlers();
 
+	// Register UI context with global listener manager if not already done
+	if (!globalListenerManager.hasContext('ui')) {
+		globalListenerManager.registerContext('ui', uiListenerManager);
+	}
+
+	// Initialize stores first (these need to be ready before any UI rendering)
+	await loadTokens();
+
+	// Get context type for this initialization
+	const contextType = getContextType();
+
+	// Initialize messaging service if browser API is available
+	log.info('Checking browser API availability:', false, { browser: !!browser });
+	console.log('[hooks.client] Checking browser API availability:', { browser: !!browser });
+	if (browser) {
+		log.info('Initializing messaging service with browser API');
+		console.log('[hooks.client] Initializing messaging service with browser API');
 		try {
-			await getYakklSettings();
+			initializeMessaging(browser);
+			await initializeUiContext(browser, contextType);
+
+			log.info('UI context registered successfully with background');
+			console.log('[hooks.client] UI context registered successfully with background');
 		} catch (error) {
-			console.info(`[${CONTEXT_ID}] Failed to get settings in hooks - passing on:`, error);
+			log.warn('Failed to initialize messaging service:', false, error);
+			console.log('[hooks.client] Failed to initialize messaging service:', error);
 		}
+	} else {
+		log.warn('Browser API not available, messaging service not initialized');
+		console.log('[hooks.client] Browser API not available, messaging service not initialized');
+	}
 
-		// Initialize global error handlers early
-		initializeGlobalErrorHandlers();
+	// Set up UI listeners through the manager
+	await setupUIListeners();
+	console.log('[hooks.client] UI listeners setup');
 
-		// Register UI context with global listener manager if not already done
-		if (!globalListenerManager.hasContext('ui')) {
-			globalListenerManager.registerContext('ui', uiListenerManager);
-		}
+	// Mark as initialized
+	window.EXTENSION_INIT_STATE.initialized = true;
+	log.info('[hooks.client] UI initialization completed successfully');
+	console.log('[hooks.client] UI initialization completed successfully');
+}
 
-		// Initialize stores first (these need to be ready before any UI rendering)
-		await loadTokens();
+export async function init() {
+	if (!isClient) return;
 
-		// Get context type for this initialization
-		const contextType = getContextType();
-
-
-// Made a change to new browser wrapper
-    // Initialize messaging service if browser API is available
-		log.info('Checking browser API availability:', false, { browser: !!browser });
-    console.log('[init] Checking browser API availability:', { browser: !!browser });
-		if (browser) {
-			log.info('Initializing messaging service with browser API');
-      console.log('[init] Initializing messaging service with browser API');
-			try {
-				initializeMessaging(browser);
-				await initializeUiContext(browser, contextType);
-
-
-
-				log.info('UI context registered successfully with background');
-        console.log('[init] UI context registered successfully with background');
-			} catch (error) {
-				log.warn('Failed to initialize messaging service:', false, error);
-        console.log('[init] Failed to initialize messaging service:', error);
-			}
-		} else {
-			log.warn('Browser API not available, messaging service not initialized');
-      console.log('[init] Browser API not available, messaging service not initialized');
-		}
-
-		// Set up UI listeners through the manager
-		await setupUIListeners();
-    console.log('[init] UI listeners setup');
-		// Note: Registration with background script is already handled by initializeUiContext above
-		// No need for duplicate registration
-
-		// Mark as initialized
-		window.EXTENSION_INIT_STATE.initialized = true;
-		clearTimeout(initTimeout);
-		log.info('Initialization completed successfully');
-    console.log('[init] Initialization completed successfully');
+	// Use centralized initialization manager to prevent race conditions
+	console.log('[hooks.client] Delegating to InitializationManager');
+	try {
+		await initializationManager.initialize(performUIInitialization);
 	} catch (error: any) {
-		clearTimeout(initTimeout);
-		console.warn(`[${CONTEXT_ID}] Initialization error:`, error);
+		console.error(`[${CONTEXT_ID}] Initialization failed:`, error);
 		handleError(error);
-		// Mark as initialized even on error to prevent infinite retries
-		window.EXTENSION_INIT_STATE.initialized = true;
+		// Still mark as initialized to prevent infinite retries
+		if (window.EXTENSION_INIT_STATE) {
+			window.EXTENSION_INIT_STATE.initialized = true;
+		}
 	}
 }
 
@@ -336,24 +332,11 @@ async function setupUIListeners() {
 
 // Run init early, but only in browser context
 if (isClient) {
-	// Wait for DOM to be ready and browser API to be available
-	if (document.readyState === 'loading') {
-		document.addEventListener('DOMContentLoaded', () => {
-			// Give browser API time to initialize after DOM is ready
-			setTimeout(() => {
-				init().catch((err) => {
-					console.warn(`[${CONTEXT_ID}] Failed to initialize:`, err);
-				});
-			}, 200);
-		});
-	} else {
-		// DOM is already loaded, still give browser API time to initialize
-		setTimeout(() => {
-			init().catch((err) => {
-				console.warn(`[${CONTEXT_ID}] Failed to initialize:`, err);
-			});
-		}, 200);
-	}
+	// Initialize immediately - InitializationManager will handle coordination
+	console.log('[hooks.client] Starting initialization');
+	init().catch((err) => {
+		console.warn(`[${CONTEXT_ID}] Failed to initialize:`, err);
+	});
 }
 
 // Note: The registerWithBackgroundScript functionality has been consolidated into initializeUiContext

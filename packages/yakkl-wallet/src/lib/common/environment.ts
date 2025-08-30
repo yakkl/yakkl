@@ -67,25 +67,10 @@ export async function getBrowserExtFromGlobal(): Promise<BrowserAPI | null> {
 	}
 
 	try {
-		// Try direct window.chrome access first (most reliable)
-		if (typeof window !== 'undefined' && window.chrome && window.chrome.runtime) {
-			console.log('[getBrowserExtFromGlobal] Using window.chrome directly');
-			cachedBrowserApi = window.chrome as any;
-			return cachedBrowserApi;
-		}
-
-		// Try browser_ext export
-		if (browser_ext && browser_ext.runtime) {
-			console.log('[getBrowserExtFromGlobal] Using browser_ext export');
-			cachedBrowserApi = browser_ext;
-			return cachedBrowserApi;
-		}
-
-		// Try async loader
-		console.log('[getBrowserExtFromGlobal] Trying async loader...');
+		// Use unified loader to get browser API
 		const api = await getBrowserAsync();
 		if (api) {
-			console.log('[getBrowserExtFromGlobal] Got API from async loader');
+			console.log('[getBrowserExtFromGlobal] Got API from unified loader');
 			cachedBrowserApi = api;
 			return api;
 		}
@@ -102,16 +87,18 @@ export async function getBrowserExtFromGlobal(): Promise<BrowserAPI | null> {
 export function getBrowserExt(): BrowserAPI | null {
 	if (!isClient) return mockBrowser;
 
+	// Return cached if available
+	if (cachedBrowserApi) return cachedBrowserApi;
+
 	// Use the synchronous getter from unified loader
 	const browser = getBrowserSync();
-	if (browser) return browser;
+	if (browser) {
+		cachedBrowserApi = browser;
+		return browser;
+	}
 
-	// If not loaded yet, trigger initialization
-	initializeBrowserPolyfill().catch(err => {
-		log.warn('Failed to initialize browser polyfill:', false, err);
-    console.log('[getBrowserExt] Failed to initialize browser polyfill:', err);
-	});
-
+	// Return null if not yet loaded - don't trigger lazy initialization
+	// The initialization should happen through InitializationManager
 	return null;
 }
 
@@ -135,11 +122,5 @@ export async function isBrowserEnvAsync(): Promise<boolean> {
 	return api !== null;
 }
 
-// Initialize browser API on module load (non-blocking)
-if (isClient) {
-	initializeBrowserPolyfill().then(() => {
-		log.info('Browser polyfill initialized successfully', false);
-	}).catch(err => {
-		log.warn('Browser polyfill initialization failed:', false, err);
-	});
-}
+// Do not auto-initialize here - let InitializationManager handle it
+// This prevents race conditions with multiple initialization paths
