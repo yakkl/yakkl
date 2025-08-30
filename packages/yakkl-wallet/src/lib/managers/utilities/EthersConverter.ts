@@ -6,7 +6,8 @@ import type {
 	Log,
 	BigNumberish,
 	TransactionRequest,
-	AccessList
+	AccessList,
+	BytesLike
 } from '$lib/common';
 import { log } from '../Logger';
 
@@ -47,7 +48,7 @@ export class EthersConverter {
 			nonce: tx.nonce,
 			gasLimit: tx.gasLimit,
 			gasPrice: tx.gasPrice,
-			data: tx.data,
+			data: tx.data as BytesLike,
 			quantity: tx.value,
 			chainId: tx.chainId,
 			blockNumber: tx.blockNumber ?? undefined,
@@ -72,23 +73,23 @@ export class EthersConverter {
 		receipt: ethersv6.TransactionReceipt
 	): Promise<TransactionReceipt> {
 		return {
-			to: receipt.to ?? '',
-			from: receipt.from,
+			to: (receipt.to ?? '0x0000000000000000000000000000000000000000') as `0x${string}`,
+			from: receipt.from as `0x${string}`,
 			contractAddress: receipt.contractAddress ?? undefined,
 			transactionIndex: receipt.index,
 			root: receipt.root ?? undefined,
-			gasUsed: receipt.gasUsed,
-			logsBloom: receipt.logsBloom,
-			blockHash: receipt.blockHash,
-			transactionHash: receipt.hash,
+			gasUsed: receipt.gasUsed.toString(),
+			logsBloom: receipt.logsBloom as `0x${string}`,
+			blockHash: receipt.blockHash as `0x${string}`,
+			transactionHash: receipt.hash as `0x${string}`,
 			logs: receipt.logs.map(this.ethersLogToLog),
 			blockNumber: receipt.blockNumber,
 			confirmations: await receipt.confirmations(),
-			cumulativeGasUsed: receipt.cumulativeGasUsed,
-			effectiveGasPrice: receipt.gasPrice ?? undefined,
+			cumulativeGasUsed: receipt.cumulativeGasUsed.toString(),
+			effectiveGasPrice: receipt.gasPrice?.toString() ?? undefined,
 			byzantium: true,
 			type: receipt.type,
-			status: receipt.status !== null ? receipt.status : undefined
+			status: receipt.status !== null ? (receipt.status as 0 | 1) : undefined
 		};
 	}
 
@@ -112,21 +113,18 @@ export class EthersConverter {
 		try {
 			if (!tx) return null;
 			return {
-				to: tx.to as string,
-				from: tx.from as string,
+				to: (tx.to || '0x0000000000000000000000000000000000000000') as `0x${string}`,
+				from: (tx.from || '0x0000000000000000000000000000000000000000') as `0x${string}`,
 				nonce: tx.nonce as number,
-				gasLimit: tx.gasLimit ? BigInt(tx.gasLimit.toString()) : undefined,
-				gasPrice: tx.gasPrice ? BigInt(tx.gasPrice.toString()) : undefined,
+				gasLimit: tx.gasLimit ? tx.gasLimit.toString() : undefined,
+				gasPrice: tx.gasPrice ? tx.gasPrice.toString() : undefined,
 				maxPriorityFeePerGas: tx.maxPriorityFeePerGas
-					? BigInt(tx.maxPriorityFeePerGas.toString())
+					? tx.maxPriorityFeePerGas.toString()
 					: undefined,
-				maxFeePerGas: tx.maxFeePerGas ? BigInt(tx.maxFeePerGas.toString()) : undefined,
-				data: tx.data as string,
-				quantity: tx.value ? BigInt(tx.value.toString()) : null,
-				chainId: tx.chainId as number,
-				accessList: this.convertAccessList(tx.accessList),
-				customData: tx.customData,
-				type: tx.type
+				maxFeePerGas: tx.maxFeePerGas ? tx.maxFeePerGas.toString() : undefined,
+				data: tx.data as `0x${string}`,
+				value: tx.value ? tx.value.toString() : undefined,
+				chainId: tx.chainId as number
 			};
 		} catch (error) {
 			log.error(

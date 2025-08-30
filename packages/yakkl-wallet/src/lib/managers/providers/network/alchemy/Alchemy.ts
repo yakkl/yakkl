@@ -218,7 +218,7 @@ export class Alchemy extends AbstractProvider {
 					to: resolvedTransaction.to,
 					gas: resolvedTransaction.gasLimit?.toString(),
 					gasPrice: resolvedTransaction.gasPrice?.toString(),
-					value: resolvedTransaction.quantity?.toString(),
+					value: resolvedTransaction.value?.toString(),
 					data: resolvedTransaction.data?.toString()
 				};
 
@@ -324,7 +324,9 @@ export class Alchemy extends AbstractProvider {
 		try {
 			const resolvedBlockTag = await blockTag;
 			const blockTagStr =
-				typeof resolvedBlockTag === 'bigint' ? resolvedBlockTag.toString() : resolvedBlockTag;
+				typeof resolvedBlockTag === 'bigint' ? (resolvedBlockTag as bigint).toString() : 
+				typeof resolvedBlockTag === 'number' ? (resolvedBlockTag as number).toString() :
+				resolvedBlockTag as string;
 
 			// Check if we're in a background context
 			const isBackgroundContext = typeof window === 'undefined' || !window.document;
@@ -377,7 +379,9 @@ export class Alchemy extends AbstractProvider {
 		try {
 			const resolvedBlockTag = await blockTag;
 			const blockTagStr =
-				typeof resolvedBlockTag === 'bigint' ? resolvedBlockTag.toString() : resolvedBlockTag;
+				typeof resolvedBlockTag === 'bigint' ? (resolvedBlockTag as bigint).toString() : 
+				typeof resolvedBlockTag === 'number' ? (resolvedBlockTag as number).toString() :
+				resolvedBlockTag as string;
 
 			// Check if we're in a background context
 			const isBackgroundContext = typeof window === 'undefined' || !window.document;

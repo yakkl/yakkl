@@ -1,0 +1,63 @@
+{
+  "name": "@yakkl/blockchain",
+  "version": "0.1.0",
+  "description": "Blockchain configurations and utilities for YAKKL",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./chains": {
+      "types": "./dist/chains.d.ts",
+      "import": "./dist/chains.mjs",
+      "require": "./dist/chains.js"
+    },
+    "./tokens": {
+      "types": "./dist/tokens.d.ts",
+      "import": "./dist/tokens.mjs",
+      "require": "./dist/tokens.js"
+    },
+    "./protocols": {
+      "types": "./dist/protocols.d.ts",
+      "import": "./dist/protocols.mjs",
+      "require": "./dist/protocols.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "vite build && tsc --emitDeclarationOnly",
+    "dev": "vite build --watch",
+    "clean": "rimraf dist",
+    "type-check": "tsc --noEmit",
+    "prepublishOnly": "pnpm run clean && pnpm run build"
+  },
+  "dependencies": {
+    "@yakkl/core": "workspace:*",
+    "viem": "^2.7.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.12"
+  },
+  "keywords": [
+    "yakkl",
+    "blockchain",
+    "ethereum",
+    "web3",
+    "chains",
+    "tokens",
+    "defi"
+  ],
+  "author": "YAKKL",
+  "license": "MIT"
+}

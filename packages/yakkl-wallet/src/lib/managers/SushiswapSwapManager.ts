@@ -30,6 +30,7 @@ const SUSHISWAP_ROUTER_ABI = [
 
 export class SushiSwapManager<T extends BaseTransaction> extends SwapManager {
 	private router: AbstractContract | null = null;
+	private routerAddress: string;
 
 	constructor(
 		blockchain: AbstractBlockchain<T>,
@@ -38,6 +39,7 @@ export class SushiSwapManager<T extends BaseTransaction> extends SwapManager {
 		initialFeeBasisPoints: number = YAKKL_FEE_BASIS_POINTS
 	) {
 		super(blockchain, provider, initialFeeBasisPoints);
+		this.routerAddress = routerAddress;
 		this.router = blockchain.createContract(routerAddress, SUSHISWAP_ROUTER_ABI);
 	}
 
@@ -81,7 +83,7 @@ export class SushiSwapManager<T extends BaseTransaction> extends SwapManager {
 
 	getRouterAddress(): string | null {
 		if (!this.router) return null;
-		return ''; //this.router.address;
+		return this.routerAddress;
 	}
 
 	private async getWETHToken(): Promise<Token> {
@@ -275,10 +277,10 @@ export class SushiSwapManager<T extends BaseTransaction> extends SwapManager {
 			if (!signer) throw new Error('No signer available');
 
 			const gasEstimate = await this.provider.estimateGas({
-				from: await signer.getAddress(),
-				to: '', //this.router.address,
+				from: await signer.getAddress() as `0x${string}`,
+				to: this.routerAddress as `0x${string}`,
 				data,
-				quantity: tokenIn.isNative ? amountIn : 0n,
+				value: tokenIn.isNative ? amountIn.toString() : '0',
 				chainId: this.provider.getChainId()
 			});
 
@@ -286,10 +288,10 @@ export class SushiSwapManager<T extends BaseTransaction> extends SwapManager {
 		}
 
 		return {
-			to: '', //this.router.address,
+			to: this.routerAddress as `0x${string}`,
 			data,
-			quantity: tokenIn.isNative ? amountIn : 0n,
-			from: await this.provider.getSigner()!.getAddress(),
+			value: tokenIn.isNative ? amountIn.toString() : '0',
+			from: await this.provider.getSigner()!.getAddress() as `0x${string}`,
 			chainId: this.provider.getChainId()
 		};
 	}

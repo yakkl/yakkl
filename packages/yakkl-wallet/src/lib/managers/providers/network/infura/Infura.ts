@@ -106,7 +106,9 @@ export class Infura extends AbstractProvider {
 		try {
 			const address = await addressOrName;
 			const resolvedBlockTag = blockTag ? await blockTag : 'latest';
-			const blockTagStr = typeof resolvedBlockTag === 'bigint' ? resolvedBlockTag.toString() : resolvedBlockTag;
+			const blockTagStr = typeof resolvedBlockTag === 'bigint' ? (resolvedBlockTag as bigint).toString() : 
+				typeof resolvedBlockTag === 'number' ? (resolvedBlockTag as number).toString() :
+				resolvedBlockTag as string;
 			
 			const rpc = await this.ensureRPC();
 			const result = await rpc.getBalance(address, blockTagStr);
@@ -130,7 +132,9 @@ export class Infura extends AbstractProvider {
 		try {
 			const address = await addressOrName;
 			const resolvedBlockTag = blockTag ? await blockTag : 'latest';
-			const blockTagStr = typeof resolvedBlockTag === 'bigint' ? resolvedBlockTag.toString() : resolvedBlockTag;
+			const blockTagStr = typeof resolvedBlockTag === 'bigint' ? (resolvedBlockTag as bigint).toString() : 
+				typeof resolvedBlockTag === 'number' ? (resolvedBlockTag as number).toString() :
+				resolvedBlockTag as string;
 			
 			const rpc = await this.ensureRPC();
 			const code = await rpc.getCode(address, blockTagStr);
@@ -201,7 +205,9 @@ export class Infura extends AbstractProvider {
 		try {
 			const resolvedTx = await this.resolveDeferrable(transaction);
 			const resolvedBlockTag = blockTag ? await blockTag : 'latest';
-			const blockTagStr = typeof resolvedBlockTag === 'bigint' ? resolvedBlockTag.toString() : resolvedBlockTag;
+			const blockTagStr = typeof resolvedBlockTag === 'bigint' ? (resolvedBlockTag as bigint).toString() : 
+				typeof resolvedBlockTag === 'number' ? (resolvedBlockTag as number).toString() :
+				resolvedBlockTag as string;
 			
 			const rpc = await this.ensureRPC();
 			const result = await rpc.ethCall(resolvedTx, blockTagStr);
@@ -238,7 +244,9 @@ export class Infura extends AbstractProvider {
 	async getBlock(blockHashOrBlockTag: BlockTag | Promise<BlockTag>): Promise<Block> {
 		try {
 			const blockTag = await blockHashOrBlockTag;
-			const blockTagStr = typeof blockTag === 'bigint' ? blockTag.toString() : blockTag;
+			const blockTagStr = typeof blockTag === 'bigint' ? (blockTag as bigint).toString() : 
+				typeof blockTag === 'number' ? (blockTag as number).toString() :
+				blockTag as string;
 			
 			const rpc = await this.ensureRPC();
 			const block = await rpc.getBlock(blockTagStr);
@@ -259,7 +267,9 @@ export class Infura extends AbstractProvider {
 	): Promise<BlockWithTransactions> {
 		try {
 			const blockTag = await blockHashOrBlockTag;
-			const blockTagStr = typeof blockTag === 'bigint' ? blockTag.toString() : blockTag;
+			const blockTagStr = typeof blockTag === 'bigint' ? (blockTag as bigint).toString() : 
+				typeof blockTag === 'number' ? (blockTag as number).toString() :
+				blockTag as string;
 			
 			const rpc = await this.ensureRPC();
 			const block = await rpc.request('eth_getBlockByNumber', [blockTagStr, true]);
@@ -298,7 +308,9 @@ export class Infura extends AbstractProvider {
 		try {
 			const address = await addressOrName;
 			const resolvedBlockTag = blockTag ? await blockTag : 'latest';
-			const blockTagStr = typeof resolvedBlockTag === 'bigint' ? resolvedBlockTag.toString() : resolvedBlockTag;
+			const blockTagStr = typeof resolvedBlockTag === 'bigint' ? (resolvedBlockTag as bigint).toString() : 
+				typeof resolvedBlockTag === 'number' ? (resolvedBlockTag as number).toString() :
+				resolvedBlockTag as string;
 			
 			const rpc = await this.ensureRPC();
 			const nonce = await rpc.getNonce(address, blockTagStr);

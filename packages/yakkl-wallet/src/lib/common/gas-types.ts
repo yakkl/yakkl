@@ -1,6 +1,6 @@
 // lib/common/types/gas-types.ts
 import type { BigNumberish } from './bignumber';
-import type { TransactionRequest } from './interfaces';
+import type { TransactionRequest } from './types';
 
 export enum TransactionSpeed {
 	SLOW = 'SLOW',

@@ -2,6 +2,8 @@
  * Core types for YAKKL Wallet Engine
  */
 
+import type { TokenBalance, Token } from '../interfaces/token.interface';
+
 export interface WalletConfig {
   name: string;
   version: string;
@@ -85,17 +87,10 @@ export type NetworkFeature =
   | 'bridges'       // Cross-chain bridges
   | 'staking';      // Native staking
 
-export interface Token {
-  address: string;
-  symbol: string;
-  name: string;
-  decimals: number;
-  chainId: number;
-  logoUrl?: string;
-  coingeckoId?: string;
-  isNative: boolean;
-  isStable: boolean;
-}
+// Token is now imported from interfaces module
+// Additional properties that were here: logoUrl, coingeckoId, isNative, isStable
+// Re-export Token from interfaces
+export { Token };
 
 export interface Transaction {
   to: string;
@@ -133,12 +128,8 @@ export interface Balance {
   lastUpdated: Date;
 }
 
-export interface TokenBalance {
-  token: Token;
-  balance: string;
-  value: string; // USD value
-  price: string; // USD price per token
-}
+// TokenBalance is now exported from interfaces module
+// Note: This had different properties (value, price) that may need to be reconciled
 
 export interface NFTBalance {
   contractAddress: string;

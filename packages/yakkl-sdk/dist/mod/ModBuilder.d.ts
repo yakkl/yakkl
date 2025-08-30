@@ -1,7 +1,7 @@
 /**
  * ModBuilder - Helper class for building YAKKL mods
  */
-import type { ModManifest, ModComponent } from '@yakkl/core';
+import type { ModManifest } from '@yakkl/core';
 export interface ModBuilderConfig {
     id: string;
     name: string;
@@ -13,6 +13,13 @@ export interface ModBuilderConfig {
     category?: string;
     tags?: string[];
 }
+interface SDKModComponent {
+    id: string;
+    name: string;
+    type: string;
+    mountPoint: string;
+    props?: Record<string, any>;
+}
 export declare class ModBuilder {
     private manifest;
     private components;
@@ -21,7 +28,7 @@ export declare class ModBuilder {
     /**
      * Add UI capabilities to the mod
      */
-    withUI(components: ModComponent[]): ModBuilder;
+    withUI(components: SDKModComponent[]): ModBuilder;
     /**
      * Add background processing capabilities
      */
@@ -73,3 +80,4 @@ export declare class ModBuilder {
      */
     private toPascalCase;
 }
+export {};

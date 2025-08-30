@@ -1,6 +1,7 @@
 /**
  * Core types for YAKKL Wallet Engine
  */
+import type { TokenBalance, Token } from '../interfaces/token.interface';
 export interface WalletConfig {
     name: string;
     version: string;
@@ -59,17 +60,7 @@ export interface Network {
     supportedFeatures: NetworkFeature[];
 }
 export type NetworkFeature = 'eip1559' | 'eip2930' | 'contracts' | 'tokens' | 'nft' | 'defi' | 'bridges' | 'staking';
-export interface Token {
-    address: string;
-    symbol: string;
-    name: string;
-    decimals: number;
-    chainId: number;
-    logoUrl?: string;
-    coingeckoId?: string;
-    isNative: boolean;
-    isStable: boolean;
-}
+export { Token };
 export interface Transaction {
     to: string;
     value: string;
@@ -101,12 +92,6 @@ export interface Balance {
     nfts: NFTBalance[];
     totalValue: string;
     lastUpdated: Date;
-}
-export interface TokenBalance {
-    token: Token;
-    balance: string;
-    value: string;
-    price: string;
 }
 export interface NFTBalance {
     contractAddress: string;

@@ -1,0 +1,44 @@
+{
+  "name": "@yakkl/analytics",
+  "version": "0.1.0",
+  "description": "Privacy-focused analytics for YAKKL ecosystem",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build && tsc --emitDeclarationOnly",
+    "clean": "rimraf dist",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@yakkl/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.12"
+  },
+  "keywords": [
+    "yakkl",
+    "analytics",
+    "metrics",
+    "privacy",
+    "telemetry"
+  ],
+  "author": "YAKKL",
+  "license": "MIT"
+}

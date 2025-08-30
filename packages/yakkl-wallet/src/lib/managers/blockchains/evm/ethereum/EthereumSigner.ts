@@ -7,7 +7,8 @@ import {
 	type TransactionRequest,
 	type TransactionResponse,
 	type TransactionReceipt,
-	type Log
+	type Log,
+	type BytesLike
 } from '$lib/common';
 import { Signer } from '../../../Signer';
 import { BigNumber } from '$lib/common/bignumber';
@@ -180,7 +181,7 @@ export class EthereumSigner extends Signer {
 			nonce: tx.nonce,
 			gasLimit: tx.gasLimit,
 			gasPrice: tx.gasPrice,
-			data: tx.data,
+			data: tx.data as BytesLike,
 			quantity: tx.value,
 			chainId: tx.chainId,
 			blockNumber: tx.blockNumber ?? undefined,
@@ -206,15 +207,15 @@ export class EthereumSigner extends Signer {
 		receipt: ethersv6.TransactionReceipt
 	): Promise<TransactionReceipt> {
 		return {
-			to: receipt.to ?? '',
-			from: receipt.from,
+			to: (receipt.to ?? '0x0000000000000000000000000000000000000000') as `0x${string}`,
+			from: receipt.from as `0x${string}`,
 			contractAddress: receipt.contractAddress ?? undefined,
 			transactionIndex: receipt.index,
 			root: receipt.root ?? undefined,
-			gasUsed: receipt.gasUsed,
-			logsBloom: receipt.logsBloom,
-			blockHash: receipt.blockHash,
-			transactionHash: receipt.hash,
+			gasUsed: receipt.gasUsed.toString(),
+			logsBloom: receipt.logsBloom as `0x${string}`,
+			blockHash: receipt.blockHash as `0x${string}`,
+			transactionHash: receipt.hash as `0x${string}`,
 			logs: receipt.logs.map(
 				(log): Log => ({
 					blockNumber: log.blockNumber,
@@ -230,11 +231,11 @@ export class EthereumSigner extends Signer {
 			),
 			blockNumber: receipt.blockNumber,
 			confirmations: await receipt.confirmations(), // This is now a number in ethers v6
-			cumulativeGasUsed: receipt.cumulativeGasUsed,
-			effectiveGasPrice: receipt.gasPrice ?? undefined,
+			cumulativeGasUsed: receipt.cumulativeGasUsed.toString(),
+			effectiveGasPrice: receipt.gasPrice?.toString() ?? undefined,
 			byzantium: true, // Assuming all transactions are post-Byzantium
 			type: receipt.type,
-			status: receipt.status ? receipt.status : undefined
+			status: receipt.status !== null ? (receipt.status as 0 | 1) : undefined
 		};
 	}
 }

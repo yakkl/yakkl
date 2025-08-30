@@ -767,10 +767,10 @@ export class UniswapSwapManager extends SwapManager {
 			if (!signer) throw new Error('No signer available');
 
 			const gasEstimate = await this.provider.estimateGas({
-				from: await signer.getAddress(),
-				to: this.routerContract!.target as string,
-				data: populatedTx.data,
-				quantity: tokenIn.isNative ? amountIn : 0n,
+				from: await signer.getAddress() as `0x${string}`,
+				to: this.routerContract!.target as `0x${string}`,
+				data: populatedTx.data as `0x${string}`,
+				value: tokenIn.isNative ? amountIn.toString() : '0',
 				chainId: this.getChainId()
 			});
 
@@ -778,10 +778,10 @@ export class UniswapSwapManager extends SwapManager {
 		}
 
 		return {
-			to: this.routerContract.target as string,
-			data: populatedTx.data,
-			quantity: tokenIn.isNative ? amountIn : 0n,
-			from: params.recipient,
+			to: this.routerContract.target as `0x${string}`,
+			data: populatedTx.data as `0x${string}`,
+			value: tokenIn.isNative ? amountIn.toString() : '0',
+			from: params.recipient as `0x${string}`,
 			chainId: this.getChainId()
 		};
 	}
@@ -806,10 +806,10 @@ export class UniswapSwapManager extends SwapManager {
 		const populatedTx = await this.routerContract.exactInput.populateTransaction(params);
 
 		return {
-			to: this.routerContract!.target as string,
-			data: populatedTx.data,
-			quantity: tokenIn.isNative ? amountIn : 0,
-			from: params.recipient,
+			to: this.routerContract!.target as `0x${string}`,
+			data: populatedTx.data as `0x${string}`,
+			value: tokenIn.isNative ? amountIn.toString() : '0',
+			from: params.recipient as `0x${string}`,
 			chainId: this.getChainId()
 		};
 	}
@@ -1020,14 +1020,13 @@ export class UniswapSwapManager extends SwapManager {
 				}
 
 				const txRequest = {
-					to: feeRecipient,
-					value: toBigInt(feeAmount),
-					from: await signer.getAddress(),
+					to: feeRecipient as `0x${string}`,
+					value: toBigInt(feeAmount).toString(),
+					from: await signer.getAddress() as `0x${string}`,
 					chainId: this.getChainId(),
-					gasLimit: toBigInt(gasLimit),
-					maxPriorityFeePerGas: priorityFee,
-					maxFeePerGas: maxFee,
-					type: 2
+					gasLimit: toBigInt(gasLimit).toString(),
+					maxPriorityFeePerGas: priorityFee.toString(),
+					maxFeePerGas: maxFee.toString()
 				};
 
 				const tx = await this.provider.sendTransaction(txRequest); // sendTransaction and not transfer since it's a native transaction

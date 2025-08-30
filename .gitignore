@@ -25,7 +25,10 @@ packages/yakkl-wallet/docs/build/
 packages/yakkl-wallet/docs/build/
 
 # Closed-source packages (completely ignored)
+packages/yakkl-ai/
+packages/yakkl-ai-python/
 packages/yakkl-ai-private/
+packages/yakkl-staging/
 packages/yakkl-security/
 packages/yakkl-backend/
 packages/yakkl-wallet-private/
