@@ -1,90 +1,176 @@
 /**
  * Security Integration
- * Wallet security utilities from @yakkl/security
+ * Connects the wallet with @yakkl/security package
  */
 
-import { WalletSecurityManager } from '@yakkl/security';
+import { 
+  securityBridge,
+  validateTransaction,
+  encryptForDomain,
+  decryptForDomain,
+  storePrivateKey,
+  getPrivateKey,
+  checkPermission,
+  grantPermission,
+  generateMnemonic,
+  signMessage
+} from './security-bridge';
 
-// Security manager instance
-let securityManager: any = null;
 
 /**
  * Initialize security components
  */
 export async function initializeSecurity(): Promise<void> {
-  // Initialize wallet security manager
-  securityManager = new WalletSecurityManager();
+  if (typeof window === "undefined") return;
   
-  console.log('[Security] Initialized');
+  // The security bridge handles all initialization
+  console.log('[Security] Initializing security integration');
+  
+  // Setup additional wallet-specific security features
+  setupWalletSecurity();
+  
+  console.log('[Security] Security integration initialized');
 }
 
 /**
- * Validate a transaction before sending
+ * Setup wallet-specific security features
  */
-export async function validateTransaction(tx: any): Promise<{ valid: boolean; errors?: string[] }> {
-  // Basic validation
-  const errors: string[] = [];
+function setupWalletSecurity(): void {
+  if (typeof window === "undefined") return;
   
-  if (!tx.to || !/^0x[a-fA-F0-9]{40}$/.test(tx.to)) {
-    errors.push('Invalid recipient address');
+  // Listen for extension installation
+  if (typeof chrome !== 'undefined' && chrome.runtime && (chrome.runtime as any).onInstalled) {
+    (chrome.runtime as any).onInstalled.addListener((details: any) => {
+      if (details.reason === 'install') {
+        // Generate initial security keys on first install
+        handleFirstInstall();
+      }
+    });
   }
   
-  if (!tx.value || Number(tx.value) < 0) {
-    errors.push('Invalid transaction amount');
+  // Monitor for suspicious activity
+  setupActivityMonitoring();
+}
+
+/**
+ * Handle first installation
+ */
+async function handleFirstInstall(): Promise<void> {
+  try {
+    // Generate secure mnemonic for new wallet
+    const mnemonic = await securityBridge.generateMnemonic(128);
+    console.log('[Security] Generated secure mnemonic for new wallet');
+    
+    // Note: In production, this would be shown to user for backup
+    // and then encrypted and stored securely
+  } catch (error) {
+    console.error('[Security] Failed to handle first install:', error);
   }
+}
+
+/**
+ * Setup activity monitoring
+ */
+function setupActivityMonitoring(): void {
+  if (typeof window === "undefined") return;
   
-  return {
-    valid: errors.length === 0,
-    errors: errors.length > 0 ? errors : undefined
+  // Monitor for rapid transaction attempts
+  let transactionCount = 0;
+  let resetTimeout: NodeJS.Timeout;
+  
+  const monitorTransactions = () => {
+    transactionCount++;
+    
+    if (transactionCount > 5) {
+      console.warn('[Security] Rapid transaction attempts detected');
+      // Could trigger additional security checks or warnings
+    }
+    
+    clearTimeout(resetTimeout);
+    resetTimeout = setTimeout(() => {
+      transactionCount = 0;
+    }, 60000); // Reset count after 1 minute
   };
+  
+  // Export monitoring function for use in transaction flow
+  (window as any).__yakklSecurityMonitor = monitorTransactions;
+}
+
+// Re-export security bridge methods for external use
+export {
+  validateTransaction,
+  encryptForDomain,
+  decryptForDomain,
+  storePrivateKey,
+  getPrivateKey,
+  checkPermission,
+  grantPermission,
+  generateMnemonic,
+  signMessage
+};
+
+// Note: Types are defined locally in security-bridge.ts to avoid import issues
+
+/**
+ * Enhanced transaction validation with security checks
+ */
+export async function validateTransactionSecure(tx: any): Promise<{ valid: boolean; errors?: string[]; warnings?: string[] }> {
+  try {
+    // Use security bridge for comprehensive validation
+    const result = await securityBridge.validateTransaction(tx);
+    
+    // Log for monitoring
+    if (typeof window !== 'undefined' && (window as any).__yakklSecurityMonitor) {
+      (window as any).__yakklSecurityMonitor();
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('[Security] Transaction validation failed:', error);
+    return {
+      valid: false,
+      errors: ['Security validation failed']
+    };
+  }
 }
 
 /**
  * Encrypt sensitive data
  */
 export async function encryptData(data: any, password: string): Promise<string> {
-  // Simplified encryption for integration
-  return Buffer.from(JSON.stringify(data)).toString('base64');
+  try {
+    // Use domain-specific encryption for current origin
+    const domain = typeof window !== "undefined" ? window.location.origin : 'yakkl-wallet';
+    return await encryptForDomain(domain, data);
+  } catch (error) {
+    console.error('[Security] Encryption failed:', error);
+    throw error;
+  }
 }
 
 /**
  * Decrypt sensitive data
  */
 export async function decryptData(encryptedData: string, password: string): Promise<any> {
-  // Simplified decryption for integration
-  return JSON.parse(Buffer.from(encryptedData, 'base64').toString());
+  try {
+    // Use domain-specific decryption for current origin
+    const domain = typeof window !== "undefined" ? window.location.origin : 'yakkl-wallet';
+    return await decryptForDomain(domain, encryptedData);
+  } catch (error) {
+    console.error('[Security] Decryption failed:', error);
+    throw error;
+  }
 }
 
 /**
- * Store private key securely
+ * Check permissions for current domain
  */
-export async function storePrivateKey(address: string, privateKey: string, password: string): Promise<void> {
-  // Store encrypted key (simplified)
-  const encrypted = await encryptData({ address, privateKey }, password);
-  // In production, this would use secure storage
-  console.log('[Security] Key stored for:', address);
-}
-
-/**
- * Retrieve private key
- */
-export async function getPrivateKey(address: string, password: string): Promise<string> {
-  // Retrieve and decrypt key (simplified)
-  throw new Error('Not implemented in integration layer');
-}
-
-/**
- * Check permissions for domain
- */
-export async function checkPermissions(domain: string, permission: string): Promise<boolean> {
-  // Check domain permissions (simplified)
-  return domain === 'app.uniswap.org' || domain === 'localhost';
-}
-
-/**
- * Grant permission to domain
- */
-export async function grantPermission(domain: string, permission: string): Promise<void> {
-  // Grant permission (simplified)
-  console.log('[Security] Permission granted:', domain, permission);
+export async function checkPermissions(permission: string): Promise<boolean> {
+  try {
+    const domain = typeof window !== "undefined" ? window.location.origin : 'yakkl-wallet';
+    return await checkPermission(domain, permission);
+  } catch (error) {
+    console.error('[Security] Permission check failed:', error);
+    return false;
+  }
 }

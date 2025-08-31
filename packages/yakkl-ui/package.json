@@ -13,6 +13,58 @@
       "svelte": "./dist/index.js",
       "import": "./dist/index.js"
     },
+    "./src/components/Button.svelte": {
+      "svelte": "./src/components/Button.svelte",
+      "default": "./src/components/Button.svelte"
+    },
+    "./src/components/Modal.svelte": {
+      "svelte": "./src/components/Modal.svelte",
+      "default": "./src/components/Modal.svelte"
+    },
+    "./src/components/Avatar.svelte": {
+      "svelte": "./src/components/Avatar.svelte",
+      "default": "./src/components/Avatar.svelte"
+    },
+    "./src/components/Card.svelte": {
+      "svelte": "./src/components/Card.svelte",
+      "default": "./src/components/Card.svelte"
+    },
+    "./src/components/AddressDisplay.svelte": {
+      "svelte": "./src/components/AddressDisplay.svelte",
+      "default": "./src/components/AddressDisplay.svelte"
+    },
+    "./src/components/TokenBalance.svelte": {
+      "svelte": "./src/components/TokenBalance.svelte",
+      "default": "./src/components/TokenBalance.svelte"
+    },
+    "./src/components/Loading.svelte": {
+      "svelte": "./src/components/Loading.svelte",
+      "default": "./src/components/Loading.svelte"
+    },
+    "./src/components/LoadingSpinner.svelte": {
+      "svelte": "./src/components/LoadingSpinner.svelte",
+      "default": "./src/components/LoadingSpinner.svelte"
+    },
+    "./src/components/Input.svelte": {
+      "svelte": "./src/components/Input.svelte",
+      "default": "./src/components/Input.svelte"
+    },
+    "./src/components/Toast.svelte": {
+      "svelte": "./src/components/Toast.svelte",
+      "default": "./src/components/Toast.svelte"
+    },
+    "./src/components/FailureDialog.svelte": {
+      "svelte": "./src/components/FailureDialog.svelte",
+      "default": "./src/components/FailureDialog.svelte"
+    },
+    "./src/components/ErrorDialog.svelte": {
+      "svelte": "./src/components/ErrorDialog.svelte",
+      "default": "./src/components/ErrorDialog.svelte"
+    },
+    "./src/components/Tooltip.svelte": {
+      "svelte": "./src/components/Tooltip.svelte",
+      "default": "./src/components/Tooltip.svelte"
+    },
     "./components/*": {
       "types": "./dist/components/*.d.ts",
       "svelte": "./dist/components/*.js",
@@ -24,6 +76,7 @@
   },
   "files": [
     "dist",
+    "src",
     "README.md"
   ],
   "scripts": {

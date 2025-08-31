@@ -53,9 +53,11 @@
   
   // Performance monitoring
   let frameCount = 0;
-  let lastTime = performance.now();
+  let lastTime = $state(typeof performance !== 'undefined' ? performance.now() : 0);
   
   function updateFPS() {
+    if (typeof performance === 'undefined' || typeof requestAnimationFrame === 'undefined') return;
+    
     frameCount++;
     const currentTime = performance.now();
     if (currentTime >= lastTime + 1000) {
@@ -69,7 +71,7 @@
   }
   
   function updateMemory() {
-    if ('memory' in performance) {
+    if (typeof performance !== 'undefined' && 'memory' in performance) {
       // @ts-ignore - memory is not in TypeScript types but exists in Chrome
       memory = Math.round(performance.memory.usedJSHeapSize / 1048576);
     }

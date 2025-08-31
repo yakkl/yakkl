@@ -1,6 +1,6 @@
 <!-- ChainSelector.svelte -->
 <script lang="ts">
-  import Modal from './Modal.svelte';
+  import Modal from '@yakkl/ui/src/components/Modal.svelte';
   import { AlertCircle, Loader2, Network, Search } from 'lucide-svelte';
   import { detectBlockchainAddress } from '$lib/common/address-detector';
   import { resolveChainForAddress, type ChainResolutionResult } from '$lib/common/chain-resolver';

@@ -414,7 +414,7 @@ export class SessionManager {
 	 * Start activity tracking
 	 */
 	private startActivityTracking(): void {
-		if (!browserSvelte || this.activityListenersAdded) return;
+		if (!browserSvelte || typeof document === 'undefined' || this.activityListenersAdded) return;
 
 		const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'mousemove'];
 		const handleActivity = () => this.updateActivity();
@@ -431,7 +431,7 @@ export class SessionManager {
 	 * Remove activity listeners
 	 */
 	private removeActivityListeners(): void {
-		if (!browserSvelte || !this.activityListenersAdded) return;
+		if (!browserSvelte || typeof document === 'undefined' || !this.activityListenersAdded) return;
 
 		const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'mousemove'];
 		const handleActivity = () => this.updateActivity();

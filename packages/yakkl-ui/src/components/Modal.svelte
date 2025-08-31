@@ -43,13 +43,13 @@
     }
   }
 
-  $: modalClasses = twMerge(
+  const modalClasses = $derived(twMerge(
     'modal',
     open && 'modal-open',
     className
-  );
+  ));
 
-  $: boxClasses = sizeClasses[size];
+  const boxClasses = $derived(sizeClasses[size]);
 </script>
 
 <div class={modalClasses} onclick={handleBackdropClick}>

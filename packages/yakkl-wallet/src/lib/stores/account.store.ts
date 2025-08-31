@@ -6,7 +6,8 @@ import { getYakklCurrentlySelected, setYakklCurrentlySelectedStorage } from '$li
 import { walletCacheStore } from './wallet-cache.store';
 import { tokenStore } from './token.store';
 import { log } from '$lib/common/logger-wrapper';
-import { ethers } from 'ethers-v6';
+// Removed direct ethers import - use blockchain-bridge utilities
+import { formatEther } from '$lib/utils/blockchain-bridge';
 
 interface AccountState {
   accounts: AccountDisplay[];
@@ -64,7 +65,7 @@ function createAccountStore() {
               balanceInEth = balanceResponse.data;
             } else {
               // Convert from Wei to ETH (using static import)
-              balanceInEth = ethers.formatEther(balanceResponse.data);
+              balanceInEth = formatEther(balanceResponse.data);
             }
 
             currentResponse.data.balance = balanceInEth;
@@ -110,7 +111,7 @@ function createAccountStore() {
               balanceInEth = balanceResponse.data;
             } else {
               // Convert from Wei to ETH (using static import)
-              balanceInEth = ethers.formatEther(balanceResponse.data);
+              balanceInEth = formatEther(balanceResponse.data);
             }
 
             account.balance = balanceInEth;

@@ -1,6 +1,6 @@
 <!-- src/lib/components/EthUnitConverter.svelte -->
 <script lang="ts">
-	import Modal from './Modal.svelte';
+	import Modal from '@yakkl/ui/src/components/Modal.svelte';
 	import { onMount } from 'svelte';
 	import { PriceManager } from '$lib/managers/PriceManager';
 	import { CoinbasePriceProvider } from '$lib/managers/providers/price/coinbase/CoinbasePriceProvider';

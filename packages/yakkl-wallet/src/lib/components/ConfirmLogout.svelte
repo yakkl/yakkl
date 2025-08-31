@@ -1,6 +1,6 @@
 <!-- ConfirmLogout.svelte -->
 <script lang="ts">
-	import Modal from '$lib/components/Modal.svelte';
+	import Modal from '@yakkl/ui/src/components/Modal.svelte';
 
 	interface Props {
 		show: boolean;

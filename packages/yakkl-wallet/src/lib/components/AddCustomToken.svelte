@@ -2,7 +2,7 @@
   import { createForm } from 'svelte-forms-lib';
   import * as yup from 'yup';
   import { onMount } from 'svelte';
-  import Modal from '$lib/components/Modal.svelte';
+  import Modal from '@yakkl/ui/src/components/Modal.svelte';
   import { messageService } from '$lib/services/message.service';
   import { tokenStore } from '$lib/stores/token.store';
   import { chainStore } from '$lib/stores/chain.store';

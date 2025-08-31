@@ -63,7 +63,7 @@ export function setupExtensionErrorHandler() {
 
 // Special handler for CSP-injected script errors
 export function preventCSPScriptInjection() {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
   
   // Create a MutationObserver to watch for script tags
   const observer = new MutationObserver((mutations) => {

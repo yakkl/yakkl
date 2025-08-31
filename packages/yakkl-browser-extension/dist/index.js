@@ -4,19 +4,30 @@ class ExtensionStorage {
   constructor(options = {}) {
     this.prefix = options.prefix || "";
     this.encrypt = options.encrypt || false;
+    this.timeout = 2e3;
     this.area = this.getStorageArea(options.area || "local");
   }
   /**
-   * Get item from storage
+   * Get item from storage with timeout support
    */
-  async get(key) {
+  async get(key, timeoutMs) {
     const fullKey = this.getFullKey(key);
-    const result = await this.area.get(fullKey);
-    if (result[fullKey] === void 0) {
+    const timeout = timeoutMs || this.timeout;
+    try {
+      const storagePromise = this.area.get(fullKey);
+      const timeoutPromise = new Promise(
+        (resolve) => setTimeout(() => resolve(null), timeout)
+      );
+      const result = await Promise.race([storagePromise, timeoutPromise]);
+      if (!result || result[fullKey] === void 0) {
+        return void 0;
+      }
+      const value = result[fullKey];
+      return this.encrypt ? await this.decryptValue(value) : value;
+    } catch (error) {
+      console.error("Error getting object from storage:", error);
       return void 0;
     }
-    const value = result[fullKey];
-    return this.decrypt ? await this.decryptValue(value) : value;
   }
   /**
    * Get multiple items from storage
@@ -176,13 +187,127 @@ class ExtensionStorage {
    * Get browser API
    */
   async getBrowser() {
-    if (typeof browser !== "undefined") {
-      return browser;
+    if (typeof globalThis !== "undefined" && globalThis.browser) {
+      return globalThis.browser;
     }
-    return await import("webextension-polyfill");
+    const webExtension = await import("webextension-polyfill");
+    return webExtension.default || webExtension;
+  }
+  /**
+   * Direct storage access (bypasses prefix)
+   */
+  async getDirect(key, timeoutMs) {
+    const timeout = timeoutMs || this.timeout;
+    try {
+      const storagePromise = this.area.get(key);
+      const timeoutPromise = new Promise(
+        (resolve) => setTimeout(() => resolve(null), timeout)
+      );
+      const result = await Promise.race([storagePromise, timeoutPromise]);
+      if (!result || !(key in result)) {
+        return null;
+      }
+      return result[key];
+    } catch (error) {
+      console.error("Error getting object from storage (direct):", error);
+      return null;
+    }
+  }
+  /**
+   * Set item directly (bypasses prefix)
+   */
+  async setDirect(key, value) {
+    try {
+      await this.area.set({ [key]: value });
+    } catch (error) {
+      console.error("Error setting object in storage (direct):", error);
+      throw error;
+    }
+  }
+  /**
+   * Remove item directly (bypasses prefix)
+   */
+  async removeDirect(key) {
+    try {
+      await this.area.remove(key);
+    } catch (error) {
+      console.error("Error removing object from storage (direct):", error);
+      throw error;
+    }
   }
 }
 function createExtensionStorage(options) {
+  return new ExtensionStorage(options);
+}
+let clientStorage = null;
+let backgroundStorage = null;
+function getStorage(isBackground = false) {
+  if (isBackground) {
+    if (!backgroundStorage) {
+      backgroundStorage = new ExtensionStorage({
+        area: "local",
+        prefix: ""
+      });
+    }
+    return backgroundStorage;
+  } else {
+    if (!clientStorage) {
+      clientStorage = new ExtensionStorage({
+        area: "local",
+        prefix: ""
+      });
+    }
+    return clientStorage;
+  }
+}
+const clearObjectsFromLocalStorage = async (isBackground = false) => {
+  try {
+    const storage = getStorage(isBackground);
+    await storage.clear();
+  } catch (error) {
+    console.error("Error clearing local storage", error);
+    throw error;
+  }
+};
+const getObjectFromLocalStorage = async (key, useBrowserAPI = false, timeoutMs = 1e3) => {
+  try {
+    const storage = getStorage(useBrowserAPI);
+    const result = await storage.getDirect(key, timeoutMs);
+    return result;
+  } catch (error) {
+    console.warn("Error getting object from local storage", error);
+    return null;
+  }
+};
+const setObjectInLocalStorage = async (key, obj, useBrowserAPI = false) => {
+  try {
+    const storage = getStorage(useBrowserAPI);
+    await storage.setDirect(key, obj);
+  } catch (error) {
+    console.warn("Error setting object in local storage", error);
+    throw error;
+  }
+};
+const removeObjectFromLocalStorage = async (keys, useBrowserAPI = false) => {
+  try {
+    const storage = getStorage(useBrowserAPI);
+    await storage.removeDirect(keys);
+  } catch (error) {
+    console.warn("Error removing object from local storage", error);
+    throw error;
+  }
+};
+const getObjectFromLocalStorageDirect = async (key) => {
+  try {
+    const storage = getStorage(false);
+    const result = await storage.getDirect(key);
+    return result;
+  } catch (error) {
+    console.warn("Error getting object from local storage (direct)", error);
+    return null;
+  }
+};
+function createTypedStorage(options) {
   return new ExtensionStorage(options);
 }
 class ExtensionContextManager {
@@ -269,9 +394,12 @@ class ExtensionContextManager {
     }
     const runtime = ((_a = globalThis.chrome) == null ? void 0 : _a.runtime) || ((_b = globalThis.browser) == null ? void 0 : _b.runtime);
     const extension = ((_c = globalThis.chrome) == null ? void 0 : _c.extension) || ((_d = globalThis.browser) == null ? void 0 : _d.extension);
-    if (typeof ServiceWorkerGlobalScope !== "undefined" && self instanceof ServiceWorkerGlobalScope) {
-      this.contextInfo = { type: "background" };
-      return;
+    try {
+      if (typeof self !== "undefined" && self.ServiceWorkerGlobalScope && self instanceof self.ServiceWorkerGlobalScope) {
+        this.contextInfo = { type: "background" };
+        return;
+      }
+    } catch {
     }
     if ((extension == null ? void 0 : extension.getBackgroundPage) && extension.getBackgroundPage() === window) {
       this.contextInfo = { type: "background" };
@@ -416,13 +544,19 @@ export {
   ExtensionStorage,
   ManifestBuilder,
   RequireContext,
+  clearObjectsFromLocalStorage,
   contextManager,
   createExtensionStorage,
   createMessageHandler,
+  createTypedStorage,
   createWalletManifest,
   getBrowserAPI,
   getExtensionId,
   getExtensionVersion,
-  isExtensionContext
+  getObjectFromLocalStorage,
+  getObjectFromLocalStorageDirect,
+  isExtensionContext,
+  removeObjectFromLocalStorage,
+  setObjectInLocalStorage
 };
 //# sourceMappingURL=index.js.map

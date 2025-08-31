@@ -167,15 +167,17 @@
       );
 
       // Download the encrypted kit
-      const blob = new Blob([JSON.stringify(encryptedKit, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `yakkl-emergency-kit-${Date.now()}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      if (typeof document !== 'undefined') {
+        const blob = new Blob([JSON.stringify(encryptedKit, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `yakkl-emergency-kit-${Date.now()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
     } catch (error) {
       log.error('Download emergency kit error:', error as any);
       errorValue = 'Failed to download emergency kit';

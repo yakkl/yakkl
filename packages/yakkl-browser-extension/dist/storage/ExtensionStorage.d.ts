@@ -20,11 +20,12 @@ export declare class ExtensionStorage<T extends Record<string, any> = Record<str
     private area;
     private prefix;
     private encrypt;
+    private timeout;
     constructor(options?: StorageOptions);
     /**
-     * Get item from storage
+     * Get item from storage with timeout support
      */
-    get<K extends keyof T>(key: K): Promise<T[K] | undefined>;
+    get<K extends keyof T>(key: K, timeoutMs?: number): Promise<T[K] | undefined>;
     /**
      * Get multiple items from storage
      */
@@ -81,6 +82,18 @@ export declare class ExtensionStorage<T extends Record<string, any> = Record<str
      * Get browser API
      */
     private getBrowser;
+    /**
+     * Direct storage access (bypasses prefix)
+     */
+    getDirect<V = any>(key: string, timeoutMs?: number): Promise<V | null>;
+    /**
+     * Set item directly (bypasses prefix)
+     */
+    setDirect<V = any>(key: string, value: V): Promise<void>;
+    /**
+     * Remove item directly (bypasses prefix)
+     */
+    removeDirect(key: string): Promise<void>;
 }
 /**
  * Create typed storage instance

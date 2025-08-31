@@ -92,12 +92,14 @@
       const firstElement = focusableElements[0] as HTMLElement;
       const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
 
-      if (e.shiftKey && document.activeElement === firstElement) {
-        // Tabbing backwards from first element
-        handleCloseAll();
-      } else if (!e.shiftKey && document.activeElement === lastElement) {
-        // Tabbing forward from last element
-        handleCloseAll();
+      if (typeof document !== 'undefined') {
+        if (e.shiftKey && document.activeElement === firstElement) {
+          // Tabbing backwards from first element
+          handleCloseAll();
+        } else if (!e.shiftKey && document.activeElement === lastElement) {
+          // Tabbing forward from last element
+          handleCloseAll();
+        }
       }
     }
   }
@@ -105,14 +107,14 @@
   function handleFocusOut(e: FocusEvent) {
     // Check if focus is moving outside the menu
     setTimeout(() => {
-      if (menuElement && !menuElement.contains(document.activeElement)) {
+      if (typeof document !== 'undefined' && menuElement && !menuElement.contains(document.activeElement)) {
         handleCloseAll();
       }
     }, 0);
   }
 
   function positionMenu() {
-    if (!open || !menuElement || !anchorElement) return;
+    if (!open || !menuElement || !anchorElement || typeof window === 'undefined') return;
 
     // Get the anchor's bounding rect (in viewport coordinates for fixed positioning)
     const anchorRect = anchorElement.getBoundingClientRect();
@@ -179,10 +181,14 @@
   });
 
   onMount(() => {
-    document.addEventListener('click', handleClickOutside, true);
-    document.addEventListener('keydown', handleKeyDown, true);
-    window.addEventListener('resize', positionMenu);
-    window.addEventListener('scroll', positionMenu, true);
+    if (typeof document !== 'undefined') {
+      document.addEventListener('click', handleClickOutside, true);
+      document.addEventListener('keydown', handleKeyDown, true);
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', positionMenu);
+      window.addEventListener('scroll', positionMenu, true);
+    }
 
     // Focus the first focusable element when menu opens
     if (open && menuElement) {
@@ -196,10 +202,14 @@
   });
 
   onDestroy(() => {
-    document.removeEventListener('click', handleClickOutside, true);
-    document.removeEventListener('keydown', handleKeyDown, true);
-    window.removeEventListener('resize', positionMenu);
-    window.removeEventListener('scroll', positionMenu, true);
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('click', handleClickOutside, true);
+      document.removeEventListener('keydown', handleKeyDown, true);
+    }
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('resize', positionMenu);
+      window.removeEventListener('scroll', positionMenu, true);
+    }
   });
 
   // Filter out hidden items

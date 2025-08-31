@@ -3,7 +3,7 @@
   import { uiStore } from '$lib/stores/ui.store';
   import { goto } from '$app/navigation';
   import { displayTokens } from '$lib/stores/token.store';
-  import Modal from './Modal.svelte';
+  import Modal from '@yakkl/ui/src/components/Modal.svelte';
   import ProtectedValue from './ProtectedValue.svelte';
   // import EditControls from './EditControls.svelte'; // TODO: Component missing, needs to be created
   import type { AccountDisplay } from '$lib/types';

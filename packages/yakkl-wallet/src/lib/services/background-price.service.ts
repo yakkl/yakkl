@@ -16,7 +16,7 @@ import { BigNumber } from '$lib/common/bignumber';
 // EthereumBigNumber removed - using generic BigNumber
 import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
 import Decimal from 'decimal.js';
-import type { TokenCache } from '$lib/stores/wallet-cache.store';
+import type { TokenCache } from '$lib/types';
 import { safeUpdateToken, fixZeroValues, isValidTokenData, safeMergeTokens } from '$lib/utilities/cache-protection';
 
 export class BackgroundPriceService {

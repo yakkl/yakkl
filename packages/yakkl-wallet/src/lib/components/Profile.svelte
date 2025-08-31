@@ -2,7 +2,7 @@
 <script lang="ts">
 	import { createForm } from 'svelte-forms-lib';
 	import * as yup from 'yup';
-	import Modal from './Modal.svelte';
+	import Modal from '@yakkl/ui/src/components/Modal.svelte';
 	import Avatar from './Avatar.svelte';
 	import ErrorNoAction from './ErrorNoAction.svelte';
 	import { getProfile, setProfileStorage, yakklMiscStore } from '$lib/common/stores';

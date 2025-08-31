@@ -214,7 +214,9 @@
   }
 
   function handleTheme() {
-    document.documentElement.classList.toggle('dark');
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.toggle('dark');
+    }
   }
 
   // Service cleanup function

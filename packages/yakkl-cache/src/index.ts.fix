@@ -1,0 +1,4 @@
+// Factory function for quick setup
+export function createCache(config?: Partial<CacheConfig>): CacheManager {
+  return new CacheManager(config);
+}

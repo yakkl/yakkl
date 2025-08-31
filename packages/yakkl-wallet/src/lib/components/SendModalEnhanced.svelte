@@ -7,7 +7,7 @@
   import GasFeeSelector from './GasFeeSelector.svelte';
   import PincodeVerify from './PincodeVerify.svelte';
   import Contacts from './Contacts.svelte';
-  import Modal from './Modal.svelte';
+  import Modal from '@yakkl/ui/src/components/Modal.svelte';
   import { uiStore } from '../stores/ui.store';
   import { notificationService } from '../services/notification.service';
   import { messagingService } from '$lib/common/messaging';

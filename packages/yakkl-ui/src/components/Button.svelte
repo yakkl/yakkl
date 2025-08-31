@@ -45,14 +45,14 @@
     lg: 'btn-lg'
   };
 
-  $: computedClasses = twMerge(
+  const computedClasses = $derived(twMerge(
     baseClasses,
     variantClasses[variant],
     sizeClasses[size],
     fullWidth && 'w-full',
     loading && 'loading',
     className
-  );
+  ));
 </script>
 
 <button

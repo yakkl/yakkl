@@ -6,11 +6,12 @@ import { currentAccount as currentAccountStore, accountStore } from '$lib/stores
 import { currentChain as currentChainStore, chainStore } from '$lib/stores';
 import { TokenService } from './token.service';
 import { TransactionService } from './transaction.service';
-import type { TokenCache } from '$lib/stores/wallet-cache.store';
+import type { TokenCache } from '$lib/types';
 import { updateTokenPrices } from '$lib/common/tokenPriceManager';
 import { getInstances } from '$lib/common';
 import { log } from '$lib/common/logger-wrapper';
-import { ethers } from 'ethers-v6';
+// Removed direct ethers import - use blockchain-bridge instead
+import { formatUnits, formatEther } from '$lib/utils/blockchain-bridge';
 import { getYakklCombinedTokens, getYakklTokenCache } from '$lib/common/stores';
 import { loadDefaultTokens } from '$lib/managers/tokens/loadDefaultTokens';
 import { BigNumberishUtils } from '../common/BigNumberishUtils';
@@ -184,7 +185,7 @@ export class CacheSyncManager {
 						token.isNative === true;
 
 					// Balance is already formatted in token units from the API
-					const balanceStr = BigNumberishUtils.toString(token.balance);
+					const balanceStr = token.balance;
 
 					// CRITICAL DEBUG: Log each token conversion
 					console.log(`[CacheSync] Converting token ${token.symbol}:`, {
@@ -237,7 +238,7 @@ export class CacheSyncManager {
 						const provider = instances[1].getProvider();
 						try {
 							const balance = await provider.getBalance(address);
-							const balanceFormatted = ethers.formatUnits(balance, 18);
+							const balanceFormatted = formatUnits(balance.toString(), 18);
 
 							// Get current ETH price
 							const tokenCacheEntries = await getYakklTokenCache();
@@ -259,7 +260,8 @@ export class CacheSyncManager {
 								priceLastUpdated: new Date(),
 								value: DecimalMath.of(parseFloat(balanceFormatted))
 									.mul(BigNumberishUtils.toNumber(ethPrice))
-									.toNumber(),
+									.toNumber()
+									.toString(),
 								icon: '/images/eth.svg',
 								isNative: true,
 								chainId
@@ -279,7 +281,7 @@ export class CacheSyncManager {
 								balanceLastUpdated: new Date(),
 								price: 3579.97,
 								priceLastUpdated: new Date(),
-								value: 0,
+								value: '0',
 								icon: '/images/eth.svg',
 								isNative: true,
 								chainId
@@ -296,7 +298,7 @@ export class CacheSyncManager {
 							const provider = instances[1].getProvider();
 							try {
 								const balance = await provider.getBalance(address);
-								const balanceFormatted = ethers.formatUnits(balance, 18);
+								const balanceFormatted = formatUnits(balance.toString(), 18);
 
 								// Update the native token with fresh balance
 								tokenCache[nativeTokenIndex] = {
@@ -306,6 +308,7 @@ export class CacheSyncManager {
 									value: DecimalMath.of(parseFloat(balanceFormatted))
 										.mul(BigNumberishUtils.toNumber(tokenCache[nativeTokenIndex].price || 0))
 										.toNumber()
+										.toString()
 								};
 
 								log.info(
@@ -457,7 +460,7 @@ export class CacheSyncManager {
 			// Get native token balance directly
 			console.log(`[CacheSync] Getting native balance for ${address}`);
 			const nativeBalance = await provider.getBalance(address);
-			const nativeBalanceFormatted = ethers.formatUnits(nativeBalance, 18);
+			const nativeBalanceFormatted = formatUnits(nativeBalance.toString(), 18);
 			console.log(`[CacheSync] Native balance: ${nativeBalanceFormatted} ETH`);
 
 			// Get ERC20 tokens directly from blockchain
@@ -530,7 +533,7 @@ export class CacheSyncManager {
 			// Test ETH balance first to verify provider connectivity
 			try {
 				const ethBalance = await provider.getBalance(address);
-				console.log(`[CacheSync] ETH balance check: ${ethers.formatEther(ethBalance)} ETH`);
+				console.log(`[CacheSync] ETH balance check: ${formatEther(ethBalance.toString())} ETH`);
 			} catch (ethError) {
 				console.error('[CacheSync] ETH balance check failed - provider may be disconnected:', ethError);
 				return [];
@@ -557,19 +560,25 @@ export class CacheSyncManager {
 				try {
 					console.log(`[CacheSync] Checking balance for ${tokenData.symbol} at ${tokenData.address}`);
 
-					// Direct ERC20 contract call using minimal ABI
-					const contract = new ethers.Contract(tokenData.address, [
-						'function balanceOf(address) view returns (uint256)',
-						'function decimals() view returns (uint8)',
-						'function symbol() view returns (string)'
-					], provider);
+					// Use message passing instead of direct contract call
+					// Send request to background service for ERC20 token data
+					const { sendMessage } = await import('$lib/messaging/client-messaging');
+					const tokenResponse = await sendMessage({
+						type: 'GET_TOKEN_BALANCE',
+						data: {
+							address,
+							tokenAddress: tokenData.address,
+							chainId
+						}
+					});
 
-					// Get balance and verify contract is valid
-					const [balance, contractDecimals, contractSymbol] = await Promise.all([
-						contract.balanceOf(address),
-						contract.decimals().catch(() => tokenData.decimals || 18),
-						contract.symbol().catch(() => tokenData.symbol)
-					]);
+					if (!tokenResponse?.success) {
+						throw new Error(tokenResponse?.error || 'Failed to get token balance');
+					}
+
+					const balance = BigInt(tokenResponse.data.balance || '0');
+					const contractDecimals = tokenResponse.data.decimals || tokenData.decimals || 18;
+					const contractSymbol = tokenResponse.data.symbol || tokenData.symbol;
 
 					console.log(`[CacheSync] ${tokenData.symbol} balance result:`, {
 						balance: balance.toString(),
@@ -581,7 +590,7 @@ export class CacheSyncManager {
 					const decimals = contractDecimals || tokenData.decimals || 18;
 
 					// Include ALL tokens, even zero balance ones for debugging
-					const balanceFormatted = ethers.formatUnits(balance, decimals);
+					const balanceFormatted = formatUnits(balance.toString(), decimals);
 					const tokenEntry = {
 						address: tokenData.address,
 						symbol: tokenData.symbol,
@@ -633,17 +642,27 @@ export class CacheSyncManager {
 				}
 
 				try {
-					// Direct ERC20 contract call using minimal ABI
-					const contract = new ethers.Contract(tokenData.address, [
-						'function balanceOf(address) view returns (uint256)'
-					], provider);
+					// Use message passing instead of direct contract call
+					const { sendMessage } = await import('$lib/messaging/client-messaging');
+					const tokenResponse = await sendMessage({
+						type: 'GET_TOKEN_BALANCE',
+						data: {
+							address,
+							tokenAddress: tokenData.address,
+							chainId
+						}
+					});
 
-					const balance = await contract.balanceOf(address);
+					if (!tokenResponse?.success) {
+						throw new Error(tokenResponse?.error || 'Failed to get token balance');
+					}
+
+					const balance = BigInt(tokenResponse.data.balance || '0');
 					const decimals = tokenData.decimals || 18;
 
 					// Only include tokens with non-zero balance
 					if (balance && balance > 0n) {
-						const balanceFormatted = ethers.formatUnits(balance, decimals);
+						const balanceFormatted = formatUnits(balance.toString(), decimals);
 						tokenBalances.push({
 							address: tokenData.address,
 							symbol: tokenData.symbol,
@@ -795,7 +814,8 @@ export class CacheSyncManager {
 		]);
 
 		// After syncing, ensure rollups are calculated
-		await walletCacheStore.updateAccountRollup(account.address);
+		// Note: updateAccountRollup is a no-op in v2 (handled by derived stores)
+		walletCacheStore.updateAccountRollup(chain.chainId, account.address, {});
 	}
 
 	// Start auto-sync timers
@@ -955,7 +975,10 @@ export class CacheSyncManager {
 		try {
 			console.debug('[CacheSync] Syncing rollups for account:', address);
 
-			await walletCacheStore.updateAccountRollup(address);
+			const chain = get(currentChainStore);
+			if (chain) {
+				walletCacheStore.updateAccountRollup(chain.chainId, address, {});
+			}
 
 			console.debug('[CacheSync] Account rollups synced:', address);
 		} catch (error) {
@@ -971,7 +994,7 @@ export class CacheSyncManager {
 		try {
 			console.debug('[CacheSync] Syncing rollups for chain:', chainId);
 
-			await walletCacheStore.updateChainRollup(chainId);
+			walletCacheStore.updateChainRollup(chainId, {});
 
 			console.debug('[CacheSync] Chain rollups synced:', chainId);
 		} catch (error) {
@@ -1094,7 +1117,7 @@ export class CacheSyncManager {
 					const provider = instances[1].getProvider();
 					try {
 						const balance = await provider.getBalance(address);
-						const balanceFormatted = ethers.formatUnits(balance, 18);
+						const balanceFormatted = formatUnits(balance.toString(), 18);
 						balanceData['0x0000000000000000000000000000000000000000'] = balanceFormatted;
 					} catch (error) {
 						console.warn(`[CacheSync] Failed to fetch native balance for ${address}`, error);

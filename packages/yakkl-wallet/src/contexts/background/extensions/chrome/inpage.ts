@@ -1181,7 +1181,10 @@ try {
 try {
     // Install guards and start the initialization process
     // Error guards already installed at the top of the file
-    initializeInpageScript();
+    // Only initialize in browser environment (not during SSR)
+    if (typeof document !== 'undefined' && typeof window !== 'undefined') {
+        initializeInpageScript();
+    }
 } catch (e: any) {
     log.debug(`Failed to initialize inpage script:`, false, e);
 }

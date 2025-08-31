@@ -4,7 +4,7 @@
 	import QR from './QR.svelte';
 	import { YAKKL_ZERO_ADDRESS } from '$lib/common/constants';
 	import { yakklCurrentlySelectedStore } from '$lib/common/stores';
-	import Modal from './Modal.svelte';
+	import Modal from '@yakkl/ui/src/components/Modal.svelte';
 	import Copy from './Copy.svelte';
 
 	interface Props {

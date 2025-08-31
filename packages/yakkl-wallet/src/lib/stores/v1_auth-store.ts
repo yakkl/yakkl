@@ -77,7 +77,7 @@ function createAuthStore() {
 
 	// Activity tracker - only add listeners once
 	function addActivityListeners() {
-		if (browser && !activityListenersAdded) {
+		if (browser && !activityListenersAdded && typeof document !== 'undefined') {
 			const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'mousemove'];
 
 			const updateActivity = () => {

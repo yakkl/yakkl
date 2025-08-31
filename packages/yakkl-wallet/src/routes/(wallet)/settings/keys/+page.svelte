@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import KeyManagement from '$lib/components/pro/KeyManagement.svelte';
-  import Button from '$lib/components/Button.svelte';
+  import Button from '@yakkl/ui/src/components/Button.svelte';
   import Icon from '$lib/components/Icon.svelte';
   
   async function handleClose() {

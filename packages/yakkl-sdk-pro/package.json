@@ -1,0 +1,52 @@
+{
+  "name": "@yakkl/sdk-pro",
+  "version": "0.1.0",
+  "description": "Advanced blockchain SDK features - Pro version",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "tsc --watch",
+    "build": "tsc",
+    "clean": "rimraf dist",
+    "test": "vitest",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@yakkl/sdk": "workspace:*",
+    "@yakkl/blockchain": "workspace:*",
+    "@yakkl/core": "workspace:*",
+    "@yakkl/auth": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "eslint": "^8.56.0",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  },
+  "keywords": [
+    "yakkl",
+    "sdk",
+    "pro",
+    "blockchain",
+    "defi",
+    "trading",
+    "analytics"
+  ],
+  "author": "YAKKL",
+  "license": "Commercial"
+}

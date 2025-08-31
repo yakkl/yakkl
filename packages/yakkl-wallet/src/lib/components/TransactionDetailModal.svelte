@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { TransactionDisplay } from '../types';
   import ProtectedValue from './ProtectedValue.svelte';
-  import Modal from './Modal.svelte';
+  import Modal from '@yakkl/ui/src/components/Modal.svelte';
   import { currentChain } from '../stores/chain.store';
   import { currentAccount } from '../stores/account.store';
   import { displayTokens } from '../stores/token.store';

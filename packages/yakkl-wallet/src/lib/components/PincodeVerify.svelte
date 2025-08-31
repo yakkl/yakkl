@@ -3,7 +3,7 @@
 	import { getProfile, yakklMiscStore } from '$lib/common/stores';
 	import { decryptData, digestMessage, isEncryptedData, isProfileData } from '$lib/common';
 	import type { EncryptedData, ProfileData, Profile } from '$lib/common';
-	import Modal from './Modal.svelte';
+	import Modal from '@yakkl/ui/src/components/Modal.svelte';
 	import { log } from '$lib/managers/Logger';
 
 	interface Props {

@@ -1,6 +1,6 @@
 <!-- TransactionListModal.svelte - Modal to show all transactions for an account -->
 <script lang="ts">
-  import Modal from './Modal.svelte';
+  import Modal from '@yakkl/ui/src/components/Modal.svelte';
   import ProtectedValue from './ProtectedValue.svelte';
   import TransactionDetailModal from './TransactionDetailModal.svelte';
   import type { TransactionDisplay } from '$lib/types';

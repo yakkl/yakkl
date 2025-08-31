@@ -3,7 +3,7 @@
 	import type { YakklSettings } from '$lib/common/interfaces';
 	import { log } from '$lib/managers/Logger';
 	import Icon from './Icon.svelte';
-	import Button from './Button.svelte';
+	import Button from '@yakkl/ui/src/components/Button.svelte';
 
 	let settings: YakklSettings | null = $state(null);
 	let isSaving = $state(false);

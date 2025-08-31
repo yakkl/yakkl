@@ -3,7 +3,7 @@
   import { planStore, currentPlan, isOnTrial } from '../stores/plan.store';
   import { currentAccount } from '../stores/account.store';
   import { uiStore } from '../stores/ui.store';
-  import { PlanType } from '../config/features';
+	import { PlanType } from '$lib/common/types';
 
   let {
     show = $bindable(false),

@@ -34,12 +34,15 @@ export default defineConfig(({ mode }) => {
 			sveltekit(),
 			isoImport(),
 			nodePolyfills({
-				protocolImports: true,
+				// protocolImports: true,
+        protocolImports: false,
 				include: ['buffer', 'process', 'util', 'stream', 'events', 'path', 'crypto'],
 				exclude: ['fs', 'net'],
 				globals: {
-					Buffer: true,
-					process: true
+					// Buffer: true,
+          Buffer: false,
+					process: true,
+					global: true
 				}
 			}),
 			viteStaticCopy({
@@ -65,11 +68,13 @@ export default defineConfig(({ mode }) => {
 				$contexts: path.resolve('./src/contexts'),
 				// Let webextension-polyfill resolve normally
 				// The mock plugin will handle SSR, and the unified loader handles client
-				stream: 'stream-browserify',
-				net: 'net-browserify',
+
+				// stream: 'stream-browserify',
+				// net: 'net-browserify',
 				fs: path.resolve(__dirname, 'empty.js'),
-				path: 'path-browserify',
-				crypto: 'crypto-browserify',
+				// path: 'path-browserify',
+				// crypto: 'crypto-browserify',
+
 				'crypto-ssr': path.resolve(__dirname, 'src/lib/crypto-ssr-mock.js'),
 				ethersv6: path.resolve('node_modules/ethers-v6'),
 				ethers: path.resolve('node_modules/ethers'),
@@ -83,17 +88,20 @@ export default defineConfig(({ mode }) => {
 			__PROD__: isProd,
 			__LOG_LEVEL__: isProd ? '"WARN"' : '"DEBUG"',
 			ENVIRONMENT: JSON.stringify(mode), // Add this for generic environment checking
-			'process.env': {
-				DEV_MODE: JSON.stringify(process.env.NODE_ENV !== 'production'), // This is used to determine if we are in development mode to flush out non-production code
-				NODE_ENV: JSON.stringify(process.env.NODE_ENV || 'development')
-			},
+			// 'process.env': {
+				// DEV_MODE: JSON.stringify(process.env.NODE_ENV !== 'production'), // This is used to determine if we are in development mode to flush out non-production code
+				// NODE_ENV: JSON.stringify(process.env.NODE_ENV || 'development')
+			// },
+      'process.env.DEV_MODE': JSON.stringify(process.env.NODE_ENV !== 'production'),
+      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
 			__version__: JSON.stringify(process.env.npm_package_version),
-			'process.env.DEV_MODE': process.env.DEV_MODE || false,
+			// 'process.env.DEV_MODE': process.env.DEV_MODE || false,
 			'process.env.BROWSER': JSON.stringify(false)
 		},
 		optimizeDeps: {
 			include: ['dexie', 'webextension-polyfill', '@yakkl/core'],
 			exclude: [
+				'@yakkl/cache',
 				'ethers',
 				'**/*.tmp/**/*', // Exclude .tmp directories - the .tmp items here do not seem to be working as expected. I will keep it and handle it another way.
 				'**/*.tmp', // Exclude .tmp files
@@ -112,8 +120,7 @@ export default defineConfig(({ mode }) => {
 			}
 		},
 		ssr: {
-			noExternal: [
-				'@yakkl/core','@walletconnect/web3wallet', '@walletconnect/core'],
+			noExternal: ['@yakkl/core', '@walletconnect/web3wallet', '@walletconnect/core'],
 			external: ['webextension-polyfill', 'crypto-browserify']
 		},
 		server: {
@@ -143,7 +150,6 @@ export default defineConfig(({ mode }) => {
 			},
 			rollupOptions: {
 				// Don't externalize webextension-polyfill, let it be bundled
-			// external: ['webextension-polyfill'],
 				plugins: [
 					// Prevent webextension-polyfill from being loaded during build
 					// {
