@@ -63,8 +63,7 @@ export class YakklProvider extends EventEmitter<ProviderEvents> {
         version: '1.0.0',
         embedded: true,
         enableMods: this.config.enableMods,
-        logLevel: this.config.logLevel || 'warn',
-        provider: true
+        logLevel: this.config.logLevel || 'warn'
       });
 
       // Setup event listeners
@@ -103,7 +102,11 @@ export class YakklProvider extends EventEmitter<ProviderEvents> {
 
       // Get current network
       const currentNetwork = await this.engine.networks.getCurrent();
-      this._chainId = `0x${currentNetwork.chainId.toString(16)}`;
+      if (currentNetwork) {
+        this._chainId = `0x${currentNetwork.chainId.toString(16)}`;
+      } else {
+        this._chainId = '0x1'; // Default to mainnet
+      }
 
       this._connected = true;
       this.emit('connect', this._accounts);
@@ -151,17 +154,18 @@ export class YakklProvider extends EventEmitter<ProviderEvents> {
 
       case 'eth_getBalance':
         if (!params[0]) throw new Error('Address required');
-        return await this.engine.accounts.getBalance(params[0]);
+        const balance = await this.engine.getBalance(params[0]);
+        return balance.native;
 
       case 'eth_sendTransaction':
         if (!params[0]) throw new Error('Transaction object required');
-        const transaction = await this.engine.transactions.send(params[0]);
-        return transaction.hash;
+        const txHash = await this.engine.transactions.send(params[0]);
+        return txHash;
 
       case 'eth_signTransaction':
         if (!params[0]) throw new Error('Transaction object required');
         const signedTx = await this.engine.transactions.sign(params[0]);
-        return signedTx.serialized;
+        return signedTx;
 
       case 'personal_sign':
       case 'eth_sign':
@@ -231,7 +235,7 @@ export class YakklProvider extends EventEmitter<ProviderEvents> {
     const numericChainId = parseInt(chainId, 16);
     
     try {
-      await this.engine.networks.switchTo(numericChainId.toString());
+      await this.engine.networks.switch(numericChainId.toString());
       this._chainId = chainId;
       this.emit('chainChanged', chainId);
     } catch (error) {
@@ -245,13 +249,23 @@ export class YakklProvider extends EventEmitter<ProviderEvents> {
     const { chainId, chainName, rpcUrls, nativeCurrency, blockExplorerUrls } = chainParams;
     
     try {
+      const networkChainId = parseInt(chainId, 16);
       await this.engine.networks.add({
-        id: chainName.toLowerCase().replace(/\s+/g, '-'),
-        chainId: parseInt(chainId, 16),
+        chainId: networkChainId,
         name: chainName,
         rpcUrl: rpcUrls[0],
-        currency: nativeCurrency,
-        explorerUrl: blockExplorerUrls?.[0]
+        symbol: nativeCurrency?.symbol || 'ETH',
+        blockExplorerUrl: blockExplorerUrls?.[0] || '',
+        isTestnet: false,
+        isMainnet: networkChainId === 1,
+        gasToken: {
+          address: '0x0000000000000000000000000000000000000000' as `0x${string}`,
+          symbol: nativeCurrency?.symbol || 'ETH',
+          decimals: nativeCurrency?.decimals || 18,
+          name: nativeCurrency?.name || chainName,
+          chainId: networkChainId
+        },
+        supportedFeatures: ['eip1559', 'contracts', 'tokens', 'nft'] as any[]
       });
     } catch (error) {
       throw new Error(`Failed to add chain: ${error}`);
@@ -271,10 +285,10 @@ export class YakklProvider extends EventEmitter<ProviderEvents> {
       this.emit('chainChanged', this._chainId);
     });
 
-    this.engine.on('transaction:sent', (transaction) => {
+    this.engine.on('transaction:signed', (transaction) => {
       this.emit('message', {
-        type: 'transaction:sent',
-        data: { hash: transaction.hash }
+        type: 'transaction:signed',
+        data: transaction
       });
     });
   }

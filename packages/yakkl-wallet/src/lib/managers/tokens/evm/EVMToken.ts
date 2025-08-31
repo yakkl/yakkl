@@ -60,7 +60,7 @@ export class EVMToken extends Token {
 		const gasEstimate = await contract.estimateGas('transfer', toAddress, amount);
 		const tx = await contract.populateTransaction('transfer', toAddress, amount);
 		if (!tx) throw new Error('Invalid transaction');
-		tx.gasLimit = gasEstimate;
+		tx.gasLimit = gasEstimate.toString();
 
 		return await this.blockchain.sendTransaction(tx);
 	}

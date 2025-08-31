@@ -253,8 +253,11 @@ export function parseJsonOrObject<T>(value: any): T | null {
 	return null;
 }
 
+// Local type for key-value result in resolveProperties
+type KeyValueResult = { key: string; value: any };
+
 export async function resolveProperties<T>(object: Readonly<Deferrable<T>>): Promise<T> {
-	const promises: Array<Promise<Result>> = Object.keys(object).map(async (key) => {
+	const promises: Array<Promise<KeyValueResult>> = Object.keys(object).map(async (key) => {
 		const value = object[<keyof Deferrable<T>>key];
 		const v = await Promise.resolve(value);
 		return { key: key, value: v };
@@ -347,7 +350,7 @@ export function isHexPrefixed(str: string): boolean {
  *  bytes of data (e.g. ``0x1234`` is 2 bytes).
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function isHexString(value: any, length?: number | boolean): value is `0x${string}` {
+export function isHexStringWithLength(value: any, length?: number | boolean): value is `0x${string}` {
 	if (typeof value !== 'string' || !value.match(/^0x[0-9A-Fa-f]*$/)) {
 		return false;
 	}
@@ -361,6 +364,9 @@ export function isHexString(value: any, length?: number | boolean): value is `0x
 
 	return true;
 }
+
+// Re-export isHexString from @yakkl/core for compatibility
+export { isHexString } from '@yakkl/core';
 
 function _getBytes(value: BytesLike, name?: string, copy?: boolean): Uint8Array {
 	try {
@@ -422,7 +428,7 @@ export function getBytesCopy(value: BytesLike, name?: string): Uint8Array {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function isBytesLike(value: any): value is BytesLike {
-	return isHexString(value, true) || value instanceof Uint8Array;
+	return isHexStringWithLength(value, true) || value instanceof Uint8Array;
 }
 
 const HexCharacters: string = '0123456789abcdef';
@@ -453,7 +459,7 @@ export function concat(datas: ReadonlyArray<BytesLike>): string {
  *  Returns the length of %%data%%, in bytes.
  */
 export function dataLength(data: BytesLike): number {
-	if (isHexString(data, true)) {
+	if (isHexStringWithLength(data, true)) {
 		return (data.length - 2) / 2;
 	}
 	return getBytes(data).length;

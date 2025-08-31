@@ -1,4 +1,33 @@
-// IMPORTANT NOTE: Edit 'constants.mustache' since it is the template for 'constants.ts'
+/**
+ * Constants - Re-exports from @yakkl/core plus wallet-specific constants
+ * 
+ * MIGRATION NOTE: Generic constants have been moved to @yakkl/core
+ * This file now re-exports from @yakkl/core and adds wallet-specific constants
+ * 
+ * IMPORTANT NOTE: Edit 'constants.mustache' since it is the template for 'constants.ts'
+ */
+
+// Re-export generic constants from @yakkl/core
+export {
+	ETH_BASE_EOA_GAS_UNITS,
+	ETH_BASE_SCA_GAS_UNITS,
+	ETH_BASE_SWAP_GAS_UNITS,
+	ETH_BASE_FORCANCEL_GAS_UNITS,
+	GAS_PER_BLOB,
+	ZERO_ADDRESS as YAKKL_ZERO_ADDRESS,
+	WETH_ADDRESS_MAINNET as WETH_ADDRESS,
+	BASIS_POINTS_DIVISOR as YAKKL_FEE_BASIS_POINTS_DIVISOR,
+	DEFAULT_DERIVED_PATH_ETH,
+	EVMDenominations,
+	TokenStandard,
+	TransactionType,
+	DEFAULT_MAX_RETRIES as DEV_MAX_RETRIES,
+	DEFAULT_BASE_DELAY as DEV_BASE_DELAY,
+	STORAGE_VERSION as CURRENT_STORAGE_VERSION,
+	RPCErrorCode,
+	PATTERNS,
+	CACHE_TTL
+} from '@yakkl/core';
 
 // Global shared constants. Network specifics are in the network/<whatever>/contants.js file
 export const VERSION = "2.0.2";
@@ -31,7 +60,6 @@ export const EARLY_ADOPTER_DEADLINES = [
 export const YAKKL_PRO_ANNUAL_FEE = 144;
 
 export const DEFAULT_PERSONA = "default";
-export const GAS_PER_BLOB = 131072; // 2**17
 
 export const TIMELINES = ['1h', '24h', '7d', '30d'] as const;
 export const NUM_OF_SPLASH_IMAGES = 3;
@@ -56,25 +84,15 @@ export const TIMER_GAS_PRICE_CHECK = 'gas_checkGasPrices';
 
 export const TIMEOUT_COPY_TO_CLIPBOARD = 20000; //milliseconds - redacts the clipboard after this time
 
-// Retry and backoff constants
-export const DEV_MAX_RETRIES = 5;
-export const DEV_BASE_DELAY = 1000; //milliseconds
-
-export const ETH_BASE_EOA_GAS_UNITS = 21000; // Base amount of gas units it takes for a EOA transaction
-export const ETH_BASE_SCA_GAS_UNITS = 45000; // Base amount of gas units it takes for a Smart Contract transaction
-export const ETH_BASE_SWAP_GAS_UNITS = 500000n; // Base amount of gas units it takes for a Uniswap transaction
-export const ETH_BASE_FORCANCEL_GAS_UNITS = ETH_BASE_EOA_GAS_UNITS * 3;
-
-export const WETH_ADDRESS = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'; // WETH address on Ethereum mainnet
+// Wallet-specific gas and fee constants
 
 export const YAKKL_GAS_ESTIMATE_MIN_USD = 3.50;
 export const YAKKL_GAS_ESTIMATE_MULTIHOP_SWAP_DEFAULT = 3750000;
 export const YAKKL_GAS_ESTIMATE_MULTIPLIER_BASIS_POINTS = 30000n; // 300%
 export const YAKKL_FEE_BASIS_POINTS = 42.25; //875; // 0.875%
-export const YAKKL_FEE_BASIS_POINTS_DIVISOR = 10_000;
 export const YAKKL_FEE_ACCEPTABLE_TOKENS = ["ETH", "WETH", "YAKKL", "USDC", "USDT", "DAI", "WBTC"] // Tokens that are acceptable for fee payment
 
-export const YAKKL_ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+// Note: YAKKL_ZERO_ADDRESS is imported from @yakkl/core as ZERO_ADDRESS
 export const YAKKL_ZERO_ACCOUNT_NAME = "YAKKL - Zero Account - YAKKL";
 export const YAKKL_ZERO_ACCOUNT_TYPE = "NA"; // Not applicable - default value
 
@@ -95,11 +113,11 @@ export const DEFAULT_EXT_HEIGHT = 926; //600;
 export const DEFAULT_TITLE = "YAKKL® Smart Wallet";
 export const DEFAULT_UPGRADE_LABEL = "Pro - ";
 
-export const DEFAULT_DERIVED_PATH_ETH = "m/44'/60'/"; // '0'/0/0' - First of these three represents the account. Last of these three represents index and gets dynamically created. Middle one of these three is always '0'
+// Note: DEFAULT_DERIVED_PATH_ETH is imported from @yakkl/core
 
 export const DEFAULT_YAKKL_ASSETS = "yakklAssets"; // Not stored in local storage but static json.
 
-export const CURRENT_STORAGE_VERSION = 1; // Increment this value when the storage format changes for migration purposes. Secure storage keys are versioned.
+// Note: CURRENT_STORAGE_VERSION is imported from @yakkl/core as STORAGE_VERSION
 export const STORAGE_YAKKL_PREFERENCES = "preferences";
 export const STORAGE_YAKKL_SETTINGS = "yakklSettings";
 export const STORAGE_YAKKL_SECURITY = "yakklSecurity";
@@ -185,11 +203,7 @@ export const PATH_ETHEREUM_TRANSACTIONS_SELL = "/accounts/ethereum/transactions/
 export const PATH_ETHEREUM_TRANSACTIONS_STAKE = "/accounts/ethereum/transactions/stake";
 export const PATH_ETHEREUM_TRANSACTIONS_BUY = "/accounts/ethereum/transactions/buy";
 
-export enum EVMDenominations {
-  ETH = 'ETH',
-  GWEI = 'GWEI',
-  WEI = 'WEI',
-}
+// Note: EVMDenominations is imported from @yakkl/core
 
 // Add other blockchain denominations
 

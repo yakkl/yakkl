@@ -14,9 +14,11 @@ import type {
 } from '$lib/common/bignumber';
 
 import type {
-  TransactionResponse as LegacyTransactionResponse,
-  TransactionReceipt as LegacyTransactionReceipt
+  TransactionResponse as LegacyTransactionResponse
 } from '$lib/common/interfaces';
+import type {
+  TransactionReceipt as LegacyTransactionReceipt
+} from '$lib/common/types';
 
 import type {
   Filter as LegacyFilter,
@@ -98,7 +100,7 @@ export class TypeAdapterUtils {
     }
     
     if (typeof blockTag === 'bigint') {
-      return `0x${blockTag.toString(16)}`;
+      return `0x${(blockTag as bigint).toString(16)}`;
     }
     
     // Handle SDK BlockTag object format

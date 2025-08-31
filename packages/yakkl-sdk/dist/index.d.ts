@@ -2,11 +2,17 @@
  * YAKKL SDK - Integration tools for developers
  *
  * This SDK provides everything developers need to integrate YAKKL:
+ * - Wallet client API
+ * - RPC method handlers
  * - Embedded wallet components
  * - Mod development tools
  * - White label solutions
  * - Enterprise integrations
  */
+export { WalletClient } from './client';
+export type { WalletClientConfig, WalletClientOptions, WalletAccount, WalletTransaction } from './client';
+export { StandardRPCMethods, YAKKLRPCMethods, RPC_ERROR_CODES, RPCHandler, createYAKKLRPCHandler } from './rpc';
+export type { RPCRequest, RPCResponse, RPCError, RPCMethodParams, RPCMethodReturns, RPCHandlerFunction } from './rpc';
 export { EmbeddedWallet } from './embedded/EmbeddedWallet';
 export { EmbeddedProvider } from './embedded/EmbeddedProvider';
 export { createEmbeddedWallet } from './embedded/factory';

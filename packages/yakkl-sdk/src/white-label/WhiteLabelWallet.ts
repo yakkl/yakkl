@@ -2,7 +2,7 @@
  * WhiteLabelWallet - Customizable wallet solution for businesses
  */
 
-import type { WalletEngine } from '@yakkl/core';
+import type { WalletEngine, WalletRestriction } from '@yakkl/core';
 import { BrandingManager } from './BrandingManager';
 
 export interface WhiteLabelConfig {
@@ -182,8 +182,8 @@ export class WhiteLabelWallet {
   /**
    * Private methods
    */
-  private mapRestrictions(): string[] {
-    const restrictions: string[] = [];
+  private mapRestrictions(): WalletRestriction[] {
+    const restrictions: WalletRestriction[] = [];
     
     if (this.config.restrictions?.requireKYC) {
       restrictions.push('enterprise-only');

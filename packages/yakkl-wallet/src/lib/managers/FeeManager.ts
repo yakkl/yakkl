@@ -8,7 +8,7 @@ import type {
 	GasPrediction,
 	FeeEstimate
 } from '$lib/common/gas-types';
-import type { TransactionRequest } from '$lib/common/interfaces';
+import type { TransactionRequest } from '$lib/common/types';
 
 export class BaseFeeManager implements FeeManager {
 	private providers: Map<string, GasProvider>;

@@ -145,7 +145,11 @@ export class Wallet {
 		if (!this.blockchain) {
 			throw new Error('Blockchain not initialized');
 		}
-		return await this.blockchain.estimateGas(transaction);
+		return await this.blockchain.estimateGas({
+			...transaction,
+			from: transaction.from as `0x${string}`,
+			to: transaction.to as `0x${string}` | undefined
+		} as any);
 	}
 
 	/**

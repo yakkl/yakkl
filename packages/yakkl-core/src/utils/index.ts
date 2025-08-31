@@ -6,3 +6,5 @@
 export * from './BigNumber';
 export * from './BigNumberishUtils';
 export * from './uuid';
+export * from './math';
+export * from './validators';

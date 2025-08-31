@@ -10,7 +10,9 @@ import type {
 	PromoClassificationType,
 	RegisteredType,
 	SystemTheme,
-	URL
+	URL,
+	TransactionReceipt,
+	TransactionRequest
 } from '$lib/common/types';
 import type { BigNumberish } from '$lib/common/bignumber';
 import type { Token } from '$lib/managers/Token';
@@ -394,6 +396,9 @@ export interface BaseTransaction {
 	ccipReadEnabled?: boolean;
 }
 
+// Note: Using TransactionRequest and TransactionReceipt from @yakkl/core (imported via types.ts)
+// These local definitions are kept for reference but commented out to avoid conflicts
+/*
 export interface TransactionRequest extends BaseTransaction {
 	maxFeePerBlobGas?: BigNumberish | null | undefined;
 }
@@ -417,6 +422,7 @@ export interface TransactionReceipt {
 	type: number;
 	status?: number | null | undefined;
 }
+*/
 
 export interface TransactionResponse extends Transaction {
 	hash: string;

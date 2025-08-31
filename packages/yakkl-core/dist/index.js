@@ -2,6 +2,41 @@
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const IntegrationAPI = require("./IntegrationAPI-CHlH_Nzw.js");
 const DiscoveryProtocol = require("./DiscoveryProtocol-D-qfIqfp.js");
+const eventemitter3 = require("eventemitter3");
+var StorageType = /* @__PURE__ */ ((StorageType2) => {
+  StorageType2["LOCAL"] = "local";
+  StorageType2["SESSION"] = "session";
+  StorageType2["INDEXED_DB"] = "indexeddb";
+  StorageType2["CHROME_LOCAL"] = "chrome_local";
+  StorageType2["CHROME_SYNC"] = "chrome_sync";
+  StorageType2["MEMORY"] = "memory";
+  StorageType2["FILE"] = "file";
+  return StorageType2;
+})(StorageType || {});
+var MessageType = /* @__PURE__ */ ((MessageType2) => {
+  MessageType2["REQUEST"] = "request";
+  MessageType2["RESPONSE"] = "response";
+  MessageType2["ERROR"] = "error";
+  MessageType2["EVENT"] = "event";
+  MessageType2["BROADCAST"] = "broadcast";
+  MessageType2["PING"] = "ping";
+  MessageType2["PONG"] = "pong";
+  MessageType2["SUBSCRIBE"] = "subscribe";
+  MessageType2["UNSUBSCRIBE"] = "unsubscribe";
+  MessageType2["STREAM_START"] = "stream_start";
+  MessageType2["STREAM_DATA"] = "stream_data";
+  MessageType2["STREAM_END"] = "stream_end";
+  MessageType2["STREAM_ERROR"] = "stream_error";
+  return MessageType2;
+})(MessageType || {});
+var StreamState = /* @__PURE__ */ ((StreamState2) => {
+  StreamState2["IDLE"] = "idle";
+  StreamState2["ACTIVE"] = "active";
+  StreamState2["PAUSED"] = "paused";
+  StreamState2["COMPLETED"] = "completed";
+  StreamState2["ABORTED"] = "aborted";
+  return StreamState2;
+})(StreamState || {});
 var LogLevel = /* @__PURE__ */ ((LogLevel2) => {
   LogLevel2[LogLevel2["TRACE"] = 0] = "TRACE";
   LogLevel2[LogLevel2["DEBUG"] = 1] = "DEBUG";
@@ -12,6 +47,241 @@ var LogLevel = /* @__PURE__ */ ((LogLevel2) => {
   LogLevel2[LogLevel2["SILENT"] = 6] = "SILENT";
   return LogLevel2;
 })(LogLevel || {});
+var AccountType = /* @__PURE__ */ ((AccountType2) => {
+  AccountType2["IMPORTED"] = "imported";
+  AccountType2["HD_WALLET"] = "hd_wallet";
+  AccountType2["HARDWARE"] = "hardware";
+  AccountType2["WATCH_ONLY"] = "watch_only";
+  return AccountType2;
+})(AccountType || {});
+var ChainType = /* @__PURE__ */ ((ChainType2) => {
+  ChainType2["EVM"] = "evm";
+  ChainType2["BITCOIN"] = "bitcoin";
+  ChainType2["SOLANA"] = "solana";
+  ChainType2["COSMOS"] = "cosmos";
+  ChainType2["POLKADOT"] = "polkadot";
+  ChainType2["NEAR"] = "near";
+  ChainType2["TRON"] = "tron";
+  return ChainType2;
+})(ChainType || {});
+var TransactionCategory = /* @__PURE__ */ ((TransactionCategory2) => {
+  TransactionCategory2["SEND"] = "send";
+  TransactionCategory2["RECEIVE"] = "receive";
+  TransactionCategory2["SWAP"] = "swap";
+  TransactionCategory2["BRIDGE"] = "bridge";
+  TransactionCategory2["CONTRACT_CALL"] = "contract_call";
+  TransactionCategory2["TOKEN_TRANSFER"] = "token_transfer";
+  TransactionCategory2["NFT_TRANSFER"] = "nft_transfer";
+  TransactionCategory2["STAKE"] = "stake";
+  TransactionCategory2["UNSTAKE"] = "unstake";
+  TransactionCategory2["APPROVAL"] = "approval";
+  return TransactionCategory2;
+})(TransactionCategory || {});
+var CacheEvictionPolicy = /* @__PURE__ */ ((CacheEvictionPolicy2) => {
+  CacheEvictionPolicy2["LRU"] = "lru";
+  CacheEvictionPolicy2["LFU"] = "lfu";
+  CacheEvictionPolicy2["FIFO"] = "fifo";
+  CacheEvictionPolicy2["TTL"] = "ttl";
+  CacheEvictionPolicy2["SIZE"] = "size";
+  return CacheEvictionPolicy2;
+})(CacheEvictionPolicy || {});
+var SystemTheme = /* @__PURE__ */ ((SystemTheme2) => {
+  SystemTheme2["DARK"] = "dark";
+  SystemTheme2["LIGHT"] = "light";
+  SystemTheme2["SYSTEM"] = "system";
+  return SystemTheme2;
+})(SystemTheme || {});
+var AccountTypeCategory = /* @__PURE__ */ ((AccountTypeCategory2) => {
+  AccountTypeCategory2["PRIMARY"] = "primary";
+  AccountTypeCategory2["SUB"] = "sub";
+  AccountTypeCategory2["CONTRACT"] = "contract";
+  AccountTypeCategory2["IMPORTED"] = "imported";
+  return AccountTypeCategory2;
+})(AccountTypeCategory || {});
+var AccountTypeStatus = /* @__PURE__ */ ((AccountTypeStatus2) => {
+  AccountTypeStatus2["ACTIVE"] = "active";
+  AccountTypeStatus2["INACTIVE"] = "inactive";
+  AccountTypeStatus2["DELETED"] = "deleted";
+  return AccountTypeStatus2;
+})(AccountTypeStatus || {});
+var RegisteredType = /* @__PURE__ */ ((RegisteredType2) => {
+  RegisteredType2["EXPLORER_MEMBER"] = "explorer_member";
+  RegisteredType2["FOUNDING_MEMBER"] = "founding_member";
+  RegisteredType2["EARLY_ADOPTER"] = "early_adopter";
+  RegisteredType2["YAKKL_PRO"] = "yakkl_pro";
+  RegisteredType2["YAKKL_PRO_PLUS"] = "yakkl_pro_plus";
+  RegisteredType2["INSTITUTION"] = "institution";
+  RegisteredType2["BETA"] = "beta";
+  RegisteredType2["NONE"] = "none";
+  return RegisteredType2;
+})(RegisteredType || {});
+var ChainId = /* @__PURE__ */ ((ChainId2) => {
+  ChainId2[ChainId2["ETHEREUM"] = 1] = "ETHEREUM";
+  ChainId2[ChainId2["GOERLI"] = 5] = "GOERLI";
+  ChainId2[ChainId2["SEPOLIA"] = 11155111] = "SEPOLIA";
+  ChainId2[ChainId2["POLYGON"] = 137] = "POLYGON";
+  ChainId2[ChainId2["POLYGON_MUMBAI"] = 80001] = "POLYGON_MUMBAI";
+  ChainId2[ChainId2["ARBITRUM"] = 42161] = "ARBITRUM";
+  ChainId2[ChainId2["ARBITRUM_GOERLI"] = 421613] = "ARBITRUM_GOERLI";
+  ChainId2[ChainId2["OPTIMISM"] = 10] = "OPTIMISM";
+  ChainId2[ChainId2["OPTIMISM_GOERLI"] = 420] = "OPTIMISM_GOERLI";
+  ChainId2[ChainId2["BASE"] = 8453] = "BASE";
+  ChainId2[ChainId2["BASE_GOERLI"] = 84531] = "BASE_GOERLI";
+  ChainId2[ChainId2["BSC"] = 56] = "BSC";
+  ChainId2[ChainId2["BSC_TESTNET"] = 97] = "BSC_TESTNET";
+  ChainId2[ChainId2["AVALANCHE"] = 43114] = "AVALANCHE";
+  ChainId2[ChainId2["AVALANCHE_FUJI"] = 43113] = "AVALANCHE_FUJI";
+  return ChainId2;
+})(ChainId || {});
+var TransactionStatus = /* @__PURE__ */ ((TransactionStatus2) => {
+  TransactionStatus2["PENDING"] = "pending";
+  TransactionStatus2["CONFIRMED"] = "confirmed";
+  TransactionStatus2["FAILED"] = "failed";
+  TransactionStatus2["DROPPED"] = "dropped";
+  TransactionStatus2["REPLACED"] = "replaced";
+  return TransactionStatus2;
+})(TransactionStatus || {});
+var SortDirection = /* @__PURE__ */ ((SortDirection2) => {
+  SortDirection2["ASC"] = "asc";
+  SortDirection2["DESC"] = "desc";
+  return SortDirection2;
+})(SortDirection || {});
+var Status = /* @__PURE__ */ ((Status2) => {
+  Status2["IDLE"] = "idle";
+  Status2["LOADING"] = "loading";
+  Status2["SUCCESS"] = "success";
+  Status2["ERROR"] = "error";
+  return Status2;
+})(Status || {});
+function isAddress(value) {
+  return typeof value === "string" && /^0x[a-fA-F0-9]{40}$/.test(value);
+}
+function isHexString(value) {
+  return typeof value === "string" && /^0x[a-fA-F0-9]*$/.test(value);
+}
+function isTransactionHash(value) {
+  return typeof value === "string" && /^0x[a-fA-F0-9]{64}$/.test(value);
+}
+const CORE_VERSION = "0.1.0";
+const ETH_BASE_EOA_GAS_UNITS = 21e3;
+const ETH_BASE_SCA_GAS_UNITS = 45e3;
+const ETH_BASE_SWAP_GAS_UNITS = 500000n;
+const ETH_BASE_FORCANCEL_GAS_UNITS = ETH_BASE_EOA_GAS_UNITS * 3;
+const GAS_PER_BLOB = 131072;
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const WETH_ADDRESS_MAINNET = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+const BASIS_POINTS_DIVISOR = 1e4;
+const DEFAULT_DERIVED_PATH_ETH = "m/44'/60'/";
+var EVMDenominations = /* @__PURE__ */ ((EVMDenominations2) => {
+  EVMDenominations2["ETH"] = "ETH";
+  EVMDenominations2["GWEI"] = "GWEI";
+  EVMDenominations2["WEI"] = "WEI";
+  return EVMDenominations2;
+})(EVMDenominations || {});
+var TokenStandard = /* @__PURE__ */ ((TokenStandard2) => {
+  TokenStandard2["ERC20"] = "ERC20";
+  TokenStandard2["ERC721"] = "ERC721";
+  TokenStandard2["ERC1155"] = "ERC1155";
+  TokenStandard2["ERC777"] = "ERC777";
+  TokenStandard2["BEP20"] = "BEP20";
+  TokenStandard2["SPL"] = "SPL";
+  TokenStandard2["TRC20"] = "TRC20";
+  return TokenStandard2;
+})(TokenStandard || {});
+var TransactionType = /* @__PURE__ */ ((TransactionType2) => {
+  TransactionType2[TransactionType2["LEGACY"] = 0] = "LEGACY";
+  TransactionType2[TransactionType2["EIP2930"] = 1] = "EIP2930";
+  TransactionType2[TransactionType2["EIP1559"] = 2] = "EIP1559";
+  return TransactionType2;
+})(TransactionType || {});
+const SECOND = 1e3;
+const MINUTE = 60 * SECOND;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
+const WEEK = 7 * DAY;
+const DEFAULT_MAX_RETRIES = 3;
+const DEFAULT_BASE_DELAY = 1e3;
+const DEFAULT_BACKOFF_MULTIPLIER = 2;
+const DEFAULT_RPC_TIMEOUT = 3e4;
+const DEFAULT_HTTP_TIMEOUT = 6e4;
+const STORAGE_VERSION = 1;
+const NETWORK_NAMES = {
+  1: "Ethereum Mainnet",
+  5: "Goerli Testnet",
+  11155111: "Sepolia Testnet",
+  137: "Polygon",
+  80001: "Polygon Mumbai",
+  42161: "Arbitrum One",
+  421613: "Arbitrum Goerli",
+  10: "Optimism",
+  420: "Optimism Goerli",
+  8453: "Base",
+  84531: "Base Goerli",
+  56: "BSC",
+  97: "BSC Testnet",
+  43114: "Avalanche C-Chain",
+  43113: "Avalanche Fuji"
+};
+const NATIVE_TOKEN_SYMBOLS = {
+  1: "ETH",
+  137: "MATIC",
+  56: "BNB",
+  43114: "AVAX",
+  42161: "ETH",
+  10: "ETH",
+  8453: "ETH"
+};
+var RPCErrorCode = /* @__PURE__ */ ((RPCErrorCode2) => {
+  RPCErrorCode2[RPCErrorCode2["INVALID_REQUEST"] = -32600] = "INVALID_REQUEST";
+  RPCErrorCode2[RPCErrorCode2["METHOD_NOT_FOUND"] = -32601] = "METHOD_NOT_FOUND";
+  RPCErrorCode2[RPCErrorCode2["INVALID_PARAMS"] = -32602] = "INVALID_PARAMS";
+  RPCErrorCode2[RPCErrorCode2["INTERNAL_ERROR"] = -32603] = "INTERNAL_ERROR";
+  RPCErrorCode2[RPCErrorCode2["PARSE_ERROR"] = -32700] = "PARSE_ERROR";
+  RPCErrorCode2[RPCErrorCode2["USER_REJECTED"] = 4001] = "USER_REJECTED";
+  RPCErrorCode2[RPCErrorCode2["UNAUTHORIZED"] = 4100] = "UNAUTHORIZED";
+  RPCErrorCode2[RPCErrorCode2["UNSUPPORTED_METHOD"] = 4200] = "UNSUPPORTED_METHOD";
+  RPCErrorCode2[RPCErrorCode2["DISCONNECTED"] = 4900] = "DISCONNECTED";
+  RPCErrorCode2[RPCErrorCode2["CHAIN_DISCONNECTED"] = 4901] = "CHAIN_DISCONNECTED";
+  return RPCErrorCode2;
+})(RPCErrorCode || {});
+const MIME_TYPES = {
+  JSON: "application/json",
+  FORM: "application/x-www-form-urlencoded",
+  MULTIPART: "multipart/form-data",
+  TEXT: "text/plain",
+  HTML: "text/html"
+};
+const PATTERNS = {
+  ETH_ADDRESS: /^0x[a-fA-F0-9]{40}$/,
+  TRANSACTION_HASH: /^0x[a-fA-F0-9]{64}$/,
+  HEX_STRING: /^0x[a-fA-F0-9]*$/,
+  PRIVATE_KEY: /^0x[a-fA-F0-9]{64}$/,
+  MNEMONIC_WORD: /^[a-z]+$/,
+  EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+  URL: /^https?:\/\/.+/,
+  IPFS_HASH: /^Qm[a-zA-Z0-9]{44}$/
+};
+const MIN_PASSWORD_LENGTH = 8;
+const MAX_PASSWORD_LENGTH = 128;
+const SALT_ROUNDS = 10;
+const PBKDF2_ITERATIONS = 1e5;
+const SCRYPT_N = 16384;
+const SCRYPT_R = 8;
+const SCRYPT_P = 1;
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
+const CACHE_TTL = {
+  PRICE: 60,
+  // 1 minute for price data
+  BALANCE: 30,
+  // 30 seconds for balance data
+  TRANSACTION: 300,
+  // 5 minutes for transaction data
+  METADATA: 3600,
+  // 1 hour for metadata
+  STATIC: 86400
+  // 1 day for static data
+};
 var CurrencyCode = /* @__PURE__ */ ((CurrencyCode2) => {
   CurrencyCode2["USD"] = "USD";
   CurrencyCode2["EUR"] = "EUR";
@@ -2926,6 +3196,288 @@ function getSafeUUID() {
     return v.toString(16);
   });
 }
+class BigNumberishMath {
+  constructor(value) {
+    const bigint = BigNumber.toBigInt(value);
+    if (bigint === null) throw new Error("Invalid BigNumberish");
+    this.value = bigint;
+  }
+  static of(value) {
+    return new BigNumberishMath(value);
+  }
+  add(other) {
+    this.value += BigNumberishMath.of(other).toBigInt();
+    return this;
+  }
+  sub(other) {
+    this.value -= BigNumberishMath.of(other).toBigInt();
+    return this;
+  }
+  mul(other) {
+    const multiplier = BigNumberishMath.of(other).toBigInt();
+    this.value *= multiplier;
+    return this;
+  }
+  div(other) {
+    const divisor = BigNumberishMath.of(other).toBigInt();
+    if (divisor === BigInt(0)) throw new Error("Divide by zero");
+    this.value /= divisor;
+    return this;
+  }
+  mod(other) {
+    const mod2 = BigNumberishMath.of(other).toBigInt();
+    if (mod2 === BigInt(0)) throw new Error("Mod by zero");
+    this.value %= mod2;
+    return this;
+  }
+  compare(other) {
+    const otherValue = BigNumberishMath.of(other).toBigInt();
+    if (this.value < otherValue) return -1;
+    if (this.value > otherValue) return 1;
+    return 0;
+  }
+  gt(other) {
+    return this.compare(other) > 0;
+  }
+  gte(other) {
+    return this.compare(other) >= 0;
+  }
+  lt(other) {
+    return this.compare(other) < 0;
+  }
+  lte(other) {
+    return this.compare(other) <= 0;
+  }
+  eq(other) {
+    return this.compare(other) === 0;
+  }
+  toBigInt() {
+    return this.value;
+  }
+  toNumber() {
+    return Number(this.value);
+  }
+  toDecimal(decimals = 18) {
+    return new Decimal(this.value.toString()).div(`1e${decimals}`);
+  }
+  toString() {
+    return this.value.toString();
+  }
+}
+class DecimalMath {
+  constructor(val) {
+    this.value = new Decimal(val);
+  }
+  static of(val) {
+    return new DecimalMath(val);
+  }
+  add(val) {
+    this.value = this.value.plus(val);
+    return this;
+  }
+  sub(val) {
+    this.value = this.value.minus(val);
+    return this;
+  }
+  mul(val) {
+    this.value = this.value.times(val);
+    return this;
+  }
+  div(val) {
+    this.value = this.value.div(val);
+    return this;
+  }
+  pct(percent) {
+    return this.mul(percent / 100);
+  }
+  round(decimals = 2) {
+    this.value = this.value.toDecimalPlaces(decimals);
+    return this;
+  }
+  gt(val) {
+    return this.value.gt(val);
+  }
+  lt(val) {
+    return this.value.lt(val);
+  }
+  toDecimal() {
+    return this.value;
+  }
+  toFixed(decimals = 2) {
+    return this.value.toFixed(decimals);
+  }
+  toNumber() {
+    return this.value.toNumber();
+  }
+  toString() {
+    return this.value.toString();
+  }
+}
+function convertBasisPointsToDecimal(basisPoints) {
+  if (basisPoints < 1) {
+    return basisPoints;
+  }
+  return basisPoints / 1e4;
+}
+function ensureHexFormat(value) {
+  if (typeof value === "string") {
+    if (value.startsWith("0x")) {
+      return value;
+    }
+    if (/^\d+$/.test(value)) {
+      return `0x${parseInt(value, 10).toString(16)}`;
+    }
+    if (/^[0-9a-fA-F]+$/.test(value)) {
+      return `0x${value}`;
+    }
+  }
+  if (typeof value === "number") {
+    return `0x${value.toString(16)}`;
+  }
+  const stringValue = String(value);
+  if (/^\d+$/.test(stringValue)) {
+    return `0x${parseInt(stringValue, 10).toString(16)}`;
+  }
+  return String(value);
+}
+function safeConvertToBigInt(value) {
+  try {
+    if (value === null || value === void 0) {
+      return void 0;
+    }
+    switch (typeof value) {
+      case "bigint":
+        return value;
+      case "number":
+        if (!Number.isInteger(value)) {
+          return void 0;
+        }
+        return BigInt(value);
+      case "string":
+        if (value === "") {
+          return void 0;
+        }
+        if (value.startsWith("0x")) {
+          return BigInt(value);
+        }
+        if (/^\d+$/.test(value)) {
+          return BigInt(value);
+        }
+        return void 0;
+      default:
+        return void 0;
+    }
+  } catch {
+    return void 0;
+  }
+}
+function validateObject(data, rules) {
+  const validateValue = (value, rule) => {
+    if (value === void 0 || value === null) {
+      return !rule.required;
+    }
+    let bigIntValue;
+    if (rule.type) {
+      switch (rule.type) {
+        case "number":
+          if (typeof value !== "number" || isNaN(value)) return false;
+          break;
+        case "bigint":
+        case "bignumberish":
+          bigIntValue = safeConvertToBigInt(value);
+          if (bigIntValue === void 0) return false;
+          value = bigIntValue;
+          break;
+        case "string":
+          if (typeof value !== "string") return false;
+          break;
+        case "boolean":
+          if (typeof value !== "boolean") return false;
+          break;
+        case "array":
+          if (!Array.isArray(value)) return false;
+          break;
+        case "object":
+          if (typeof value !== "object" || value === null) return false;
+          break;
+      }
+    }
+    if (rule.min !== void 0) {
+      if (typeof rule.min === "number" && value < rule.min) return false;
+      if (rule.type === "bigint" || rule.type === "bignumberish") {
+        const minBigInt = safeConvertToBigInt(rule.min);
+        const valueBigInt = safeConvertToBigInt(value);
+        if (minBigInt === void 0 || valueBigInt === void 0) return false;
+        if (valueBigInt < minBigInt) return false;
+      }
+    }
+    if (rule.max !== void 0) {
+      if (typeof rule.max === "number" && value > rule.max) return false;
+      if (rule.type === "bigint" || rule.type === "bignumberish") {
+        const maxBigInt = safeConvertToBigInt(rule.max);
+        const valueBigInt = safeConvertToBigInt(value);
+        if (maxBigInt === void 0 || valueBigInt === void 0) return false;
+        if (valueBigInt > maxBigInt) return false;
+      }
+    }
+    if (rule.equals !== void 0 && value !== rule.equals) return false;
+    if (rule.notEquals !== void 0 && value === rule.notEquals) return false;
+    if (rule.oneOf !== void 0 && !rule.oneOf.includes(value)) return false;
+    if (rule.notOneOf !== void 0 && rule.notOneOf.includes(value)) return false;
+    if (rule.customValidation && !rule.customValidation(value)) return false;
+    return true;
+  };
+  for (const [key, rule] of Object.entries(rules)) {
+    const value = data[key];
+    if (!validateValue(value, rule)) {
+      let errorMessage = `Invalid ${key}: `;
+      if (value === void 0 || value === null) {
+        errorMessage += rule.required ? "is required" : "is missing but not required";
+      } else {
+        const currentRule = rule;
+        if (currentRule.min !== void 0) errorMessage += `must be at least ${currentRule.min}`;
+        if (currentRule.max !== void 0) errorMessage += `must be at most ${currentRule.max}`;
+        if (currentRule.equals !== void 0) errorMessage += `must equal ${currentRule.equals}`;
+        if (currentRule.notEquals !== void 0)
+          errorMessage += `cannot equal ${currentRule.notEquals}`;
+        if (currentRule.oneOf !== void 0)
+          errorMessage += `must be one of ${currentRule.oneOf.join(", ")}`;
+        if (currentRule.notOneOf !== void 0)
+          errorMessage += `cannot be one of ${currentRule.notOneOf.join(", ")}`;
+      }
+      return {
+        isValid: false,
+        error: errorMessage
+      };
+    }
+  }
+  return {
+    isValid: true,
+    error: ""
+  };
+}
+function isValidAddress(address) {
+  if (!address || typeof address !== "string") {
+    return false;
+  }
+  return /^0x[a-fA-F0-9]{40}$/.test(address);
+}
+function isValidTransactionHash(hash) {
+  if (!hash || typeof hash !== "string") {
+    return false;
+  }
+  return /^0x[a-fA-F0-9]{64}$/.test(hash);
+}
+function isInRange(value, min2, max2) {
+  return value >= min2 && value <= max2;
+}
+function isNotEmpty(value) {
+  return value !== null && value !== void 0 && value.trim().length > 0;
+}
+function isValidEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
 async function createWallet(config2 = {}) {
   const defaultConfig = {
     name: "YAKKL Wallet",
@@ -2963,6 +3515,4403 @@ function validateMod(mod2) {
     return false;
   }
 }
+class BaseProvider extends eventemitter3.EventEmitter {
+  constructor(chainInfo, config2) {
+    super();
+    this._isConnected = false;
+    this._chainInfo = chainInfo;
+    this.config = config2 || {};
+    this.rpcUrl = config2?.rpcUrl || chainInfo.rpcUrls[0];
+  }
+  get chainInfo() {
+    return this._chainInfo;
+  }
+  get isConnected() {
+    return this._isConnected;
+  }
+  /**
+   * Connect to the blockchain
+   */
+  async connect() {
+    try {
+      await this.getBlockNumber();
+      this._isConnected = true;
+      this.emit("connect", this._chainInfo.chainId);
+    } catch (error) {
+      this._isConnected = false;
+      throw new Error(`Failed to connect to ${this._chainInfo.name}: ${error}`);
+    }
+  }
+  /**
+   * Disconnect from the blockchain
+   */
+  async disconnect() {
+    this._isConnected = false;
+    this.emit("disconnect");
+  }
+  /**
+   * Make an RPC request
+   */
+  async rpcRequest(method, params = []) {
+    const requestBody = {
+      jsonrpc: "2.0",
+      method,
+      params,
+      id: Date.now()
+    };
+    const headers = {
+      "Content-Type": "application/json",
+      ...this.config.headers
+    };
+    if (this.config.apiKey) {
+      headers["Authorization"] = `Bearer ${this.config.apiKey}`;
+    }
+    try {
+      const response = await fetch(this.rpcUrl, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(requestBody)
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error.message || "RPC request failed");
+      }
+      return data.result;
+    } catch (error) {
+      this.emit("error", error);
+      throw error;
+    }
+  }
+  /**
+   * Retry an RPC request with exponential backoff
+   */
+  async retryRpcRequest(method, params = []) {
+    const maxRetries = this.config.retryCount || 3;
+    let lastError;
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        return await this.rpcRequest(method, params);
+      } catch (error) {
+        lastError = error;
+        if (i < maxRetries - 1) {
+          await new Promise((resolve) => setTimeout(resolve, Math.pow(2, i) * 1e3));
+        }
+      }
+    }
+    throw lastError;
+  }
+}
+class ProviderError extends Error {
+  constructor(message, code, data) {
+    super(message);
+    this.name = "ProviderError";
+    this.code = code;
+    this.data = data;
+  }
+}
+var RpcErrorCode = /* @__PURE__ */ ((RpcErrorCode2) => {
+  RpcErrorCode2[RpcErrorCode2["INVALID_REQUEST"] = -32600] = "INVALID_REQUEST";
+  RpcErrorCode2[RpcErrorCode2["METHOD_NOT_FOUND"] = -32601] = "METHOD_NOT_FOUND";
+  RpcErrorCode2[RpcErrorCode2["INVALID_PARAMS"] = -32602] = "INVALID_PARAMS";
+  RpcErrorCode2[RpcErrorCode2["INTERNAL_ERROR"] = -32603] = "INTERNAL_ERROR";
+  RpcErrorCode2[RpcErrorCode2["PARSE_ERROR"] = -32700] = "PARSE_ERROR";
+  RpcErrorCode2[RpcErrorCode2["USER_REJECTED"] = 4001] = "USER_REJECTED";
+  RpcErrorCode2[RpcErrorCode2["UNAUTHORIZED"] = 4100] = "UNAUTHORIZED";
+  RpcErrorCode2[RpcErrorCode2["UNSUPPORTED_METHOD"] = 4200] = "UNSUPPORTED_METHOD";
+  RpcErrorCode2[RpcErrorCode2["DISCONNECTED"] = 4900] = "DISCONNECTED";
+  RpcErrorCode2[RpcErrorCode2["CHAIN_DISCONNECTED"] = 4901] = "CHAIN_DISCONNECTED";
+  return RpcErrorCode2;
+})(RpcErrorCode || {});
+class EVMProvider extends BaseProvider {
+  constructor(chainInfo, config2) {
+    super(chainInfo, config2);
+    this.accounts = [];
+  }
+  /**
+   * Switch to a different chain
+   */
+  async switchChain(chainId) {
+    try {
+      if (this.config.customProvider) {
+        await this.config.customProvider.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: `0x${Number(chainId).toString(16)}` }]
+        });
+        return;
+      }
+      throw new ProviderError(
+        "Chain switching not supported for RPC providers",
+        RpcErrorCode.UNSUPPORTED_METHOD
+      );
+    } catch (error) {
+      if (error.code === 4902) {
+        throw new ProviderError(
+          "Chain not added to wallet",
+          RpcErrorCode.CHAIN_DISCONNECTED
+        );
+      }
+      throw error;
+    }
+  }
+  /**
+   * Get accounts
+   */
+  async getAccounts() {
+    if (this.config.customProvider) {
+      const accounts = await this.config.customProvider.request({
+        method: "eth_accounts",
+        params: []
+      });
+      return accounts;
+    }
+    return this.accounts;
+  }
+  /**
+   * Request accounts (triggers wallet connection)
+   */
+  async requestAccounts() {
+    if (this.config.customProvider) {
+      const accounts = await this.config.customProvider.request({
+        method: "eth_requestAccounts",
+        params: []
+      });
+      this.accounts = accounts;
+      this.emit("accountsChanged", this.accounts);
+      return this.accounts;
+    }
+    throw new ProviderError(
+      "No wallet connected",
+      RpcErrorCode.UNAUTHORIZED
+    );
+  }
+  /**
+   * Get balance
+   */
+  async getBalance(address, tokenAddress) {
+    if (tokenAddress) {
+      const data = this.encodeERC20Call("balanceOf", [address]);
+      const result = await this.call({
+        from: address,
+        to: tokenAddress,
+        data
+      });
+      return this.decodeUint256(result);
+    }
+    const balance = await this.rpcRequest("eth_getBalance", [address, "latest"]);
+    return balance;
+  }
+  /**
+   * Send transaction
+   */
+  async sendTransaction(tx) {
+    const params = this.formatTransaction(tx);
+    if (this.config.customProvider) {
+      return await this.config.customProvider.request({
+        method: "eth_sendTransaction",
+        params: [params]
+      });
+    }
+    return await this.rpcRequest("eth_sendTransaction", [params]);
+  }
+  /**
+   * Sign transaction
+   */
+  async signTransaction(tx) {
+    const params = this.formatTransaction(tx);
+    if (this.config.customProvider) {
+      return await this.config.customProvider.request({
+        method: "eth_signTransaction",
+        params: [params]
+      });
+    }
+    throw new ProviderError(
+      "Transaction signing requires a connected wallet",
+      RpcErrorCode.UNAUTHORIZED
+    );
+  }
+  /**
+   * Get transaction
+   */
+  async getTransaction(hash) {
+    const [tx, receipt] = await Promise.all([
+      this.rpcRequest("eth_getTransactionByHash", [hash]),
+      this.rpcRequest("eth_getTransactionReceipt", [hash])
+    ]);
+    if (!tx) {
+      throw new ProviderError("Transaction not found", RpcErrorCode.INVALID_REQUEST);
+    }
+    const currentBlock = await this.getBlockNumber();
+    const confirmations = receipt ? currentBlock - parseInt(receipt.blockNumber, 16) : 0;
+    return {
+      hash,
+      status: receipt ? receipt.status === "0x1" ? "confirmed" : "failed" : "pending",
+      confirmations,
+      blockNumber: receipt ? parseInt(receipt.blockNumber, 16) : void 0,
+      timestamp: Date.now(),
+      // Would need to fetch block for actual timestamp
+      gasUsed: receipt ? receipt.gasUsed : void 0,
+      effectiveGasPrice: receipt ? receipt.effectiveGasPrice : void 0,
+      error: receipt && receipt.status === "0x0" ? "Transaction failed" : void 0
+    };
+  }
+  /**
+   * Estimate gas
+   */
+  async estimateGas(tx) {
+    const params = this.formatTransaction(tx);
+    return await this.rpcRequest("eth_estimateGas", [params]);
+  }
+  /**
+   * Get gas price
+   */
+  async getGasPrice() {
+    return await this.rpcRequest("eth_gasPrice", []);
+  }
+  /**
+   * Sign message
+   */
+  async signMessage(request) {
+    let signature;
+    if (this.config.customProvider) {
+      signature = await this.config.customProvider.request({
+        method: "personal_sign",
+        params: [request.data, request.from]
+      });
+    } else {
+      throw new ProviderError(
+        "Message signing requires a connected wallet",
+        RpcErrorCode.UNAUTHORIZED
+      );
+    }
+    return {
+      signature,
+      signatureType: "personal_sign",
+      address: request.from,
+      timestamp: Date.now()
+    };
+  }
+  /**
+   * Sign typed data
+   */
+  async signTypedData(request) {
+    let signature;
+    if (this.config.customProvider) {
+      signature = await this.config.customProvider.request({
+        method: request.type || "eth_signTypedData_v4",
+        params: [request.from, request.data]
+      });
+    } else {
+      throw new ProviderError(
+        "Typed data signing requires a connected wallet",
+        RpcErrorCode.UNAUTHORIZED
+      );
+    }
+    return {
+      signature,
+      signatureType: request.type || "eth_signTypedData_v4",
+      address: request.from,
+      timestamp: Date.now()
+    };
+  }
+  /**
+   * Get block number
+   */
+  async getBlockNumber() {
+    const blockNumber = await this.rpcRequest("eth_blockNumber", []);
+    return parseInt(blockNumber, 16);
+  }
+  /**
+   * Get block
+   */
+  async getBlock(blockHashOrNumber) {
+    const block = await this.rpcRequest("eth_getBlockByNumber", [
+      typeof blockHashOrNumber === "number" ? `0x${blockHashOrNumber.toString(16)}` : blockHashOrNumber,
+      false
+      // Don't include full transactions
+    ]);
+    if (!block) {
+      throw new ProviderError("Block not found", RpcErrorCode.INVALID_REQUEST);
+    }
+    return {
+      number: parseInt(block.number, 16),
+      hash: block.hash,
+      parentHash: block.parentHash,
+      timestamp: parseInt(block.timestamp, 16),
+      transactions: block.transactions,
+      gasLimit: block.gasLimit,
+      gasUsed: block.gasUsed,
+      baseFeePerGas: block.baseFeePerGas
+    };
+  }
+  /**
+   * Get transaction count (nonce)
+   */
+  async getTransactionCount(address) {
+    const count = await this.rpcRequest("eth_getTransactionCount", [address, "latest"]);
+    return parseInt(count, 16);
+  }
+  /**
+   * Call contract method
+   */
+  async call(tx) {
+    const params = this.formatTransaction(tx);
+    return await this.rpcRequest("eth_call", [params, "latest"]);
+  }
+  // EVM-specific methods
+  /**
+   * Get max priority fee per gas
+   */
+  async getMaxPriorityFeePerGas() {
+    return await this.rpcRequest("eth_maxPriorityFeePerGas", []);
+  }
+  /**
+   * Get fee history
+   */
+  async getFeeHistory(blockCount, newestBlock, rewardPercentiles) {
+    return await this.rpcRequest("eth_feeHistory", [
+      `0x${blockCount.toString(16)}`,
+      typeof newestBlock === "number" ? `0x${newestBlock.toString(16)}` : newestBlock,
+      rewardPercentiles
+    ]);
+  }
+  /**
+   * Resolve ENS name
+   */
+  async resolveName(ensName) {
+    try {
+      const address = await this.rpcRequest("eth_call", [
+        {
+          to: "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
+          // ENS Registry
+          data: this.encodeENSResolve(ensName)
+        },
+        "latest"
+      ]);
+      return address === "0x" ? null : address;
+    } catch {
+      return null;
+    }
+  }
+  /**
+   * Lookup address (reverse ENS)
+   */
+  async lookupAddress(address) {
+    return null;
+  }
+  /**
+   * Get code at address
+   */
+  async getCode(address) {
+    return await this.rpcRequest("eth_getCode", [address, "latest"]);
+  }
+  /**
+   * Get storage at position
+   */
+  async getStorageAt(address, position) {
+    return await this.rpcRequest("eth_getStorageAt", [address, position, "latest"]);
+  }
+  /**
+   * Get logs
+   */
+  async getLogs(filter) {
+    const params = {
+      ...filter,
+      fromBlock: filter.fromBlock ? typeof filter.fromBlock === "number" ? `0x${filter.fromBlock.toString(16)}` : filter.fromBlock : "latest",
+      toBlock: filter.toBlock ? typeof filter.toBlock === "number" ? `0x${filter.toBlock.toString(16)}` : filter.toBlock : "latest"
+    };
+    return await this.rpcRequest("eth_getLogs", [params]);
+  }
+  /**
+   * EIP-1193 request method
+   */
+  async request(args) {
+    if (this.config.customProvider) {
+      return await this.config.customProvider.request(args);
+    }
+    return await this.rpcRequest(args.method, args.params || []);
+  }
+  // Helper methods
+  formatTransaction(tx) {
+    const formatted = {
+      from: tx.from,
+      to: tx.to,
+      value: tx.value ? `0x${BigInt(tx.value).toString(16)}` : void 0,
+      data: tx.data,
+      nonce: tx.nonce ? `0x${tx.nonce.toString(16)}` : void 0
+    };
+    if (tx.gas) {
+      formatted.gas = `0x${BigInt(tx.gas).toString(16)}`;
+    }
+    if (tx.gasPrice) {
+      formatted.gasPrice = `0x${BigInt(tx.gasPrice).toString(16)}`;
+    }
+    if (tx.maxFeePerGas) {
+      formatted.maxFeePerGas = `0x${BigInt(tx.maxFeePerGas).toString(16)}`;
+    }
+    if (tx.maxPriorityFeePerGas) {
+      formatted.maxPriorityFeePerGas = `0x${BigInt(tx.maxPriorityFeePerGas).toString(16)}`;
+    }
+    return formatted;
+  }
+  encodeERC20Call(method, params) {
+    const methodId = {
+      "balanceOf": "0x70a08231",
+      "transfer": "0xa9059cbb",
+      "approve": "0x095ea7b3"
+    }[method];
+    if (!methodId) {
+      throw new Error(`Unknown ERC20 method: ${method}`);
+    }
+    return methodId + params.map((p) => p.slice(2).padStart(64, "0")).join("");
+  }
+  decodeUint256(hex) {
+    return BigInt(hex).toString();
+  }
+  encodeENSResolve(name) {
+    return "0x" + name;
+  }
+}
+class ProviderFactory {
+  constructor() {
+    this.providers = /* @__PURE__ */ new Map();
+    this.supportedChains = /* @__PURE__ */ new Map();
+  }
+  /**
+   * Register a provider type
+   */
+  registerProvider(chainType, constructor) {
+    this.providers.set(chainType, constructor);
+  }
+  /**
+   * Register a supported chain
+   */
+  registerChain(chainInfo) {
+    this.supportedChains.set(chainInfo.chainId, chainInfo);
+  }
+  /**
+   * Create a provider instance
+   */
+  createProvider(chainInfo, config2) {
+    const ProviderClass = this.providers.get(chainInfo.type);
+    if (!ProviderClass) {
+      throw new Error(`No provider registered for chain type: ${chainInfo.type}`);
+    }
+    return new ProviderClass(chainInfo, config2);
+  }
+  /**
+   * Get all supported chains
+   */
+  getSupportedChains() {
+    return Array.from(this.supportedChains.values());
+  }
+  /**
+   * Check if a chain is supported
+   */
+  isChainSupported(chainId) {
+    return this.supportedChains.has(chainId);
+  }
+  /**
+   * Get chain info by ID
+   */
+  getChainInfo(chainId) {
+    return this.supportedChains.get(chainId);
+  }
+  /**
+   * Clear all registrations
+   */
+  clear() {
+    this.providers.clear();
+    this.supportedChains.clear();
+  }
+}
+const providerFactory = new ProviderFactory();
+const DEFAULT_CHAINS = [
+  {
+    chainId: 1,
+    name: "Ethereum Mainnet",
+    type: ChainType.EVM,
+    nativeCurrency: {
+      name: "Ether",
+      symbol: "ETH",
+      decimals: 18
+    },
+    rpcUrls: ["https://eth.llamarpc.com"],
+    blockExplorerUrls: ["https://etherscan.io"],
+    isTestnet: false,
+    chainReference: "ethereum"
+  },
+  {
+    chainId: 137,
+    name: "Polygon",
+    type: ChainType.EVM,
+    nativeCurrency: {
+      name: "MATIC",
+      symbol: "MATIC",
+      decimals: 18
+    },
+    rpcUrls: ["https://polygon-rpc.com"],
+    blockExplorerUrls: ["https://polygonscan.com"],
+    isTestnet: false,
+    chainReference: "polygon"
+  },
+  {
+    chainId: 56,
+    name: "BNB Smart Chain",
+    type: ChainType.EVM,
+    nativeCurrency: {
+      name: "BNB",
+      symbol: "BNB",
+      decimals: 18
+    },
+    rpcUrls: ["https://bsc-dataseed.binance.org"],
+    blockExplorerUrls: ["https://bscscan.com"],
+    isTestnet: false,
+    chainReference: "bsc"
+  },
+  {
+    chainId: 43114,
+    name: "Avalanche C-Chain",
+    type: ChainType.EVM,
+    nativeCurrency: {
+      name: "AVAX",
+      symbol: "AVAX",
+      decimals: 18
+    },
+    rpcUrls: ["https://api.avax.network/ext/bc/C/rpc"],
+    blockExplorerUrls: ["https://snowtrace.io"],
+    isTestnet: false,
+    chainReference: "avalanche"
+  },
+  {
+    chainId: 42161,
+    name: "Arbitrum One",
+    type: ChainType.EVM,
+    nativeCurrency: {
+      name: "Ether",
+      symbol: "ETH",
+      decimals: 18
+    },
+    rpcUrls: ["https://arb1.arbitrum.io/rpc"],
+    blockExplorerUrls: ["https://arbiscan.io"],
+    isTestnet: false,
+    chainReference: "arbitrum"
+  },
+  {
+    chainId: 10,
+    name: "Optimism",
+    type: ChainType.EVM,
+    nativeCurrency: {
+      name: "Ether",
+      symbol: "ETH",
+      decimals: 18
+    },
+    rpcUrls: ["https://mainnet.optimism.io"],
+    blockExplorerUrls: ["https://optimistic.etherscan.io"],
+    isTestnet: false,
+    chainReference: "optimism"
+  },
+  // Testnets
+  {
+    chainId: 11155111,
+    name: "Sepolia",
+    type: ChainType.EVM,
+    nativeCurrency: {
+      name: "Sepolia Ether",
+      symbol: "ETH",
+      decimals: 18
+    },
+    rpcUrls: ["https://rpc.sepolia.org"],
+    blockExplorerUrls: ["https://sepolia.etherscan.io"],
+    isTestnet: true,
+    chainReference: "sepolia"
+  },
+  {
+    chainId: 80001,
+    name: "Mumbai",
+    type: ChainType.EVM,
+    nativeCurrency: {
+      name: "MATIC",
+      symbol: "MATIC",
+      decimals: 18
+    },
+    rpcUrls: ["https://rpc-mumbai.maticvigil.com"],
+    blockExplorerUrls: ["https://mumbai.polygonscan.com"],
+    isTestnet: true,
+    chainReference: "mumbai"
+  }
+];
+function initializeDefaultChains() {
+  DEFAULT_CHAINS.forEach((chain) => {
+    providerFactory.registerChain(chain);
+  });
+}
+function initializeDefaultProviders() {
+  providerFactory.registerProvider(ChainType.EVM, EVMProvider);
+  initializeDefaultChains();
+}
+class EVMTransactionBuilder {
+  constructor() {
+    this.tx = {};
+  }
+  /**
+   * Reset the builder
+   */
+  reset() {
+    this.tx = {};
+  }
+  /**
+   * Set from address
+   */
+  setFrom(address) {
+    this.tx.from = address;
+    return this;
+  }
+  /**
+   * Set to address
+   */
+  setTo(address) {
+    this.tx.to = address;
+    return this;
+  }
+  /**
+   * Set value
+   */
+  setValue(value) {
+    this.tx.value = value;
+    return this;
+  }
+  /**
+   * Set data
+   */
+  setData(data) {
+    this.tx.data = data;
+    return this;
+  }
+  /**
+   * Set nonce
+   */
+  setNonce(nonce) {
+    this.tx.nonce = nonce;
+    return this;
+  }
+  /**
+   * Set gas limit
+   */
+  setGas(gas) {
+    this.tx.gas = gas;
+    return this;
+  }
+  /**
+   * Set gas price (legacy)
+   */
+  setGasPrice(gasPrice) {
+    this.tx.gasPrice = gasPrice;
+    this.tx.type = 0;
+    return this;
+  }
+  /**
+   * Set max fee per gas (EIP-1559)
+   */
+  setMaxFeePerGas(maxFee) {
+    this.tx.maxFeePerGas = maxFee;
+    this.tx.type = 2;
+    return this;
+  }
+  /**
+   * Set max priority fee per gas (EIP-1559)
+   */
+  setMaxPriorityFeePerGas(maxPriorityFee) {
+    this.tx.maxPriorityFeePerGas = maxPriorityFee;
+    this.tx.type = 2;
+    return this;
+  }
+  /**
+   * Set transaction type
+   */
+  setType(type) {
+    this.tx.type = type;
+    return this;
+  }
+  /**
+   * Set access list (EIP-2930)
+   */
+  setAccessList(accessList) {
+    this.tx.accessList = accessList;
+    if (this.tx.type === 0) {
+      this.tx.type = 1;
+    }
+    return this;
+  }
+  /**
+   * Set chain ID
+   */
+  setChainId(chainId) {
+    this.tx.chainId = chainId;
+    return this;
+  }
+  /**
+   * Build the transaction
+   */
+  build() {
+    const validation = this.validate();
+    if (!validation.valid) {
+      throw new Error(`Invalid transaction: ${validation.errors?.join(", ")}`);
+    }
+    const tx = {
+      from: this.tx.from,
+      to: this.tx.to,
+      value: this.tx.value || "0",
+      data: this.tx.data,
+      nonce: this.tx.nonce,
+      chainId: this.tx.chainId,
+      gas: this.tx.gas,
+      type: this.tx.type || 0,
+      accessList: this.tx.accessList
+    };
+    if (this.tx.type === 2) {
+      tx.maxFeePerGas = this.tx.maxFeePerGas;
+      tx.maxPriorityFeePerGas = this.tx.maxPriorityFeePerGas;
+    } else {
+      tx.gasPrice = this.tx.gasPrice;
+    }
+    return tx;
+  }
+  /**
+   * Validate the transaction
+   */
+  validate() {
+    const errors = [];
+    const warnings = [];
+    if (!this.tx.from) {
+      errors.push("From address is required");
+    }
+    if (this.tx.from && !this.isValidAddress(this.tx.from)) {
+      errors.push("Invalid from address");
+    }
+    if (this.tx.to && !this.isValidAddress(this.tx.to)) {
+      errors.push("Invalid to address");
+    }
+    if (this.tx.value) {
+      try {
+        const valueBigInt = BigInt(this.tx.value);
+        if (valueBigInt < 0n) {
+          errors.push("Value cannot be negative");
+        }
+      } catch {
+        errors.push("Invalid value format");
+      }
+    }
+    if (this.tx.gas) {
+      try {
+        const gasBigInt = BigInt(this.tx.gas);
+        if (gasBigInt <= 0n) {
+          errors.push("Gas must be positive");
+        }
+        if (gasBigInt < 21000n) {
+          warnings.push("Gas limit may be too low");
+        }
+      } catch {
+        errors.push("Invalid gas format");
+      }
+    }
+    if (this.tx.type === 2) {
+      if (!this.tx.maxFeePerGas) {
+        errors.push("Max fee per gas is required for EIP-1559 transactions");
+      }
+      if (!this.tx.maxPriorityFeePerGas) {
+        errors.push("Max priority fee per gas is required for EIP-1559 transactions");
+      }
+      if (this.tx.maxFeePerGas && this.tx.maxPriorityFeePerGas) {
+        try {
+          const maxFee = BigInt(this.tx.maxFeePerGas);
+          const maxPriority = BigInt(this.tx.maxPriorityFeePerGas);
+          if (maxPriority > maxFee) {
+            errors.push("Max priority fee cannot exceed max fee");
+          }
+        } catch {
+          errors.push("Invalid gas fee format");
+        }
+      }
+    } else {
+      if (!this.tx.gasPrice && !this.tx.to) {
+        warnings.push("Gas price not set for contract deployment");
+      }
+    }
+    if (this.tx.data && !this.isValidHexString(this.tx.data)) {
+      errors.push("Invalid data format");
+    }
+    if (!this.tx.to && !this.tx.data) {
+      errors.push("Contract creation requires data");
+    }
+    return {
+      valid: errors.length === 0,
+      errors: errors.length > 0 ? errors : void 0,
+      warnings: warnings.length > 0 ? warnings : void 0
+    };
+  }
+  /**
+   * Check if address is valid
+   */
+  isValidAddress(address) {
+    return /^0x[a-fA-F0-9]{40}$/.test(address);
+  }
+  /**
+   * Check if hex string is valid
+   */
+  isValidHexString(hex) {
+    return /^0x[a-fA-F0-9]*$/.test(hex);
+  }
+}
+class Container {
+  constructor() {
+    this.services = /* @__PURE__ */ new Map();
+    this.resolving = /* @__PURE__ */ new Set();
+  }
+  /**
+   * Register a service
+   */
+  register(token, factory, options) {
+    this.services.set(token, {
+      token,
+      factory,
+      singleton: options?.singleton ?? true,
+      dependencies: options?.dependencies
+    });
+  }
+  /**
+   * Register a singleton value
+   */
+  registerValue(token, value) {
+    this.services.set(token, {
+      token,
+      factory: () => value,
+      singleton: true,
+      instance: value
+    });
+  }
+  /**
+   * Register a class
+   */
+  registerClass(token, constructor, options) {
+    this.register(
+      token,
+      () => {
+        const deps = options?.dependencies || [];
+        const args = deps.map((dep) => this.get(dep));
+        return new constructor(...args);
+      },
+      options
+    );
+  }
+  /**
+   * Register a factory function
+   */
+  registerFactory(token, factory, options) {
+    this.register(
+      token,
+      () => factory(this),
+      options
+    );
+  }
+  /**
+   * Get a service
+   */
+  get(token) {
+    const descriptor = this.services.get(token);
+    if (!descriptor) {
+      throw new Error(`Service not registered: ${String(token)}`);
+    }
+    if (this.resolving.has(token)) {
+      throw new Error(`Circular dependency detected: ${String(token)}`);
+    }
+    if (descriptor.singleton && descriptor.instance) {
+      return descriptor.instance;
+    }
+    try {
+      this.resolving.add(token);
+      if (descriptor.dependencies) {
+        for (const dep of descriptor.dependencies) {
+          if (!this.has(dep)) {
+            throw new Error(`Missing dependency: ${String(dep)} for ${String(token)}`);
+          }
+        }
+      }
+      const instance = descriptor.factory();
+      if (descriptor.singleton) {
+        descriptor.instance = instance;
+      }
+      return instance;
+    } finally {
+      this.resolving.delete(token);
+    }
+  }
+  /**
+   * Check if a service is registered
+   */
+  has(token) {
+    return this.services.has(token);
+  }
+  /**
+   * Try to get a service
+   */
+  tryGet(token) {
+    try {
+      return this.get(token);
+    } catch {
+      return void 0;
+    }
+  }
+  /**
+   * Get all services of a type
+   */
+  getAll(tokens) {
+    return tokens.filter((token) => this.has(token)).map((token) => this.get(token));
+  }
+  /**
+   * Clear all registrations
+   */
+  clear() {
+    this.services.clear();
+    this.resolving.clear();
+  }
+  /**
+   * Remove a service
+   */
+  unregister(token) {
+    return this.services.delete(token);
+  }
+  /**
+   * Create a child container
+   */
+  createScope() {
+    const child = new Container();
+    for (const [token, descriptor] of this.services) {
+      child.services.set(token, {
+        ...descriptor,
+        instance: void 0
+        // Don't copy singleton instances
+      });
+    }
+    return child;
+  }
+  /**
+   * Get service metadata
+   */
+  getMetadata(token) {
+    return this.services.get(token);
+  }
+  /**
+   * List all registered tokens
+   */
+  listTokens() {
+    return Array.from(this.services.keys());
+  }
+}
+const defaultContainer = new Container();
+function Service(token) {
+  return function(target) {
+    const actualToken = token || target.name;
+    defaultContainer.registerClass(actualToken, target);
+    return target;
+  };
+}
+function Injectable(options) {
+  return function(target) {
+    const token = options?.token || target.name;
+    defaultContainer.registerClass(token, target, {
+      singleton: options?.singleton ?? true
+    });
+    return target;
+  };
+}
+function Inject(token) {
+  return function(target, propertyKey) {
+    Object.defineProperty(target, propertyKey, {
+      get: () => defaultContainer.get(token),
+      enumerable: true,
+      configurable: true
+    });
+  };
+}
+class ServiceLocator {
+  constructor(container = defaultContainer) {
+    this.container = container;
+  }
+  get(token) {
+    return this.container.get(token);
+  }
+  has(token) {
+    return this.container.has(token);
+  }
+  tryGet(token) {
+    return this.container.tryGet(token);
+  }
+}
+const InjectionTokens = {
+  LOGGER: Symbol("Logger"),
+  CACHE: Symbol("Cache"),
+  STORAGE: Symbol("Storage"),
+  HTTP_CLIENT: Symbol("HttpClient"),
+  EVENT_BUS: Symbol("EventBus"),
+  CONFIG: Symbol("Config"),
+  CRYPTO: Symbol("Crypto"),
+  PROVIDER: Symbol("Provider"),
+  WALLET: Symbol("Wallet"),
+  TRANSACTION_MANAGER: Symbol("TransactionManager")
+};
+class ServiceFactory {
+  constructor(config2) {
+    this.services = /* @__PURE__ */ new Map();
+    this.eventEmitter = new eventemitter3.EventEmitter();
+    this.config = config2 || {};
+    this.container = config2?.container || new Container();
+    if (config2?.healthCheckInterval) {
+      this.startHealthCheck(config2.healthCheckInterval);
+    }
+  }
+  /**
+   * Register a service
+   */
+  register(service) {
+    if (this.services.has(service.name)) {
+      throw new Error(`Service already registered: ${service.name}`);
+    }
+    this.services.set(service.name, service);
+    this.container.registerValue(service.name, service);
+    this.eventEmitter.emit("service:registered", service);
+    if (this.config.autoStart) {
+      this.startService(service);
+    }
+  }
+  /**
+   * Register a service class
+   */
+  registerClass(ServiceClass, dependencies) {
+    const service = new ServiceClass(...dependencies || []);
+    this.register(service);
+  }
+  /**
+   * Register a service factory
+   */
+  registerFactory(name, factory) {
+    this.container.registerFactory(name, () => {
+      const service = factory();
+      this.services.set(service.name, service);
+      return service;
+    });
+  }
+  /**
+   * Unregister a service
+   */
+  unregister(serviceName) {
+    const service = this.services.get(serviceName);
+    if (service) {
+      if (service.isRunning()) {
+        service.stop();
+      }
+      this.services.delete(serviceName);
+      this.container.unregister(serviceName);
+      this.eventEmitter.emit("service:unregistered", serviceName);
+    }
+  }
+  /**
+   * Get a service
+   */
+  get(serviceName) {
+    return this.services.get(serviceName);
+  }
+  /**
+   * Get a service (type-safe)
+   */
+  getService(serviceName) {
+    return this.services.get(serviceName);
+  }
+  /**
+   * Get all services
+   */
+  getAll() {
+    return Array.from(this.services.values());
+  }
+  /**
+   * Start a service
+   */
+  async startService(service) {
+    try {
+      if (!service.isRunning()) {
+        await service.initialize();
+      }
+      if (this.isLifecycleService(service)) {
+        await service.beforeStart?.();
+      }
+      await service.start();
+      if (this.isLifecycleService(service)) {
+        await service.afterStart?.();
+      }
+      this.eventEmitter.emit("service:started", service.name);
+    } catch (error) {
+      this.eventEmitter.emit("service:error", { service: service.name, error });
+      if (this.isLifecycleService(service)) {
+        service.onError?.(error);
+      }
+      throw error;
+    }
+  }
+  /**
+   * Stop a service
+   */
+  async stopService(service) {
+    try {
+      if (this.isLifecycleService(service)) {
+        await service.beforeStop?.();
+      }
+      await service.stop();
+      if (this.isLifecycleService(service)) {
+        await service.afterStop?.();
+      }
+      this.eventEmitter.emit("service:stopped", service.name);
+    } catch (error) {
+      this.eventEmitter.emit("service:error", { service: service.name, error });
+      if (this.isLifecycleService(service)) {
+        service.onError?.(error);
+      }
+      throw error;
+    }
+  }
+  /**
+   * Start all services
+   */
+  async startAll() {
+    const startPromises = Array.from(this.services.values()).filter((service) => !service.isRunning()).map((service) => this.startService(service));
+    await Promise.all(startPromises);
+  }
+  /**
+   * Stop all services
+   */
+  async stopAll() {
+    const stopPromises = Array.from(this.services.values()).filter((service) => service.isRunning()).map((service) => this.stopService(service));
+    await Promise.all(stopPromises);
+  }
+  /**
+   * Get health status of all services
+   */
+  getHealth() {
+    return Array.from(this.services.values()).map((service) => ({
+      service: service.name,
+      status: this.getServiceStatus(service),
+      lastCheck: Date.now(),
+      uptime: service.isRunning() ? this.getServiceUptime(service) : void 0,
+      errors: 0
+      // Would need to track this
+    }));
+  }
+  /**
+   * Get service status
+   */
+  getServiceStatus(service) {
+    if (!service.isRunning()) {
+      return "unhealthy";
+    }
+    return "healthy";
+  }
+  /**
+   * Get service uptime
+   */
+  getServiceUptime(service) {
+    return Date.now();
+  }
+  /**
+   * Check if service is lifecycle service
+   */
+  isLifecycleService(service) {
+    return "beforeStart" in service || "afterStart" in service;
+  }
+  /**
+   * Start health check timer
+   */
+  startHealthCheck(interval) {
+    this.healthCheckTimer = setInterval(() => {
+      const health = this.getHealth();
+      this.eventEmitter.emit("health:check", health);
+      const unhealthy = health.filter((h) => h.status === "unhealthy");
+      if (unhealthy.length > 0) {
+        this.eventEmitter.emit("health:unhealthy", unhealthy);
+      }
+    }, interval);
+  }
+  /**
+   * Stop health check timer
+   */
+  stopHealthCheck() {
+    if (this.healthCheckTimer) {
+      clearInterval(this.healthCheckTimer);
+      this.healthCheckTimer = void 0;
+    }
+  }
+  /**
+   * Destroy the factory
+   */
+  async destroy() {
+    this.stopHealthCheck();
+    await this.stopAll();
+    this.services.clear();
+    this.container.clear();
+    this.eventEmitter.removeAllListeners();
+  }
+  /**
+   * Subscribe to events
+   */
+  on(event, handler) {
+    this.eventEmitter.on(event, handler);
+  }
+  /**
+   * Unsubscribe from events
+   */
+  off(event, handler) {
+    this.eventEmitter.off(event, handler);
+  }
+  /**
+   * Get the DI container
+   */
+  getContainer() {
+    return this.container;
+  }
+}
+function createServiceFactory(config2) {
+  const factory = new ServiceFactory(config2);
+  const container = factory.getContainer();
+  container.registerFactory(InjectionTokens.CACHE, (provider) => {
+    return {};
+  });
+  return factory;
+}
+const globalServiceFactory = createServiceFactory({
+  autoStart: false,
+  healthCheckInterval: 6e4
+  // 1 minute
+});
+class MessageRouter {
+  constructor() {
+    this.routes = /* @__PURE__ */ new Map();
+    this.middlewares = [];
+  }
+  /**
+   * Route a message to appropriate handler
+   */
+  async route(message) {
+    try {
+      await this.runMiddleware("before", message);
+      const handler = this.findHandler(message.channel);
+      if (!handler) {
+        if (this.defaultHandler) {
+          await this.defaultHandler(message);
+        } else {
+          throw new Error(`No handler found for channel: ${message.channel}`);
+        }
+        return;
+      }
+      const response = await handler(message);
+      await this.runAfterMiddleware(message, response);
+      return response;
+    } catch (error) {
+      await this.runErrorMiddleware(error, message);
+      throw error;
+    }
+  }
+  /**
+   * Register a route handler
+   */
+  registerRoute(pattern, handler) {
+    this.routes.set(pattern, handler);
+  }
+  /**
+   * Unregister a route
+   */
+  unregisterRoute(pattern) {
+    this.routes.delete(pattern);
+  }
+  /**
+   * Set default handler for unmatched routes
+   */
+  setDefaultHandler(handler) {
+    this.defaultHandler = handler;
+  }
+  /**
+   * Add middleware
+   */
+  use(middleware) {
+    this.middlewares.push(middleware);
+  }
+  /**
+   * Get all registered routes
+   */
+  getRoutes() {
+    return new Map(this.routes);
+  }
+  /**
+   * Find handler for channel
+   */
+  findHandler(channel) {
+    if (this.routes.has(channel)) {
+      return this.routes.get(channel);
+    }
+    for (const [pattern, handler] of this.routes) {
+      if (pattern instanceof RegExp && pattern.test(channel)) {
+        return handler;
+      }
+      if (typeof pattern === "string" && this.matchPattern(pattern, channel)) {
+        return handler;
+      }
+    }
+    return void 0;
+  }
+  /**
+   * Match wildcard pattern
+   */
+  matchPattern(pattern, channel) {
+    const regex = new RegExp(
+      "^" + pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".") + "$"
+    );
+    return regex.test(channel);
+  }
+  /**
+   * Run before middleware
+   */
+  async runMiddleware(phase, message) {
+    for (const middleware of this.middlewares) {
+      if (middleware.before) {
+        await new Promise((resolve, reject) => {
+          middleware.before(message, async () => {
+            resolve();
+          }).catch(reject);
+        });
+      }
+    }
+  }
+  /**
+   * Run after middleware
+   */
+  async runAfterMiddleware(message, response) {
+    for (const middleware of this.middlewares) {
+      if (middleware.after) {
+        await new Promise((resolve, reject) => {
+          middleware.after(message, response, async () => {
+            resolve();
+          }).catch(reject);
+        });
+      }
+    }
+  }
+  /**
+   * Run error middleware
+   */
+  async runErrorMiddleware(error, message) {
+    for (const middleware of this.middlewares) {
+      if (middleware.error) {
+        await new Promise((resolve, reject) => {
+          middleware.error(error, message, async () => {
+            resolve();
+          }).catch(reject);
+        });
+      }
+    }
+  }
+  /**
+   * Clear all routes and middleware
+   */
+  clear() {
+    this.routes.clear();
+    this.middlewares = [];
+    this.defaultHandler = void 0;
+  }
+}
+function createMessageRouter() {
+  return new MessageRouter();
+}
+const loggingMiddleware = {
+  name: "logging",
+  before: async (message, next) => {
+    console.log(`[MessageRouter] Routing message:`, {
+      channel: message.channel,
+      type: message.type,
+      id: message.id
+    });
+    await next();
+  },
+  after: async (message, response, next) => {
+    console.log(`[MessageRouter] Message handled:`, {
+      channel: message.channel,
+      hasResponse: response !== void 0
+    });
+    await next();
+  },
+  error: async (error, message, next) => {
+    console.error(`[MessageRouter] Error handling message:`, {
+      channel: message.channel,
+      error: error.message
+    });
+    await next();
+  }
+};
+function createValidationMiddleware(validator) {
+  return {
+    name: "validation",
+    before: async (message, next) => {
+      if (!validator(message)) {
+        throw new Error(`Message validation failed for channel: ${message.channel}`);
+      }
+      await next();
+    }
+  };
+}
+function createRateLimitMiddleware(maxRequests, windowMs) {
+  const requests = /* @__PURE__ */ new Map();
+  return {
+    name: "rate-limit",
+    before: async (message, next) => {
+      const key = message.sender?.id || "anonymous";
+      const now = Date.now();
+      const windowStart = now - windowMs;
+      let timestamps = requests.get(key) || [];
+      timestamps = timestamps.filter((t) => t > windowStart);
+      if (timestamps.length >= maxRequests) {
+        throw new Error(`Rate limit exceeded for ${key}`);
+      }
+      timestamps.push(now);
+      requests.set(key, timestamps);
+      await next();
+    }
+  };
+}
+function createRetryMiddleware(maxRetries = 3, retryDelay = 1e3) {
+  return {
+    name: "retry",
+    error: async (error, message, next) => {
+      const retryCount = message.retryCount || 0;
+      if (retryCount < maxRetries) {
+        console.log(`[Retry] Retrying message (${retryCount + 1}/${maxRetries}):`, message.channel);
+        await new Promise((resolve) => setTimeout(resolve, retryDelay * (retryCount + 1)));
+        message.retryCount = retryCount + 1;
+        throw error;
+      }
+      await next();
+    }
+  };
+}
+class MessageChannel {
+  constructor(id, bus) {
+    this.id = id;
+    this.bus = bus;
+    this._isOpen = true;
+  }
+  async send(data) {
+    if (!this._isOpen) {
+      throw new Error(`Channel ${this.id} is closed`);
+    }
+    await this.bus.send(this.id, data);
+  }
+  onMessage(handler) {
+    return this.bus.onMessage(this.id, handler);
+  }
+  close() {
+    this._isOpen = false;
+    this.bus.closeChannel(this.id);
+  }
+  isOpen() {
+    return this._isOpen;
+  }
+}
+class MessageStream {
+  constructor(id, bus) {
+    this.id = id;
+    this.bus = bus;
+    this.observers = /* @__PURE__ */ new Set();
+    this.state = StreamState.IDLE;
+    this.buffer = [];
+  }
+  async write(data) {
+    if (this.state !== StreamState.ACTIVE && this.state !== StreamState.IDLE) {
+      throw new Error(`Stream ${this.id} is not active`);
+    }
+    this.state = StreamState.ACTIVE;
+    this.buffer.push(data);
+    for (const observer of this.observers) {
+      try {
+        observer.next(data);
+      } catch (error) {
+        console.error("Stream observer error:", error);
+      }
+    }
+    await this.bus.send(`stream:${this.id}`, {
+      type: "data",
+      data
+    });
+  }
+  async end() {
+    if (this.state === StreamState.COMPLETED || this.state === StreamState.ABORTED) {
+      return;
+    }
+    this.state = StreamState.COMPLETED;
+    for (const observer of this.observers) {
+      try {
+        observer.complete?.();
+      } catch (error) {
+        console.error("Stream observer error:", error);
+      }
+    }
+    await this.bus.send(`stream:${this.id}`, {
+      type: "end"
+    });
+  }
+  abort(error) {
+    if (this.state === StreamState.COMPLETED || this.state === StreamState.ABORTED) {
+      return;
+    }
+    this.state = StreamState.ABORTED;
+    this.error = error;
+    for (const observer of this.observers) {
+      try {
+        observer.error?.(error || new Error("Stream aborted"));
+      } catch (err) {
+        console.error("Stream observer error:", err);
+      }
+    }
+    this.bus.send(`stream:${this.id}`, {
+      type: "error",
+      error: error?.message
+    });
+  }
+  subscribe(observer) {
+    this.observers.add(observer);
+    for (const data of this.buffer) {
+      try {
+        observer.next(data);
+      } catch (error) {
+        console.error("Stream observer error:", error);
+      }
+    }
+    if (this.state === StreamState.COMPLETED) {
+      observer.complete?.();
+    } else if (this.state === StreamState.ABORTED) {
+      observer.error?.(this.error || new Error("Stream aborted"));
+    }
+    return () => {
+      this.observers.delete(observer);
+    };
+  }
+  getState() {
+    return this.state;
+  }
+}
+class MessageBus extends eventemitter3.EventEmitter {
+  constructor() {
+    super();
+    this.channels = /* @__PURE__ */ new Map();
+    this.streams = /* @__PURE__ */ new Map();
+    this.metrics = {
+      messagesSent: 0,
+      messagesReceived: 0,
+      messagesDropped: 0,
+      averageLatency: 0,
+      activeChannels: 0,
+      activeStreams: 0,
+      errors: 0,
+      lastActivity: Date.now()
+    };
+    this.messageHandlers = /* @__PURE__ */ new Map();
+    this.messageIdCounter = 0;
+    this.pendingRequests = /* @__PURE__ */ new Map();
+    this.router = new MessageRouter();
+    this.setupDefaultRoutes();
+  }
+  /**
+   * Get or create a message channel
+   */
+  channel(id) {
+    if (!this.channels.has(id)) {
+      const channel = new MessageChannel(id, this);
+      this.channels.set(id, channel);
+      this.metrics.activeChannels++;
+    }
+    return this.channels.get(id);
+  }
+  /**
+   * Create a message stream
+   */
+  createStream(id) {
+    const streamId = id || `stream-${Date.now()}-${Math.random()}`;
+    const stream = new MessageStream(streamId, this);
+    this.streams.set(streamId, stream);
+    this.metrics.activeStreams++;
+    return stream;
+  }
+  /**
+   * Get existing stream
+   */
+  getStream(id) {
+    return this.streams.get(id);
+  }
+  /**
+   * Request-response with timeout
+   */
+  async request(channel, data, timeout = 5e3) {
+    const messageId = this.generateMessageId();
+    const correlationId = `req-${messageId}`;
+    return new Promise((resolve, reject) => {
+      const timeoutHandle = setTimeout(() => {
+        this.pendingRequests.delete(correlationId);
+        reject(new Error(`Request timeout for channel: ${channel}`));
+      }, timeout);
+      this.pendingRequests.set(correlationId, {
+        resolve,
+        reject,
+        timeout: timeoutHandle
+      });
+      const message = {
+        id: messageId,
+        channel,
+        data,
+        type: MessageType.REQUEST,
+        correlationId,
+        replyTo: `response:${correlationId}`,
+        timestamp: Date.now()
+      };
+      this.send(channel, data, message).catch(reject);
+    });
+  }
+  /**
+   * Send a message
+   */
+  async send(channel, data, envelope) {
+    const message = {
+      id: envelope?.id || this.generateMessageId(),
+      channel,
+      data,
+      type: envelope?.type || MessageType.EVENT,
+      timestamp: Date.now(),
+      ...envelope
+    };
+    this.metrics.messagesSent++;
+    this.metrics.lastActivity = Date.now();
+    if (this.validator) {
+      const validation = this.validator.validate(message);
+      if (!validation.valid) {
+        this.metrics.messagesDropped++;
+        throw new Error(`Message validation failed: ${validation.errors?.map((e) => e.message).join(", ")}`);
+      }
+    }
+    try {
+      await this.router.route(message);
+      this.emitLocal(channel, message);
+      if (message.correlationId && this.pendingRequests.has(message.correlationId)) {
+        const pending = this.pendingRequests.get(message.correlationId);
+        if (pending) {
+          clearTimeout(pending.timeout);
+          pending.resolve(data);
+          this.pendingRequests.delete(message.correlationId);
+        }
+      }
+    } catch (error) {
+      this.metrics.errors++;
+      throw error;
+    }
+  }
+  /**
+   * Subscribe to messages (renamed to avoid EventEmitter conflict)
+   */
+  onMessage(event, handler) {
+    if (!this.messageHandlers.has(event)) {
+      this.messageHandlers.set(event, /* @__PURE__ */ new Set());
+    }
+    const handlers = this.messageHandlers.get(event);
+    handlers.add(handler);
+    this.router.registerRoute(event, handler);
+    return () => {
+      handlers.delete(handler);
+      if (handlers.size === 0) {
+        this.messageHandlers.delete(event);
+        this.router.unregisterRoute(event);
+      }
+    };
+  }
+  /**
+   * Emit a message (renamed to avoid EventEmitter conflict)
+   */
+  emitMessage(event, data) {
+    this.send(event, data, { type: MessageType.EVENT });
+  }
+  /**
+   * Get message router
+   */
+  getRouter() {
+    return this.router;
+  }
+  /**
+   * Get message validator
+   */
+  getValidator() {
+    if (!this.validator) {
+      throw new Error("No validator configured");
+    }
+    return this.validator;
+  }
+  /**
+   * Set message validator
+   */
+  setValidator(validator) {
+    this.validator = validator;
+  }
+  /**
+   * Add global middleware
+   */
+  use(middleware) {
+    this.router.use(middleware);
+  }
+  /**
+   * Get metrics
+   */
+  getMetrics() {
+    return { ...this.metrics };
+  }
+  /**
+   * Reset metrics
+   */
+  resetMetrics() {
+    this.metrics = {
+      messagesSent: 0,
+      messagesReceived: 0,
+      messagesDropped: 0,
+      averageLatency: 0,
+      activeChannels: this.channels.size,
+      activeStreams: this.streams.size,
+      errors: 0,
+      lastActivity: Date.now()
+    };
+  }
+  /**
+   * Close a channel
+   */
+  closeChannel(id) {
+    if (this.channels.has(id)) {
+      this.channels.delete(id);
+      this.metrics.activeChannels--;
+    }
+  }
+  /**
+   * Emit to local listeners
+   */
+  emitLocal(channel, message) {
+    const handlers = this.messageHandlers.get(channel);
+    if (handlers) {
+      for (const handler of handlers) {
+        try {
+          handler(message);
+        } catch (error) {
+          console.error("Handler error:", error);
+        }
+      }
+    }
+  }
+  /**
+   * Generate message ID
+   */
+  generateMessageId() {
+    return `msg-${Date.now()}-${++this.messageIdCounter}`;
+  }
+  /**
+   * Setup default routes
+   */
+  setupDefaultRoutes() {
+    this.router.registerRoute("ping", async (message) => {
+      const envelope = message;
+      await this.send("pong", { timestamp: Date.now() }, {
+        correlationId: envelope.correlationId,
+        type: MessageType.PONG
+      });
+    });
+    this.router.registerRoute(/^stream:.*/, async (message) => {
+      const streamId = message.channel.replace("stream:", "");
+      const stream = this.streams.get(streamId);
+      if (stream && message.data) {
+        const { type, data } = message.data;
+        if (type === "data") {
+          this.metrics.messagesReceived++;
+        } else if (type === "end") {
+          this.streams.delete(streamId);
+          this.metrics.activeStreams--;
+        } else if (type === "error") {
+          this.streams.delete(streamId);
+          this.metrics.activeStreams--;
+          this.metrics.errors++;
+        }
+      }
+    });
+  }
+  /**
+   * Destroy the message bus
+   */
+  destroy() {
+    for (const [id, pending] of this.pendingRequests) {
+      clearTimeout(pending.timeout);
+      pending.reject(new Error("Message bus destroyed"));
+    }
+    this.pendingRequests.clear();
+    for (const channel of this.channels.values()) {
+      channel.close();
+    }
+    this.channels.clear();
+    for (const stream of this.streams.values()) {
+      stream.abort(new Error("Message bus destroyed"));
+    }
+    this.streams.clear();
+    this.messageHandlers.clear();
+    this.router.clear();
+    this.removeAllListeners();
+  }
+}
+function createMessageBus() {
+  return new MessageBus();
+}
+const globalMessageBus = createMessageBus();
+class BaseStorageProvider {
+  constructor() {
+    this.watchers = /* @__PURE__ */ new Map();
+    this.metadata = /* @__PURE__ */ new Map();
+  }
+  async getMultiple(keys) {
+    const result = {};
+    await Promise.all(
+      keys.map(async (key) => {
+        result[key] = await this.get(key);
+      })
+    );
+    return result;
+  }
+  async setMultiple(items) {
+    await Promise.all(
+      Object.entries(items).map(([key, value]) => this.set(key, value))
+    );
+  }
+  async removeMultiple(keys) {
+    await Promise.all(keys.map((key) => this.remove(key)));
+  }
+  async has(key) {
+    const value = await this.get(key);
+    return value !== null;
+  }
+  async getWithMetadata(key) {
+    const value = await this.get(key);
+    if (value === null) return null;
+    const metadata = this.metadata.get(key) || this.createDefaultMetadata();
+    return { key, value, metadata };
+  }
+  async setWithMetadata(key, value, metadata) {
+    const now = Date.now();
+    const existingMetadata = this.metadata.get(key);
+    const newMetadata = {
+      created: existingMetadata?.created || now,
+      updated: now,
+      accessed: now,
+      ...metadata
+    };
+    this.metadata.set(key, newMetadata);
+    await this.set(key, value);
+    this.notifyWatchers(key, {
+      key,
+      newValue: value,
+      type: "set"
+    });
+  }
+  async updateMetadata(key, metadata) {
+    const existing = this.metadata.get(key);
+    if (!existing) {
+      throw new Error(`No metadata found for key: ${key}`);
+    }
+    this.metadata.set(key, {
+      ...existing,
+      ...metadata,
+      updated: Date.now()
+    });
+  }
+  async getByTag(tag2) {
+    const keys = await this.getKeys();
+    const results = [];
+    for (const key of keys) {
+      const metadata = this.metadata.get(key);
+      if (metadata?.tags?.includes(tag2)) {
+        const value = await this.get(key);
+        if (value !== null) {
+          results.push({ key, value, metadata });
+        }
+      }
+    }
+    return results;
+  }
+  async query(filter) {
+    const keys = await this.getKeys();
+    const results = [];
+    for (const key of keys) {
+      if (filter.keyPattern) {
+        const pattern = filter.keyPattern instanceof RegExp ? filter.keyPattern : new RegExp(filter.keyPattern);
+        if (!pattern.test(key)) continue;
+      }
+      const metadata = this.metadata.get(key);
+      if (!this.matchesFilter(metadata, filter)) continue;
+      const value = await this.get(key);
+      if (value !== null) {
+        results.push({ key, value, metadata });
+      }
+    }
+    const start = filter.offset || 0;
+    const end = filter.limit ? start + filter.limit : results.length;
+    return results.slice(start, end);
+  }
+  watch(key, callback) {
+    const keys = Array.isArray(key) ? key : [key];
+    keys.forEach((k) => {
+      if (!this.watchers.has(k)) {
+        this.watchers.set(k, /* @__PURE__ */ new Set());
+      }
+      this.watchers.get(k).add(callback);
+    });
+    return () => {
+      keys.forEach((k) => {
+        this.watchers.get(k)?.delete(callback);
+      });
+    };
+  }
+  async transaction(operations) {
+    try {
+      return await operations();
+    } catch (error) {
+      throw new Error(`Transaction failed: ${error}`);
+    }
+  }
+  createDefaultMetadata() {
+    const now = Date.now();
+    return {
+      created: now,
+      updated: now,
+      accessed: now
+    };
+  }
+  matchesFilter(metadata, filter) {
+    if (!metadata) return false;
+    if (filter.tags && filter.tags.length > 0) {
+      if (!metadata.tags || !filter.tags.every((tag2) => metadata.tags.includes(tag2))) {
+        return false;
+      }
+    }
+    if (filter.createdAfter && metadata.created < filter.createdAfter) return false;
+    if (filter.createdBefore && metadata.created > filter.createdBefore) return false;
+    if (filter.updatedAfter && metadata.updated < filter.updatedAfter) return false;
+    if (filter.updatedBefore && metadata.updated > filter.updatedBefore) return false;
+    if (filter.expired !== void 0) {
+      const isExpired = metadata.expires ? metadata.expires < Date.now() : false;
+      if (filter.expired !== isExpired) return false;
+    }
+    return true;
+  }
+  notifyWatchers(key, change) {
+    const callbacks = this.watchers.get(key);
+    if (callbacks) {
+      callbacks.forEach((callback) => callback([change]));
+    }
+  }
+}
+class LocalStorageProvider extends BaseStorageProvider {
+  constructor(options) {
+    super();
+    this.namespace = options?.namespace || "yakkl";
+  }
+  getKey(key) {
+    return `${this.namespace}:${key}`;
+  }
+  isOurKey(key) {
+    return key.startsWith(`${this.namespace}:`);
+  }
+  extractKey(namespacedKey) {
+    return namespacedKey.substring(this.namespace.length + 1);
+  }
+  async get(key) {
+    try {
+      const item = localStorage.getItem(this.getKey(key));
+      if (item === null) return null;
+      const data = JSON.parse(item);
+      const metadata = this.metadata.get(key);
+      if (metadata) {
+        metadata.accessed = Date.now();
+      }
+      if (data.expires && data.expires < Date.now()) {
+        await this.remove(key);
+        return null;
+      }
+      return data.value;
+    } catch (error) {
+      console.error(`Failed to get item from localStorage: ${error}`);
+      return null;
+    }
+  }
+  async set(key, value) {
+    try {
+      const metadata = this.metadata.get(key);
+      const data = {
+        value,
+        expires: metadata?.expires
+      };
+      localStorage.setItem(this.getKey(key), JSON.stringify(data));
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "QuotaExceededError") {
+        throw new Error("Storage quota exceeded");
+      }
+      throw error;
+    }
+  }
+  async remove(key) {
+    localStorage.removeItem(this.getKey(key));
+    this.metadata.delete(key);
+    this.notifyWatchers(key, {
+      key,
+      oldValue: await this.get(key),
+      type: "remove"
+    });
+  }
+  async clear() {
+    const keys = await this.getKeys();
+    keys.forEach((key) => {
+      localStorage.removeItem(this.getKey(key));
+    });
+    this.metadata.clear();
+    this.watchers.clear();
+  }
+  async getKeys() {
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && this.isOurKey(key)) {
+        keys.push(this.extractKey(key));
+      }
+    }
+    return keys;
+  }
+  async getInfo() {
+    try {
+      let bytesInUse = 0;
+      const keys = await this.getKeys();
+      for (const key of keys) {
+        const item = localStorage.getItem(this.getKey(key));
+        if (item) {
+          bytesInUse += item.length * 2;
+        }
+      }
+      if ("navigator" in globalThis && "storage" in navigator && "estimate" in navigator.storage) {
+        const estimate = await navigator.storage.estimate();
+        return {
+          bytesInUse,
+          quota: estimate.quota,
+          usage: estimate.usage
+        };
+      }
+      return { bytesInUse };
+    } catch (error) {
+      return {};
+    }
+  }
+}
+class LocalStorageProviderFactory {
+  constructor() {
+    this.type = StorageType.LOCAL;
+  }
+  createStorage(options) {
+    return new LocalStorageProvider(options);
+  }
+  isAvailable() {
+    try {
+      const testKey = "__yakkl_test__";
+      localStorage.setItem(testKey, "test");
+      localStorage.removeItem(testKey);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  getCapabilities() {
+    return {
+      persistent: false,
+      synchronizable: false,
+      searchable: true,
+      transactional: false,
+      versionable: true,
+      encryptable: true,
+      maxSize: 5 * 1024 * 1024,
+      // 5MB typical limit
+      maxKeys: void 0
+    };
+  }
+}
+class IndexedDBProvider extends BaseStorageProvider {
+  constructor(options) {
+    super();
+    this.db = null;
+    this.dbName = options?.namespace || "yakkl_wallet";
+    this.storeName = "storage";
+    this.version = options?.version || 1;
+  }
+  async ensureDB() {
+    if (this.db) return this.db;
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, this.version);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        this.db = request.result;
+        resolve(this.db);
+      };
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          const store = db.createObjectStore(this.storeName, { keyPath: "key" });
+          store.createIndex("tags", "metadata.tags", { multiEntry: true });
+          store.createIndex("created", "metadata.created");
+          store.createIndex("updated", "metadata.updated");
+          store.createIndex("expires", "metadata.expires");
+        }
+      };
+    });
+  }
+  async get(key) {
+    const db = await this.ensureDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([this.storeName], "readonly");
+      const store = transaction.objectStore(this.storeName);
+      const request = store.get(key);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const result = request.result;
+        if (!result) {
+          resolve(null);
+          return;
+        }
+        if (result.metadata.expires && result.metadata.expires < Date.now()) {
+          this.remove(key).then(() => resolve(null));
+          return;
+        }
+        this.metadata.set(key, {
+          ...result.metadata,
+          accessed: Date.now()
+        });
+        resolve(result.value);
+      };
+    });
+  }
+  async set(key, value) {
+    const db = await this.ensureDB();
+    const metadata = this.metadata.get(key) || this.createDefaultMetadata();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([this.storeName], "readwrite");
+      const store = transaction.objectStore(this.storeName);
+      const item = {
+        key,
+        value,
+        metadata
+      };
+      const request = store.put(item);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        this.notifyWatchers(key, {
+          key,
+          newValue: value,
+          type: "set"
+        });
+        resolve();
+      };
+    });
+  }
+  async remove(key) {
+    const db = await this.ensureDB();
+    const oldValue = await this.get(key);
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([this.storeName], "readwrite");
+      const store = transaction.objectStore(this.storeName);
+      const request = store.delete(key);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        this.metadata.delete(key);
+        this.notifyWatchers(key, {
+          key,
+          oldValue,
+          type: "remove"
+        });
+        resolve();
+      };
+    });
+  }
+  async clear() {
+    const db = await this.ensureDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([this.storeName], "readwrite");
+      const store = transaction.objectStore(this.storeName);
+      const request = store.clear();
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        this.metadata.clear();
+        this.watchers.clear();
+        resolve();
+      };
+    });
+  }
+  async getKeys() {
+    const db = await this.ensureDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([this.storeName], "readonly");
+      const store = transaction.objectStore(this.storeName);
+      const request = store.getAllKeys();
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+    });
+  }
+  async transaction(operations) {
+    await this.ensureDB();
+    return new Promise(async (resolve, reject) => {
+      try {
+        const result = await operations();
+        resolve(result);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+  async getInfo() {
+    try {
+      if ("navigator" in globalThis && "storage" in navigator && "estimate" in navigator.storage) {
+        const estimate = await navigator.storage.estimate();
+        return {
+          quota: estimate.quota,
+          usage: estimate.usage,
+          bytesInUse: estimate.usage
+        };
+      }
+      return {};
+    } catch {
+      return {};
+    }
+  }
+  async close() {
+    if (this.db) {
+      this.db.close();
+      this.db = null;
+    }
+  }
+}
+class IndexedDBProviderFactory {
+  constructor() {
+    this.type = StorageType.INDEXED_DB;
+  }
+  createStorage(options) {
+    return new IndexedDBProvider(options);
+  }
+  isAvailable() {
+    return typeof indexedDB !== "undefined";
+  }
+  getCapabilities() {
+    return {
+      persistent: true,
+      synchronizable: false,
+      searchable: true,
+      transactional: true,
+      versionable: true,
+      encryptable: true,
+      maxSize: 1024 * 1024 * 1024,
+      // 1GB+ typically available
+      maxKeys: void 0
+    };
+  }
+}
+class ChromeStorageProvider extends BaseStorageProvider {
+  constructor(options) {
+    super();
+    this.namespace = options?.namespace || "yakkl";
+    this.isSync = options?.sync || false;
+    if (typeof globalThis !== "undefined" && "browser" in globalThis) {
+      const browser = globalThis.browser;
+      this.storage = this.isSync ? browser.storage.sync : browser.storage.local;
+    } else if (typeof globalThis !== "undefined" && "chrome" in globalThis) {
+      const chrome = globalThis.chrome;
+      this.storage = this.isSync ? chrome.storage.sync : chrome.storage.local;
+    } else {
+      throw new Error("Chrome storage API not available");
+    }
+  }
+  getKey(key) {
+    return `${this.namespace}:${key}`;
+  }
+  isOurKey(key) {
+    return key.startsWith(`${this.namespace}:`);
+  }
+  extractKey(namespacedKey) {
+    return namespacedKey.substring(this.namespace.length + 1);
+  }
+  async get(key) {
+    try {
+      const namespacedKey = this.getKey(key);
+      const result = await this.storage.get(namespacedKey);
+      if (!(namespacedKey in result)) {
+        return null;
+      }
+      const data = result[namespacedKey];
+      if (data.expires && data.expires < Date.now()) {
+        await this.remove(key);
+        return null;
+      }
+      const metadata = this.metadata.get(key);
+      if (metadata) {
+        metadata.accessed = Date.now();
+      }
+      return data.value;
+    } catch (error) {
+      console.error(`Failed to get item from Chrome storage: ${error}`);
+      return null;
+    }
+  }
+  async set(key, value) {
+    try {
+      const metadata = this.metadata.get(key) || this.createDefaultMetadata();
+      const data = {
+        value,
+        expires: metadata.expires
+      };
+      await this.storage.set({ [this.getKey(key)]: data });
+      this.notifyWatchers(key, {
+        key,
+        newValue: value,
+        type: "set"
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("QUOTA_BYTES")) {
+        throw new Error("Storage quota exceeded");
+      }
+      throw error;
+    }
+  }
+  async remove(key) {
+    const oldValue = await this.get(key);
+    await this.storage.remove(this.getKey(key));
+    this.metadata.delete(key);
+    this.notifyWatchers(key, {
+      key,
+      oldValue,
+      type: "remove"
+    });
+  }
+  async clear() {
+    const keys = await this.getKeys();
+    const namespacedKeys = keys.map((key) => this.getKey(key));
+    if (namespacedKeys.length > 0) {
+      await this.storage.remove(namespacedKeys);
+    }
+    this.metadata.clear();
+    this.watchers.clear();
+  }
+  async getKeys() {
+    const allItems = await this.storage.get(null);
+    const keys = [];
+    for (const key in allItems) {
+      if (this.isOurKey(key)) {
+        keys.push(this.extractKey(key));
+      }
+    }
+    return keys;
+  }
+  async getInfo() {
+    try {
+      const keys = await this.getKeys();
+      const namespacedKeys = keys.map((key) => this.getKey(key));
+      const bytesInUse = await this.storage.getBytesInUse(namespacedKeys);
+      const quota = this.isSync ? 102400 : 10485760;
+      return {
+        bytesInUse,
+        quota,
+        usage: bytesInUse
+      };
+    } catch {
+      return {};
+    }
+  }
+}
+class ChromeLocalStorageProviderFactory {
+  constructor() {
+    this.type = StorageType.CHROME_LOCAL;
+  }
+  createStorage(options) {
+    return new ChromeStorageProvider({ ...options, sync: false });
+  }
+  isAvailable() {
+    return typeof globalThis !== "undefined" && ("browser" in globalThis || "chrome" in globalThis) && (globalThis.browser?.storage || globalThis.chrome?.storage);
+  }
+  getCapabilities() {
+    return {
+      persistent: true,
+      synchronizable: false,
+      searchable: true,
+      transactional: false,
+      versionable: true,
+      encryptable: true,
+      maxSize: 10 * 1024 * 1024,
+      // 10MB default, unlimited with permission
+      maxKeys: void 0
+    };
+  }
+}
+class ChromeSyncStorageProviderFactory {
+  constructor() {
+    this.type = StorageType.CHROME_SYNC;
+  }
+  createStorage(options) {
+    return new ChromeStorageProvider({ ...options, sync: true });
+  }
+  isAvailable() {
+    return typeof globalThis !== "undefined" && ("browser" in globalThis || "chrome" in globalThis) && (globalThis.browser?.storage?.sync || globalThis.chrome?.storage?.sync);
+  }
+  getCapabilities() {
+    return {
+      persistent: true,
+      synchronizable: true,
+      searchable: true,
+      transactional: false,
+      versionable: true,
+      encryptable: true,
+      maxSize: 100 * 1024,
+      // 100KB for sync storage
+      maxKeys: 512
+      // Chrome sync storage limit
+    };
+  }
+}
+class MemoryStorageProvider extends BaseStorageProvider {
+  constructor(options) {
+    super();
+    this.store = /* @__PURE__ */ new Map();
+    this.namespace = options?.namespace || "yakkl";
+  }
+  getKey(key) {
+    return `${this.namespace}:${key}`;
+  }
+  async get(key) {
+    const namespacedKey = this.getKey(key);
+    if (!this.store.has(namespacedKey)) {
+      return null;
+    }
+    const data = this.store.get(namespacedKey);
+    if (data.expires && data.expires < Date.now()) {
+      await this.remove(key);
+      return null;
+    }
+    const metadata = this.metadata.get(key);
+    if (metadata) {
+      metadata.accessed = Date.now();
+    }
+    return data.value;
+  }
+  async set(key, value) {
+    const metadata = this.metadata.get(key) || this.createDefaultMetadata();
+    const data = {
+      value,
+      expires: metadata.expires
+    };
+    this.store.set(this.getKey(key), data);
+    this.notifyWatchers(key, {
+      key,
+      newValue: value,
+      type: "set"
+    });
+  }
+  async remove(key) {
+    const oldValue = await this.get(key);
+    this.store.delete(this.getKey(key));
+    this.metadata.delete(key);
+    this.notifyWatchers(key, {
+      key,
+      oldValue,
+      type: "remove"
+    });
+  }
+  async clear() {
+    const keys = await this.getKeys();
+    keys.forEach((key) => {
+      this.store.delete(this.getKey(key));
+    });
+    this.metadata.clear();
+    this.watchers.clear();
+  }
+  async getKeys() {
+    const keys = [];
+    const prefix = `${this.namespace}:`;
+    for (const key of this.store.keys()) {
+      if (key.startsWith(prefix)) {
+        keys.push(key.substring(prefix.length));
+      }
+    }
+    return keys;
+  }
+  async getInfo() {
+    let bytesInUse = 0;
+    for (const [key, value] of this.store.entries()) {
+      bytesInUse += key.length * 2;
+      bytesInUse += JSON.stringify(value).length * 2;
+    }
+    return { bytesInUse };
+  }
+}
+class MemoryStorageProviderFactory {
+  constructor() {
+    this.type = StorageType.MEMORY;
+  }
+  createStorage(options) {
+    return new MemoryStorageProvider(options);
+  }
+  isAvailable() {
+    return true;
+  }
+  getCapabilities() {
+    return {
+      persistent: false,
+      synchronizable: false,
+      searchable: true,
+      transactional: false,
+      versionable: true,
+      encryptable: true,
+      maxSize: void 0,
+      // Limited by available memory
+      maxKeys: void 0
+    };
+  }
+}
+class EncryptedStorageWrapper {
+  constructor(storage) {
+    this.encryptionKey = null;
+    this.textEncoder = new TextEncoder();
+    this.textDecoder = new TextDecoder();
+    this.storage = storage;
+  }
+  async setEncryptionKey(key) {
+    if (typeof key === "string") {
+      const keyMaterial = await crypto.subtle.importKey(
+        "raw",
+        this.textEncoder.encode(key),
+        { name: "PBKDF2" },
+        false,
+        ["deriveBits", "deriveKey"]
+      );
+      this.encryptionKey = await crypto.subtle.deriveKey(
+        {
+          name: "PBKDF2",
+          salt: this.textEncoder.encode("yakkl-wallet-salt"),
+          iterations: 1e5,
+          hash: "SHA-256"
+        },
+        keyMaterial,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["encrypt", "decrypt"]
+      );
+    } else {
+      this.encryptionKey = key;
+    }
+  }
+  async rotateEncryptionKey(newKey) {
+    if (!this.encryptionKey) {
+      throw new Error("No encryption key set");
+    }
+    const keys = await this.storage.getKeys();
+    const decryptedData = {};
+    for (const key of keys) {
+      const encryptedValue = await this.storage.get(key);
+      if (encryptedValue) {
+        try {
+          decryptedData[key] = await this.decrypt(encryptedValue);
+        } catch {
+        }
+      }
+    }
+    await this.setEncryptionKey(newKey);
+    for (const [key, value] of Object.entries(decryptedData)) {
+      const encrypted = await this.encrypt(value);
+      await this.storage.set(key, encrypted);
+    }
+  }
+  isEncrypted() {
+    return this.encryptionKey !== null;
+  }
+  async encrypt(value) {
+    if (!this.encryptionKey) {
+      throw new Error("No encryption key set");
+    }
+    const data = JSON.stringify(value);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encrypted = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      this.encryptionKey,
+      this.textEncoder.encode(data)
+    );
+    const combined = new Uint8Array(iv.length + encrypted.byteLength);
+    combined.set(iv, 0);
+    combined.set(new Uint8Array(encrypted), iv.length);
+    return btoa(String.fromCharCode(...combined));
+  }
+  async decrypt(encryptedValue) {
+    if (!this.encryptionKey) {
+      throw new Error("No encryption key set");
+    }
+    const combined = Uint8Array.from(atob(encryptedValue), (c) => c.charCodeAt(0));
+    const iv = combined.slice(0, 12);
+    const encrypted = combined.slice(12);
+    const decrypted = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv },
+      this.encryptionKey,
+      encrypted
+    );
+    const data = this.textDecoder.decode(decrypted);
+    return JSON.parse(data);
+  }
+  // IStorage implementation with encryption
+  async get(key) {
+    if (!this.isEncrypted()) {
+      return this.storage.get(key);
+    }
+    const encryptedValue = await this.storage.get(key);
+    if (encryptedValue === null) return null;
+    try {
+      return await this.decrypt(encryptedValue);
+    } catch (error) {
+      console.error("Decryption failed:", error);
+      return null;
+    }
+  }
+  async set(key, value) {
+    if (!this.isEncrypted()) {
+      return this.storage.set(key, value);
+    }
+    const encrypted = await this.encrypt(value);
+    return this.storage.set(key, encrypted);
+  }
+  async getMultiple(keys) {
+    const result = {};
+    await Promise.all(
+      keys.map(async (key) => {
+        result[key] = await this.get(key);
+      })
+    );
+    return result;
+  }
+  async setMultiple(items) {
+    await Promise.all(
+      Object.entries(items).map(([key, value]) => this.set(key, value))
+    );
+  }
+  // Delegate non-encrypted methods to base storage
+  async remove(key) {
+    return this.storage.remove(key);
+  }
+  async removeMultiple(keys) {
+    return this.storage.removeMultiple(keys);
+  }
+  async clear() {
+    return this.storage.clear();
+  }
+  async getKeys() {
+    return this.storage.getKeys();
+  }
+  async has(key) {
+    return this.storage.has(key);
+  }
+  async getInfo() {
+    return this.storage.getInfo?.() || {};
+  }
+  // IEnhancedStorage implementation
+  async getWithMetadata(key) {
+    const value = await this.get(key);
+    if (value === null) return null;
+    if ("getWithMetadata" in this.storage) {
+      const entry = await this.storage.getWithMetadata(key);
+      if (entry) {
+        return { ...entry, value };
+      }
+    }
+    return { key, value };
+  }
+  async setWithMetadata(key, value, metadata) {
+    if (this.isEncrypted()) {
+      const encrypted = await this.encrypt(value);
+      if ("setWithMetadata" in this.storage) {
+        return this.storage.setWithMetadata(key, encrypted, {
+          ...metadata,
+          encrypted: true
+        });
+      }
+      return this.storage.set(key, encrypted);
+    }
+    if ("setWithMetadata" in this.storage) {
+      return this.storage.setWithMetadata(key, value, metadata);
+    }
+    return this.storage.set(key, value);
+  }
+  async updateMetadata(key, metadata) {
+    if ("updateMetadata" in this.storage) {
+      return this.storage.updateMetadata(key, metadata);
+    }
+    throw new Error("Base storage does not support metadata");
+  }
+  async getByTag(tag2) {
+    if ("getByTag" in this.storage) {
+      const entries = await this.storage.getByTag(tag2);
+      if (this.isEncrypted()) {
+        return Promise.all(
+          entries.map(async (entry) => ({
+            ...entry,
+            value: await this.decrypt(entry.value)
+          }))
+        );
+      }
+      return entries;
+    }
+    return [];
+  }
+  async query(filter) {
+    if ("query" in this.storage) {
+      const entries = await this.storage.query(filter);
+      if (this.isEncrypted()) {
+        return Promise.all(
+          entries.map(async (entry) => ({
+            ...entry,
+            value: await this.decrypt(entry.value)
+          }))
+        );
+      }
+      return entries;
+    }
+    return [];
+  }
+  watch(key, callback) {
+    if ("watch" in this.storage) {
+      const wrappedCallback = async (changes) => {
+        if (this.isEncrypted()) {
+          const decryptedChanges = await Promise.all(
+            changes.map(async (change) => ({
+              ...change,
+              oldValue: change.oldValue ? await this.decrypt(change.oldValue) : void 0,
+              newValue: change.newValue ? await this.decrypt(change.newValue) : void 0
+            }))
+          );
+          callback(decryptedChanges);
+        } else {
+          callback(changes);
+        }
+      };
+      return this.storage.watch(key, wrappedCallback);
+    }
+    return () => {
+    };
+  }
+  async transaction(operations) {
+    if ("transaction" in this.storage) {
+      return this.storage.transaction(operations);
+    }
+    return operations();
+  }
+}
+class VersionedStorageWrapper {
+  constructor(storage, maxVersions = 10) {
+    this.versionPrefix = "__version__";
+    this.storage = storage;
+    this.maxVersions = maxVersions;
+  }
+  getVersionKey(key, version) {
+    return `${this.versionPrefix}:${key}:${version}`;
+  }
+  getVersionListKey(key) {
+    return `${this.versionPrefix}:list:${key}`;
+  }
+  generateVersion() {
+    return `v${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+  async getHistory(key, limit) {
+    const versionListKey = this.getVersionListKey(key);
+    const versionList = await this.storage.get(versionListKey) || [];
+    const effectiveLimit = limit || this.maxVersions;
+    const versionsToFetch = versionList.slice(-effectiveLimit);
+    const versions = [];
+    for (const version of versionsToFetch) {
+      const versionKey = this.getVersionKey(key, version);
+      const versionData = await this.storage.get(versionKey);
+      if (versionData) {
+        versions.push(versionData);
+      }
+    }
+    return versions.sort((a, b) => b.timestamp - a.timestamp);
+  }
+  async getVersion(key, version) {
+    const versionKey = this.getVersionKey(key, version);
+    const versionData = await this.storage.get(versionKey);
+    return versionData ? versionData.value : null;
+  }
+  async restoreVersion(key, version) {
+    const value = await this.getVersion(key, version);
+    if (value === null) {
+      throw new Error(`Version ${version} not found for key ${key}`);
+    }
+    await this.set(key, value);
+  }
+  async pruneVersions(key, keepCount) {
+    const versionListKey = this.getVersionListKey(key);
+    const versionList = await this.storage.get(versionListKey) || [];
+    if (versionList.length <= keepCount) {
+      return;
+    }
+    const versionsToRemove = versionList.slice(0, versionList.length - keepCount);
+    for (const version of versionsToRemove) {
+      const versionKey = this.getVersionKey(key, version);
+      await this.storage.remove(versionKey);
+    }
+    const newVersionList = versionList.slice(-keepCount);
+    await this.storage.set(versionListKey, newVersionList);
+  }
+  // IStorage implementation with versioning
+  async get(key) {
+    return this.storage.get(key);
+  }
+  async set(key, value) {
+    const currentValue = await this.storage.get(key);
+    if (currentValue !== null) {
+      const version = this.generateVersion();
+      const versionData = {
+        version,
+        value: currentValue,
+        timestamp: Date.now()
+      };
+      const versionKey = this.getVersionKey(key, version);
+      await this.storage.set(versionKey, versionData);
+      const versionListKey = this.getVersionListKey(key);
+      const versionList = await this.storage.get(versionListKey) || [];
+      versionList.push(version);
+      if (versionList.length > this.maxVersions) {
+        const versionsToRemove = versionList.slice(0, versionList.length - this.maxVersions);
+        for (const oldVersion of versionsToRemove) {
+          const oldVersionKey = this.getVersionKey(key, oldVersion);
+          await this.storage.remove(oldVersionKey);
+        }
+        versionList.splice(0, versionsToRemove.length);
+      }
+      await this.storage.set(versionListKey, versionList);
+    }
+    await this.storage.set(key, value);
+  }
+  async getMultiple(keys) {
+    return this.storage.getMultiple(keys);
+  }
+  async setMultiple(items) {
+    for (const [key, value] of Object.entries(items)) {
+      await this.set(key, value);
+    }
+  }
+  async remove(key) {
+    const versionListKey = this.getVersionListKey(key);
+    const versionList = await this.storage.get(versionListKey) || [];
+    for (const version of versionList) {
+      const versionKey = this.getVersionKey(key, version);
+      await this.storage.remove(versionKey);
+    }
+    await this.storage.remove(versionListKey);
+    await this.storage.remove(key);
+  }
+  async removeMultiple(keys) {
+    for (const key of keys) {
+      await this.remove(key);
+    }
+  }
+  async clear() {
+    await this.storage.clear();
+  }
+  async getKeys() {
+    const allKeys = await this.storage.getKeys();
+    return allKeys.filter((key) => !key.startsWith(this.versionPrefix));
+  }
+  async has(key) {
+    return this.storage.has(key);
+  }
+  async getInfo() {
+    return this.storage.getInfo?.() || {};
+  }
+  // IEnhancedStorage implementation
+  async getWithMetadata(key) {
+    if ("getWithMetadata" in this.storage) {
+      return this.storage.getWithMetadata(key);
+    }
+    const value = await this.get(key);
+    return value !== null ? { key, value } : null;
+  }
+  async setWithMetadata(key, value, metadata) {
+    await this.set(key, value);
+    if ("setWithMetadata" in this.storage) {
+      const updatedMetadata = {
+        ...metadata,
+        version: this.generateVersion()
+      };
+      return this.storage.setWithMetadata(key, value, updatedMetadata);
+    }
+  }
+  async updateMetadata(key, metadata) {
+    if ("updateMetadata" in this.storage) {
+      return this.storage.updateMetadata(key, metadata);
+    }
+    throw new Error("Base storage does not support metadata");
+  }
+  async getByTag(tag2) {
+    if ("getByTag" in this.storage) {
+      const entries = await this.storage.getByTag(tag2);
+      return entries.filter((entry) => !entry.key.startsWith(this.versionPrefix));
+    }
+    return [];
+  }
+  async query(filter) {
+    if ("query" in this.storage) {
+      const entries = await this.storage.query(filter);
+      return entries.filter((entry) => !entry.key.startsWith(this.versionPrefix));
+    }
+    return [];
+  }
+  watch(key, callback) {
+    if ("watch" in this.storage) {
+      const wrappedCallback = (changes) => {
+        const filteredChanges = changes.filter(
+          (change) => !change.key.startsWith(this.versionPrefix)
+        );
+        if (filteredChanges.length > 0) {
+          callback(filteredChanges);
+        }
+      };
+      return this.storage.watch(key, wrappedCallback);
+    }
+    return () => {
+    };
+  }
+  async transaction(operations) {
+    if ("transaction" in this.storage) {
+      return this.storage.transaction(operations);
+    }
+    return operations();
+  }
+}
+class StorageMigrator {
+  constructor(storage, migrations) {
+    this.migrations = /* @__PURE__ */ new Map();
+    this.migrationOrder = [];
+    this.versionKey = "__migration_version__";
+    this.historyKey = "__migration_history__";
+    this.storage = storage;
+    const sorted = migrations.sort(
+      (a, b) => this.compareVersions(a.version, b.version)
+    );
+    for (const migration of sorted) {
+      this.migrations.set(migration.version, migration);
+      this.migrationOrder.push(migration.version);
+    }
+  }
+  registerMigration(migration) {
+    this.migrations.set(migration.version, migration);
+    this.migrationOrder = Array.from(this.migrations.keys()).sort(
+      (a, b) => this.compareVersions(a, b)
+    );
+  }
+  async getCurrentVersion() {
+    const version = await this.storage.get(this.versionKey);
+    return version || "0.0.0";
+  }
+  async getHistory() {
+    const history = await this.storage.get(this.historyKey);
+    return history || [];
+  }
+  async migrate(targetVersion) {
+    const currentVersion = await this.getCurrentVersion();
+    const target = targetVersion || this.getLatestVersion();
+    if (this.compareVersions(currentVersion, target) >= 0) {
+      console.log(`Already at version ${currentVersion}, no migration needed`);
+      return;
+    }
+    const migrationsToRun = this.getMigrationsBetween(currentVersion, target, "up");
+    for (const version of migrationsToRun) {
+      const migration = this.migrations.get(version);
+      if (!migration) continue;
+      console.log(`Running migration ${version}: ${migration.description || "No description"}`);
+      const startTime = Date.now();
+      let success = true;
+      let error;
+      try {
+        await migration.up(this.storage);
+        await this.storage.set(this.versionKey, version);
+      } catch (err) {
+        success = false;
+        error = err instanceof Error ? err.message : String(err);
+        console.error(`Migration ${version} failed:`, err);
+        throw err;
+      } finally {
+        await this.addToHistory({
+          version,
+          executedAt: startTime,
+          direction: "up",
+          success,
+          error
+        });
+      }
+      console.log(`Migration ${version} completed successfully`);
+    }
+  }
+  async rollback(targetVersion) {
+    const currentVersion = await this.getCurrentVersion();
+    if (this.compareVersions(currentVersion, targetVersion) <= 0) {
+      console.log(`Already at version ${currentVersion}, no rollback needed`);
+      return;
+    }
+    const migrationsToRun = this.getMigrationsBetween(targetVersion, currentVersion, "down");
+    for (const version of migrationsToRun.reverse()) {
+      const migration = this.migrations.get(version);
+      if (!migration || !migration.down) {
+        throw new Error(`Cannot rollback migration ${version}: No down migration defined`);
+      }
+      console.log(`Rolling back migration ${version}: ${migration.description || "No description"}`);
+      const startTime = Date.now();
+      let success = true;
+      let error;
+      try {
+        await migration.down(this.storage);
+        const versionIndex = this.migrationOrder.indexOf(version);
+        const previousVersion = versionIndex > 0 ? this.migrationOrder[versionIndex - 1] : "0.0.0";
+        await this.storage.set(this.versionKey, previousVersion);
+      } catch (err) {
+        success = false;
+        error = err instanceof Error ? err.message : String(err);
+        console.error(`Rollback ${version} failed:`, err);
+        throw err;
+      } finally {
+        await this.addToHistory({
+          version,
+          executedAt: startTime,
+          direction: "down",
+          success,
+          error
+        });
+      }
+      console.log(`Rollback ${version} completed successfully`);
+    }
+  }
+  async addToHistory(entry) {
+    const history = await this.getHistory();
+    history.push(entry);
+    if (history.length > 100) {
+      history.splice(0, history.length - 100);
+    }
+    await this.storage.set(this.historyKey, history);
+  }
+  getMigrationsBetween(fromVersion, toVersion, direction) {
+    const migrations = [];
+    for (const version of this.migrationOrder) {
+      const comparison = this.compareVersions(version, fromVersion);
+      const targetComparison = this.compareVersions(version, toVersion);
+      if (direction === "up") {
+        if (comparison > 0 && targetComparison <= 0) {
+          migrations.push(version);
+        }
+      } else {
+        if (comparison <= 0 && targetComparison > 0) {
+          migrations.push(version);
+        }
+      }
+    }
+    return migrations;
+  }
+  getLatestVersion() {
+    if (this.migrationOrder.length === 0) {
+      return "0.0.0";
+    }
+    return this.migrationOrder[this.migrationOrder.length - 1];
+  }
+  compareVersions(a, b) {
+    const aParts = a.split(".").map(Number);
+    const bParts = b.split(".").map(Number);
+    for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+      const aPart = aParts[i] || 0;
+      const bPart = bParts[i] || 0;
+      if (aPart > bPart) return 1;
+      if (aPart < bPart) return -1;
+    }
+    return 0;
+  }
+  /**
+   * Create a migration that transforms data structure
+   */
+  static createDataMigration(version, description, transform) {
+    return {
+      version,
+      description,
+      up: async (storage) => {
+        const keys = await storage.getKeys();
+        for (const key of keys) {
+          const value = await storage.get(key);
+          const transformed = transform(key, value);
+          if (transformed === null) {
+            await storage.remove(key);
+          } else if (transformed !== value) {
+            await storage.set(key, transformed);
+          }
+        }
+      },
+      down: async (storage) => {
+        throw new Error(`Rollback not supported for data migration ${version}`);
+      }
+    };
+  }
+  /**
+   * Create a migration that renames keys
+   */
+  static createRenameMigration(version, description, renames) {
+    return {
+      version,
+      description,
+      up: async (storage) => {
+        for (const [oldKey, newKey] of Object.entries(renames)) {
+          const value = await storage.get(oldKey);
+          if (value !== null) {
+            await storage.set(newKey, value);
+            await storage.remove(oldKey);
+          }
+        }
+      },
+      down: async (storage) => {
+        for (const [oldKey, newKey] of Object.entries(renames)) {
+          const value = await storage.get(newKey);
+          if (value !== null) {
+            await storage.set(oldKey, value);
+            await storage.remove(newKey);
+          }
+        }
+      }
+    };
+  }
+}
+class StorageManager {
+  constructor() {
+    this.providers = /* @__PURE__ */ new Map();
+    this.storageInstances = /* @__PURE__ */ new Map();
+    this.registerDefaultProviders();
+  }
+  registerDefaultProviders() {
+    this.registerProvider(new LocalStorageProviderFactory());
+    this.registerProvider(new IndexedDBProviderFactory());
+    this.registerProvider(new ChromeLocalStorageProviderFactory());
+    this.registerProvider(new ChromeSyncStorageProviderFactory());
+    this.registerProvider(new MemoryStorageProviderFactory());
+  }
+  registerProvider(provider) {
+    this.providers.set(provider.type, provider);
+  }
+  getStorage(type, options) {
+    const cacheKey = `${type}:${options?.namespace || "default"}`;
+    if (this.storageInstances.has(cacheKey)) {
+      return this.storageInstances.get(cacheKey);
+    }
+    const provider = this.providers.get(type);
+    if (!provider) {
+      throw new Error(`Storage provider not found for type: ${type}`);
+    }
+    if (!provider.isAvailable()) {
+      throw new Error(`Storage provider not available: ${type}`);
+    }
+    const storage = provider.createStorage(options);
+    this.storageInstances.set(cacheKey, storage);
+    return storage;
+  }
+  getEncryptedStorage(type, options) {
+    const baseStorage = this.getStorage(type, options);
+    return new EncryptedStorageWrapper(baseStorage);
+  }
+  getVersionedStorage(type, options) {
+    const baseStorage = this.getStorage(type, options);
+    return new VersionedStorageWrapper(baseStorage);
+  }
+  createMigrator(storage, migrations) {
+    return new StorageMigrator(storage, migrations);
+  }
+  async sync(source, target, options) {
+    const startTime = Date.now();
+    const result = {
+      itemsSynced: 0,
+      itemsSkipped: 0,
+      conflicts: [],
+      errors: [],
+      duration: 0
+    };
+    try {
+      const sourceKeys = await source.getKeys();
+      const targetKeys = await target.getKeys();
+      const allKeys = /* @__PURE__ */ new Set([...sourceKeys, ...targetKeys]);
+      const batchSize = options?.batchSize || 100;
+      const keysArray = Array.from(allKeys);
+      for (let i = 0; i < keysArray.length; i += batchSize) {
+        const batch = keysArray.slice(i, i + batchSize);
+        await Promise.all(batch.map(async (key) => {
+          try {
+            const sourceValue = await source.get(key);
+            const targetValue = await target.get(key);
+            if (options?.filter) {
+              const entry = { key, value: sourceValue };
+              if (!options.filter(entry)) {
+                result.itemsSkipped++;
+                return;
+              }
+            }
+            if (options?.direction === "push") {
+              if (sourceValue !== null) {
+                await target.set(key, sourceValue);
+                result.itemsSynced++;
+              }
+            } else if (options?.direction === "pull") {
+              if (targetValue !== null) {
+                await source.set(key, targetValue);
+                result.itemsSynced++;
+              }
+            } else {
+              if (sourceValue !== null && targetValue !== null && JSON.stringify(sourceValue) !== JSON.stringify(targetValue)) {
+                const conflict = {
+                  key,
+                  sourceValue,
+                  targetValue
+                };
+                switch (options?.conflictResolution) {
+                  case "source":
+                    await target.set(key, sourceValue);
+                    conflict.resolution = "source";
+                    break;
+                  case "target":
+                    await source.set(key, targetValue);
+                    conflict.resolution = "target";
+                    break;
+                  case "newest":
+                    await target.set(key, sourceValue);
+                    conflict.resolution = "source";
+                    break;
+                  default:
+                    result.conflicts.push(conflict);
+                    result.itemsSkipped++;
+                    return;
+                }
+                result.conflicts.push(conflict);
+                result.itemsSynced++;
+              } else if (sourceValue !== null) {
+                await target.set(key, sourceValue);
+                result.itemsSynced++;
+              } else if (targetValue !== null) {
+                await source.set(key, targetValue);
+                result.itemsSynced++;
+              }
+            }
+          } catch (error) {
+            result.errors.push(error);
+          }
+        }));
+      }
+    } catch (error) {
+      result.errors.push(error);
+    }
+    result.duration = Date.now() - startTime;
+    return result;
+  }
+  /**
+   * Get the best available storage provider for the current environment
+   */
+  getBestAvailableStorage(options) {
+    const priorityOrder = [
+      StorageType.INDEXED_DB,
+      // Best for large data
+      StorageType.CHROME_LOCAL,
+      // Best for extensions
+      StorageType.LOCAL,
+      // Fallback for web
+      StorageType.SESSION,
+      // Temporary storage
+      StorageType.MEMORY
+      // Last resort
+    ];
+    for (const type of priorityOrder) {
+      const provider = this.providers.get(type);
+      if (provider && provider.isAvailable()) {
+        try {
+          return this.getStorage(type, options);
+        } catch {
+        }
+      }
+    }
+    return this.getStorage(StorageType.MEMORY, options);
+  }
+  /**
+   * Clear all storage instances
+   */
+  async clearAll() {
+    const promises = [];
+    for (const storage of this.storageInstances.values()) {
+      promises.push(storage.clear());
+    }
+    await Promise.all(promises);
+    this.storageInstances.clear();
+  }
+}
+class Observable {
+  constructor(initial) {
+    this.subscribers = /* @__PURE__ */ new Set();
+    this.isDestroyed = false;
+    this.value = initial;
+  }
+  /**
+   * Get current value
+   */
+  get() {
+    this.checkDestroyed();
+    return this.value;
+  }
+  /**
+   * Set new value and notify subscribers
+   */
+  set(value) {
+    this.checkDestroyed();
+    if (this.equals(this.value, value)) {
+      return;
+    }
+    const oldValue = this.value;
+    this.value = value;
+    this.notify(oldValue, value);
+  }
+  /**
+   * Subscribe to value changes
+   */
+  subscribe(subscriber) {
+    this.checkDestroyed();
+    this.subscribers.add(subscriber);
+    subscriber(this.value);
+    return () => {
+      this.subscribers.delete(subscriber);
+    };
+  }
+  /**
+   * Notify all subscribers
+   */
+  notify(oldValue, newValue) {
+    this.subscribers.forEach((subscriber) => {
+      try {
+        subscriber(newValue);
+      } catch (error) {
+        console.error("Error in state subscriber:", error);
+      }
+    });
+  }
+  /**
+   * Check equality (can be overridden)
+   */
+  equals(a, b) {
+    return Object.is(a, b);
+  }
+  /**
+   * Check if destroyed
+   */
+  checkDestroyed() {
+    if (this.isDestroyed) {
+      throw new Error("Observable has been destroyed");
+    }
+  }
+  /**
+   * Get subscriber count
+   */
+  getSubscriberCount() {
+    return this.subscribers.size;
+  }
+  /**
+   * Clear all subscribers
+   */
+  clearSubscribers() {
+    this.subscribers.clear();
+  }
+  /**
+   * Destroy the observable
+   */
+  destroy() {
+    this.clearSubscribers();
+    this.isDestroyed = true;
+  }
+}
+class ComputedObservable extends Observable {
+  constructor(dependencies, compute, initial) {
+    const deps = Array.isArray(dependencies) ? dependencies : [dependencies];
+    const initialValue = initial !== void 0 ? initial : compute(...deps.map((d) => d.get()));
+    super(initialValue);
+    this.unsubscribers = [];
+    this.dependencies = deps;
+    this.compute = compute;
+    this.subscribeToDependencies();
+  }
+  /**
+   * Subscribe to all dependencies
+   */
+  subscribeToDependencies() {
+    this.dependencies.forEach((dep, index) => {
+      const unsubscribe = dep.subscribe(() => {
+        this.recompute();
+      });
+      this.unsubscribers.push(unsubscribe);
+    });
+  }
+  /**
+   * Recompute value when dependencies change
+   */
+  recompute() {
+    const values = this.dependencies.map((d) => d.get());
+    const newValue = this.compute(...values);
+    super.set(newValue);
+  }
+  /**
+   * Override set to make it read-only
+   */
+  set(value) {
+    throw new Error("Cannot set value on computed observable");
+  }
+  /**
+   * Destroy and cleanup
+   */
+  destroy() {
+    this.unsubscribers.forEach((unsub) => unsub());
+    this.unsubscribers = [];
+    super.destroy();
+  }
+}
+class BatchedObservable extends Observable {
+  constructor() {
+    super(...arguments);
+    this.isBatching = false;
+  }
+  /**
+   * Start batching updates
+   */
+  startBatch() {
+    this.isBatching = true;
+  }
+  /**
+   * End batch and apply pending updates
+   */
+  endBatch() {
+    this.isBatching = false;
+    if (this.pendingValue !== void 0) {
+      const value = this.pendingValue;
+      this.pendingValue = void 0;
+      super.set(value);
+    }
+  }
+  /**
+   * Set value (batched if in batch mode)
+   */
+  set(value) {
+    if (this.isBatching) {
+      this.pendingValue = value;
+    } else {
+      super.set(value);
+    }
+  }
+  /**
+   * Execute function with batched updates
+   */
+  batch(fn) {
+    this.startBatch();
+    try {
+      fn();
+    } finally {
+      this.endBatch();
+    }
+  }
+}
+class HistoryObservable extends Observable {
+  constructor(initial, maxHistory = 100) {
+    super(initial);
+    this.past = [];
+    this.future = [];
+    this.maxHistory = maxHistory;
+  }
+  /**
+   * Set value and record in history
+   */
+  set(value) {
+    const current = this.get();
+    this.past.push(current);
+    if (this.past.length > this.maxHistory) {
+      this.past.shift();
+    }
+    this.future = [];
+    super.set(value);
+  }
+  /**
+   * Undo to previous value
+   */
+  undo() {
+    if (this.past.length === 0) {
+      return false;
+    }
+    const current = this.get();
+    const previous = this.past.pop();
+    this.future.unshift(current);
+    super.set(previous);
+    return true;
+  }
+  /**
+   * Redo to next value
+   */
+  redo() {
+    if (this.future.length === 0) {
+      return false;
+    }
+    const current = this.get();
+    const next = this.future.shift();
+    this.past.push(current);
+    super.set(next);
+    return true;
+  }
+  /**
+   * Check if can undo
+   */
+  canUndo() {
+    return this.past.length > 0;
+  }
+  /**
+   * Check if can redo
+   */
+  canRedo() {
+    return this.future.length > 0;
+  }
+  /**
+   * Clear history
+   */
+  clearHistory() {
+    this.past = [];
+    this.future = [];
+  }
+  /**
+   * Get history info
+   */
+  getHistoryInfo() {
+    return {
+      past: this.past.length,
+      future: this.future.length
+    };
+  }
+}
+class State {
+  constructor(initial, options = {}) {
+    this.options = options;
+    const value = options.transformer ? options.transformer(initial) : initial;
+    this.observable = new Observable(value);
+    if (options.equals) {
+      this.observable.equals = options.equals;
+    }
+  }
+  /**
+   * Get current value
+   */
+  get() {
+    return this.observable.get();
+  }
+  /**
+   * Set new value
+   */
+  set(value) {
+    const newValue = typeof value === "function" ? value(this.get()) : value;
+    if (this.options.validator && !this.options.validator(newValue)) {
+      console.warn("State validation failed for value:", newValue);
+      return;
+    }
+    const transformedValue = this.options.transformer ? this.options.transformer(newValue) : newValue;
+    this.observable.set(transformedValue);
+  }
+  /**
+   * Update value using updater function
+   */
+  update(updater) {
+    this.set(updater);
+  }
+  /**
+   * Subscribe to changes
+   */
+  subscribe(subscriber) {
+    return this.observable.subscribe(subscriber);
+  }
+  /**
+   * Destroy the state
+   */
+  destroy() {
+    this.observable.destroy();
+  }
+}
+class ReadableState {
+  constructor(initial, options = {}) {
+    const value = options.transformer ? options.transformer(initial) : initial;
+    this.observable = new Observable(value);
+    if (options.equals) {
+      this.observable.equals = options.equals;
+    }
+  }
+  /**
+   * Get current value
+   */
+  get() {
+    return this.observable.get();
+  }
+  /**
+   * Subscribe to changes
+   */
+  subscribe(subscriber) {
+    return this.observable.subscribe(subscriber);
+  }
+  /**
+   * Destroy the state
+   */
+  destroy() {
+    this.observable.destroy();
+  }
+}
+class WritableState extends State {
+  constructor(initial, options = {}) {
+    super(initial, options);
+    this.initialValue = initial;
+  }
+  /**
+   * Reset to initial value
+   */
+  reset() {
+    this.set(this.initialValue);
+  }
+}
+class DerivedState {
+  constructor(dependencies, fn, initial) {
+    const deps = Array.isArray(dependencies) ? dependencies : [dependencies];
+    this.dependencies = deps;
+    const observables = deps.map((dep) => {
+      return dep.observable || new Observable(dep.get());
+    });
+    this.computedObservable = new ComputedObservable(
+      observables,
+      fn,
+      initial
+    );
+  }
+  /**
+   * Get current value
+   */
+  get() {
+    return this.computedObservable.get();
+  }
+  /**
+   * Subscribe to changes
+   */
+  subscribe(subscriber) {
+    return this.computedObservable.subscribe(subscriber);
+  }
+  /**
+   * Destroy the state
+   */
+  destroy() {
+    this.computedObservable.destroy();
+  }
+}
+function writable(initial, options) {
+  return new WritableState(initial, options);
+}
+function readable(initial, options) {
+  return new ReadableState(initial, options);
+}
+function derived(dependencies, fn, initial) {
+  return new DerivedState(dependencies, fn, initial);
+}
+function get(state) {
+  if (state && typeof state === "object" && "get" in state) {
+    return state.get();
+  }
+  return state;
+}
+class StateStore {
+  constructor(initial, options = {}) {
+    this.states = /* @__PURE__ */ new Map();
+    this.initialState = { ...initial };
+    this.options = options;
+    this.storeObservable = new BatchedObservable(initial);
+    this.initializeStates(initial);
+  }
+  /**
+   * Initialize states for each key
+   */
+  initializeStates(initial) {
+    Object.keys(initial).forEach((key) => {
+      const state = new WritableState(initial[key], {
+        ...this.options,
+        persistKey: this.options.persistKey ? `${this.options.persistKey}.${key}` : void 0
+      });
+      state.subscribe((value) => {
+        this.handleStateChange(key, value);
+      });
+      this.states.set(key, state);
+    });
+  }
+  /**
+   * Handle individual state change
+   */
+  handleStateChange(key, value) {
+    const currentState = this.storeObservable.get();
+    const newState = { ...currentState, [key]: value };
+    this.storeObservable.batch(() => {
+      this.storeObservable.set(newState);
+    });
+  }
+  /**
+   * Get state slice
+   */
+  get(key) {
+    const state = this.states.get(key);
+    if (!state) {
+      throw new Error(`State key "${String(key)}" not found`);
+    }
+    return state.get();
+  }
+  /**
+   * Set state slice
+   */
+  set(key, value) {
+    const state = this.states.get(key);
+    if (!state) {
+      const newState = new WritableState(value, {
+        ...this.options,
+        persistKey: this.options.persistKey ? `${this.options.persistKey}.${String(key)}` : void 0
+      });
+      newState.subscribe((val) => {
+        this.handleStateChange(key, val);
+      });
+      this.states.set(key, newState);
+    } else {
+      state.set(value);
+    }
+  }
+  /**
+   * Update state slice
+   */
+  update(key, updater) {
+    const currentValue = this.get(key);
+    const newValue = updater(currentValue);
+    this.set(key, newValue);
+  }
+  /**
+   * Subscribe to specific key
+   */
+  subscribe(key, subscriber) {
+    const state = this.states.get(key);
+    if (!state) {
+      throw new Error(`State key "${String(key)}" not found`);
+    }
+    return state.subscribe(subscriber);
+  }
+  /**
+   * Subscribe to entire store
+   */
+  subscribeAll(subscriber) {
+    return this.storeObservable.subscribe(subscriber);
+  }
+  /**
+   * Get entire state
+   */
+  getState() {
+    return this.storeObservable.get();
+  }
+  /**
+   * Set entire state
+   */
+  setState(state) {
+    this.storeObservable.batch(() => {
+      Object.entries(state).forEach(([key, value]) => {
+        this.set(key, value);
+      });
+    });
+  }
+  /**
+   * Reset store to initial state
+   */
+  reset() {
+    this.storeObservable.batch(() => {
+      this.states.forEach((state, key) => {
+        state.reset();
+      });
+    });
+  }
+  /**
+   * Select a value from the store
+   */
+  select(selector) {
+    return selector(this.getState());
+  }
+  /**
+   * Subscribe to selected value
+   */
+  subscribeSelect(selector, subscriber) {
+    let previousValue = selector(this.getState());
+    return this.subscribeAll((state) => {
+      const newValue = selector(state);
+      if (!Object.is(previousValue, newValue)) {
+        previousValue = newValue;
+        subscriber(newValue);
+      }
+    });
+  }
+  /**
+   * Destroy the store
+   */
+  destroy() {
+    this.states.forEach((state) => state.destroy());
+    this.states.clear();
+    this.storeObservable.destroy();
+  }
+}
+function createStore(initial, options) {
+  return new StateStore(initial, options);
+}
+function combineStores(stores) {
+  const initial = {};
+  Object.keys(stores).forEach((key) => {
+    initial[key] = stores[key].getState();
+  });
+  const combinedStore = new StateStore(initial);
+  Object.keys(stores).forEach((key) => {
+    stores[key].subscribeAll((state) => {
+      combinedStore.set(key, state);
+    });
+  });
+  return combinedStore;
+}
+class StatePersistence {
+  constructor(storage, prefix = "state") {
+    this.storage = storage || new StorageManager().getBestAvailableStorage();
+    this.prefix = prefix;
+  }
+  /**
+   * Get storage key with prefix
+   */
+  getKey(key) {
+    return `${this.prefix}:${key}`;
+  }
+  /**
+   * Load state from storage
+   */
+  async load(key) {
+    try {
+      const storageKey = this.getKey(key);
+      const value = await this.storage.get(storageKey);
+      return value;
+    } catch (error) {
+      console.error(`Failed to load state for key "${key}":`, error);
+      return null;
+    }
+  }
+  /**
+   * Save state to storage
+   */
+  async save(key, value) {
+    try {
+      const storageKey = this.getKey(key);
+      await this.storage.set(storageKey, value);
+    } catch (error) {
+      console.error(`Failed to save state for key "${key}":`, error);
+      throw error;
+    }
+  }
+  /**
+   * Remove state from storage
+   */
+  async remove(key) {
+    try {
+      const storageKey = this.getKey(key);
+      await this.storage.remove(storageKey);
+    } catch (error) {
+      console.error(`Failed to remove state for key "${key}":`, error);
+      throw error;
+    }
+  }
+  /**
+   * Clear all persisted state
+   */
+  async clear() {
+    try {
+      const keys = await this.storage.getKeys();
+      const stateKeys = keys.filter((key) => key.startsWith(this.prefix));
+      await this.storage.removeMultiple(stateKeys);
+    } catch (error) {
+      console.error("Failed to clear persisted state:", error);
+      throw error;
+    }
+  }
+}
+class PersistedState {
+  constructor(state, key, persistence, saveDebounceMs = 500) {
+    this.state = state;
+    this.key = key;
+    this.persistence = persistence || new StatePersistence();
+    this.saveDebounceMs = saveDebounceMs;
+    this.loadFromStorage();
+    this.state.subscribe((value) => {
+      this.saveToStorage(value);
+    });
+  }
+  /**
+   * Load value from storage
+   */
+  async loadFromStorage() {
+    const value = await this.persistence.load(this.key);
+    if (value !== null) {
+      this.state.set(value);
+    }
+  }
+  /**
+   * Save value to storage (debounced)
+   */
+  saveToStorage(value) {
+    if (this.saveDebounceTimer) {
+      clearTimeout(this.saveDebounceTimer);
+    }
+    this.saveDebounceTimer = setTimeout(async () => {
+      try {
+        await this.persistence.save(this.key, value);
+      } catch (error) {
+        console.error("Failed to persist state:", error);
+      }
+    }, this.saveDebounceMs);
+  }
+  /**
+   * Get current value
+   */
+  get() {
+    return this.state.get();
+  }
+  /**
+   * Set new value
+   */
+  set(value) {
+    this.state.set(value);
+  }
+  /**
+   * Update value
+   */
+  update(updater) {
+    this.state.update(updater);
+  }
+  /**
+   * Subscribe to changes
+   */
+  subscribe(subscriber) {
+    return this.state.subscribe(subscriber);
+  }
+  /**
+   * Force save to storage immediately
+   */
+  async flush() {
+    if (this.saveDebounceTimer) {
+      clearTimeout(this.saveDebounceTimer);
+      this.saveDebounceTimer = void 0;
+    }
+    await this.persistence.save(this.key, this.get());
+  }
+  /**
+   * Clear persisted value
+   */
+  async clearPersisted() {
+    await this.persistence.remove(this.key);
+  }
+}
+function persisted(initial, key, options) {
+  const { storage, storageType, prefix, debounceMs } = options || {};
+  let storageInstance = storage;
+  if (!storageInstance && storageType) {
+    const manager = new StorageManager();
+    storageInstance = manager.getStorage(storageType);
+  }
+  const persistence = new StatePersistence(storageInstance, prefix);
+  const state = new WritableState(initial);
+  return new PersistedState(state, key, persistence, debounceMs);
+}
+function sessionPersisted(initial, key, options) {
+  const manager = new StorageManager();
+  const storage = manager.getStorage(StorageType.SESSION);
+  return persisted(initial, key, {
+    storage,
+    ...options
+  });
+}
+function localPersisted(initial, key, options) {
+  const manager = new StorageManager();
+  const storage = manager.getStorage(StorageType.LOCAL);
+  return persisted(initial, key, {
+    storage,
+    ...options
+  });
+}
+class BroadcastStateSync {
+  constructor() {
+    this.channels = /* @__PURE__ */ new Map();
+    this.sourceId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+  /**
+   * Get or create broadcast channel
+   */
+  getChannel(name) {
+    if (!this.channels.has(name)) {
+      const channel = new BroadcastChannel(name);
+      this.channels.set(name, channel);
+    }
+    return this.channels.get(name);
+  }
+  /**
+   * Sync state across contexts
+   */
+  sync(state, channel) {
+    const broadcastChannel = this.getChannel(channel);
+    const localUnsub = state.subscribe((value) => {
+      this.broadcast(channel, value);
+    });
+    const messageHandler = (event) => {
+      const message = event.data;
+      if (message.source === this.sourceId) {
+        return;
+      }
+      if (message.type === "state-sync" && message.channel === channel) {
+        state.set(message.value);
+      }
+    };
+    broadcastChannel.addEventListener("message", messageHandler);
+    return () => {
+      localUnsub();
+      broadcastChannel.removeEventListener("message", messageHandler);
+    };
+  }
+  /**
+   * Broadcast state change
+   */
+  broadcast(channel, value) {
+    const broadcastChannel = this.getChannel(channel);
+    const message = {
+      type: "state-sync",
+      channel,
+      value,
+      timestamp: Date.now(),
+      source: this.sourceId
+    };
+    broadcastChannel.postMessage(message);
+  }
+  /**
+   * Listen for state changes
+   */
+  listen(channel, callback) {
+    const broadcastChannel = this.getChannel(channel);
+    const messageHandler = (event) => {
+      const message = event.data;
+      if (message.type === "state-sync" && message.channel === channel) {
+        callback(message.value);
+      }
+    };
+    broadcastChannel.addEventListener("message", messageHandler);
+    return () => {
+      broadcastChannel.removeEventListener("message", messageHandler);
+    };
+  }
+  /**
+   * Close all channels
+   */
+  close() {
+    this.channels.forEach((channel) => channel.close());
+    this.channels.clear();
+  }
+}
+class StorageStateSync {
+  constructor() {
+    this.listeners = /* @__PURE__ */ new Map();
+    this.prefix = "__state_sync__";
+    this.sourceId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+  /**
+   * Get storage key
+   */
+  getKey(channel) {
+    return `${this.prefix}${channel}`;
+  }
+  /**
+   * Sync state across contexts
+   */
+  sync(state, channel) {
+    const key = this.getKey(channel);
+    const localUnsub = state.subscribe((value) => {
+      try {
+        const message = {
+          type: "state-sync",
+          channel,
+          value,
+          timestamp: Date.now(),
+          source: this.sourceId
+        };
+        localStorage.setItem(key, JSON.stringify(message));
+      } catch (error) {
+        console.error("Failed to sync state to storage:", error);
+      }
+    });
+    const storageHandler = (event) => {
+      if (event.key !== key || !event.newValue) {
+        return;
+      }
+      try {
+        const message = JSON.parse(event.newValue);
+        if (message.source === this.sourceId) {
+          return;
+        }
+        state.set(message.value);
+      } catch (error) {
+        console.error("Failed to parse storage sync message:", error);
+      }
+    };
+    window.addEventListener("storage", storageHandler);
+    if (!this.listeners.has(channel)) {
+      this.listeners.set(channel, /* @__PURE__ */ new Set());
+    }
+    this.listeners.get(channel).add(storageHandler);
+    return () => {
+      localUnsub();
+      window.removeEventListener("storage", storageHandler);
+      this.listeners.get(channel)?.delete(storageHandler);
+    };
+  }
+  /**
+   * Broadcast state change
+   */
+  broadcast(channel, value) {
+    const key = this.getKey(channel);
+    try {
+      const message = {
+        type: "state-sync",
+        channel,
+        value,
+        timestamp: Date.now(),
+        source: this.sourceId
+      };
+      localStorage.setItem(key, JSON.stringify(message));
+    } catch (error) {
+      console.error("Failed to broadcast state:", error);
+    }
+  }
+  /**
+   * Listen for state changes
+   */
+  listen(channel, callback) {
+    const key = this.getKey(channel);
+    const storageHandler = (event) => {
+      if (event.key !== key || !event.newValue) {
+        return;
+      }
+      try {
+        const message = JSON.parse(event.newValue);
+        callback(message.value);
+      } catch (error) {
+        console.error("Failed to parse storage sync message:", error);
+      }
+    };
+    window.addEventListener("storage", storageHandler);
+    if (!this.listeners.has(channel)) {
+      this.listeners.set(channel, /* @__PURE__ */ new Set());
+    }
+    this.listeners.get(channel).add(storageHandler);
+    return () => {
+      window.removeEventListener("storage", storageHandler);
+      this.listeners.get(channel)?.delete(storageHandler);
+    };
+  }
+  /**
+   * Clean up
+   */
+  close() {
+    this.listeners.forEach((handlers, channel) => {
+      handlers.forEach((handler) => {
+        window.removeEventListener("storage", handler);
+      });
+    });
+    this.listeners.clear();
+  }
+}
+function createStateSync() {
+  if (typeof BroadcastChannel !== "undefined") {
+    return new BroadcastStateSync();
+  }
+  if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
+    return new StorageStateSync();
+  }
+  return {
+    sync: () => () => {
+    },
+    broadcast: () => {
+    },
+    listen: () => () => {
+    }
+  };
+}
+class SynchronizedState {
+  constructor(state, channel, sync) {
+    this.state = state;
+    this.sync = sync || createStateSync();
+    this.unsubscribe = this.sync.sync(state, channel);
+  }
+  get() {
+    return this.state.get();
+  }
+  set(value) {
+    this.state.set(value);
+  }
+  update(updater) {
+    this.state.update(updater);
+  }
+  subscribe(subscriber) {
+    return this.state.subscribe(subscriber);
+  }
+  /**
+   * Stop syncing
+   */
+  disconnect() {
+    if (this.unsubscribe) {
+      this.unsubscribe();
+      this.unsubscribe = void 0;
+    }
+  }
+}
+function synchronized(initial, channel, options) {
+  const state = new WritableState(initial);
+  return new SynchronizedState(state, channel, options?.sync);
+}
+class StateManager {
+  constructor(plugins) {
+    this.states = /* @__PURE__ */ new Map();
+    this.plugins = /* @__PURE__ */ new Map();
+    this.stateCounter = 0;
+    if (plugins) {
+      plugins.forEach((plugin) => this.registerPlugin(plugin));
+    }
+  }
+  /**
+   * Create writable state
+   */
+  writable(initial, options) {
+    const state = new WritableState(initial, options);
+    let enhancedState = state;
+    this.plugins.forEach((plugin) => {
+      if (plugin.enhance) {
+        enhancedState = plugin.enhance(enhancedState);
+      }
+    });
+    const stateId = `state_${++this.stateCounter}`;
+    this.states.set(stateId, enhancedState);
+    return enhancedState;
+  }
+  /**
+   * Create readable state
+   */
+  readable(initial, options) {
+    const state = new ReadableState(initial, options);
+    const stateId = `readonly_${++this.stateCounter}`;
+    this.states.set(stateId, state);
+    return state;
+  }
+  /**
+   * Create derived state
+   */
+  derived(dependencies, fn, initial) {
+    const state = new DerivedState(dependencies, fn, initial);
+    const stateId = `derived_${++this.stateCounter}`;
+    this.states.set(stateId, state);
+    return state;
+  }
+  /**
+   * Create state store
+   */
+  store(initial, options) {
+    return new StateStore(initial, options);
+  }
+  /**
+   * Get all states
+   */
+  getAllStates() {
+    return new Map(this.states);
+  }
+  /**
+   * Clear all states
+   */
+  clearAll() {
+    this.states.forEach((state) => {
+      if ("destroy" in state) {
+        state.destroy();
+      }
+    });
+    this.states.clear();
+    this.plugins.forEach((plugin) => {
+      if (plugin.destroy) {
+        plugin.destroy();
+      }
+    });
+  }
+  /**
+   * Register a plugin
+   */
+  registerPlugin(plugin) {
+    if (this.plugins.has(plugin.name)) {
+      console.warn(`Plugin "${plugin.name}" is already registered`);
+      return;
+    }
+    this.plugins.set(plugin.name, plugin);
+    plugin.init(this);
+  }
+  /**
+   * Unregister a plugin
+   */
+  unregisterPlugin(name) {
+    const plugin = this.plugins.get(name);
+    if (plugin) {
+      if (plugin.destroy) {
+        plugin.destroy();
+      }
+      this.plugins.delete(name);
+    }
+  }
+  /**
+   * Get plugin by name
+   */
+  getPlugin(name) {
+    return this.plugins.get(name);
+  }
+}
+let globalStateManager = null;
+function getStateManager() {
+  if (!globalStateManager) {
+    globalStateManager = new StateManager();
+  }
+  return globalStateManager;
+}
+function resetStateManager() {
+  if (globalStateManager) {
+    globalStateManager.clearAll();
+    globalStateManager = null;
+  }
+}
+function createStateManager(plugins) {
+  return new StateManager(plugins);
+}
 exports.AccountManager = IntegrationAPI.AccountManager;
 exports.EmbeddedAPI = IntegrationAPI.EmbeddedAPI;
 exports.IntegrationAPI = IntegrationAPI.IntegrationAPI;
@@ -2974,10 +7923,150 @@ exports.DiscoveryProtocol = DiscoveryProtocol.DiscoveryProtocol;
 exports.Logger = DiscoveryProtocol.Logger;
 exports.ModLoader = DiscoveryProtocol.ModLoader;
 exports.ModRegistry = DiscoveryProtocol.ModRegistry;
+exports.AccountType = AccountType;
+exports.AccountTypeCategory = AccountTypeCategory;
+exports.AccountTypeStatus = AccountTypeStatus;
+exports.BASIS_POINTS_DIVISOR = BASIS_POINTS_DIVISOR;
+exports.BaseProvider = BaseProvider;
+exports.BaseStorageProvider = BaseStorageProvider;
+exports.BatchedObservable = BatchedObservable;
 exports.BigNumber = BigNumber;
+exports.BigNumberishMath = BigNumberishMath;
+exports.BroadcastStateSync = BroadcastStateSync;
+exports.CACHE_TTL = CACHE_TTL;
+exports.CORE_VERSION = CORE_VERSION;
+exports.CacheEvictionPolicy = CacheEvictionPolicy;
+exports.ChainId = ChainId;
+exports.ChainType = ChainType;
+exports.ChromeLocalStorageProviderFactory = ChromeLocalStorageProviderFactory;
+exports.ChromeStorageProvider = ChromeStorageProvider;
+exports.ChromeSyncStorageProviderFactory = ChromeSyncStorageProviderFactory;
+exports.ComputedObservable = ComputedObservable;
+exports.Container = Container;
 exports.CurrencyCode = CurrencyCode;
+exports.DAY = DAY;
+exports.DEFAULT_BACKOFF_MULTIPLIER = DEFAULT_BACKOFF_MULTIPLIER;
+exports.DEFAULT_BASE_DELAY = DEFAULT_BASE_DELAY;
+exports.DEFAULT_CHAINS = DEFAULT_CHAINS;
+exports.DEFAULT_DERIVED_PATH_ETH = DEFAULT_DERIVED_PATH_ETH;
+exports.DEFAULT_HTTP_TIMEOUT = DEFAULT_HTTP_TIMEOUT;
+exports.DEFAULT_MAX_RETRIES = DEFAULT_MAX_RETRIES;
+exports.DEFAULT_PAGE_SIZE = DEFAULT_PAGE_SIZE;
+exports.DEFAULT_RPC_TIMEOUT = DEFAULT_RPC_TIMEOUT;
+exports.DecimalMath = DecimalMath;
+exports.DerivedState = DerivedState;
+exports.ETH_BASE_EOA_GAS_UNITS = ETH_BASE_EOA_GAS_UNITS;
+exports.ETH_BASE_FORCANCEL_GAS_UNITS = ETH_BASE_FORCANCEL_GAS_UNITS;
+exports.ETH_BASE_SCA_GAS_UNITS = ETH_BASE_SCA_GAS_UNITS;
+exports.ETH_BASE_SWAP_GAS_UNITS = ETH_BASE_SWAP_GAS_UNITS;
+exports.EVMDenominations = EVMDenominations;
+exports.EVMProvider = EVMProvider;
+exports.EVMTransactionBuilder = EVMTransactionBuilder;
+exports.EncryptedStorageWrapper = EncryptedStorageWrapper;
+exports.GAS_PER_BLOB = GAS_PER_BLOB;
+exports.HOUR = HOUR;
+exports.HistoryObservable = HistoryObservable;
+exports.IndexedDBProvider = IndexedDBProvider;
+exports.IndexedDBProviderFactory = IndexedDBProviderFactory;
+exports.Inject = Inject;
+exports.Injectable = Injectable;
+exports.InjectionTokens = InjectionTokens;
+exports.LocalStorageProvider = LocalStorageProvider;
+exports.LocalStorageProviderFactory = LocalStorageProviderFactory;
 exports.LogLevel = LogLevel;
+exports.MAX_PAGE_SIZE = MAX_PAGE_SIZE;
+exports.MAX_PASSWORD_LENGTH = MAX_PASSWORD_LENGTH;
+exports.MIME_TYPES = MIME_TYPES;
+exports.MINUTE = MINUTE;
+exports.MIN_PASSWORD_LENGTH = MIN_PASSWORD_LENGTH;
+exports.MemoryStorageProvider = MemoryStorageProvider;
+exports.MemoryStorageProviderFactory = MemoryStorageProviderFactory;
+exports.MessageBus = MessageBus;
+exports.MessageRouter = MessageRouter;
+exports.MessageType = MessageType;
+exports.NATIVE_TOKEN_SYMBOLS = NATIVE_TOKEN_SYMBOLS;
+exports.NETWORK_NAMES = NETWORK_NAMES;
+exports.Observable = Observable;
+exports.PATTERNS = PATTERNS;
+exports.PBKDF2_ITERATIONS = PBKDF2_ITERATIONS;
+exports.PersistedState = PersistedState;
+exports.ProviderError = ProviderError;
+exports.ProviderFactory = ProviderFactory;
+exports.RPCErrorCode = RPCErrorCode;
+exports.ReadableState = ReadableState;
+exports.RegisteredType = RegisteredType;
+exports.RpcErrorCode = RpcErrorCode;
+exports.SALT_ROUNDS = SALT_ROUNDS;
+exports.SCRYPT_N = SCRYPT_N;
+exports.SCRYPT_P = SCRYPT_P;
+exports.SCRYPT_R = SCRYPT_R;
+exports.SECOND = SECOND;
+exports.STORAGE_VERSION = STORAGE_VERSION;
+exports.Service = Service;
+exports.ServiceFactory = ServiceFactory;
+exports.ServiceLocator = ServiceLocator;
+exports.SortDirection = SortDirection;
+exports.State = State;
+exports.StateManager = StateManager;
+exports.StatePersistence = StatePersistence;
+exports.StateStore = StateStore;
+exports.Status = Status;
+exports.StorageManager = StorageManager;
+exports.StorageMigrator = StorageMigrator;
+exports.StorageStateSync = StorageStateSync;
+exports.StorageType = StorageType;
+exports.StreamState = StreamState;
+exports.SynchronizedState = SynchronizedState;
+exports.SystemTheme = SystemTheme;
+exports.TokenStandard = TokenStandard;
+exports.TransactionCategory = TransactionCategory;
+exports.TransactionStatus = TransactionStatus;
+exports.TransactionType = TransactionType;
+exports.VersionedStorageWrapper = VersionedStorageWrapper;
+exports.WEEK = WEEK;
+exports.WETH_ADDRESS_MAINNET = WETH_ADDRESS_MAINNET;
+exports.WritableState = WritableState;
+exports.ZERO_ADDRESS = ZERO_ADDRESS;
+exports.combineStores = combineStores;
+exports.convertBasisPointsToDecimal = convertBasisPointsToDecimal;
+exports.createMessageBus = createMessageBus;
+exports.createMessageRouter = createMessageRouter;
+exports.createRateLimitMiddleware = createRateLimitMiddleware;
+exports.createRetryMiddleware = createRetryMiddleware;
+exports.createServiceFactory = createServiceFactory;
+exports.createStateManager = createStateManager;
+exports.createStateSync = createStateSync;
+exports.createStore = createStore;
+exports.createValidationMiddleware = createValidationMiddleware;
 exports.createWallet = createWallet;
+exports.defaultContainer = defaultContainer;
+exports.derived = derived;
+exports.ensureHexFormat = ensureHexFormat;
+exports.get = get;
 exports.getSafeUUID = getSafeUUID;
+exports.getStateManager = getStateManager;
+exports.globalMessageBus = globalMessageBus;
+exports.globalServiceFactory = globalServiceFactory;
+exports.initializeDefaultChains = initializeDefaultChains;
+exports.initializeDefaultProviders = initializeDefaultProviders;
+exports.isAddress = isAddress;
+exports.isHexString = isHexString;
+exports.isInRange = isInRange;
+exports.isNotEmpty = isNotEmpty;
+exports.isTransactionHash = isTransactionHash;
+exports.isValidAddress = isValidAddress;
+exports.isValidEmail = isValidEmail;
+exports.isValidTransactionHash = isValidTransactionHash;
+exports.localPersisted = localPersisted;
+exports.loggingMiddleware = loggingMiddleware;
+exports.persisted = persisted;
+exports.providerFactory = providerFactory;
+exports.readable = readable;
+exports.resetStateManager = resetStateManager;
+exports.safeConvertToBigInt = safeConvertToBigInt;
+exports.sessionPersisted = sessionPersisted;
+exports.synchronized = synchronized;
 exports.validateMod = validateMod;
+exports.validateObject = validateObject;
+exports.writable = writable;
 //# sourceMappingURL=index.js.map

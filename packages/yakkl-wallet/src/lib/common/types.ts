@@ -1,3 +1,10 @@
+/**
+ * Type definitions - Re-exports from @yakkl/core plus wallet-specific types
+ * 
+ * MIGRATION NOTE: Generic types have been moved to @yakkl/core
+ * This file now re-exports from @yakkl/core and adds wallet-specific type definitions
+ */
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
 	EventFilter,
@@ -12,6 +19,39 @@ import type {
 	TokenData,
 	ActiveTab
 } from '$lib/common';
+
+// Import types that need to be used locally
+import type { ErrorBody } from '@yakkl/core';
+
+// Re-export generic types from @yakkl/core
+export {
+	SystemTheme,
+	AccountTypeCategory,
+	AccountTypeStatus,
+	RegisteredType,
+	ChainId,
+	type ErrorBody,
+	type Result,
+	type AsyncResult,
+	type Address,
+	TransactionStatus,
+	type TokenInfo,
+	type TokenBalance,
+	type NetworkConfig,
+	type Timestamp,
+	type Milliseconds,
+	type PaginationParams,
+	type PaginatedResponse,
+	SortDirection,
+	Status,
+	type HexString,
+	type BytesLike,
+	type BlockTag,
+	type TransactionRequest,
+	type TransactionReceipt,
+	isAddress,
+	isTransactionHash
+} from '@yakkl/core';
 
 export type SimulatedTx = {
 	token: string;
@@ -115,42 +155,7 @@ export type YakklPrimaryAccounts = [YakklPrimaryAccount];
 export type YakklContacts = [YakklContact];
 export type YakklNetworks = [Network];
 
-export type ErrorBody = {
-	error?: string;
-	reason?: string;
-	body?: string; // Ensure body is a string
-	[key: string]: unknown; // Use `unknown` instead of `any` for better type safety
-};
-
-export enum SystemTheme {
-	DARK = 'dark',
-	LIGHT = 'light',
-	SYSTEM = 'system'
-}
-
-export enum AccountTypeCategory {
-	PRIMARY = 'primary',
-	SUB = 'sub',
-	CONTRACT = 'contract',
-	IMPORTED = 'imported'
-}
-
-export enum AccountTypeStatus {
-	ACTIVE = 'active',
-	INACTIVE = 'inactive',
-	DELETED = 'deleted'
-}
-
-export enum RegisteredType {
-	EXPLORER_MEMBER = 'explorer_member',
-	FOUNDING_MEMBER = 'founding_member',
-	EARLY_ADOPTER = 'early_adopter',
-	YAKKL_PRO = 'yakkl_pro',
-	YAKKL_PRO_PLUS = 'yakkl_pro_plus',
-	INSTITUTION = 'institution',
-	BUSINESS = 'business',
-	ENTERPRISE = 'enterprise'
-}
+// Wallet-specific types (not in core)
 
 export enum PlanType {
 	TRIAL = 'trial',
@@ -222,10 +227,10 @@ export type Listener = (...args: Array<any>) => void;
 // export type BigNumberish = string | Numeric | null;
 export type BigNumberishLegacy = string | number | bigint;
 export type Numberish = string | number;
-export type Address = string;
+// Note: Address is imported from @yakkl/core
 export type Hash = string;
 
-export type BlockTag = BigNumberish | string;
+// Note: BlockTag is imported from @yakkl/core (with different structure)
 
 // Allows us to creates a new type that takes a generic type T and transforms it such that each property of T can either be its original type or a promise of its original type.
 export type Deferrable<T> = {
@@ -233,7 +238,8 @@ export type Deferrable<T> = {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type Result = { key: string; value: any };
+// Note: Using Result from @yakkl/core instead
+// export type Result = { key: string; value: any };
 
 /**
  *  Anything that can be used to return or resolve an address.
@@ -246,18 +252,9 @@ export type AddressLike = string | Promise<string> | Addressable;
  */
 export type DataHexString = string;
 
-/**
- *  A string which is prefixed with ``0x`` and followed by any number
- *  of case-agnostic hexadecimal characters.
- *
- *  It must match the regular expression ``/0x[0-9A-Fa-f]*\/``.
- */
-export type HexString = string;
+// Note: HexString is imported from @yakkl/core
 
-/**
- *  An object that can be used to represent binary data.
- */
-export type BytesLike = DataHexString | Uint8Array;
+// Note: BytesLike is imported from @yakkl/core
 
 export type PermissionRequest = {
 	key: string;

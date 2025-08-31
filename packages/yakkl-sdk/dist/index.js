@@ -24,20 +24,478 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const core = require("@yakkl/core");
 const eventemitter3 = require("eventemitter3");
+class WalletClient {
+  constructor(config = {}) {
+    this.isConnected = false;
+    this.config = {
+      apiUrl: config.apiUrl || "https://api.yakkl.com",
+      timeout: config.timeout || 3e4,
+      ...config
+    };
+  }
+  /**
+   * Connect to wallet
+   */
+  async connect() {
+    if (this.isConnected) return true;
+    try {
+      if (typeof window !== "undefined" && "yakkl" in window) {
+        await window.yakkl.request({ method: "eth_requestAccounts" });
+        this.isConnected = true;
+        return true;
+      }
+      if (this.config.provider) {
+        await this.config.provider.connect();
+        this.isConnected = true;
+        return true;
+      }
+      throw new Error("No wallet provider available");
+    } catch (error) {
+      console.error("Failed to connect wallet:", error);
+      return false;
+    }
+  }
+  /**
+   * Disconnect wallet
+   */
+  async disconnect() {
+    if (this.config.provider) {
+      await this.config.provider.disconnect();
+    }
+    this.isConnected = false;
+  }
+  /**
+   * Get connected accounts
+   */
+  async getAccounts() {
+    if (!this.isConnected) {
+      throw new Error("Wallet not connected");
+    }
+    if (typeof window !== "undefined" && "yakkl" in window) {
+      const addresses = await window.yakkl.request({
+        method: "eth_accounts"
+      });
+      return addresses.map((address) => ({
+        address,
+        type: "imported",
+        chainId: 1
+      }));
+    }
+    return [];
+  }
+  /**
+   * Get account balance
+   */
+  async getBalance(address, chainId) {
+    if (!this.isConnected) {
+      throw new Error("Wallet not connected");
+    }
+    if (this.config.provider) {
+      return await this.config.provider.getBalance(address);
+    }
+    if (typeof window !== "undefined" && "yakkl" in window) {
+      const balance = await window.yakkl.request({
+        method: "eth_getBalance",
+        params: [address, "latest"]
+      });
+      return balance;
+    }
+    throw new Error("No provider available");
+  }
+  /**
+   * Send transaction
+   */
+  async sendTransaction(params) {
+    if (!this.isConnected) {
+      throw new Error("Wallet not connected");
+    }
+    if (typeof window !== "undefined" && "yakkl" in window) {
+      return await window.yakkl.request({
+        method: "eth_sendTransaction",
+        params: [params]
+      });
+    }
+    if (this.config.provider) {
+      const response = await this.config.provider.sendTransaction({
+        from: params.from,
+        to: params.to,
+        value: params.value || "0",
+        data: params.data || "0x"
+      });
+      return response;
+    }
+    throw new Error("No provider available");
+  }
+  /**
+   * Sign message
+   */
+  async signMessage(address, message) {
+    if (!this.isConnected) {
+      throw new Error("Wallet not connected");
+    }
+    if (typeof window !== "undefined" && "yakkl" in window) {
+      return await window.yakkl.request({
+        method: "personal_sign",
+        params: [message, address]
+      });
+    }
+    throw new Error("Signing not available");
+  }
+  /**
+   * Switch network
+   */
+  async switchNetwork(chainId) {
+    if (!this.isConnected) {
+      throw new Error("Wallet not connected");
+    }
+    const chainIdHex = `0x${chainId.toString(16)}`;
+    if (typeof window !== "undefined" && "yakkl" in window) {
+      try {
+        await window.yakkl.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: chainIdHex }]
+        });
+      } catch (error) {
+        if (error.code === 4902) {
+          throw new Error("Please add this network to your wallet");
+        }
+        throw error;
+      }
+    }
+  }
+  /**
+   * Get transaction history
+   */
+  async getTransactionHistory(address, options) {
+    const response = await this.request("/transactions", {
+      params: {
+        address,
+        ...options
+      }
+    });
+    return response.transactions || [];
+  }
+  /**
+   * Make API request
+   */
+  async request(endpoint, options) {
+    const url = `${this.config.apiUrl}${endpoint}`;
+    const method = (options == null ? void 0 : options.method) || "GET";
+    const headers = {
+      "Content-Type": "application/json"
+    };
+    if (this.config.apiKey) {
+      headers["X-API-Key"] = this.config.apiKey;
+    }
+    const requestOptions = {
+      method,
+      headers,
+      signal: AbortSignal.timeout(this.config.timeout)
+    };
+    if (method === "GET" && (options == null ? void 0 : options.params)) {
+      const params = new URLSearchParams(options.params);
+      url.concat("?" + params.toString());
+    } else if (options == null ? void 0 : options.data) {
+      requestOptions.body = JSON.stringify(options.data);
+    }
+    const response = await fetch(url, requestOptions);
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.statusText}`);
+    }
+    return await response.json();
+  }
+  /**
+   * Check if wallet is connected
+   */
+  isWalletConnected() {
+    return this.isConnected;
+  }
+  /**
+   * Get wallet info
+   */
+  async getWalletInfo() {
+    if (typeof window !== "undefined" && "yakkl" in window) {
+      const yakkl = window.yakkl;
+      return {
+        version: yakkl.version || "unknown",
+        name: "YAKKL Wallet",
+        features: ["signing", "transactions", "multi-chain"]
+      };
+    }
+    return {
+      version: "unknown",
+      name: "YAKKL SDK",
+      features: []
+    };
+  }
+}
+var StandardRPCMethods = /* @__PURE__ */ ((StandardRPCMethods2) => {
+  StandardRPCMethods2["ETH_ACCOUNTS"] = "eth_accounts";
+  StandardRPCMethods2["ETH_REQUEST_ACCOUNTS"] = "eth_requestAccounts";
+  StandardRPCMethods2["ETH_CHAIN_ID"] = "eth_chainId";
+  StandardRPCMethods2["ETH_BLOCK_NUMBER"] = "eth_blockNumber";
+  StandardRPCMethods2["ETH_GET_BALANCE"] = "eth_getBalance";
+  StandardRPCMethods2["ETH_GET_TRANSACTION_BY_HASH"] = "eth_getTransactionByHash";
+  StandardRPCMethods2["ETH_GET_TRANSACTION_RECEIPT"] = "eth_getTransactionReceipt";
+  StandardRPCMethods2["ETH_SEND_TRANSACTION"] = "eth_sendTransaction";
+  StandardRPCMethods2["ETH_SIGN_TRANSACTION"] = "eth_signTransaction";
+  StandardRPCMethods2["ETH_SEND_RAW_TRANSACTION"] = "eth_sendRawTransaction";
+  StandardRPCMethods2["ETH_CALL"] = "eth_call";
+  StandardRPCMethods2["ETH_ESTIMATE_GAS"] = "eth_estimateGas";
+  StandardRPCMethods2["ETH_GAS_PRICE"] = "eth_gasPrice";
+  StandardRPCMethods2["ETH_GET_CODE"] = "eth_getCode";
+  StandardRPCMethods2["ETH_GET_STORAGE_AT"] = "eth_getStorageAt";
+  StandardRPCMethods2["PERSONAL_SIGN"] = "personal_sign";
+  StandardRPCMethods2["ETH_SIGN_TYPED_DATA"] = "eth_signTypedData";
+  StandardRPCMethods2["ETH_SIGN_TYPED_DATA_V3"] = "eth_signTypedData_v3";
+  StandardRPCMethods2["ETH_SIGN_TYPED_DATA_V4"] = "eth_signTypedData_v4";
+  StandardRPCMethods2["WALLET_SWITCH_ETHEREUM_CHAIN"] = "wallet_switchEthereumChain";
+  StandardRPCMethods2["WALLET_ADD_ETHEREUM_CHAIN"] = "wallet_addEthereumChain";
+  StandardRPCMethods2["WALLET_WATCH_ASSET"] = "wallet_watchAsset";
+  StandardRPCMethods2["WALLET_REQUEST_PERMISSIONS"] = "wallet_requestPermissions";
+  StandardRPCMethods2["WALLET_GET_PERMISSIONS"] = "wallet_getPermissions";
+  return StandardRPCMethods2;
+})(StandardRPCMethods || {});
+var YAKKLRPCMethods = /* @__PURE__ */ ((YAKKLRPCMethods2) => {
+  YAKKLRPCMethods2["YAKKL_GET_VERSION"] = "yakkl_getVersion";
+  YAKKLRPCMethods2["YAKKL_GET_FEATURES"] = "yakkl_getFeatures";
+  YAKKLRPCMethods2["YAKKL_GET_PLAN"] = "yakkl_getPlan";
+  YAKKLRPCMethods2["YAKKL_ENABLE_FEATURE"] = "yakkl_enableFeature";
+  YAKKLRPCMethods2["YAKKL_DISABLE_FEATURE"] = "yakkl_disableFeature";
+  YAKKLRPCMethods2["YAKKL_GET_SUPPORTED_CHAINS"] = "yakkl_getSupportedChains";
+  YAKKLRPCMethods2["YAKKL_SWITCH_CHAIN"] = "yakkl_switchChain";
+  YAKKLRPCMethods2["YAKKL_ADD_CUSTOM_CHAIN"] = "yakkl_addCustomChain";
+  YAKKLRPCMethods2["YAKKL_LOCK_WALLET"] = "yakkl_lockWallet";
+  YAKKLRPCMethods2["YAKKL_UNLOCK_WALLET"] = "yakkl_unlockWallet";
+  YAKKLRPCMethods2["YAKKL_SET_IDLE_TIMEOUT"] = "yakkl_setIdleTimeout";
+  YAKKLRPCMethods2["YAKKL_EXPORT_EMERGENCY_KIT"] = "yakkl_exportEmergencyKit";
+  YAKKLRPCMethods2["YAKKL_CREATE_ACCOUNT"] = "yakkl_createAccount";
+  YAKKLRPCMethods2["YAKKL_IMPORT_ACCOUNT"] = "yakkl_importAccount";
+  YAKKLRPCMethods2["YAKKL_EXPORT_ACCOUNT"] = "yakkl_exportAccount";
+  YAKKLRPCMethods2["YAKKL_REMOVE_ACCOUNT"] = "yakkl_removeAccount";
+  YAKKLRPCMethods2["YAKKL_SET_ACCOUNT_NAME"] = "yakkl_setAccountName";
+  YAKKLRPCMethods2["YAKKL_SIMULATE_TRANSACTION"] = "yakkl_simulateTransaction";
+  YAKKLRPCMethods2["YAKKL_GET_GAS_RECOMMENDATION"] = "yakkl_getGasRecommendation";
+  YAKKLRPCMethods2["YAKKL_BATCH_TRANSACTIONS"] = "yakkl_batchTransactions";
+  YAKKLRPCMethods2["YAKKL_GET_TOKEN_PRICE"] = "yakkl_getTokenPrice";
+  YAKKLRPCMethods2["YAKKL_GET_SWAP_QUOTE"] = "yakkl_getSwapQuote";
+  YAKKLRPCMethods2["YAKKL_EXECUTE_SWAP"] = "yakkl_executeSwap";
+  YAKKLRPCMethods2["YAKKL_GET_PORTFOLIO_VALUE"] = "yakkl_getPortfolioValue";
+  YAKKLRPCMethods2["YAKKL_GET_TRANSACTION_HISTORY"] = "yakkl_getTransactionHistory";
+  YAKKLRPCMethods2["YAKKL_GET_ANALYTICS"] = "yakkl_getAnalytics";
+  return YAKKLRPCMethods2;
+})(YAKKLRPCMethods || {});
+const RPC_ERROR_CODES = {
+  // Standard JSON-RPC errors
+  PARSE_ERROR: -32700,
+  INVALID_REQUEST: -32600,
+  METHOD_NOT_FOUND: -32601,
+  INVALID_PARAMS: -32602,
+  INTERNAL_ERROR: -32603,
+  // Ethereum provider errors
+  USER_REJECTED: 4001,
+  UNAUTHORIZED: 4100,
+  UNSUPPORTED_METHOD: 4200,
+  DISCONNECTED: 4900,
+  CHAIN_DISCONNECTED: 4901,
+  // YAKKL-specific errors
+  WALLET_LOCKED: 5001,
+  INVALID_CHAIN: 5002,
+  INSUFFICIENT_FUNDS: 5003,
+  FEATURE_DISABLED: 5004,
+  PLAN_REQUIRED: 5005
+};
+class RPCHandler {
+  constructor() {
+    this.handlers = /* @__PURE__ */ new Map();
+    this.middleware = [];
+    this.registerDefaultHandlers();
+  }
+  /**
+   * Register default RPC handlers
+   */
+  registerDefaultHandlers() {
+    this.register(StandardRPCMethods.ETH_ACCOUNTS, async () => {
+      return [];
+    });
+    this.register(StandardRPCMethods.ETH_REQUEST_ACCOUNTS, async () => {
+      throw this.createError(
+        RPC_ERROR_CODES.UNAUTHORIZED,
+        "User must authorize account access"
+      );
+    });
+    this.register(StandardRPCMethods.ETH_CHAIN_ID, async () => {
+      return "0x1";
+    });
+    this.register(YAKKLRPCMethods.YAKKL_GET_VERSION, async () => {
+      return { version: "2.0.0", build: "stable" };
+    });
+    this.register(YAKKLRPCMethods.YAKKL_GET_FEATURES, async () => {
+      return [
+        "multi-chain",
+        "hardware-wallet",
+        "defi-swaps",
+        "nft-support",
+        "emergency-kit"
+      ];
+    });
+  }
+  /**
+   * Register RPC method handler
+   */
+  register(method, handler) {
+    this.handlers.set(method, handler);
+  }
+  /**
+   * Unregister RPC method handler
+   */
+  unregister(method) {
+    this.handlers.delete(method);
+  }
+  /**
+   * Add middleware
+   */
+  use(middleware) {
+    this.middleware.push(middleware);
+  }
+  /**
+   * Handle RPC request
+   */
+  async handle(request) {
+    try {
+      this.validateRequest(request);
+      for (const mw of this.middleware) {
+        await mw(request);
+      }
+      const handler = this.handlers.get(request.method);
+      if (!handler) {
+        throw this.createError(
+          RPC_ERROR_CODES.METHOD_NOT_FOUND,
+          `Method "${request.method}" not found`
+        );
+      }
+      const result = await handler(request.params);
+      return {
+        jsonrpc: "2.0",
+        id: request.id,
+        result
+      };
+    } catch (error) {
+      return {
+        jsonrpc: "2.0",
+        id: request.id,
+        error: this.formatError(error)
+      };
+    }
+  }
+  /**
+   * Handle batch requests
+   */
+  async handleBatch(requests) {
+    return Promise.all(requests.map((req) => this.handle(req)));
+  }
+  /**
+   * Validate RPC request
+   */
+  validateRequest(request) {
+    if (!request.jsonrpc || request.jsonrpc !== "2.0") {
+      throw this.createError(
+        RPC_ERROR_CODES.INVALID_REQUEST,
+        "Invalid JSON-RPC version"
+      );
+    }
+    if (!request.method || typeof request.method !== "string") {
+      throw this.createError(
+        RPC_ERROR_CODES.INVALID_REQUEST,
+        "Method is required"
+      );
+    }
+    if (request.id === void 0 || request.id === null) {
+      throw this.createError(
+        RPC_ERROR_CODES.INVALID_REQUEST,
+        "ID is required"
+      );
+    }
+  }
+  /**
+   * Create RPC error
+   */
+  createError(code, message, data) {
+    return { code, message, data };
+  }
+  /**
+   * Format error for response
+   */
+  formatError(error) {
+    if (error.code && error.message) {
+      return error;
+    }
+    return {
+      code: RPC_ERROR_CODES.INTERNAL_ERROR,
+      message: error.message || "Internal error",
+      data: error.data
+    };
+  }
+  /**
+   * Check if method is supported
+   */
+  isMethodSupported(method) {
+    return this.handlers.has(method);
+  }
+  /**
+   * Get supported methods
+   */
+  getSupportedMethods() {
+    return Array.from(this.handlers.keys());
+  }
+}
+function createYAKKLRPCHandler() {
+  const handler = new RPCHandler();
+  handler.register(YAKKLRPCMethods.YAKKL_GET_PLAN, async () => {
+    return { plan: "explorer", features: ["basic"] };
+  });
+  handler.register(YAKKLRPCMethods.YAKKL_GET_SUPPORTED_CHAINS, async () => {
+    return [
+      { chainId: 1, name: "Ethereum Mainnet" },
+      { chainId: 137, name: "Polygon" },
+      { chainId: 42161, name: "Arbitrum One" },
+      { chainId: 10, name: "Optimism" },
+      { chainId: 8453, name: "Base" }
+    ];
+  });
+  handler.use(async (request) => {
+    console.log(`[RPC] ${request.method}`, request.params);
+  });
+  return handler;
+}
 class EmbeddedWallet extends eventemitter3.EventEmitter {
   constructor(config) {
-    var _a;
+    var _a, _b;
     super();
     this.container = null;
     this.initialized = false;
     this.config = config;
+    const restrictions = (config.restrictions || []).filter((r) => ["no-external-connections", "no-mod-discovery", "enterprise-only", "read-only", "mainnet-only"].includes(r));
+    let coreBranding;
+    if (config.branding) {
+      const theme = {};
+      if ((_a = config.branding.theme) == null ? void 0 : _a.colors) {
+        Object.assign(theme, config.branding.theme.colors);
+      }
+      coreBranding = {
+        name: config.branding.name || "YAKKL",
+        logo: config.branding.logo || "",
+        theme,
+        whiteLabel: false
+      };
+    }
     const engineConfig = {
-      name: ((_a = config.branding) == null ? void 0 : _a.name) || "Embedded YAKKL",
+      name: ((_b = config.branding) == null ? void 0 : _b.name) || "Embedded YAKKL",
       version: "1.0.0",
       embedded: true,
-      restrictions: config.restrictions || [],
+      restrictions,
       modDiscovery: config.enableMods !== false,
-      branding: config.branding
+      branding: coreBranding
     };
     this.engine = new core.WalletEngine(engineConfig);
     this.setupEventListeners();
@@ -504,13 +962,7 @@ class ModBuilder {
       conflicts: [],
       iconUrl: "",
       screenshotUrls: [],
-      capabilities: {
-        ui: false,
-        background: false,
-        api: false,
-        storage: false,
-        network: false
-      }
+      capabilities: {}
     };
   }
   /**
@@ -518,42 +970,72 @@ class ModBuilder {
    */
   withUI(components) {
     this.components.push(...components);
-    this.capabilities.ui = true;
+    this.capabilities.ui = {
+      components
+      // Will be converted to proper type when loaded
+    };
     return this;
   }
   /**
    * Add background processing capabilities
    */
   withBackground(scripts) {
-    this.capabilities.background = true;
+    this.capabilities.background = {
+      scripts: scripts.map((script, index) => ({
+        id: `script-${index}`,
+        script,
+        persistent: false,
+        permissions: []
+      }))
+    };
     return this;
   }
   /**
    * Add API capabilities
    */
   withAPI(endpoints) {
-    this.capabilities.api = true;
+    this.capabilities.apis = [{
+      name: "ModAPI",
+      version: "1.0.0",
+      endpoints: endpoints.map((endpoint) => ({
+        path: endpoint,
+        method: "GET",
+        handler: endpoint,
+        permissions: [],
+        rateLimit: { requests: 100, period: 60 }
+      }))
+    }];
     return this;
   }
   /**
    * Add storage capabilities
    */
   withStorage(maxSize = 1024 * 1024) {
-    this.capabilities.storage = true;
+    this.capabilities.storage = {
+      encrypted: false,
+      shared: false,
+      maxSize
+    };
     return this;
   }
   /**
    * Add network access capabilities
    */
   withNetwork(allowedHosts) {
-    this.capabilities.network = true;
+    const permissions = allowedHosts.map((host) => `network:${host}`);
+    if (this.manifest.permissions) {
+      this.manifest.permissions.push(...permissions);
+    } else {
+      this.manifest.permissions = permissions;
+    }
     return this;
   }
   /**
    * Add permissions required by the mod
    */
   withPermissions(permissions) {
-    this.manifest.permissions = [...this.manifest.permissions || [], ...permissions];
+    const modPermissions = permissions;
+    this.manifest.permissions = [...this.manifest.permissions || [], ...modPermissions];
     return this;
   }
   /**
@@ -692,15 +1174,15 @@ class ModTemplate {
       description: config.description || "Track and analyze your crypto portfolio",
       category: "finance",
       tags: ["portfolio", "tracking", "analytics"],
-      tier: "community"
+      tier: "community",
+      version: "2.0.2"
     }).withUI([
       {
         id: "portfolio-widget",
         name: "Portfolio Widget",
         type: "widget",
         mountPoint: "dashboard",
-        props: {},
-        conditions: []
+        props: {}
       }
     ]).withStorage(5 * 1024 * 1024).withPermissions(["storage", "network"]).withNetwork(["api.coingecko.com", "api.coinmarketcap.com"]);
   }
@@ -710,7 +1192,8 @@ class ModTemplate {
       description: config.description || "Automated trading strategies",
       category: "trading",
       tags: ["trading", "automation", "bot"],
-      tier: "pro"
+      tier: "pro",
+      version: "2.0.2"
     }).withBackground(["trading-engine.js"]).withAPI(["execute-trade", "get-strategies"]).withStorage(10 * 1024 * 1024).withPermissions(["storage", "network", "transactions"]).withNetwork(["api.binance.com", "api.coinbase.com"]);
   }
   static defiDashboard(config) {
@@ -719,15 +1202,15 @@ class ModTemplate {
       description: config.description || "Monitor DeFi positions and yields",
       category: "defi",
       tags: ["defi", "yield", "dashboard"],
-      tier: "community"
+      tier: "community",
+      version: "2.0.2"
     }).withUI([
       {
         id: "defi-dashboard",
         name: "DeFi Dashboard",
         type: "page",
         mountPoint: "dashboard",
-        props: {},
-        conditions: []
+        props: {}
       }
     ]).withNetwork(["api.defipulse.com", "api.yearn.finance"]).withPermissions(["storage", "network"]);
   }
@@ -737,15 +1220,15 @@ class ModTemplate {
       description: config.description || "Display and manage NFT collections",
       category: "nft",
       tags: ["nft", "gallery", "collectibles"],
-      tier: "community"
+      tier: "community",
+      version: "2.0.2"
     }).withUI([
       {
         id: "nft-gallery",
         name: "NFT Gallery",
         type: "page",
         mountPoint: "portfolio",
-        props: {},
-        conditions: []
+        props: {}
       }
     ]).withStorage(50 * 1024 * 1024).withNetwork(["api.opensea.io", "api.rarible.org"]).withPermissions(["storage", "network"]);
   }
@@ -755,15 +1238,15 @@ class ModTemplate {
       description: config.description || "Set price alerts for cryptocurrencies",
       category: "alerts",
       tags: ["alerts", "notifications", "price"],
-      tier: "community"
+      tier: "community",
+      version: "2.0.2"
     }).withBackground(["price-monitor.js"]).withUI([
       {
         id: "alert-settings",
         name: "Alert Settings",
         type: "modal",
         mountPoint: "settings",
-        props: {},
-        conditions: []
+        props: {}
       }
     ]).withStorage(1 * 1024 * 1024).withNetwork(["api.coingecko.com"]).withPermissions(["storage", "network", "notifications"]);
   }
@@ -773,15 +1256,15 @@ class ModTemplate {
       description: config.description || "Analyze transaction patterns and costs",
       category: "analytics",
       tags: ["analytics", "transactions", "gas"],
-      tier: "pro"
+      tier: "pro",
+      version: "2.0.2"
     }).withUI([
       {
         id: "tx-analyzer",
         name: "Transaction Analyzer",
         type: "page",
         mountPoint: "transaction",
-        props: {},
-        conditions: []
+        props: {}
       }
     ]).withStorage(20 * 1024 * 1024).withNetwork(["api.etherscan.io", "api.polygonscan.com"]).withPermissions(["storage", "network", "transactions"]);
   }
@@ -791,7 +1274,8 @@ class ModTemplate {
       description: config.description || "Scan transactions and contracts for security issues",
       category: "security",
       tags: ["security", "scanner", "audit"],
-      tier: "private"
+      tier: "private",
+      version: "2.0.2"
     }).withBackground(["security-scanner.js"]).withAPI(["scan-transaction", "scan-contract"]).withStorage(5 * 1024 * 1024).withNetwork(["api.slither.io", "api.mythx.io"]).withPermissions(["storage", "network", "transactions"]);
   }
   static backupManager(config) {
@@ -800,15 +1284,15 @@ class ModTemplate {
       description: config.description || "Secure backup and recovery management",
       category: "security",
       tags: ["backup", "recovery", "security"],
-      tier: "enterprise"
+      tier: "enterprise",
+      version: "2.0.2"
     }).withUI([
       {
         id: "backup-settings",
         name: "Backup Settings",
         type: "page",
         mountPoint: "settings",
-        props: {},
-        conditions: []
+        props: {}
       }
     ]).withBackground(["backup-scheduler.js"]).withStorage(100 * 1024 * 1024).withPermissions(["storage", "network", "accounts"]);
   }
@@ -1416,8 +1900,7 @@ class YakklProvider extends eventemitter3.EventEmitter {
         version: "1.0.0",
         embedded: true,
         enableMods: this.config.enableMods,
-        logLevel: this.config.logLevel || "warn",
-        provider: true
+        logLevel: this.config.logLevel || "warn"
       });
       this.setupEventListeners();
       this._initialized = true;
@@ -1444,7 +1927,11 @@ class YakklProvider extends eventemitter3.EventEmitter {
         this._accounts = [newAccount.address];
       }
       const currentNetwork = await this.engine.networks.getCurrent();
-      this._chainId = `0x${currentNetwork.chainId.toString(16)}`;
+      if (currentNetwork) {
+        this._chainId = `0x${currentNetwork.chainId.toString(16)}`;
+      } else {
+        this._chainId = "0x1";
+      }
       this._connected = true;
       this.emit("connect", this._accounts);
       this.emit("accountsChanged", this._accounts);
@@ -1483,15 +1970,16 @@ class YakklProvider extends eventemitter3.EventEmitter {
         return parseInt(this._chainId, 16).toString();
       case "eth_getBalance":
         if (!params[0]) throw new Error("Address required");
-        return await this.engine.accounts.getBalance(params[0]);
+        const balance = await this.engine.getBalance(params[0]);
+        return balance.native;
       case "eth_sendTransaction":
         if (!params[0]) throw new Error("Transaction object required");
-        const transaction = await this.engine.transactions.send(params[0]);
-        return transaction.hash;
+        const txHash = await this.engine.transactions.send(params[0]);
+        return txHash;
       case "eth_signTransaction":
         if (!params[0]) throw new Error("Transaction object required");
         const signedTx = await this.engine.transactions.sign(params[0]);
-        return signedTx.serialized;
+        return signedTx;
       case "personal_sign":
       case "eth_sign":
         if (!params[0] || !params[1]) throw new Error("Message and address required");
@@ -1545,7 +2033,7 @@ class YakklProvider extends eventemitter3.EventEmitter {
     if (!this.engine) throw new Error("Provider not initialized");
     const numericChainId = parseInt(chainId, 16);
     try {
-      await this.engine.networks.switchTo(numericChainId.toString());
+      await this.engine.networks.switch(numericChainId.toString());
       this._chainId = chainId;
       this.emit("chainChanged", chainId);
     } catch (error) {
@@ -1556,13 +2044,23 @@ class YakklProvider extends eventemitter3.EventEmitter {
     if (!this.engine) throw new Error("Provider not initialized");
     const { chainId, chainName, rpcUrls, nativeCurrency, blockExplorerUrls } = chainParams;
     try {
+      const networkChainId = parseInt(chainId, 16);
       await this.engine.networks.add({
-        id: chainName.toLowerCase().replace(/\s+/g, "-"),
-        chainId: parseInt(chainId, 16),
+        chainId: networkChainId,
         name: chainName,
         rpcUrl: rpcUrls[0],
-        currency: nativeCurrency,
-        explorerUrl: blockExplorerUrls == null ? void 0 : blockExplorerUrls[0]
+        symbol: (nativeCurrency == null ? void 0 : nativeCurrency.symbol) || "ETH",
+        blockExplorerUrl: (blockExplorerUrls == null ? void 0 : blockExplorerUrls[0]) || "",
+        isTestnet: false,
+        isMainnet: networkChainId === 1,
+        gasToken: {
+          address: "0x0000000000000000000000000000000000000000",
+          symbol: (nativeCurrency == null ? void 0 : nativeCurrency.symbol) || "ETH",
+          decimals: (nativeCurrency == null ? void 0 : nativeCurrency.decimals) || 18,
+          name: (nativeCurrency == null ? void 0 : nativeCurrency.name) || chainName,
+          chainId: networkChainId
+        },
+        supportedFeatures: ["eip1559", "contracts", "tokens", "nft"]
       });
     } catch (error) {
       throw new Error(`Failed to add chain: ${error}`);
@@ -1578,10 +2076,10 @@ class YakklProvider extends eventemitter3.EventEmitter {
       this._chainId = `0x${network.chainId.toString(16)}`;
       this.emit("chainChanged", this._chainId);
     });
-    this.engine.on("transaction:sent", (transaction) => {
+    this.engine.on("transaction:signed", (transaction) => {
       this.emit("message", {
-        type: "transaction:sent",
-        data: { hash: transaction.hash }
+        type: "transaction:signed",
+        data: transaction
       });
     });
   }
@@ -2117,9 +2615,14 @@ exports.EmbeddedWallet = EmbeddedWallet;
 exports.EventBridge = EventBridge;
 exports.ModBuilder = ModBuilder;
 exports.ModTemplate = ModTemplate;
+exports.RPCHandler = RPCHandler;
+exports.RPC_ERROR_CODES = RPC_ERROR_CODES;
 exports.SecureChannel = SecureChannel;
+exports.StandardRPCMethods = StandardRPCMethods;
+exports.WalletClient = WalletClient;
 exports.WalletConnector = WalletConnector;
 exports.WhiteLabelWallet = WhiteLabelWallet;
+exports.YAKKLRPCMethods = YAKKLRPCMethods;
 exports.YakklProvider = YakklProvider;
 exports.createBrandingManager = createBrandingManager;
 exports.createEmbeddedWallet = createEmbeddedWallet;
@@ -2130,6 +2633,7 @@ exports.createModFromTemplate = createModFromTemplate;
 exports.createQuickWhiteLabelWallet = createQuickWhiteLabelWallet;
 exports.createWalletConnector = createWalletConnector;
 exports.createWhiteLabelWallet = createWhiteLabelWallet;
+exports.createYAKKLRPCHandler = createYAKKLRPCHandler;
 exports.createYakklProvider = createYakklProvider;
 exports.generateModPackage = generateModPackage;
 exports.modTemplates = modTemplates;

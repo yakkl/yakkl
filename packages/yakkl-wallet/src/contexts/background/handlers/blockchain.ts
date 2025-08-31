@@ -253,7 +253,7 @@ export const blockchainHandlers = new Map<string, MessageHandlerFunc>([
         const provider = await providerManager.getProvider();
         
         // Make ERC20 balanceOf call
-        const balanceOfData = `0x70a08231000000000000000000000000${walletAddress.slice(2)}`; // balanceOf(address)
+        const balanceOfData = `0x70a08231000000000000000000000000${walletAddress.slice(2)}` as `0x${string}`; // balanceOf(address)
         
         const balance = await provider.call({
           to: tokenAddress,
@@ -275,7 +275,7 @@ export const blockchainHandlers = new Map<string, MessageHandlerFunc>([
           const failoverProvider = await providerManager.handleProviderFailure('primary', error);
           const balance = await failoverProvider.call({
             to: tokenAddress,
-            data: `0x70a08231000000000000000000000000${walletAddress.slice(2)}`
+            data: `0x70a08231000000000000000000000000${walletAddress.slice(2)}` as `0x${string}`
           });
           
           log.info('Successfully fetched token balance with failover provider', false, { 
