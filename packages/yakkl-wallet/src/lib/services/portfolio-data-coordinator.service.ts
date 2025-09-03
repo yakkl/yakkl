@@ -15,7 +15,7 @@ import { tokenStore } from '$lib/stores/token.store';
 import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
 import type { BigNumberish } from '$lib/common/bignumber';
 import { portfolioStability } from './portfolio-stability.service';
-import type { WalletCacheController } from '$lib/stores/wallet-cache.store';
+import type { WalletCacheController } from '$lib/types';
 
 /**
  * Update source priorities (higher = more priority)

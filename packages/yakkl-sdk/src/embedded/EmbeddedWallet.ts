@@ -6,7 +6,13 @@
  */
 
 import { WalletEngine } from '@yakkl/core';
-import type { WalletConfig, Account, Transaction } from '@yakkl/core';
+import type { 
+  WalletConfig, 
+  Account, 
+  Transaction,
+  WalletRestriction,
+  BrandingConfig as CoreBrandingConfig
+} from '@yakkl/core';
 import { EventEmitter } from 'eventemitter3';
 import type { EmbeddedWalletConfig } from '../types';
 
@@ -29,14 +35,33 @@ export class EmbeddedWallet extends EventEmitter<EmbeddedWalletEvents> {
     super();
     this.config = config;
     
+    // Convert SDK restrictions to core WalletRestriction type
+    const restrictions = (config.restrictions || [])
+      .filter(r => ['no-external-connections', 'no-mod-discovery', 'enterprise-only', 'read-only', 'mainnet-only'].includes(r)) as WalletRestriction[];
+    
+    // Convert SDK branding to core BrandingConfig if provided
+    let coreBranding: CoreBrandingConfig | undefined;
+    if (config.branding) {
+      const theme: any = {};
+      if (config.branding.theme?.colors) {
+        Object.assign(theme, config.branding.theme.colors);
+      }
+      coreBranding = {
+        name: config.branding.name || 'YAKKL',
+        logo: config.branding.logo || '',
+        theme,
+        whiteLabel: false
+      };
+    }
+    
     // Create wallet engine with embedded configuration
     const engineConfig: Partial<WalletConfig> = {
       name: config.branding?.name || 'Embedded YAKKL',
       version: '1.0.0',
       embedded: true,
-      restrictions: config.restrictions || [],
+      restrictions,
       modDiscovery: config.enableMods !== false,
-      branding: config.branding
+      branding: coreBranding
     };
 
     this.engine = new WalletEngine(engineConfig);

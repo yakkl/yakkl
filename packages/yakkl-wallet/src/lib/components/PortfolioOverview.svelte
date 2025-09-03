@@ -325,13 +325,18 @@
   // Get responsive font size based on value
   function getResponsiveFontSize(value: BigNumberish): string {
     try {
+      // Handle undefined, null, or invalid values
+      if (value === undefined || value === null || value === '') {
+        return 'text-4xl';
+      }
+      
       let numValue = BigNumberishUtils.toBigInt(value);
 
-      // Responsive sizing based on value magnitude
-      if (BigNumberishUtils.toBigInt(numValue) >= 1000000000n) return 'text-lg';      // Over $1B
-      if (BigNumberishUtils.toBigInt(numValue) >= 1000000n) return 'text-xl';         // Over $1M
-      if (BigNumberishUtils.toBigInt(numValue) >= 100000n) return 'text-2xl';         // Over $100K
-      if (BigNumberishUtils.toBigInt(numValue) >= 10000n) return 'text-3xl';          // Over $10K
+      // Responsive sizing based on value magnitude (already bigint, no need to convert again)
+      if (numValue >= 1000000000n) return 'text-lg';      // Over $1B
+      if (numValue >= 1000000n) return 'text-xl';         // Over $1M
+      if (numValue >= 100000n) return 'text-2xl';         // Over $100K
+      if (numValue >= 10000n) return 'text-3xl';          // Over $10K
       return 'text-4xl';                                  // Under $10K
     } catch (error) {
       log.warn('Error getting responsive font size:', false, error);
@@ -342,6 +347,16 @@
   // Format currency helper
   function formatCurrency(value: BigNumberish): string {
     try {
+      // Handle undefined, null, or invalid values
+      if (value === undefined || value === null || value === '') {
+        return new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: 'USD',
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        }).format(0);
+      }
+      
       // Value is stored as cents (bigint), convert to dollars for display
       const valueInCents = BigNumberishUtils.toBigInt(value);
       const valueInDollars = Number(valueInCents) / 100;

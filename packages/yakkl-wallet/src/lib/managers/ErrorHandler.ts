@@ -141,28 +141,30 @@ export class ErrorHandler {
 			});
 
 			// Track all clicks
-			document.addEventListener(
-				'click',
-				(event) => {
-					const target = event.target as HTMLElement;
-					const action = {
-						time: Date.now(),
-						action: `Click: ${target.tagName} ${target.className} ${target.id}`
-					};
+			if (typeof document !== 'undefined') {
+				document.addEventListener(
+					'click',
+					(event) => {
+						const target = event.target as HTMLElement;
+						const action = {
+							time: Date.now(),
+							action: `Click: ${target.tagName} ${target.className} ${target.id}`
+						};
 
-					this.lastActions.unshift(action);
-					if (this.lastActions.length > this.MAX_ACTION_HISTORY) {
-						this.lastActions.pop();
-					}
+						this.lastActions.unshift(action);
+						if (this.lastActions.length > this.MAX_ACTION_HISTORY) {
+							this.lastActions.pop();
+						}
 
-					// Capture state after each click
-					this.stateSnapshots.push(this.captureStateSnapshot());
-					if (this.stateSnapshots.length > 10) {
-						this.stateSnapshots.shift();
-					}
-				},
-				true
-			);
+						// Capture state after each click
+						this.stateSnapshots.push(this.captureStateSnapshot());
+						if (this.stateSnapshots.length > 10) {
+							this.stateSnapshots.shift();
+						}
+					},
+					true
+				);
+			}
 
 			window.onerror = (message, source, lineno, colno, error) => {
 				const messageText = message instanceof Event ? message.type : String(message);
@@ -275,16 +277,18 @@ export class ErrorHandler {
 				// Ignore error
 			}
 
-			document.addEventListener('visibilitychange', () => {
-				const snapshot = this.captureStateSnapshot();
-				log.info('Visibility change', true, {
-					state: document.visibilityState,
-					snapshot,
-					lastActions: this.lastActions.slice(0, 10),
-					location: window.location.href,
-					timestamp: new Date().toISOString()
+			if (typeof document !== 'undefined') {
+				document.addEventListener('visibilitychange', () => {
+					const snapshot = this.captureStateSnapshot();
+					log.info('Visibility change', true, {
+						state: document.visibilityState,
+						snapshot,
+						lastActions: this.lastActions.slice(0, 10),
+						location: window.location.href,
+						timestamp: new Date().toISOString()
+					});
 				});
-			});
+			}
 
 			// Track pathname changes
 			let lastPathname = window.location.pathname;
@@ -301,10 +305,12 @@ export class ErrorHandler {
 				}
 			});
 
-			observer.observe(document, {
-				subtree: true,
-				childList: true
-			});
+			if (typeof document !== 'undefined') {
+				observer.observe(document, {
+					subtree: true,
+					childList: true
+				});
+			}
 		} catch (error) {
 			log.error('Failed to initialize error handlers', false, error);
 		}
@@ -357,12 +363,14 @@ export class ErrorHandler {
 				});
 			});
 
-			modalObserver.observe(document.body, {
-				childList: true,
-				subtree: true,
-				attributes: true,
-				attributeFilter: ['class', 'style', 'hidden']
-			});
+			if (typeof document !== 'undefined') {
+				modalObserver.observe(document.body, {
+					childList: true,
+					subtree: true,
+					attributes: true,
+					attributeFilter: ['class', 'style', 'hidden']
+				});
+			}
 
 			// Monitor Send button
 			const sendButtonObserver = new MutationObserver((mutations) => {
@@ -382,12 +390,14 @@ export class ErrorHandler {
 
 			// Observe the Send button once it's available
 			const observeSendButton = () => {
-				const sendButton = document.querySelector('[data-testid="send-button"]');
-				if (sendButton) {
-					sendButtonObserver.observe(sendButton, {
-						attributes: true,
-						attributeFilter: ['disabled']
-					});
+				if (typeof document !== 'undefined') {
+					const sendButton = document.querySelector('[data-testid="send-button"]');
+					if (sendButton) {
+						sendButtonObserver.observe(sendButton, {
+							attributes: true,
+							attributeFilter: ['disabled']
+						});
+					}
 				}
 			};
 
@@ -516,7 +526,7 @@ export class ErrorHandler {
 		return {
 			time: Date.now(),
 			memory: performance?.memory?.usedJSHeapSize,
-			nodes: document.getElementsByTagName('*').length,
+			nodes: typeof document !== 'undefined' ? document.getElementsByTagName('*').length : 0,
 			eventListeners: this.getEventListenerCount(),
 			location: window.location.href
 		};
@@ -539,19 +549,19 @@ export class ErrorHandler {
 		return {
 			timestamp: Date.now(),
 			route: window.location.pathname,
-			activeModals: Array.from(
+			activeModals: typeof document !== 'undefined' ? Array.from(
 				document.querySelectorAll('[role="dialog"], .modal, [aria-modal="true"]')
 			).map((el) => ({
 				id: el.id,
 				class: (el as HTMLElement).className,
 				visible: (el as HTMLElement).style.display !== 'none'
-			})),
+			})) : [],
 			componentStack: this.captureComponentStack(),
 			eventQueue: this.getEventListeners(),
 			lastActions: [...this.lastActions],
 			memoryUsage: {
 				jsHeapSize: performance?.memory?.usedJSHeapSize,
-				totalNodes: document.getElementsByTagName('*').length,
+				totalNodes: typeof document !== 'undefined' ? document.getElementsByTagName('*').length : 0,
 				eventListeners: this.getEventListenerCount()
 			}
 		};
@@ -561,13 +571,16 @@ export class ErrorHandler {
 		if (!isBrowser) return [];
 
 		const stack: string[] = [];
-		let element = document.activeElement;
+		
+		if (typeof document !== 'undefined') {
+			let element = document.activeElement;
 
-		while (element && element !== document.body) {
-			const componentName =
-				element.getAttribute('data-component') || element.getAttribute('class') || element.tagName;
-			stack.push(componentName);
-			element = element.parentElement;
+			while (element && element !== document.body) {
+				const componentName =
+					element.getAttribute('data-component') || element.getAttribute('class') || element.tagName;
+				stack.push(componentName);
+				element = element.parentElement;
+			}
 		}
 
 		return stack;
@@ -577,14 +590,17 @@ export class ErrorHandler {
 		if (!isBrowser) return [];
 
 		// Basic estimation of event types
-		const elements = document.getElementsByTagName('*');
 		const listeners: string[] = [];
+		
+		if (typeof document !== 'undefined') {
+			const elements = document.getElementsByTagName('*');
 
-		for (const element of elements) {
-			const eventAttributes = Array.from(element.attributes)
-				.filter((attr) => attr.name.startsWith('on'))
-				.map((attr) => attr.name);
-			listeners.push(...eventAttributes);
+			for (const element of elements) {
+				const eventAttributes = Array.from(element.attributes)
+					.filter((attr) => attr.name.startsWith('on'))
+					.map((attr) => attr.name);
+				listeners.push(...eventAttributes);
+			}
 		}
 
 		return listeners;
@@ -593,10 +609,13 @@ export class ErrorHandler {
 	private getEventListenerCount(): number {
 		if (!isBrowser) return 0;
 
-		const elements = document.getElementsByTagName('*');
 		let count = 0;
-		for (const element of elements) {
-			count += Object.keys(element).filter((key) => key.startsWith('on')).length;
+		
+		if (typeof document !== 'undefined') {
+			const elements = document.getElementsByTagName('*');
+			for (const element of elements) {
+				count += Object.keys(element).filter((key) => key.startsWith('on')).length;
+			}
 		}
 		return count;
 	}

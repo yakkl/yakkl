@@ -10,12 +10,12 @@ import type {
   Transaction, 
   SignedTransaction, 
   Balance, 
-  TokenBalance, 
   NFTBalance,
   TransactionHistory,
   TransactionStatus,
   TransactionHistoryType
 } from './types';
+import type { TokenBalance } from '../interfaces/token.interface';
 
 export interface TransactionManagerEvents {
   'transaction:signed': (signedTx: SignedTransaction) => void;

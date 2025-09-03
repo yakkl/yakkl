@@ -121,7 +121,9 @@ module.exports = {
 			vm: require.resolve('vm-browserify'),
 			process: require.resolve('process/browser'),
 			events: require.resolve('events/'),
-			url: require.resolve('url/')
+			url: require.resolve('url/'),
+			buffer: require.resolve('buffer/'),
+			fs: false // fs is not available in browser, set to false
 		}
 	},
 	ignoreWarnings: [

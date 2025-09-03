@@ -9,7 +9,9 @@ export const selectedEIP6963Provider = writable<EIP6963ProviderDetail | null>(nu
 
 // Function to request providers
 export function requestEIP6963Providers() {
-	window.dispatchEvent(new Event('eip6963:requestProvider'));
+	if (typeof window !== 'undefined') {
+		window.dispatchEvent(new Event('eip6963:requestProvider'));
+	}
 }
 
 // Function to select a provider

@@ -2,7 +2,15 @@
  * ModBuilder - Helper class for building YAKKL mods
  */
 
-import type { ModManifest, ModCapabilities, ModComponent } from '@yakkl/core';
+import type { 
+  ModManifest, 
+  ModCapabilities, 
+  ModUI,
+  ModBackground,
+  ModStorage,
+  ModCategory,
+  ModPermission
+} from '@yakkl/core';
 
 export interface ModBuilderConfig {
   id: string;
@@ -16,9 +24,18 @@ export interface ModBuilderConfig {
   tags?: string[];
 }
 
+// Simplified component type for SDK (will be converted to core ModComponent when loaded)
+interface SDKModComponent {
+  id: string;
+  name: string;
+  type: string;
+  mountPoint: string;
+  props?: Record<string, any>;
+}
+
 export class ModBuilder {
   private manifest: Partial<ModManifest> = {};
-  private components: ModComponent[] = [];
+  private components: SDKModComponent[] = [];
   private capabilities: Partial<ModCapabilities> = {};
 
   constructor(config: ModBuilderConfig) {
@@ -30,7 +47,7 @@ export class ModBuilder {
       author: config.author,
       license: config.license || 'MIT',
       tier: config.tier || 'community',
-      category: config.category || 'utility',
+      category: (config.category || 'utility') as ModCategory,
       tags: config.tags || [],
       permissions: [],
       minimumWalletVersion: '1.0.0',
@@ -40,22 +57,18 @@ export class ModBuilder {
       conflicts: [],
       iconUrl: '',
       screenshotUrls: [],
-      capabilities: {
-        ui: false,
-        background: false,
-        api: false,
-        storage: false,
-        network: false
-      }
+      capabilities: {}
     };
   }
 
   /**
    * Add UI capabilities to the mod
    */
-  withUI(components: ModComponent[]): ModBuilder {
+  withUI(components: SDKModComponent[]): ModBuilder {
     this.components.push(...components);
-    this.capabilities.ui = true;
+    this.capabilities.ui = {
+      components: components as any[] // Will be converted to proper type when loaded
+    };
     return this;
   }
 
@@ -63,7 +76,14 @@ export class ModBuilder {
    * Add background processing capabilities
    */
   withBackground(scripts: string[]): ModBuilder {
-    this.capabilities.background = true;
+    this.capabilities.background = {
+      scripts: scripts.map((script, index) => ({
+        id: `script-${index}`,
+        script,
+        persistent: false,
+        permissions: [] as ModPermission[]
+      }))
+    };
     return this;
   }
 
@@ -71,7 +91,17 @@ export class ModBuilder {
    * Add API capabilities
    */
   withAPI(endpoints: string[]): ModBuilder {
-    this.capabilities.api = true;
+    this.capabilities.apis = [{
+      name: 'ModAPI',
+      version: '1.0.0',
+      endpoints: endpoints.map(endpoint => ({
+        path: endpoint,
+        method: 'GET' as const,
+        handler: endpoint,
+        permissions: [] as ModPermission[],
+        rateLimit: { requests: 100, period: 60 }
+      }))
+    }];
     return this;
   }
 
@@ -79,7 +109,11 @@ export class ModBuilder {
    * Add storage capabilities
    */
   withStorage(maxSize: number = 1024 * 1024): ModBuilder {
-    this.capabilities.storage = true;
+    this.capabilities.storage = {
+      encrypted: false,
+      shared: false,
+      maxSize
+    };
     return this;
   }
 
@@ -87,7 +121,13 @@ export class ModBuilder {
    * Add network access capabilities
    */
   withNetwork(allowedHosts: string[]): ModBuilder {
-    this.capabilities.network = true;
+    // Network access is managed through permissions
+    const permissions = allowedHosts.map(host => `network:${host}` as ModPermission);
+    if (this.manifest.permissions) {
+      this.manifest.permissions.push(...permissions);
+    } else {
+      this.manifest.permissions = permissions;
+    }
     return this;
   }
 
@@ -95,7 +135,8 @@ export class ModBuilder {
    * Add permissions required by the mod
    */
   withPermissions(permissions: string[]): ModBuilder {
-    this.manifest.permissions = [...(this.manifest.permissions || []), ...permissions];
+    const modPermissions = permissions as ModPermission[];
+    this.manifest.permissions = [...(this.manifest.permissions || []), ...modPermissions];
     return this;
   }
 

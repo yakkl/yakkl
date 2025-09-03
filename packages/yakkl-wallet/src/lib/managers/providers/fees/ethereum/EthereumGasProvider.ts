@@ -15,7 +15,8 @@ import {
 	type FeeEstimate,
 	EOA_FALLBACK_GAS
 } from '$lib/common/gas-types';
-import type { PriceProvider, SwapToken, TransactionRequest } from '$lib/common/interfaces';
+import type { PriceProvider, SwapToken } from '$lib/common/interfaces';
+import type { TransactionRequest } from '$lib/common/types';
 import type { Blockchain } from '../../../Blockchain';
 import type { Wallet } from '../../../Wallet';
 import { Ethereum } from '../../../blockchains/evm/ethereum/Ethereum';
@@ -312,9 +313,9 @@ export class EthereumGasProvider implements GasProvider {
 		options: GasFeeOptions = {}
 	): Promise<GasEstimate> {
 		const transaction: TransactionRequest = {
-			to,
-			quantity: value,
-			from: '0x0000000000000000000000000000000000000000',
+			to: to as `0x${string}`,
+			value: value?.toString(),
+			from: '0x0000000000000000000000000000000000000000' as `0x${string}`,
 			chainId: this.blockchain.getChainId()
 		};
 
@@ -780,7 +781,8 @@ export class EthereumGasProvider implements GasProvider {
 //   GasPrediction,
 //   FeeEstimate
 // } from '$lib/common/gas-types';
-// import type { PriceProvider, SwapToken, TransactionRequest } from '$lib/common/interfaces';
+// import type { PriceProvider, SwapToken } from '$lib/common/interfaces';
+// import type { TransactionRequest } from '$lib/common/types';
 // import type { Blockchain, Wallet } from '$lib/managers';
 // import { Ethereum } from '$lib/managers/blockchains/evm/ethereum/Ethereum';
 // import { log } from '$lib/managers/Logger';

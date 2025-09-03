@@ -38,8 +38,7 @@ export class ModTemplate {
         name: 'Portfolio Widget',
         type: 'widget',
         mountPoint: 'dashboard',
-        props: {},
-        conditions: []
+        props: {}
       }
     ])
     .withStorage(5 * 1024 * 1024) // 5MB
@@ -78,8 +77,7 @@ export class ModTemplate {
         name: 'DeFi Dashboard',
         type: 'page',
         mountPoint: 'dashboard',
-        props: {},
-        conditions: []
+        props: {}
       }
     ])
     .withNetwork(['api.defipulse.com', 'api.yearn.finance'])
@@ -101,8 +99,7 @@ export class ModTemplate {
         name: 'NFT Gallery',
         type: 'page',
         mountPoint: 'portfolio',
-        props: {},
-        conditions: []
+        props: {}
       }
     ])
     .withStorage(50 * 1024 * 1024) // 50MB for images
@@ -126,8 +123,7 @@ export class ModTemplate {
         name: 'Alert Settings',
         type: 'modal',
         mountPoint: 'settings',
-        props: {},
-        conditions: []
+        props: {}
       }
     ])
     .withStorage(1 * 1024 * 1024) // 1MB
@@ -150,8 +146,7 @@ export class ModTemplate {
         name: 'Transaction Analyzer',
         type: 'page',
         mountPoint: 'transaction',
-        props: {},
-        conditions: []
+        props: {}
       }
     ])
     .withStorage(20 * 1024 * 1024) // 20MB
@@ -190,8 +185,7 @@ export class ModTemplate {
         name: 'Backup Settings',
         type: 'page',
         mountPoint: 'settings',
-        props: {},
-        conditions: []
+        props: {}
       }
     ])
     .withBackground(['backup-scheduler.js'])

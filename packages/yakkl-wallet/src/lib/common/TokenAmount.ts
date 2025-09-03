@@ -1,7 +1,5 @@
 // TokenAmount.ts
-import { BigNumberishMath } from './BigNumberishMath';
-import { DecimalMath } from './DecimalMath';
-import { type BigNumberish } from './bignumber';
+import { BigNumberishMath, DecimalMath, type BigNumberish } from '@yakkl/core';
 import Decimal from 'decimal.js';
 
 export class TokenAmount {

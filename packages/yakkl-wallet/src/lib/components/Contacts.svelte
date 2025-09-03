@@ -2,7 +2,7 @@
 <script lang="ts">
 	import { setYakklContactsStorage, yakklContactsStore } from '$lib/common/stores';
 	import { type YakklContact } from '$lib/common';
-	import Modal from './Modal.svelte';
+	import Modal from '@yakkl/ui/src/components/Modal.svelte';
 	import ContactList from './ContactList.svelte';
 	import ContactForm from './ContactForm.svelte';
 

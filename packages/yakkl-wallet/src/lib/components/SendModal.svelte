@@ -1,7 +1,7 @@
 <script lang="ts">
   import { transactionStore, isLoadingTx, txError } from '../stores/transaction.store';
   // Removed: canUseFeature import - send_tokens is available to all users
-  import { ethers } from 'ethers-v6';
+  import { isValidAddress, formatEther } from '$lib/utils/blockchain-bridge';
   import GasFeeSelector from './GasFeeSelector.svelte';
 
   let {
@@ -41,9 +41,9 @@
   });
 
   // Validate address format
-  function validateAddress(address: string): boolean {
+  async function validateAddress(address: string): Promise<boolean> {
     try {
-      return ethers.isAddress(address);
+      return await isValidAddress(address);
     } catch {
       return false;
     }
@@ -73,7 +73,7 @@
       );
       
       if (response.success && response.data) {
-        const gasInEth = ethers.formatEther(response.data);
+        const gasInEth = formatEther(response.data);
         gasEstimate = `~${parseFloat(gasInEth).toFixed(6)} ETH`;
       }
     } catch (error) {

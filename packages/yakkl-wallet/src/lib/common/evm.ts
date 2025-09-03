@@ -1,7 +1,6 @@
-import type { BytesLike, BlockTag } from '$lib/common/types';
+import type { BytesLike, BlockTag, TransactionRequest } from '$lib/common/types';
 import type {
 	BaseTransaction,
-	TransactionRequest,
 	EncryptedData,
 	TransactionResponse,
 	YakklPrimaryAccount
@@ -150,6 +149,14 @@ export interface EVMTransactionRequest extends TransactionRequest {
 	 * transactions.
 	 */
 	kzg?: null | KzgLibrary;
+	
+	// Additional properties for compatibility
+	quantity?: BigNumberish; // Value in some contexts
+	accessList?: AccessList;
+	customData?: any;
+	ccipReadEnabled?: boolean;
+	maxFeePerBlobGas?: BigNumberish;
+	type?: number;
 }
 
 /**

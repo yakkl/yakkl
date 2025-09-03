@@ -81,7 +81,7 @@
 		}
 
 		// Restore document title
-		if (originalTitle && document.title.includes('🚨 URGENT')) {
+		if (typeof document !== 'undefined' && originalTitle && document.title.includes('🚨 URGENT')) {
 			document.title = originalTitle;
 			originalTitle = '';
 		}
@@ -96,7 +96,9 @@
 		cleanup();
 
 		// Store original title for restoration
-		originalTitle = document.title;
+		if (typeof document !== 'undefined') {
+			originalTitle = document.title;
+		}
 
 		countdownTimer = createCountdownTimer(
 			'security-warning-enhanced',
@@ -112,6 +114,7 @@
 				if (
 					timeLeft <= 15 &&
 					!timerManager.isTimeoutRunning('title-flash') &&
+					typeof document !== 'undefined' &&
 					!document.title.includes('🚨 URGENT')
 				) {
 					startTitleFlash();
@@ -140,14 +143,16 @@
 				// Flash 10 times total
 				timerManager.stopTimeout('title-flash');
 				timerManager.removeTimeout('title-flash');
-				if (originalTitle) {
+				if (typeof document !== 'undefined' && originalTitle) {
 					document.title = originalTitle;
 				}
 				return;
 			}
 
 			const flashTitle = flashCount % 2 === 0 ? '🚨 URGENT: Security Warning!' : originalTitle;
-			document.title = flashTitle;
+			if (typeof document !== 'undefined') {
+				document.title = flashTitle;
+			}
 			flashCount++;
 
 			// Schedule next flash

@@ -27,7 +27,12 @@ export type {
   ModManifest, 
   ModCapabilities,
   ModUI,
-  ModBackground 
+  ModBackground,
+  ModStorage,
+  ModCategory,
+  ModPermission,
+  ModAPI,
+  ModComponent 
 } from './mods/types';
 
 export type {
@@ -36,7 +41,9 @@ export type {
   Transaction,
   SignedTransaction,
   Balance,
-  WalletConfig
+  WalletConfig,
+  WalletRestriction,
+  BrandingConfig
 } from './engine/types';
 
 // APIs
@@ -47,8 +54,35 @@ export { IntegrationAPI } from './apis/IntegrationAPI';
 // Interfaces (browser-agnostic abstractions)
 export * from './interfaces';
 
+// Core Types
+export * from './types';
+
+// Constants
+export * from './constants';
+
 // Utilities
 export * from './utils';
 export { createWallet } from './utils/factory';
 export { validateMod } from './utils/validation';
 export { Logger } from './utils/Logger';
+
+// Providers
+export * from './providers';
+
+// Builders
+export * from './builders';
+
+// Dependency Injection
+export * from './di';
+
+// Services
+export * from './services';
+
+// Messaging
+export * from './messaging';
+
+// Storage
+export * from './storage';
+
+// State Management
+export * from './state';

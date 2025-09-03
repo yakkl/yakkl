@@ -5,7 +5,7 @@
   import { displayTokens } from '$lib/stores/token.store';
   import { notificationService } from '$lib/services/notification.service';
   import { uiStore } from '$lib/stores/ui.store';
-  import Modal from './Modal.svelte';
+  import Modal from '@yakkl/ui/src/components/Modal.svelte';
   import PincodeVerify from './PincodeVerify.svelte';
   import { ethers } from 'ethers-v6';
   import { ArrowDownUp, Settings, Info, AlertTriangle } from 'lucide-svelte';

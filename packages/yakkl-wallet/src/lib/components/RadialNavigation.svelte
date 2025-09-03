@@ -183,12 +183,16 @@
 	
 	onMount(() => {
 		// Add keyboard listener
-		document.addEventListener('keydown', handleKeydown);
+		if (typeof document !== 'undefined') {
+			document.addEventListener('keydown', handleKeydown);
+		}
 	});
 	
 	onDestroy(() => {
 		// Clean up
-		document.removeEventListener('keydown', handleKeydown);
+		if (typeof document !== 'undefined') {
+			document.removeEventListener('keydown', handleKeydown);
+		}
 		if (expandTimeout) {
 			clearTimeout(expandTimeout);
 		}

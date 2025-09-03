@@ -2,8 +2,15 @@
 
 import browser from 'webextension-polyfill';
 import type { PermissionData, EncryptedPermissionStore, SecurityLevel } from './types';
-import { encryptWithDomainKey, decryptWithDomainKey, generateSessionId } from '../utilities/crypto';
+import { encryptForDomain, decryptForDomain } from '$lib/integrations/security-bridge';
 import { log } from '$lib/managers/Logger';
+
+/**
+ * Generate a unique session ID
+ */
+function generateSessionId(): string {
+  return `session_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+}
 
 // Storage keys
 const PERMISSIONS_PREFIX = 'wallet_permission_';
@@ -75,8 +82,10 @@ export async function storePermission(
 			sessionId: await getCurrentSessionId()
 		};
 
-		// Encrypt the permission data
-		const encryptedStore = await encryptWithDomainKey(permissionData, origin);
+		// Encrypt the permission data (returns a string)
+		const encrypted = await encryptForDomain(origin, permissionData);
+		// Store as string directly since our security-bridge returns base64
+		const encryptedStore = encrypted;
 
 		// Store in browser.storage.local
 		const key = getPermissionKey(origin);
@@ -104,8 +113,9 @@ export async function getPermission(origin: string): Promise<PermissionData | nu
 			return null;
 		}
 
-		// Decrypt the permission data
-		const permissionData = await decryptWithDomainKey<PermissionData>(encryptedStore, origin);
+		// Decrypt the permission data (expects a string)
+		const encrypted = typeof encryptedStore === 'string' ? encryptedStore : encryptedStore.encrypted;
+		const permissionData = await decryptForDomain(origin, encrypted) as PermissionData;
 
 		// Check if permission has expired
 		if (permissionData.expiresAt < Date.now()) {
@@ -155,10 +165,8 @@ export async function getAllPermissions(): Promise<Map<string, PermissionData>> 
 					const origin = atob(encodedOrigin);
 
 					// Decrypt permission data
-					const permissionData = await decryptWithDomainKey<PermissionData>(
-						value as EncryptedPermissionStore,
-						origin
-					);
+					const encrypted = typeof value === 'string' ? value : (value as EncryptedPermissionStore).encrypted;
+					const permissionData = await decryptForDomain(origin, encrypted) as PermissionData;
 
 					// Check if not expired
 					if (permissionData.expiresAt >= Date.now()) {
@@ -190,7 +198,7 @@ export async function updatePermissionUsage(origin: string): Promise<void> {
 		const permission = await getPermission(origin);
 		if (permission) {
 			permission.lastUsed = Date.now();
-			const encryptedStore = await encryptWithDomainKey(permission, origin);
+			const encryptedStore = await encryptForDomain(origin, permission);
 			const key = getPermissionKey(origin);
 			await browser.storage.local.set({ [key]: encryptedStore });
 		}

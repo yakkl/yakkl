@@ -1,5 +1,6 @@
 import { derived, get } from 'svelte/store';
-import * as ethers from 'ethers-v6';
+// Removed direct ethers import - use blockchain-bridge utilities
+import { parseUnits } from '$lib/utils/blockchain-bridge';
 // Check if we're in a browser environment
 const browser = typeof window !== 'undefined';
 import type { LoadingState, ErrorState } from '../types';
@@ -493,7 +494,7 @@ export const tokens = derived(
             if (balance && typeof balance === 'string' && balance.includes('.')) {
               // Formatted balance, convert to wei
               const decimals = token.decimals || 18;
-              return ethers.parseUnits(balance, decimals);
+              return BigInt(parseUnits(balance, decimals));
             }
             return BigNumberishUtils.toBigInt(balance) || 0n;
           } catch (e) {
@@ -649,3 +650,17 @@ export const grandTotalPortfolioValue = derived(
     return totalValue;
   }
 );
+
+
+// Add compatibility methods to existing tokenStore
+tokenStore.updatePricesFromCoordinator = async (data: any) => {
+  console.log('[TokenStore] Update prices from coordinator (compatibility shim)');
+  // This would normally update prices, but in v2 it's handled by wallet-cache
+  return Promise.resolve();
+};
+
+tokenStore.updateBalancesFromCoordinator = async (data: any) => {
+  console.log('[TokenStore] Update balances from coordinator (compatibility shim)');
+  // This would normally update balances, but in v2 it's handled by wallet-cache
+  return Promise.resolve();
+};

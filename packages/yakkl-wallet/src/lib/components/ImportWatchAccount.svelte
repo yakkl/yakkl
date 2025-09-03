@@ -25,7 +25,7 @@
 		type YakklWatch
 	} from '$lib/common';
 	import { dateString } from '$lib/common/datetime';
-	import Modal from '$components/Modal.svelte';
+	import Modal from '@yakkl/ui/src/components/Modal.svelte';
 
 	interface Props {
 		show?: boolean;

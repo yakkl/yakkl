@@ -1,5 +1,5 @@
 import type { GasEstimate, GasPrediction, HistoricalGasData } from '$lib/common/gas-types';
-import type { TransactionRequest } from '$lib/common/interfaces';
+import type { TransactionRequest } from '$lib/common/types';
 
 // GasProvider.ts
 export interface GasProvider {

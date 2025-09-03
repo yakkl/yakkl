@@ -99,6 +99,11 @@ function createUIStore() {
     },
 
     applyTheme(theme: 'light' | 'dark' | 'auto') {
+      // Check if we're in a browser environment
+      if (typeof document === 'undefined' || typeof window === 'undefined') {
+        return;
+      }
+      
       const root = document.documentElement;
       
       if (theme === 'auto') {
@@ -221,7 +226,9 @@ function createUIStore() {
             label: 'View on Explorer',
             action: () => {
               // Open block explorer
-              window.open(`https://etherscan.io/tx/${txHash}`, '_blank');
+              if (typeof window !== 'undefined') {
+                window.open(`https://etherscan.io/tx/${txHash}`, '_blank');
+              }
             }
           }
         ]
@@ -238,7 +245,9 @@ function createUIStore() {
           {
             label: 'View on Explorer',
             action: () => {
-              window.open(`https://etherscan.io/tx/${txHash}`, '_blank');
+              if (typeof window !== 'undefined') {
+                window.open(`https://etherscan.io/tx/${txHash}`, '_blank');
+              }
             }
           }
         ]
@@ -254,7 +263,9 @@ function createUIStore() {
           {
             label: 'View on Explorer',
             action: () => {
-              window.open(`https://etherscan.io/tx/${txHash}`, '_blank');
+              if (typeof window !== 'undefined') {
+                window.open(`https://etherscan.io/tx/${txHash}`, '_blank');
+              }
             }
           }
         ]
