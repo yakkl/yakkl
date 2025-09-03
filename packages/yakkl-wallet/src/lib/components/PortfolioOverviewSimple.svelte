@@ -36,19 +36,51 @@
 
   // Format value for display
   const formattedValue = $derived(() => {
-    const value = BigNumberishUtils.toBigInt(portfolioValue);
-    // Convert from cents to dollars
-    const dollars = Number(value) / 100;
-    return formatCurrency(dollars, 'USD');
+    // Handle undefined, null, or invalid portfolio values
+    if (portfolioValue === undefined || portfolioValue === null || portfolioValue === '') {
+      return formatCurrency(0, 'USD');
+    }
+    
+    try {
+      // Check if it's a BigNumber object from ethers.js
+      let valueToConvert = portfolioValue;
+      if (portfolioValue && typeof portfolioValue === 'object' && '_hex' in portfolioValue) {
+        // It's a BigNumber object, convert to hex string
+        valueToConvert = portfolioValue._hex || '0x00';
+      }
+      
+      const value = BigNumberishUtils.toBigInt(valueToConvert);
+      // Convert from cents to dollars
+      const dollars = Number(value) / 100;
+      return formatCurrency(dollars, 'USD');
+    } catch (error) {
+      console.warn('PortfolioOverviewSimple - Invalid portfolio value:', portfolioValue, error);
+      return formatCurrency(0, 'USD');
+    }
   });
 
   // Get responsive font size based on value
-  function getResponsiveFontSize(value: bigint): string {
-    const numValue = Number(value) / 100; // Convert cents to dollars
-    if (numValue >= 1000000) return 'text-2xl';
-    if (numValue >= 100000) return 'text-3xl';
-    if (numValue >= 10000) return 'text-4xl';
-    return 'text-4xl';
+  function getResponsiveFontSize(value: any): string {
+    try {
+      if (!value) return 'text-4xl';
+      
+      // Check if it's a BigNumber object from ethers.js
+      let valueToConvert = value;
+      if (value && typeof value === 'object' && '_hex' in value) {
+        // It's a BigNumber object, convert to hex string
+        valueToConvert = value._hex || '0x00';
+      }
+      
+      // Safely convert to bigint and handle invalid values
+      const bigintValue = BigNumberishUtils.toBigInt(valueToConvert);
+      const numValue = Number(bigintValue) / 100; // Convert cents to dollars
+      if (numValue >= 1000000) return 'text-2xl';
+      if (numValue >= 100000) return 'text-3xl';
+      if (numValue >= 10000) return 'text-4xl';
+      return 'text-4xl';
+    } catch {
+      return 'text-4xl'; // Default size on error
+    }
   }
 
   // Handle refresh with simple throttling
@@ -121,7 +153,7 @@
         {#if loading && !portfolioValue}
           <div class="animate-pulse h-10 w-48 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
         {:else}
-          <div class="{getResponsiveFontSize(portfolioValue || 0n)} font-bold text-gray-900 dark:text-white">
+          <div class="{getResponsiveFontSize(portfolioValue)} font-bold text-gray-900 dark:text-white">
             <ProtectedValue value={formattedValue()} placeholder="*******" />
           </div>
         {/if}
@@ -131,7 +163,7 @@
     <!-- Last updated time -->
     {#if lastUpdate}
       <div class="text-[10px] text-gray-400 dark:text-gray-500">
-        Last updated: {lastUpdate.toLocaleTimeString()}
+        Last updated: {lastUpdate instanceof Date ? lastUpdate.toLocaleTimeString() : new Date(lastUpdate).toLocaleTimeString()}
       </div>
     {/if}
   </div>

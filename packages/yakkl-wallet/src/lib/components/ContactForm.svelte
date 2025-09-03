@@ -3,7 +3,7 @@
 	import { createForm } from 'svelte-forms-lib';
 	import * as yup from 'yup';
 	import { debug_log, type YakklContact } from '$lib/common';
-	import Modal from './Modal.svelte';
+	import Modal from '@yakkl/ui/src/components/Modal.svelte';
 	import { dateString } from '$lib/common/datetime';
 	import { onMount } from 'svelte';
 	import { yakklCurrentlySelectedStore, yakklContactsStore } from '$lib/common/stores';

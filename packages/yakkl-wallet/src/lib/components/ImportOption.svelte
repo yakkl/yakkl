@@ -1,6 +1,6 @@
 <!-- ImportOption.svelte -->
 <script lang="ts">
-	import Modal from './Modal.svelte';
+	import Modal from '@yakkl/ui/src/components/Modal.svelte';
 	import ImportPrivateKey from './ImportPrivateKey.svelte';
 	import ImportPhrase from './ImportPhrase.svelte';
 	import KeyIcon from '$lib/components/icons/KeyIcon.svelte';

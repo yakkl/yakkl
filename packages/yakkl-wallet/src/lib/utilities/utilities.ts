@@ -559,10 +559,10 @@ export function changeBackground(id: string, image: { src: string }) {
 	if (typeof document === 'undefined') return;
 	
 	try {
-		// document.getElementById().innerHTML="";
-		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-		// @ts-ignore
-		document.getElementById(id).style.backgroundImage = "url('" + image.src + "')";
+		const element = document.getElementById(id);
+		if (element) {
+			element.style.backgroundImage = "url('" + image.src + "')";
+		}
 		// document.getElementById('display').style.backgroundSize="cover";
 		// document.getElementById('display').style.backgroundPosition="center center";
 	} catch (e) {

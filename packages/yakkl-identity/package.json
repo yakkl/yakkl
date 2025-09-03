@@ -1,0 +1,60 @@
+{
+  "name": "@yakkl/identity",
+  "version": "0.1.0",
+  "description": "Universal identity and access management system",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "tsc --watch",
+    "build": "tsc",
+    "clean": "rimraf dist",
+    "test": "vitest",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@simplewebauthn/server": "^9.0.0",
+    "@simplewebauthn/browser": "^9.0.0",
+    "@yakkl/auth": "workspace:*",
+    "jose": "^5.2.0",
+    "nanoid": "^5.0.4",
+    "tweetnacl": "^1.0.3",
+    "tweetnacl-util": "^0.15.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "eslint": "^8.56.0",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.12",
+    "vitest": "^1.2.0"
+  },
+  "peerDependencies": {
+    "@yakkl/core": "workspace:*"
+  },
+  "keywords": [
+    "yakkl",
+    "identity",
+    "authentication",
+    "auth",
+    "oauth",
+    "passkey",
+    "webauthn",
+    "service-account"
+  ],
+  "author": "YAKKL",
+  "license": "MIT"
+}

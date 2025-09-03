@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Modal from './Modal.svelte';
+  import Modal from '@yakkl/ui/src/components/Modal.svelte';
   import ProtectedValue from './ProtectedValue.svelte';
   import { displayTokens, isMultiChainView } from '$lib/stores/token.store';
   import { currentChain, chainStore } from '$lib/stores/chain.store';

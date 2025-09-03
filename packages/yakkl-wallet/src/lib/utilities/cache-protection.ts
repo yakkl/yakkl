@@ -7,7 +7,7 @@
 
 import { BigNumber } from '$lib/common/bignumber';
 import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
-import type { TokenCache } from '$lib/stores/wallet-cache.store';
+import type { TokenCache } from '$lib/types';
 
 // Extended token interface that includes additional fields used in various parts of the app
 // These fields are commonly used in the codebase but not part of the core TokenCache interface
@@ -73,7 +73,7 @@ export function safeUpdateToken(
     
     // Only update value if it's valid (> 0)
     if (valueInCents > 0) {
-      updatedToken.value = BigInt(valueInCents);
+      updatedToken.value = valueInCents.toString();
     }
   }
 
@@ -163,7 +163,7 @@ export function fixZeroValues(token: ExtendedTokenCache): ExtendedTokenCache {
       const valueInCents = Math.floor(valueInDollars * 100);
       
       if (valueInCents > 0) {
-        fixedToken.value = BigInt(valueInCents);
+        fixedToken.value = valueInCents.toString();
       }
     }
   }

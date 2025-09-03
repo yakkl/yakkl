@@ -1,0 +1,65 @@
+{
+  "name": "@yakkl/auth",
+  "version": "0.1.0",
+  "description": "Universal authentication library for secure multi-provider login",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./providers": {
+      "types": "./dist/providers/index.d.ts",
+      "import": "./dist/providers/index.mjs",
+      "require": "./dist/providers/index.js"
+    },
+    "./strategies": {
+      "types": "./dist/strategies/index.d.ts",
+      "import": "./dist/strategies/index.mjs",
+      "require": "./dist/strategies/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build && tsc --emitDeclarationOnly",
+    "clean": "rimraf dist",
+    "test": "vitest",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@yakkl/core": "workspace:*",
+    "jose": "^5.2.0",
+    "argon2": "^0.31.2",
+    "otpauth": "^9.2.2",
+    "qrcode": "^1.5.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "@types/qrcode": "^1.5.5",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.12",
+    "vitest": "^1.2.0"
+  },
+  "keywords": [
+    "yakkl",
+    "auth",
+    "authentication",
+    "jwt",
+    "oauth",
+    "2fa",
+    "mfa",
+    "security",
+    "login"
+  ],
+  "author": "YAKKL",
+  "license": "MIT"
+}

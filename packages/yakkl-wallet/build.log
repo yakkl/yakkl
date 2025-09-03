@@ -1,0 +1,1939 @@
+
+> yakkl-wallet@2.0.2 dev:chrome /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet
+> pnpm run check:public && pnpm run copy:security && NODE_ENV=development VITE_LOG_LEVEL=debug npm run build:env:dev && NODE_ENV=development webpack -c webpack.config.cjs && NODE_ENV=development DEV_MODE=true vite build && NODE_ENV=development node ./buildSveltekitForCSP.mjs
+
+
+> yakkl-wallet@2.0.2 check:public /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet
+> node ./check-no-pro-private-imports.mjs
+
+
+> yakkl-wallet@2.0.2 copy:security /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet
+> node ./scripts/copy-security-files.js
+
+Copying security files from yakkl-security...
+✓ Skipped src/lib/managers/EmergencyKitManager.ts (already exists)
+Security files copy complete.
+
+> yakkl-wallet@2.0.2 build:env:dev
+> node ./build-env.js dev
+
+[build-env] Wrote .env for "dev" environment.
+[build-env] Wrote manifest.json for "dev" environment.
+asset background.js 3.4 MiB [compared for emit] [minimized] (name: background) 2 related assets
+asset content.js 3.07 MiB [compared for emit] [minimized] (name: content) 2 related assets
+asset inpage.js 158 KiB [compared for emit] [minimized] (name: inpage) 2 related assets
+asset node_modules_pnpm_alchemy-sdk_3_6_0_bufferutil_4_0_9_typescript_5_8_3_utf-8-validate_5_0_10_n-632f4c.js 128 KiB [compared for emit] [minimized] 2 related assets
+asset sandbox.js 121 KiB [compared for emit] [minimized] (name: sandbox) 2 related assets
+asset node_modules_pnpm_alchemy-sdk_3_6_0_bufferutil_4_0_9_typescript_5_8_3_utf-8-validate_5_0_10_n-d83b19.js 95.4 KiB [compared for emit] [minimized] 2 related assets
+asset browser-polyfill.js 10.4 KiB [compared for emit] [from: node_modules/webextension-polyfill/dist/browser-polyfill.js] [copied] [minimized]
+orphan modules 805 KiB [orphan] 626 modules
+runtime modules 14.2 KiB 36 modules
+javascript modules 7.01 MiB
+  modules by path ../../node_modules/.pnpm/ 4.65 MiB 724 modules
+  modules by path ./src/ 2.06 MiB 226 modules
+  optional modules 235 bytes [optional] 6 modules
+  modules by path ../yakkl-core/dist/*.mjs 287 KiB 3 modules
+  modules by path ../yakkl-browser-extension/dist/*.js 22.5 KiB 3 modules
+  + 2 modules
+json modules 58.8 KiB
+  modules by path ../../node_modules/.pnpm/ 55.5 KiB 10 modules
+  modules by path ./src/ 3.35 KiB
+    ./src/lib/managers/contracts/evm/abis/erc20.json 1.52 KiB [built] [code generated]
+    ./src/lib/managers/tokens/defaultTokens.json 1.83 KiB [built] [code generated]
+webpack 5.99.9 compiled successfully in 11957 ms
+Vite building with NODE_ENV: development
+You have specified a baseUrl and/or paths in your tsconfig.json which interferes with SvelteKit's auto-generated tsconfig.json. Remove it to avoid problems with intellisense. For path aliases, use `kit.alias` instead: https://svelte.dev/docs/kit/configuration#alias
+vite v7.0.6 building SSR bundle for production...
+transforming...
+
+🌼   daisyUI 4.12.24
+├─ ✔︎ 7 themes added		https://daisyui.com/docs/themes
+╰─ ★ Star daisyUI on GitHub	https://github.com/saadeghi/daisyui
+
+
+🌼   daisyUI 4.12.24
+├─ ✔︎ 7 themes added		https://daisyui.com/docs/themes
+╰─ ★ Star daisyUI on GitHub	https://github.com/saadeghi/daisyui
+
+[mock-browser-polyfill] Intercepting SSR import: webextension-polyfill from /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/browser-polyfill-unified.ts
+[mock-browser-polyfill] Intercepting SSR import: webextension-polyfill from /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/auth/session.ts
+[mock-browser-polyfill] Intercepting SSR import: webextension-polyfill from /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/utilities/utilities.ts
+[mock-browser-polyfill] Intercepting SSR import: webextension-polyfill from /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/browser-wrapper.ts
+[mock-browser-polyfill] Intercepting SSR import: webextension-polyfill from /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/browser-wrapper.ts
+[mock-browser-polyfill] Loading mock implementation
+src/lib/components/pro/KeyManagement.svelte (27:5): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/lib/components/pro/KeyManagement.svelte (27:5): A comment
+
+"/* @__PURE__ */"
+
+in "src/lib/components/pro/KeyManagement.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+src/lib/components/pro/KeyManagement.svelte (28:2): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/lib/components/pro/KeyManagement.svelte (28:2): A comment
+
+"/* @__PURE__ */"
+
+in "src/lib/components/pro/KeyManagement.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+[mock-browser-polyfill] Intercepting SSR import: webextension-polyfill from /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-browser-extension/dist/index.js
+[mock-browser-polyfill] Intercepting SSR import: webextension-polyfill from /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-browser-extension/dist/index.js
+[mock-browser-polyfill] Intercepting SSR import: webextension-polyfill from /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-browser-extension/dist/messaging.js
+11:29:23 AM [vite-plugin-svelte] /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-ui/src/components/Modal.svelte:37:0 Visible, non-interactive elements with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+https://svelte.dev/e/a11y_click_events_have_key_events
+35: </script>
+36: 
+37: <div class={modalClasses} onclick={handleBackdropClick}>
+          ^
+38:   <div class={boxClasses} onclick={(e) => e.stopPropagation()}>
+39:     {#if title || onclose}
+11:29:23 AM [vite-plugin-svelte] /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-ui/src/components/Modal.svelte:37:0 `<div>` with a click handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions
+35: </script>
+36: 
+37: <div class={modalClasses} onclick={handleBackdropClick}>
+          ^
+38:   <div class={boxClasses} onclick={(e) => e.stopPropagation()}>
+39:     {#if title || onclose}
+11:29:23 AM [vite-plugin-svelte] /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-ui/src/components/Modal.svelte:38:2 Visible, non-interactive elements with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+https://svelte.dev/e/a11y_click_events_have_key_events
+36: 
+37: <div class={modalClasses} onclick={handleBackdropClick}>
+38:   <div class={boxClasses} onclick={(e) => e.stopPropagation()}>
+            ^
+39:     {#if title || onclose}
+40:       <div class="flex items-center justify-between mb-4">
+11:29:23 AM [vite-plugin-svelte] /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-ui/src/components/Modal.svelte:38:2 `<div>` with a click handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions
+36: 
+37: <div class={modalClasses} onclick={handleBackdropClick}>
+38:   <div class={boxClasses} onclick={(e) => e.stopPropagation()}>
+            ^
+39:     {#if title || onclose}
+40:       <div class="flex items-center justify-between mb-4">
+src/lib/components/PlanBadge.svelte (33:5): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/lib/components/PlanBadge.svelte (33:5): A comment
+
+"/* @__PURE__ */"
+
+in "src/lib/components/PlanBadge.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+[mock-browser-polyfill] Intercepting SSR import: webextension-polyfill from /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/IdleTimeoutSettings.svelte
+[mock-browser-polyfill] Intercepting SSR import: webextension-polyfill from /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/managers/SingletonWindowManager.ts
+[mock-browser-polyfill] Intercepting SSR import: webextension-polyfill from /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/utilities/jwt-background.ts
+[mock-browser-polyfill] Intercepting SSR import: webextension-polyfill from /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/backgroundSecuredStorage.ts
+[mock-browser-polyfill] Intercepting SSR import: webextension-polyfill from /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/contexts/background/extensions/chrome/ui.ts
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:316:2 Unused CSS selector ".indicator-btn[disabled]"
+https://svelte.dev/e/css_unused_selector
+314: }
+315:   
+316:   .indicator-btn[disabled],.indicator-btn:disabled {
+                               ^
+317:     pointer-events: none
+318: }
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:327:2 Unused CSS selector ":where(.indicator-btn:is(input[type="checkbox"]))"
+https://svelte.dev/e/css_unused_selector
+325: }
+326:   
+327:   :where(.indicator-btn:is(input[type="checkbox"])),
+                                                        ^
+328: :where(.indicator-btn:is(input[type="radio"])) {
+329:     width: auto;
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:328:0 Unused CSS selector ":where(.indicator-btn:is(input[type="radio"]))"
+https://svelte.dev/e/css_unused_selector
+326:   
+327:   :where(.indicator-btn:is(input[type="checkbox"])),
+328: :where(.indicator-btn:is(input[type="radio"])) {
+                                                   ^
+329:     width: auto;
+330:     -webkit-appearance: none;
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:335:2 Unused CSS selector ".indicator-btn:is(input[type="checkbox"]):after"
+https://svelte.dev/e/css_unused_selector
+333: }
+334:   
+335:   .indicator-btn:is(input[type="checkbox"]):after,.indicator-btn:is(input[type="radio"]):after {
+                                                      ^
+336:     --tw-content: attr(aria-label);
+337:     content: var(--tw-content)
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:335:50 Unused CSS selector ".indicator-btn:is(input[type="radio"]):after"
+https://svelte.dev/e/css_unused_selector
+333: }
+334:   
+335:   .indicator-btn:is(input[type="checkbox"]):after,.indicator-btn:is(input[type="radio"]):after {
+                                                                                                   ^
+336:     --tw-content: attr(aria-label);
+337:     content: var(--tw-content)
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:435:4 Unused CSS selector ".indicator-btn.glass:hover"
+https://svelte.dev/e/css_unused_selector
+433:     }
+434:   
+435:     .indicator-btn.glass:hover {
+                                   ^
+436:         --glass-opacity: 25%;
+437:         --glass-border-opacity: 15%
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:462:4 Unused CSS selector ".indicator-btn[disabled]:hover"
+https://svelte.dev/e/css_unused_selector
+460:     }
+461:   
+462:     .indicator-btn[disabled]:hover,.indicator-btn:disabled:hover {
+                                       ^
+463:         --tw-border-opacity: 0;
+464:         background-color: var(--fallback-n,oklch(var(--n)/var(--tw-bg-opacity)));
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:472:8 Unused CSS selector ".indicator-btn:is(input[type="checkbox"]:checked):hover"
+https://svelte.dev/e/css_unused_selector
+470:     @supports (color: color-mix(in oklab, black, black)) {
+471:   
+472:         .indicator-btn:is(input[type="checkbox"]:checked):hover,.indicator-btn:is(input[type="radio"]:checked):hover {
+                                                                    ^
+473:             background-color: color-mix(in oklab, var(--fallback-p,oklch(var(--p)/1)) 90%, black);
+474:             border-color: color-mix(in oklab, var(--fallback-p,oklch(var(--p)/1)) 90%, black)
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:472:64 Unused CSS selector ".indicator-btn:is(input[type="radio"]:checked):hover"
+https://svelte.dev/e/css_unused_selector
+470:     @supports (color: color-mix(in oklab, black, black)) {
+471:   
+472:         .indicator-btn:is(input[type="checkbox"]:checked):hover,.indicator-btn:is(input[type="radio"]:checked):hover {
+                                                                                                                         ^
+473:             background-color: color-mix(in oklab, var(--fallback-p,oklch(var(--p)/1)) 90%, black);
+474:             border-color: color-mix(in oklab, var(--fallback-p,oklch(var(--p)/1)) 90%, black)
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:505:2 Unused CSS selector ".indicator-btn.glass"
+https://svelte.dev/e/css_unused_selector
+503: }
+504:   
+505:   .indicator-btn.glass {
+                           ^
+506:     --tw-shadow: 0 0 #0000;
+507:     --tw-shadow-colored: 0 0 #0000;
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:512:2 Unused CSS selector ".indicator-btn.glass.btn-active"
+https://svelte.dev/e/css_unused_selector
+510: }
+511:   
+512:   .indicator-btn.glass.btn-active {
+                                      ^
+513:     --glass-opacity: 25%;
+514:     --glass-border-opacity: 15%
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:528:2 Unused CSS selector ".indicator-btn.btn-active"
+https://svelte.dev/e/css_unused_selector
+526: }
+527:   
+528:   .indicator-btn.btn-active {
+                                ^
+529:     border-color: transparent;
+530:     background-color: var(--fallback-bc,oklch(var(--bc)/0.2))
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:533:2 Unused CSS selector ".indicator-btn.btn-disabled"
+https://svelte.dev/e/css_unused_selector
+531: }
+532:   
+533:   .indicator-btn.btn-disabled,.indicator-btn[disabled],.indicator-btn:disabled {
+                                  ^
+534:     --tw-border-opacity: 0;
+535:     background-color: var(--fallback-n,oklch(var(--n)/var(--tw-bg-opacity)));
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:533:30 Unused CSS selector ".indicator-btn[disabled]"
+https://svelte.dev/e/css_unused_selector
+531: }
+532:   
+533:   .indicator-btn.btn-disabled,.indicator-btn[disabled],.indicator-btn:disabled {
+                                                           ^
+534:     --tw-border-opacity: 0;
+535:     background-color: var(--fallback-n,oklch(var(--n)/var(--tw-bg-opacity)));
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:541:2 Unused CSS selector ".indicator-btn:is(input[type="checkbox"]:checked)"
+https://svelte.dev/e/css_unused_selector
+539: }
+540:   
+541:   .indicator-btn:is(input[type="checkbox"]:checked),.indicator-btn:is(input[type="radio"]:checked) {
+                                                        ^
+542:     --tw-border-opacity: 1;
+543:     border-color: var(--fallback-p,oklch(var(--p)/var(--tw-border-opacity)));
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:541:52 Unused CSS selector ".indicator-btn:is(input[type="radio"]:checked)"
+https://svelte.dev/e/css_unused_selector
+539: }
+540:   
+541:   .indicator-btn:is(input[type="checkbox"]:checked),.indicator-btn:is(input[type="radio"]:checked) {
+                                                                                                       ^
+542:     --tw-border-opacity: 1;
+543:     border-color: var(--fallback-p,oklch(var(--p)/var(--tw-border-opacity)));
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:550:2 Unused CSS selector ".indicator-btn:is(input[type="checkbox"]:checked):focus-visible"
+https://svelte.dev/e/css_unused_selector
+548: }
+549:   
+550:   .indicator-btn:is(input[type="checkbox"]:checked):focus-visible,.indicator-btn:is(input[type="radio"]:checked):focus-visible {
+                                                                      ^
+551:     outline-color: var(--fallback-p,oklch(var(--p)/1))
+552: }
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:550:66 Unused CSS selector ".indicator-btn:is(input[type="radio"]:checked):focus-visible"
+https://svelte.dev/e/css_unused_selector
+548: }
+549:   
+550:   .indicator-btn:is(input[type="checkbox"]:checked):focus-visible,.indicator-btn:is(input[type="radio"]:checked):focus-visible {
+                                                                                                                                   ^
+551:     outline-color: var(--fallback-p,oklch(var(--p)/1))
+552: }
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:554:2 Unused CSS selector ".join > :where(*:not(:first-child)):is(.indicator-btn)"
+https://svelte.dev/e/css_unused_selector
+552: }
+553:   
+554:   .join > :where(*:not(:first-child)):is(.indicator-btn) {
+                                                             ^
+555:     margin-inline-start: calc(var(--border-btn) * -1)
+556: }
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:566:2 Unused CSS selector ".btn-square:where(.indicator-btn)"
+https://svelte.dev/e/css_unused_selector
+564: }
+565:   
+566:   .btn-square:where(.indicator-btn) {
+                                        ^
+567:     height: 1.5rem;
+568:     width: 1.5rem;
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:572:2 Unused CSS selector ".indicator-btn:where(.btn-xs)"
+https://svelte.dev/e/css_unused_selector
+570: }
+571:   
+572:   .indicator-btn:where(.btn-xs) {
+                                    ^
+573:     height: 1.5rem;
+574:     width: 1.5rem;
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:579:2 Unused CSS selector ".btn-circle:where(.indicator-btn)"
+https://svelte.dev/e/css_unused_selector
+577: }
+578:   
+579:   .btn-circle:where(.indicator-btn) {
+                                        ^
+580:     height: 1.5rem;
+581:     width: 1.5rem;
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:586:2 Unused CSS selector ".indicator-btn:where(.btn-sm)"
+https://svelte.dev/e/css_unused_selector
+584: }
+585:   
+586:   .indicator-btn:where(.btn-sm) {
+                                    ^
+587:     height: 2rem;
+588:     width: 2rem;
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:593:2 Unused CSS selector ".indicator-btn:where(.btn-md)"
+https://svelte.dev/e/css_unused_selector
+591: }
+592:   
+593:   .indicator-btn:where(.btn-md) {
+                                    ^
+594:     height: 3rem;
+595:     width: 3rem;
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:600:2 Unused CSS selector ".indicator-btn:where(.btn-lg)"
+https://svelte.dev/e/css_unused_selector
+598: }
+599:   
+600:   .indicator-btn:where(.btn-lg) {
+                                    ^
+601:     height: 4rem;
+602:     width: 4rem;
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:607:2 Unused CSS selector ".join.join-vertical > :where(*:not(:first-child)):is(.indicator-btn)"
+https://svelte.dev/e/css_unused_selector
+605: }
+606:   
+607:   .join.join-vertical > :where(*:not(:first-child)):is(.indicator-btn) {
+                                                                           ^
+608:     margin-top: calc(var(--border-btn) * -1)
+609: }
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:611:2 Unused CSS selector ".join.join-horizontal > :where(*:not(:first-child)):is(.indicator-btn)"
+https://svelte.dev/e/css_unused_selector
+609: }
+610:   
+611:   .join.join-horizontal > :where(*:not(:first-child)):is(.indicator-btn) {
+                                                                             ^
+612:     margin-inline-start: calc(var(--border-btn) * -1);
+613:     margin-top: 0px
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:819:2 Unused CSS selector ".delete-btn[disabled]"
+https://svelte.dev/e/css_unused_selector
+817: }
+818:   
+819:   .delete-btn[disabled],.delete-btn:disabled {
+                            ^
+820:     pointer-events: none
+821: }
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:830:2 Unused CSS selector ":where(.delete-btn:is(input[type="checkbox"]))"
+https://svelte.dev/e/css_unused_selector
+828: }
+829:   
+830:   :where(.delete-btn:is(input[type="checkbox"])),
+                                                     ^
+831: :where(.delete-btn:is(input[type="radio"])) {
+832:     width: auto;
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:831:0 Unused CSS selector ":where(.delete-btn:is(input[type="radio"]))"
+https://svelte.dev/e/css_unused_selector
+829:   
+830:   :where(.delete-btn:is(input[type="checkbox"])),
+831: :where(.delete-btn:is(input[type="radio"])) {
+                                                ^
+832:     width: auto;
+833:     -webkit-appearance: none;
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:838:2 Unused CSS selector ".delete-btn:is(input[type="checkbox"]):after"
+https://svelte.dev/e/css_unused_selector
+836: }
+837:   
+838:   .delete-btn:is(input[type="checkbox"]):after,.delete-btn:is(input[type="radio"]):after {
+                                                   ^
+839:     --tw-content: attr(aria-label);
+840:     content: var(--tw-content)
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:838:47 Unused CSS selector ".delete-btn:is(input[type="radio"]):after"
+https://svelte.dev/e/css_unused_selector
+836: }
+837:   
+838:   .delete-btn:is(input[type="checkbox"]):after,.delete-btn:is(input[type="radio"]):after {
+                                                                                             ^
+839:     --tw-content: attr(aria-label);
+840:     content: var(--tw-content)
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:938:4 Unused CSS selector ".delete-btn.glass:hover"
+https://svelte.dev/e/css_unused_selector
+936:     }
+937:   
+938:     .delete-btn.glass:hover {
+                                ^
+939:         --glass-opacity: 25%;
+940:         --glass-border-opacity: 15%
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:965:4 Unused CSS selector ".delete-btn[disabled]:hover"
+https://svelte.dev/e/css_unused_selector
+963:     }
+964:   
+965:     .delete-btn[disabled]:hover,.delete-btn:disabled:hover {
+                                    ^
+966:         --tw-border-opacity: 0;
+967:         background-color: var(--fallback-n,oklch(var(--n)/var(--tw-bg-opacity)));
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:975:8 Unused CSS selector ".delete-btn:is(input[type="checkbox"]:checked):hover"
+https://svelte.dev/e/css_unused_selector
+973:     @supports (color: color-mix(in oklab, black, black)) {
+974:   
+975:         .delete-btn:is(input[type="checkbox"]:checked):hover,.delete-btn:is(input[type="radio"]:checked):hover {
+                                                                 ^
+976:             background-color: color-mix(in oklab, var(--fallback-p,oklch(var(--p)/1)) 90%, black);
+977:             border-color: color-mix(in oklab, var(--fallback-p,oklch(var(--p)/1)) 90%, black)
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:975:61 Unused CSS selector ".delete-btn:is(input[type="radio"]:checked):hover"
+https://svelte.dev/e/css_unused_selector
+973:     @supports (color: color-mix(in oklab, black, black)) {
+974:   
+975:         .delete-btn:is(input[type="checkbox"]:checked):hover,.delete-btn:is(input[type="radio"]:checked):hover {
+                                                                                                                   ^
+976:             background-color: color-mix(in oklab, var(--fallback-p,oklch(var(--p)/1)) 90%, black);
+977:             border-color: color-mix(in oklab, var(--fallback-p,oklch(var(--p)/1)) 90%, black)
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1008:2 Unused CSS selector ".delete-btn.glass"
+https://svelte.dev/e/css_unused_selector
+1006: }
+1007:   
+1008:   .delete-btn.glass {
+                         ^
+1009:     --tw-shadow: 0 0 #0000;
+1010:     --tw-shadow-colored: 0 0 #0000;
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1015:2 Unused CSS selector ".delete-btn.glass.btn-active"
+https://svelte.dev/e/css_unused_selector
+1013: }
+1014:   
+1015:   .delete-btn.glass.btn-active {
+                                    ^
+1016:     --glass-opacity: 25%;
+1017:     --glass-border-opacity: 15%
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1031:2 Unused CSS selector ".delete-btn.btn-active"
+https://svelte.dev/e/css_unused_selector
+1029: }
+1030:   
+1031:   .delete-btn.btn-active {
+                              ^
+1032:     border-color: transparent;
+1033:     background-color: var(--fallback-bc,oklch(var(--bc)/0.2))
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1036:2 Unused CSS selector ".delete-btn.btn-disabled"
+https://svelte.dev/e/css_unused_selector
+1034: }
+1035:   
+1036:   .delete-btn.btn-disabled,.delete-btn[disabled],.delete-btn:disabled {
+                                ^
+1037:     --tw-border-opacity: 0;
+1038:     background-color: var(--fallback-n,oklch(var(--n)/var(--tw-bg-opacity)));
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1036:27 Unused CSS selector ".delete-btn[disabled]"
+https://svelte.dev/e/css_unused_selector
+1034: }
+1035:   
+1036:   .delete-btn.btn-disabled,.delete-btn[disabled],.delete-btn:disabled {
+                                                      ^
+1037:     --tw-border-opacity: 0;
+1038:     background-color: var(--fallback-n,oklch(var(--n)/var(--tw-bg-opacity)));
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1044:2 Unused CSS selector ".delete-btn:is(input[type="checkbox"]:checked)"
+https://svelte.dev/e/css_unused_selector
+1042: }
+1043:   
+1044:   .delete-btn:is(input[type="checkbox"]:checked),.delete-btn:is(input[type="radio"]:checked) {
+                                                      ^
+1045:     --tw-border-opacity: 1;
+1046:     border-color: var(--fallback-p,oklch(var(--p)/var(--tw-border-opacity)));
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1044:49 Unused CSS selector ".delete-btn:is(input[type="radio"]:checked)"
+https://svelte.dev/e/css_unused_selector
+1042: }
+1043:   
+1044:   .delete-btn:is(input[type="checkbox"]:checked),.delete-btn:is(input[type="radio"]:checked) {
+                                                                                                  ^
+1045:     --tw-border-opacity: 1;
+1046:     border-color: var(--fallback-p,oklch(var(--p)/var(--tw-border-opacity)));
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1053:2 Unused CSS selector ".delete-btn:is(input[type="checkbox"]:checked):focus-visible"
+https://svelte.dev/e/css_unused_selector
+1051: }
+1052:   
+1053:   .delete-btn:is(input[type="checkbox"]:checked):focus-visible,.delete-btn:is(input[type="radio"]:checked):focus-visible {
+                                                                    ^
+1054:     outline-color: var(--fallback-p,oklch(var(--p)/1))
+1055: }
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1053:63 Unused CSS selector ".delete-btn:is(input[type="radio"]:checked):focus-visible"
+https://svelte.dev/e/css_unused_selector
+1051: }
+1052:   
+1053:   .delete-btn:is(input[type="checkbox"]:checked):focus-visible,.delete-btn:is(input[type="radio"]:checked):focus-visible {
+                                                                                                                              ^
+1054:     outline-color: var(--fallback-p,oklch(var(--p)/1))
+1055: }
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1057:2 Unused CSS selector ".join > :where(*:not(:first-child)):is(.delete-btn)"
+https://svelte.dev/e/css_unused_selector
+1055: }
+1056:   
+1057:   .join > :where(*:not(:first-child)):is(.delete-btn) {
+                                                           ^
+1058:     margin-inline-start: calc(var(--border-btn) * -1)
+1059: }
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1069:2 Unused CSS selector ".btn-square:where(.delete-btn)"
+https://svelte.dev/e/css_unused_selector
+1067: }
+1068:   
+1069:   .btn-square:where(.delete-btn) {
+                                      ^
+1070:     height: 1.5rem;
+1071:     width: 1.5rem;
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1075:2 Unused CSS selector ".delete-btn:where(.btn-xs)"
+https://svelte.dev/e/css_unused_selector
+1073: }
+1074:   
+1075:   .delete-btn:where(.btn-xs) {
+                                  ^
+1076:     height: 1.5rem;
+1077:     width: 1.5rem;
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1082:2 Unused CSS selector ".btn-circle:where(.delete-btn)"
+https://svelte.dev/e/css_unused_selector
+1080: }
+1081:   
+1082:   .btn-circle:where(.delete-btn) {
+                                      ^
+1083:     height: 1.5rem;
+1084:     width: 1.5rem;
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1089:2 Unused CSS selector ".delete-btn:where(.btn-sm)"
+https://svelte.dev/e/css_unused_selector
+1087: }
+1088:   
+1089:   .delete-btn:where(.btn-sm) {
+                                  ^
+1090:     height: 2rem;
+1091:     width: 2rem;
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1096:2 Unused CSS selector ".delete-btn:where(.btn-md)"
+https://svelte.dev/e/css_unused_selector
+1094: }
+1095:   
+1096:   .delete-btn:where(.btn-md) {
+                                  ^
+1097:     height: 3rem;
+1098:     width: 3rem;
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1103:2 Unused CSS selector ".delete-btn:where(.btn-lg)"
+https://svelte.dev/e/css_unused_selector
+1101: }
+1102:   
+1103:   .delete-btn:where(.btn-lg) {
+                                  ^
+1104:     height: 4rem;
+1105:     width: 4rem;
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1110:2 Unused CSS selector ".join.join-vertical > :where(*:not(:first-child)):is(.delete-btn)"
+https://svelte.dev/e/css_unused_selector
+1108: }
+1109:   
+1110:   .join.join-vertical > :where(*:not(:first-child)):is(.delete-btn) {
+                                                                         ^
+1111:     margin-top: calc(var(--border-btn) * -1)
+1112: }
+11:29:24 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1114:2 Unused CSS selector ".join.join-horizontal > :where(*:not(:first-child)):is(.delete-btn)"
+https://svelte.dev/e/css_unused_selector
+1112: }
+1113:   
+1114:   .join.join-horizontal > :where(*:not(:first-child)):is(.delete-btn) {
+                                                                           ^
+1115:     margin-inline-start: calc(var(--border-btn) * -1);
+1116:     margin-top: 0px
+[mock-browser-polyfill] Intercepting SSR import: webextension-polyfill from /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/managers/PopupSecurityManager.ts
+✓ 4200 modules transformed.
+Export "planStore" of module "src/lib/stores/plan.store.ts" was reexported through module "src/lib/stores/index.ts" while both modules are dependencies of each other and will end up in different chunks by current Rollup settings. This scenario is not well supported at the moment as it will produce a circular dependency between chunks and will likely lead to broken execution order.
+Either change the import in "src/lib/common/security.ts" to point directly to the exporting module or reconfigure "output.manualChunks" to ensure these modules end up in the same chunk.
+rendering chunks...
+[plugin vite:reporter] 
+(!) /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/storage.ts is dynamically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/stores.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/stores.ts but also statically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/contexts/background/extensions/chrome/iconTimer.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/contexts/background/extensions/chrome/ui.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/authValidation.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/handlers.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/index.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/lockWallet.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/locks.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/stores.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/extensions/chrome/verifyDomainConnected.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/native-token-price.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/storage-sync.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/keyManagement.store.ts, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter] 
+(!) /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/cache-sync.service.ts is dynamically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/wallet-cache.store.ts but also statically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/token.store.ts, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter] 
+(!) /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/account.store.ts is dynamically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/token.store.ts but also statically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/BuyModal.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/EmergencyKit.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/ImportPhrase.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/ImportPrivateKey.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/ManageAccounts.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/PortfolioOverviewSimple.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/RecentActivity.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/SendModalEnhanced.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/SwapModalV2.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/TransactionDetailModal.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/UserMenu.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/views/ViewContainer.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/views/innovative/AccountOrbital.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/features/payment/buy/buy.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/native-token-price.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/transaction.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/transactionMonitor.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/index.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/transaction.store.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/view.store.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/+layout.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/create-new/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/create/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/export/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/manage/[address]/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/print-emergency-kit/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/dashboard/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/home/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/swap/+page.svelte, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter] 
+(!) /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/plan.store.ts is dynamically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/utils/features.ts but also statically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/BuyModal.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/PortfolioOverviewSimple.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/TrialCountdown.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/TroubleshootingModal.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/Upgrade.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/UserMenu.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/pro/KeyManagement.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/index.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/+layout.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/innovation/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/settings/+page.svelte, dynamic import will not move module into another chunk.
+
+[environment] environment.ts loaded
+[base.service] base.service.ts loaded
+[BrowserAPI] Service initialized
+[AppStateManager] createAppStateManager: AppStateManager created {
+  state: {
+    set: [Function: set],
+    update: [Function: update],
+    subscribe: [Function: subscribe]
+  }
+}
+[getObjectFromLocalStorage] Getting key: yakklBookmarkedArticles useBrowserAPI: false
+[getObjectFromLocalStorage] Result for yakklBookmarkedArticles : null
+Vite building with NODE_ENV: development
+vite v7.0.6 building for production...
+transforming...
+src/routes/(wallet)/accounts/create/+page.svelte (399:1): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/routes/(wallet)/accounts/create/+page.svelte (399:1): A comment
+
+"/* @__PURE__ */"
+
+in "src/routes/(wallet)/accounts/create/+page.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+src/routes/(wallet)/accounts/create/+page.svelte (400:1): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/routes/(wallet)/accounts/create/+page.svelte (400:1): A comment
+
+"/* @__PURE__ */"
+
+in "src/routes/(wallet)/accounts/create/+page.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+src/routes/(wallet)/contacts/+page.svelte (18:15): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/routes/(wallet)/contacts/+page.svelte (18:15): A comment
+
+"/* @__PURE__ */"
+
+in "src/routes/(wallet)/contacts/+page.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+src/routes/(wallet)/contacts/+page.svelte (19:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/routes/(wallet)/contacts/+page.svelte (19:0): A comment
+
+"/* @__PURE__ */"
+
+in "src/routes/(wallet)/contacts/+page.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+src/routes/(wallet)/contacts/+page.svelte (20:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/routes/(wallet)/contacts/+page.svelte (20:0): A comment
+
+"/* @__PURE__ */"
+
+in "src/routes/(wallet)/contacts/+page.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+src/routes/(wallet)/contacts/+page.svelte (150:34): A comment
+
+"/* @__PURE__ */"
+
+in "src/routes/(wallet)/contacts/+page.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+11:29:31 AM [vite-plugin-svelte] /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-ui/src/components/Modal.svelte:37:0 Visible, non-interactive elements with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+https://svelte.dev/e/a11y_click_events_have_key_events
+35: </script>
+36: 
+37: <div class={modalClasses} onclick={handleBackdropClick}>
+          ^
+38:   <div class={boxClasses} onclick={(e) => e.stopPropagation()}>
+39:     {#if title || onclose}
+11:29:31 AM [vite-plugin-svelte] /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-ui/src/components/Modal.svelte:37:0 `<div>` with a click handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions
+35: </script>
+36: 
+37: <div class={modalClasses} onclick={handleBackdropClick}>
+          ^
+38:   <div class={boxClasses} onclick={(e) => e.stopPropagation()}>
+39:     {#if title || onclose}
+11:29:31 AM [vite-plugin-svelte] /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-ui/src/components/Modal.svelte:38:2 Visible, non-interactive elements with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+https://svelte.dev/e/a11y_click_events_have_key_events
+36: 
+37: <div class={modalClasses} onclick={handleBackdropClick}>
+38:   <div class={boxClasses} onclick={(e) => e.stopPropagation()}>
+            ^
+39:     {#if title || onclose}
+40:       <div class="flex items-center justify-between mb-4">
+11:29:31 AM [vite-plugin-svelte] /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-ui/src/components/Modal.svelte:38:2 `<div>` with a click handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions
+36: 
+37: <div class={modalClasses} onclick={handleBackdropClick}>
+38:   <div class={boxClasses} onclick={(e) => e.stopPropagation()}>
+            ^
+39:     {#if title || onclose}
+40:       <div class="flex items-center justify-between mb-4">
+src/lib/components/EmergencyKitShamir.svelte (107:10): A comment
+
+"/* @__PURE__ */"
+
+in "src/lib/components/EmergencyKitShamir.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+src/lib/components/EmergencyKitShamir.svelte (214:15): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/lib/components/EmergencyKitShamir.svelte (214:15): A comment
+
+"/* @__PURE__ */"
+
+in "src/lib/components/EmergencyKitShamir.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+src/lib/components/EmergencyKitShamir.svelte (363:1): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/lib/components/EmergencyKitShamir.svelte (363:1): A comment
+
+"/* @__PURE__ */"
+
+in "src/lib/components/EmergencyKitShamir.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+src/lib/components/EmergencyKitShamir.svelte (364:1): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/lib/components/EmergencyKitShamir.svelte (364:1): A comment
+
+"/* @__PURE__ */"
+
+in "src/lib/components/EmergencyKitShamir.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+src/lib/components/troubleshooting/CacheCleaner.svelte (165:2): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/lib/components/troubleshooting/CacheCleaner.svelte (165:2): A comment
+
+"/* @__PURE__ */"
+
+in "src/lib/components/troubleshooting/CacheCleaner.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:316:2 Unused CSS selector ".indicator-btn[disabled]"
+https://svelte.dev/e/css_unused_selector
+314: }
+315:   
+316:   .indicator-btn[disabled],.indicator-btn:disabled {
+                               ^
+317:     pointer-events: none
+318: }
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:327:2 Unused CSS selector ":where(.indicator-btn:is(input[type="checkbox"]))"
+https://svelte.dev/e/css_unused_selector
+325: }
+326:   
+327:   :where(.indicator-btn:is(input[type="checkbox"])),
+                                                        ^
+328: :where(.indicator-btn:is(input[type="radio"])) {
+329:     width: auto;
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:328:0 Unused CSS selector ":where(.indicator-btn:is(input[type="radio"]))"
+https://svelte.dev/e/css_unused_selector
+326:   
+327:   :where(.indicator-btn:is(input[type="checkbox"])),
+328: :where(.indicator-btn:is(input[type="radio"])) {
+                                                   ^
+329:     width: auto;
+330:     -webkit-appearance: none;
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:335:2 Unused CSS selector ".indicator-btn:is(input[type="checkbox"]):after"
+https://svelte.dev/e/css_unused_selector
+333: }
+334:   
+335:   .indicator-btn:is(input[type="checkbox"]):after,.indicator-btn:is(input[type="radio"]):after {
+                                                      ^
+336:     --tw-content: attr(aria-label);
+337:     content: var(--tw-content)
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:335:50 Unused CSS selector ".indicator-btn:is(input[type="radio"]):after"
+https://svelte.dev/e/css_unused_selector
+333: }
+334:   
+335:   .indicator-btn:is(input[type="checkbox"]):after,.indicator-btn:is(input[type="radio"]):after {
+                                                                                                   ^
+336:     --tw-content: attr(aria-label);
+337:     content: var(--tw-content)
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:435:4 Unused CSS selector ".indicator-btn.glass:hover"
+https://svelte.dev/e/css_unused_selector
+433:     }
+434:   
+435:     .indicator-btn.glass:hover {
+                                   ^
+436:         --glass-opacity: 25%;
+437:         --glass-border-opacity: 15%
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:462:4 Unused CSS selector ".indicator-btn[disabled]:hover"
+https://svelte.dev/e/css_unused_selector
+460:     }
+461:   
+462:     .indicator-btn[disabled]:hover,.indicator-btn:disabled:hover {
+                                       ^
+463:         --tw-border-opacity: 0;
+464:         background-color: var(--fallback-n,oklch(var(--n)/var(--tw-bg-opacity)));
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:472:8 Unused CSS selector ".indicator-btn:is(input[type="checkbox"]:checked):hover"
+https://svelte.dev/e/css_unused_selector
+470:     @supports (color: color-mix(in oklab, black, black)) {
+471:   
+472:         .indicator-btn:is(input[type="checkbox"]:checked):hover,.indicator-btn:is(input[type="radio"]:checked):hover {
+                                                                    ^
+473:             background-color: color-mix(in oklab, var(--fallback-p,oklch(var(--p)/1)) 90%, black);
+474:             border-color: color-mix(in oklab, var(--fallback-p,oklch(var(--p)/1)) 90%, black)
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:472:64 Unused CSS selector ".indicator-btn:is(input[type="radio"]:checked):hover"
+https://svelte.dev/e/css_unused_selector
+470:     @supports (color: color-mix(in oklab, black, black)) {
+471:   
+472:         .indicator-btn:is(input[type="checkbox"]:checked):hover,.indicator-btn:is(input[type="radio"]:checked):hover {
+                                                                                                                         ^
+473:             background-color: color-mix(in oklab, var(--fallback-p,oklch(var(--p)/1)) 90%, black);
+474:             border-color: color-mix(in oklab, var(--fallback-p,oklch(var(--p)/1)) 90%, black)
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:505:2 Unused CSS selector ".indicator-btn.glass"
+https://svelte.dev/e/css_unused_selector
+503: }
+504:   
+505:   .indicator-btn.glass {
+                           ^
+506:     --tw-shadow: 0 0 #0000;
+507:     --tw-shadow-colored: 0 0 #0000;
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:512:2 Unused CSS selector ".indicator-btn.glass.btn-active"
+https://svelte.dev/e/css_unused_selector
+510: }
+511:   
+512:   .indicator-btn.glass.btn-active {
+                                      ^
+513:     --glass-opacity: 25%;
+514:     --glass-border-opacity: 15%
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:528:2 Unused CSS selector ".indicator-btn.btn-active"
+https://svelte.dev/e/css_unused_selector
+526: }
+527:   
+528:   .indicator-btn.btn-active {
+                                ^
+529:     border-color: transparent;
+530:     background-color: var(--fallback-bc,oklch(var(--bc)/0.2))
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:533:2 Unused CSS selector ".indicator-btn.btn-disabled"
+https://svelte.dev/e/css_unused_selector
+531: }
+532:   
+533:   .indicator-btn.btn-disabled,.indicator-btn[disabled],.indicator-btn:disabled {
+                                  ^
+534:     --tw-border-opacity: 0;
+535:     background-color: var(--fallback-n,oklch(var(--n)/var(--tw-bg-opacity)));
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:533:30 Unused CSS selector ".indicator-btn[disabled]"
+https://svelte.dev/e/css_unused_selector
+531: }
+532:   
+533:   .indicator-btn.btn-disabled,.indicator-btn[disabled],.indicator-btn:disabled {
+                                                           ^
+534:     --tw-border-opacity: 0;
+535:     background-color: var(--fallback-n,oklch(var(--n)/var(--tw-bg-opacity)));
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:541:2 Unused CSS selector ".indicator-btn:is(input[type="checkbox"]:checked)"
+https://svelte.dev/e/css_unused_selector
+539: }
+540:   
+541:   .indicator-btn:is(input[type="checkbox"]:checked),.indicator-btn:is(input[type="radio"]:checked) {
+                                                        ^
+542:     --tw-border-opacity: 1;
+543:     border-color: var(--fallback-p,oklch(var(--p)/var(--tw-border-opacity)));
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:541:52 Unused CSS selector ".indicator-btn:is(input[type="radio"]:checked)"
+https://svelte.dev/e/css_unused_selector
+539: }
+540:   
+541:   .indicator-btn:is(input[type="checkbox"]:checked),.indicator-btn:is(input[type="radio"]:checked) {
+                                                                                                       ^
+542:     --tw-border-opacity: 1;
+543:     border-color: var(--fallback-p,oklch(var(--p)/var(--tw-border-opacity)));
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:550:2 Unused CSS selector ".indicator-btn:is(input[type="checkbox"]:checked):focus-visible"
+https://svelte.dev/e/css_unused_selector
+548: }
+549:   
+550:   .indicator-btn:is(input[type="checkbox"]:checked):focus-visible,.indicator-btn:is(input[type="radio"]:checked):focus-visible {
+                                                                      ^
+551:     outline-color: var(--fallback-p,oklch(var(--p)/1))
+552: }
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:550:66 Unused CSS selector ".indicator-btn:is(input[type="radio"]:checked):focus-visible"
+https://svelte.dev/e/css_unused_selector
+548: }
+549:   
+550:   .indicator-btn:is(input[type="checkbox"]:checked):focus-visible,.indicator-btn:is(input[type="radio"]:checked):focus-visible {
+                                                                                                                                   ^
+551:     outline-color: var(--fallback-p,oklch(var(--p)/1))
+552: }
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:554:2 Unused CSS selector ".join > :where(*:not(:first-child)):is(.indicator-btn)"
+https://svelte.dev/e/css_unused_selector
+552: }
+553:   
+554:   .join > :where(*:not(:first-child)):is(.indicator-btn) {
+                                                             ^
+555:     margin-inline-start: calc(var(--border-btn) * -1)
+556: }
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:566:2 Unused CSS selector ".btn-square:where(.indicator-btn)"
+https://svelte.dev/e/css_unused_selector
+564: }
+565:   
+566:   .btn-square:where(.indicator-btn) {
+                                        ^
+567:     height: 1.5rem;
+568:     width: 1.5rem;
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:572:2 Unused CSS selector ".indicator-btn:where(.btn-xs)"
+https://svelte.dev/e/css_unused_selector
+570: }
+571:   
+572:   .indicator-btn:where(.btn-xs) {
+                                    ^
+573:     height: 1.5rem;
+574:     width: 1.5rem;
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:579:2 Unused CSS selector ".btn-circle:where(.indicator-btn)"
+https://svelte.dev/e/css_unused_selector
+577: }
+578:   
+579:   .btn-circle:where(.indicator-btn) {
+                                        ^
+580:     height: 1.5rem;
+581:     width: 1.5rem;
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:586:2 Unused CSS selector ".indicator-btn:where(.btn-sm)"
+https://svelte.dev/e/css_unused_selector
+584: }
+585:   
+586:   .indicator-btn:where(.btn-sm) {
+                                    ^
+587:     height: 2rem;
+588:     width: 2rem;
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:593:2 Unused CSS selector ".indicator-btn:where(.btn-md)"
+https://svelte.dev/e/css_unused_selector
+591: }
+592:   
+593:   .indicator-btn:where(.btn-md) {
+                                    ^
+594:     height: 3rem;
+595:     width: 3rem;
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:600:2 Unused CSS selector ".indicator-btn:where(.btn-lg)"
+https://svelte.dev/e/css_unused_selector
+598: }
+599:   
+600:   .indicator-btn:where(.btn-lg) {
+                                    ^
+601:     height: 4rem;
+602:     width: 4rem;
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:607:2 Unused CSS selector ".join.join-vertical > :where(*:not(:first-child)):is(.indicator-btn)"
+https://svelte.dev/e/css_unused_selector
+605: }
+606:   
+607:   .join.join-vertical > :where(*:not(:first-child)):is(.indicator-btn) {
+                                                                           ^
+608:     margin-top: calc(var(--border-btn) * -1)
+609: }
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:611:2 Unused CSS selector ".join.join-horizontal > :where(*:not(:first-child)):is(.indicator-btn)"
+https://svelte.dev/e/css_unused_selector
+609: }
+610:   
+611:   .join.join-horizontal > :where(*:not(:first-child)):is(.indicator-btn) {
+                                                                             ^
+612:     margin-inline-start: calc(var(--border-btn) * -1);
+613:     margin-top: 0px
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:819:2 Unused CSS selector ".delete-btn[disabled]"
+https://svelte.dev/e/css_unused_selector
+817: }
+818:   
+819:   .delete-btn[disabled],.delete-btn:disabled {
+                            ^
+820:     pointer-events: none
+821: }
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:830:2 Unused CSS selector ":where(.delete-btn:is(input[type="checkbox"]))"
+https://svelte.dev/e/css_unused_selector
+828: }
+829:   
+830:   :where(.delete-btn:is(input[type="checkbox"])),
+                                                     ^
+831: :where(.delete-btn:is(input[type="radio"])) {
+832:     width: auto;
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:831:0 Unused CSS selector ":where(.delete-btn:is(input[type="radio"]))"
+https://svelte.dev/e/css_unused_selector
+829:   
+830:   :where(.delete-btn:is(input[type="checkbox"])),
+831: :where(.delete-btn:is(input[type="radio"])) {
+                                                ^
+832:     width: auto;
+833:     -webkit-appearance: none;
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:838:2 Unused CSS selector ".delete-btn:is(input[type="checkbox"]):after"
+https://svelte.dev/e/css_unused_selector
+836: }
+837:   
+838:   .delete-btn:is(input[type="checkbox"]):after,.delete-btn:is(input[type="radio"]):after {
+                                                   ^
+839:     --tw-content: attr(aria-label);
+840:     content: var(--tw-content)
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:838:47 Unused CSS selector ".delete-btn:is(input[type="radio"]):after"
+https://svelte.dev/e/css_unused_selector
+836: }
+837:   
+838:   .delete-btn:is(input[type="checkbox"]):after,.delete-btn:is(input[type="radio"]):after {
+                                                                                             ^
+839:     --tw-content: attr(aria-label);
+840:     content: var(--tw-content)
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:938:4 Unused CSS selector ".delete-btn.glass:hover"
+https://svelte.dev/e/css_unused_selector
+936:     }
+937:   
+938:     .delete-btn.glass:hover {
+                                ^
+939:         --glass-opacity: 25%;
+940:         --glass-border-opacity: 15%
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:965:4 Unused CSS selector ".delete-btn[disabled]:hover"
+https://svelte.dev/e/css_unused_selector
+963:     }
+964:   
+965:     .delete-btn[disabled]:hover,.delete-btn:disabled:hover {
+                                    ^
+966:         --tw-border-opacity: 0;
+967:         background-color: var(--fallback-n,oklch(var(--n)/var(--tw-bg-opacity)));
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:975:8 Unused CSS selector ".delete-btn:is(input[type="checkbox"]:checked):hover"
+https://svelte.dev/e/css_unused_selector
+973:     @supports (color: color-mix(in oklab, black, black)) {
+974:   
+975:         .delete-btn:is(input[type="checkbox"]:checked):hover,.delete-btn:is(input[type="radio"]:checked):hover {
+                                                                 ^
+976:             background-color: color-mix(in oklab, var(--fallback-p,oklch(var(--p)/1)) 90%, black);
+977:             border-color: color-mix(in oklab, var(--fallback-p,oklch(var(--p)/1)) 90%, black)
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:975:61 Unused CSS selector ".delete-btn:is(input[type="radio"]:checked):hover"
+https://svelte.dev/e/css_unused_selector
+973:     @supports (color: color-mix(in oklab, black, black)) {
+974:   
+975:         .delete-btn:is(input[type="checkbox"]:checked):hover,.delete-btn:is(input[type="radio"]:checked):hover {
+                                                                                                                   ^
+976:             background-color: color-mix(in oklab, var(--fallback-p,oklch(var(--p)/1)) 90%, black);
+977:             border-color: color-mix(in oklab, var(--fallback-p,oklch(var(--p)/1)) 90%, black)
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1008:2 Unused CSS selector ".delete-btn.glass"
+https://svelte.dev/e/css_unused_selector
+1006: }
+1007:   
+1008:   .delete-btn.glass {
+                         ^
+1009:     --tw-shadow: 0 0 #0000;
+1010:     --tw-shadow-colored: 0 0 #0000;
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1015:2 Unused CSS selector ".delete-btn.glass.btn-active"
+https://svelte.dev/e/css_unused_selector
+1013: }
+1014:   
+1015:   .delete-btn.glass.btn-active {
+                                    ^
+1016:     --glass-opacity: 25%;
+1017:     --glass-border-opacity: 15%
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1031:2 Unused CSS selector ".delete-btn.btn-active"
+https://svelte.dev/e/css_unused_selector
+1029: }
+1030:   
+1031:   .delete-btn.btn-active {
+                              ^
+1032:     border-color: transparent;
+1033:     background-color: var(--fallback-bc,oklch(var(--bc)/0.2))
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1036:2 Unused CSS selector ".delete-btn.btn-disabled"
+https://svelte.dev/e/css_unused_selector
+1034: }
+1035:   
+1036:   .delete-btn.btn-disabled,.delete-btn[disabled],.delete-btn:disabled {
+                                ^
+1037:     --tw-border-opacity: 0;
+1038:     background-color: var(--fallback-n,oklch(var(--n)/var(--tw-bg-opacity)));
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1036:27 Unused CSS selector ".delete-btn[disabled]"
+https://svelte.dev/e/css_unused_selector
+1034: }
+1035:   
+1036:   .delete-btn.btn-disabled,.delete-btn[disabled],.delete-btn:disabled {
+                                                      ^
+1037:     --tw-border-opacity: 0;
+1038:     background-color: var(--fallback-n,oklch(var(--n)/var(--tw-bg-opacity)));
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1044:2 Unused CSS selector ".delete-btn:is(input[type="checkbox"]:checked)"
+https://svelte.dev/e/css_unused_selector
+1042: }
+1043:   
+1044:   .delete-btn:is(input[type="checkbox"]:checked),.delete-btn:is(input[type="radio"]:checked) {
+                                                      ^
+1045:     --tw-border-opacity: 1;
+1046:     border-color: var(--fallback-p,oklch(var(--p)/var(--tw-border-opacity)));
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1044:49 Unused CSS selector ".delete-btn:is(input[type="radio"]:checked)"
+https://svelte.dev/e/css_unused_selector
+1042: }
+1043:   
+1044:   .delete-btn:is(input[type="checkbox"]:checked),.delete-btn:is(input[type="radio"]:checked) {
+                                                                                                  ^
+1045:     --tw-border-opacity: 1;
+1046:     border-color: var(--fallback-p,oklch(var(--p)/var(--tw-border-opacity)));
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1053:2 Unused CSS selector ".delete-btn:is(input[type="checkbox"]:checked):focus-visible"
+https://svelte.dev/e/css_unused_selector
+1051: }
+1052:   
+1053:   .delete-btn:is(input[type="checkbox"]:checked):focus-visible,.delete-btn:is(input[type="radio"]:checked):focus-visible {
+                                                                    ^
+1054:     outline-color: var(--fallback-p,oklch(var(--p)/1))
+1055: }
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1053:63 Unused CSS selector ".delete-btn:is(input[type="radio"]:checked):focus-visible"
+https://svelte.dev/e/css_unused_selector
+1051: }
+1052:   
+1053:   .delete-btn:is(input[type="checkbox"]:checked):focus-visible,.delete-btn:is(input[type="radio"]:checked):focus-visible {
+                                                                                                                              ^
+1054:     outline-color: var(--fallback-p,oklch(var(--p)/1))
+1055: }
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1057:2 Unused CSS selector ".join > :where(*:not(:first-child)):is(.delete-btn)"
+https://svelte.dev/e/css_unused_selector
+1055: }
+1056:   
+1057:   .join > :where(*:not(:first-child)):is(.delete-btn) {
+                                                           ^
+1058:     margin-inline-start: calc(var(--border-btn) * -1)
+1059: }
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1069:2 Unused CSS selector ".btn-square:where(.delete-btn)"
+https://svelte.dev/e/css_unused_selector
+1067: }
+1068:   
+1069:   .btn-square:where(.delete-btn) {
+                                      ^
+1070:     height: 1.5rem;
+1071:     width: 1.5rem;
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1075:2 Unused CSS selector ".delete-btn:where(.btn-xs)"
+https://svelte.dev/e/css_unused_selector
+1073: }
+1074:   
+1075:   .delete-btn:where(.btn-xs) {
+                                  ^
+1076:     height: 1.5rem;
+1077:     width: 1.5rem;
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1082:2 Unused CSS selector ".btn-circle:where(.delete-btn)"
+https://svelte.dev/e/css_unused_selector
+1080: }
+1081:   
+1082:   .btn-circle:where(.delete-btn) {
+                                      ^
+1083:     height: 1.5rem;
+1084:     width: 1.5rem;
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1089:2 Unused CSS selector ".delete-btn:where(.btn-sm)"
+https://svelte.dev/e/css_unused_selector
+1087: }
+1088:   
+1089:   .delete-btn:where(.btn-sm) {
+                                  ^
+1090:     height: 2rem;
+1091:     width: 2rem;
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1096:2 Unused CSS selector ".delete-btn:where(.btn-md)"
+https://svelte.dev/e/css_unused_selector
+1094: }
+1095:   
+1096:   .delete-btn:where(.btn-md) {
+                                  ^
+1097:     height: 3rem;
+1098:     width: 3rem;
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1103:2 Unused CSS selector ".delete-btn:where(.btn-lg)"
+https://svelte.dev/e/css_unused_selector
+1101: }
+1102:   
+1103:   .delete-btn:where(.btn-lg) {
+                                  ^
+1104:     height: 4rem;
+1105:     width: 4rem;
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1110:2 Unused CSS selector ".join.join-vertical > :where(*:not(:first-child)):is(.delete-btn)"
+https://svelte.dev/e/css_unused_selector
+1108: }
+1109:   
+1110:   .join.join-vertical > :where(*:not(:first-child)):is(.delete-btn) {
+                                                                         ^
+1111:     margin-top: calc(var(--border-btn) * -1)
+1112: }
+11:29:34 AM [vite-plugin-svelte] src/lib/components/bookmarks/NotesAudioIndicator.svelte:1114:2 Unused CSS selector ".join.join-horizontal > :where(*:not(:first-child)):is(.delete-btn)"
+https://svelte.dev/e/css_unused_selector
+1112: }
+1113:   
+1114:   .join.join-horizontal > :where(*:not(:first-child)):is(.delete-btn) {
+                                                                           ^
+1115:     margin-inline-start: calc(var(--border-btn) * -1);
+1116:     margin-top: 0px
+✓ 5760 modules transformed.
+Export "planStore" of module "src/lib/stores/plan.store.ts" was reexported through module "src/lib/stores/index.ts" while both modules are dependencies of each other and will end up in different chunks by current Rollup settings. This scenario is not well supported at the moment as it will produce a circular dependency between chunks and will likely lead to broken execution order.
+Either change the import in "src/lib/common/security.ts" to point directly to the exporting module or reconfigure "output.manualChunks" to ensure these modules end up in the same chunk.
+rendering chunks...
+[plugin vite:reporter] 
+(!) /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/storage.ts is dynamically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/stores.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/stores.ts but also statically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/contexts/background/extensions/chrome/iconTimer.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/contexts/background/extensions/chrome/ui.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/authValidation.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/handlers.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/index.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/lockWallet.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/locks.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/stores.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/extensions/chrome/verifyDomainConnected.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/native-token-price.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/storage-sync.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/keyManagement.store.ts, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter] 
+(!) /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/cache-sync.service.ts is dynamically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/wallet-cache.store.ts but also statically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/token.store.ts, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter] 
+(!) /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/account.store.ts is dynamically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/token.store.ts but also statically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/BuyModal.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/EmergencyKit.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/ImportPhrase.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/ImportPrivateKey.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/ManageAccounts.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/PortfolioOverviewSimple.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/RecentActivity.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/SendModalEnhanced.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/SwapModalV2.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/TransactionDetailModal.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/UserMenu.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/views/ViewContainer.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/views/innovative/AccountOrbital.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/features/payment/buy/buy.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/native-token-price.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/transaction.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/transactionMonitor.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/index.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/transaction.store.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/view.store.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/+layout.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/create-new/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/create/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/export/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/manage/[address]/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/print-emergency-kit/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/dashboard/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/home/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/swap/+page.svelte, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter] 
+(!) /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/plan.store.ts is dynamically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/utils/features.ts but also statically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/BuyModal.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/PortfolioOverviewSimple.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/TrialCountdown.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/TroubleshootingModal.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/Upgrade.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/UserMenu.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/pro/KeyManagement.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/index.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/+layout.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/innovation/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/settings/+page.svelte, dynamic import will not move module into another chunk.
+
+computing gzip size...
+[vite-plugin-static-copy] Copied 1 items.
+.svelte-kit/output/client/app/version.json                                              0.03 kB │ gzip:   0.05 kB
+.svelte-kit/output/client/.vite/manifest.json                                          65.19 kB │ gzip:   6.97 kB
+.svelte-kit/output/client/app/immutable/assets/ScrollIndicator.7443H5x1.css             0.07 kB │ gzip:   0.09 kB
+.svelte-kit/output/client/app/immutable/assets/8.8PSmOl5U.css                           0.08 kB │ gzip:   0.08 kB
+.svelte-kit/output/client/app/immutable/assets/16.CAfKqLDq.css                          0.10 kB │ gzip:   0.09 kB
+.svelte-kit/output/client/app/immutable/assets/19.Dxt0OUVo.css                          0.10 kB │ gzip:   0.09 kB
+.svelte-kit/output/client/app/immutable/assets/ExtensionDashboard.DZ1cTedZ.css          0.11 kB │ gzip:   0.11 kB
+.svelte-kit/output/client/app/immutable/assets/12.D15k9NYW.css                          0.16 kB │ gzip:   0.13 kB
+.svelte-kit/output/client/app/immutable/assets/52.BcvCjPyi.css                          0.19 kB │ gzip:   0.13 kB
+.svelte-kit/output/client/app/immutable/assets/TransactionDetailModal.CCBCoTpy.css      0.36 kB │ gzip:   0.21 kB
+.svelte-kit/output/client/app/immutable/assets/17.CPSq65vF.css                          0.43 kB │ gzip:   0.21 kB
+.svelte-kit/output/client/app/immutable/assets/14.BaDCgw0Y.css                          0.43 kB │ gzip:   0.21 kB
+.svelte-kit/output/client/app/immutable/assets/15.D6BwIo-r.css                          0.44 kB │ gzip:   0.21 kB
+.svelte-kit/output/client/app/immutable/assets/18.BEAeT4WR.css                          0.58 kB │ gzip:   0.31 kB
+.svelte-kit/output/client/app/immutable/assets/34.By7ECdWY.css                          0.85 kB │ gzip:   0.37 kB
+.svelte-kit/output/client/app/immutable/assets/37.CWyAjsZH.css                          1.88 kB │ gzip:   0.68 kB
+.svelte-kit/output/client/app/immutable/assets/36.D3VkOvTs.css                          3.12 kB │ gzip:   0.99 kB
+.svelte-kit/output/client/app/immutable/assets/ProtectedValue.6ZiB5IsA.css              3.28 kB │ gzip:   0.96 kB
+.svelte-kit/output/client/app/immutable/assets/OrbitalViewSelector.Bq2Zk_9p.css         3.63 kB │ gzip:   1.17 kB
+.svelte-kit/output/client/app/immutable/assets/6.BXdpV96d.css                           9.91 kB │ gzip:   1.81 kB
+.svelte-kit/output/client/app/immutable/assets/21.BfJvbmzF.css                         22.83 kB │ gzip:   3.60 kB
+.svelte-kit/output/client/app/immutable/assets/app.BxqA7GKa.css                       394.22 kB │ gzip:  52.38 kB
+.svelte-kit/output/client/app/immutable/chunks/BDoPfdR8.js                              0.10 kB │ gzip:   0.11 kB │ map:     0.53 kB
+.svelte-kit/output/client/app/immutable/entry/start.B7OQq0xl.js                         0.12 kB │ gzip:   0.13 kB │ map:     0.10 kB
+.svelte-kit/output/client/app/immutable/nodes/6.4TQbUKIX.js                             0.12 kB │ gzip:   0.13 kB │ map:     0.09 kB
+.svelte-kit/output/client/app/immutable/chunks/DDSNEvva.js                              0.12 kB │ gzip:   0.12 kB │ map:     0.34 kB
+.svelte-kit/output/client/app/immutable/chunks/COc2fNgH.js                              0.14 kB │ gzip:   0.14 kB │ map:     0.09 kB
+.svelte-kit/output/client/app/immutable/chunks/DoibuuXS.js                              0.34 kB │ gzip:   0.22 kB │ map:     0.85 kB
+.svelte-kit/output/client/app/immutable/chunks/D_2eqZPX.js                              0.37 kB │ gzip:   0.24 kB │ map:     4.88 kB
+.svelte-kit/output/client/app/immutable/chunks/DJelYKe3.js                              0.38 kB │ gzip:   0.24 kB │ map:     0.88 kB
+.svelte-kit/output/client/app/immutable/chunks/Bm5BTMZg.js                              0.39 kB │ gzip:   0.25 kB │ map:     0.09 kB
+.svelte-kit/output/client/app/immutable/chunks/CA2AXI4j.js                              0.45 kB │ gzip:   0.25 kB │ map:     5.55 kB
+.svelte-kit/output/client/app/immutable/chunks/D8tQrtJK.js                              0.47 kB │ gzip:   0.30 kB │ map:     6.28 kB
+.svelte-kit/output/client/app/immutable/chunks/BdAahxGH.js                              0.48 kB │ gzip:   0.28 kB │ map:     2.58 kB
+.svelte-kit/output/client/app/immutable/chunks/DiGC5uBC.js                              0.53 kB │ gzip:   0.27 kB │ map:     1.40 kB
+.svelte-kit/output/client/app/immutable/chunks/oHPvhUi7.js                              0.67 kB │ gzip:   0.38 kB │ map:     2.11 kB
+.svelte-kit/output/client/app/immutable/nodes/55.B9yB8p-b.js                            0.75 kB │ gzip:   0.48 kB │ map:     0.10 kB
+.svelte-kit/output/client/app/immutable/nodes/43.B3D9Mkg5.js                            0.76 kB │ gzip:   0.49 kB │ map:     0.10 kB
+.svelte-kit/output/client/app/immutable/nodes/32.B2mIydLY.js                            0.78 kB │ gzip:   0.51 kB │ map:     0.10 kB
+.svelte-kit/output/client/app/immutable/chunks/-dI3pk9p.js                              0.81 kB │ gzip:   0.38 kB │ map:     3.47 kB
+.svelte-kit/output/client/app/immutable/chunks/Gw7XoPlo.js                              0.85 kB │ gzip:   0.38 kB │ map:     3.00 kB
+.svelte-kit/output/client/app/immutable/nodes/1.hGoL_BGc.js                             0.86 kB │ gzip:   0.50 kB │ map:     0.09 kB
+.svelte-kit/output/client/app/immutable/nodes/8.BpE6K-f9.js                             0.90 kB │ gzip:   0.54 kB │ map:     0.67 kB
+.svelte-kit/output/client/app/immutable/nodes/9.DBI_GZs2.js                             0.90 kB │ gzip:   0.54 kB │ map:     0.67 kB
+.svelte-kit/output/client/app/immutable/chunks/9wl9tpzj.js                              0.92 kB │ gzip:   0.43 kB │ map:     2.86 kB
+.svelte-kit/output/client/app/immutable/nodes/7.CRCiaNl3.js                             1.03 kB │ gzip:   0.63 kB │ map:     0.66 kB
+.svelte-kit/output/client/app/immutable/nodes/4.DcCqUjgg.js                             1.04 kB │ gzip:   0.59 kB │ map:     0.84 kB
+.svelte-kit/output/client/app/immutable/nodes/5.udTQIbg3.js                             1.05 kB │ gzip:   0.59 kB │ map:     0.85 kB
+.svelte-kit/output/client/app/immutable/chunks/wqh3grrl.js                              1.05 kB │ gzip:   0.50 kB │ map:     3.57 kB
+.svelte-kit/output/client/app/immutable/chunks/CubrgIM2.js                              1.08 kB │ gzip:   0.50 kB │ map:     3.27 kB
+.svelte-kit/output/client/app/immutable/chunks/BehpZR8Z.js                              1.10 kB │ gzip:   0.53 kB │ map:     3.24 kB
+.svelte-kit/output/client/app/immutable/chunks/DHo9EKIM.js                              1.15 kB │ gzip:   0.36 kB │ map:     3.03 kB
+.svelte-kit/output/client/app/immutable/nodes/24.BrRH07H-.js                            1.16 kB │ gzip:   0.67 kB │ map:     1.01 kB
+.svelte-kit/output/client/app/immutable/chunks/C6INqw8b.js                              1.22 kB │ gzip:   0.57 kB │ map:     3.85 kB
+.svelte-kit/output/client/app/immutable/chunks/DFd1LPQP.js                              1.25 kB │ gzip:   0.46 kB │ map:     4.00 kB
+.svelte-kit/output/client/app/immutable/chunks/Cnr3byxw.js                              1.28 kB │ gzip:   0.62 kB │ map:     3.91 kB
+.svelte-kit/output/client/app/immutable/chunks/4DX66ohM.js                              1.33 kB │ gzip:   0.71 kB │ map:     0.89 kB
+.svelte-kit/output/client/app/immutable/chunks/B-xg5LA7.js                              1.39 kB │ gzip:   0.77 kB │ map:     1.49 kB
+.svelte-kit/output/client/app/immutable/chunks/RreJr8lQ.js                              1.40 kB │ gzip:   0.78 kB │ map:     1.57 kB
+.svelte-kit/output/client/app/immutable/chunks/CnGBPjTQ.js                              1.43 kB │ gzip:   0.80 kB │ map:     1.65 kB
+.svelte-kit/output/client/app/immutable/chunks/Ba-1yxrf.js                              1.44 kB │ gzip:   0.78 kB │ map:     1.52 kB
+.svelte-kit/output/client/app/immutable/chunks/0AzGLGhP.js                              1.48 kB │ gzip:   0.84 kB │ map:     1.87 kB
+.svelte-kit/output/client/app/immutable/chunks/CtJ5ttjG.js                              1.49 kB │ gzip:   0.57 kB │ map:     7.22 kB
+.svelte-kit/output/client/app/immutable/chunks/CaJYNqRy.js                              1.49 kB │ gzip:   0.85 kB │ map:     1.87 kB
+.svelte-kit/output/client/app/immutable/chunks/CC832rEe.js                              1.52 kB │ gzip:   0.84 kB │ map:     1.91 kB
+.svelte-kit/output/client/app/immutable/chunks/BHHnpPHn.js                              1.54 kB │ gzip:   0.82 kB │ map:     1.98 kB
+.svelte-kit/output/client/app/immutable/chunks/uRdOMVH4.js                              1.54 kB │ gzip:   0.66 kB │ map:     7.79 kB
+.svelte-kit/output/client/app/immutable/chunks/BFVL0fqz.js                              1.54 kB │ gzip:   0.88 kB │ map:     1.83 kB
+.svelte-kit/output/client/app/immutable/chunks/DOdoC6lk.js                              1.55 kB │ gzip:   0.65 kB │ map:     5.43 kB
+.svelte-kit/output/client/app/immutable/chunks/YzULOJNq.js                              1.57 kB │ gzip:   0.84 kB │ map:     1.83 kB
+.svelte-kit/output/client/app/immutable/chunks/CNsWnpf-.js                              1.59 kB │ gzip:   0.87 kB │ map:     2.20 kB
+.svelte-kit/output/client/app/immutable/nodes/41.DCfkCc35.js                            1.59 kB │ gzip:   0.85 kB │ map:     1.74 kB
+.svelte-kit/output/client/app/immutable/nodes/46.iQSi6_o5.js                            1.83 kB │ gzip:   0.86 kB │ map:     1.13 kB
+.svelte-kit/output/client/app/immutable/chunks/DcB_yYaJ.js                              1.97 kB │ gzip:   0.87 kB │ map:     6.01 kB
+.svelte-kit/output/client/app/immutable/chunks/CTaVJDQx.js                              2.11 kB │ gzip:   1.05 kB │ map:     1.38 kB
+.svelte-kit/output/client/app/immutable/chunks/BBxvOC7L.js                              2.13 kB │ gzip:   0.72 kB │ map:     5.82 kB
+.svelte-kit/output/client/app/immutable/chunks/pAFNQjZJ.js                              2.17 kB │ gzip:   0.91 kB │ map:     9.33 kB
+.svelte-kit/output/client/app/immutable/chunks/cPEGHxbS.js                              2.18 kB │ gzip:   1.09 kB │ map:     1.46 kB
+.svelte-kit/output/client/app/immutable/chunks/CAHZFW-p.js                              2.19 kB │ gzip:   0.87 kB │ map:     6.47 kB
+.svelte-kit/output/client/app/immutable/chunks/DccpxUWX.js                              2.33 kB │ gzip:   0.78 kB │ map:     6.61 kB
+.svelte-kit/output/client/app/immutable/chunks/Chi3waZ5.js                              2.37 kB │ gzip:   0.98 kB │ map:    24.12 kB
+.svelte-kit/output/client/app/immutable/nodes/22.Doz2L2zu.js                            2.46 kB │ gzip:   1.10 kB │ map:    11.17 kB
+.svelte-kit/output/client/app/immutable/nodes/23.DVTSDYz1.js                            2.47 kB │ gzip:   1.10 kB │ map:     3.77 kB
+.svelte-kit/output/client/app/immutable/nodes/10.BG7RkcHP.js                            2.51 kB │ gzip:   1.21 kB │ map:     1.63 kB
+.svelte-kit/output/client/app/immutable/chunks/BvtgDKpk.js                              2.59 kB │ gzip:   1.11 kB │ map:     9.00 kB
+.svelte-kit/output/client/app/immutable/chunks/69B3Apyq.js                              2.60 kB │ gzip:   1.05 kB │ map:    14.49 kB
+.svelte-kit/output/client/app/immutable/chunks/D8P-XT9s.js                              2.62 kB │ gzip:   1.14 kB │ map:     2.64 kB
+.svelte-kit/output/client/app/immutable/chunks/DoWK9qgE.js                              2.65 kB │ gzip:   1.30 kB │ map:     2.99 kB
+.svelte-kit/output/client/app/immutable/chunks/Q3ll3_9n.js                              2.82 kB │ gzip:   1.21 kB │ map:     2.38 kB
+.svelte-kit/output/client/app/immutable/chunks/BMfWroWI.js                              3.09 kB │ gzip:   1.22 kB │ map:     9.29 kB
+.svelte-kit/output/client/app/immutable/nodes/11.BytXC8_o.js                            3.10 kB │ gzip:   1.42 kB │ map:     3.58 kB
+.svelte-kit/output/client/app/immutable/chunks/BBDKq-Js.js                              3.14 kB │ gzip:   1.08 kB │ map:     4.61 kB
+.svelte-kit/output/client/app/immutable/chunks/DqaOSvHX.js                              3.47 kB │ gzip:   1.20 kB │ map:    12.30 kB
+.svelte-kit/output/client/app/immutable/chunks/DD9ZTHOj.js                              3.65 kB │ gzip:   1.41 kB │ map:    12.67 kB
+.svelte-kit/output/client/app/immutable/chunks/wrrWsCtA.js                              3.69 kB │ gzip:   1.43 kB │ map:     2.70 kB
+.svelte-kit/output/client/app/immutable/chunks/D0mhF58L.js                              3.72 kB │ gzip:   1.27 kB │ map:     2.09 kB
+.svelte-kit/output/client/app/immutable/nodes/42.CsKOjflx.js                            3.78 kB │ gzip:   1.91 kB │ map:     3.94 kB
+.svelte-kit/output/client/app/immutable/chunks/BsDm4Kw_.js                              4.13 kB │ gzip:   0.64 kB │ map:     7.35 kB
+.svelte-kit/output/client/app/immutable/chunks/5jA1jTFR.js                              4.33 kB │ gzip:   1.71 kB │ map:     5.62 kB
+.svelte-kit/output/client/app/immutable/nodes/40.B_9tzQN7.js                            4.54 kB │ gzip:   2.01 kB │ map:     6.98 kB
+.svelte-kit/output/client/app/immutable/chunks/CUY_HcG0.js                              4.56 kB │ gzip:   1.67 kB │ map:    12.09 kB
+.svelte-kit/output/client/app/immutable/chunks/Bd63Vloy.js                              5.30 kB │ gzip:   1.36 kB │ map:     4.40 kB
+.svelte-kit/output/client/app/immutable/chunks/Crgjm96O.js                              5.51 kB │ gzip:   2.26 kB │ map:    11.88 kB
+.svelte-kit/output/client/app/immutable/nodes/52.C45Ot9R1.js                            5.55 kB │ gzip:   1.84 kB │ map:     4.70 kB
+.svelte-kit/output/client/app/immutable/chunks/To8UkLVK.js                              5.56 kB │ gzip:   1.66 kB │ map:    19.16 kB
+.svelte-kit/output/client/app/immutable/chunks/CYPpD3db.js                              5.64 kB │ gzip:   2.13 kB │ map:    11.42 kB
+.svelte-kit/output/client/app/immutable/chunks/D1MEf7bX.js                              5.65 kB │ gzip:   1.72 kB │ map:    18.55 kB
+.svelte-kit/output/client/app/immutable/chunks/Df3T_xwo.js                              5.90 kB │ gzip:   1.82 kB │ map:     4.99 kB
+.svelte-kit/output/client/app/immutable/nodes/0.C9ab_4R-.js                             6.28 kB │ gzip:   2.11 kB │ map:    12.80 kB
+.svelte-kit/output/client/app/immutable/nodes/53.D34R44jE.js                            6.32 kB │ gzip:   2.32 kB │ map:     5.23 kB
+.svelte-kit/output/client/app/immutable/chunks/8LKypxE6.js                              6.50 kB │ gzip:   1.97 kB │ map:    12.25 kB
+.svelte-kit/output/client/app/immutable/chunks/CezZfjik.js                              6.56 kB │ gzip:   2.26 kB │ map:    13.21 kB
+.svelte-kit/output/client/app/immutable/chunks/B34LIRU7.js                              7.16 kB │ gzip:   1.65 kB │ map:    20.21 kB
+.svelte-kit/output/client/app/immutable/chunks/C1cde02f.js                              7.29 kB │ gzip:   2.25 kB │ map:    18.49 kB
+.svelte-kit/output/client/app/immutable/nodes/3.YhATvj3M.js                             7.67 kB │ gzip:   2.78 kB │ map:    10.30 kB
+.svelte-kit/output/client/app/immutable/nodes/13.D4BNJ6XL.js                            7.70 kB │ gzip:   2.57 kB │ map:     8.43 kB
+.svelte-kit/output/client/app/immutable/chunks/B75i5VdO.js                              8.28 kB │ gzip:   2.62 kB │ map:    13.08 kB
+.svelte-kit/output/client/app/immutable/nodes/20.D6kMr0Ot.js                            8.50 kB │ gzip:   3.21 kB │ map:    11.68 kB
+.svelte-kit/output/client/app/immutable/chunks/CUZtOehr.js                              8.54 kB │ gzip:   2.29 kB │ map:    19.56 kB
+.svelte-kit/output/client/app/immutable/chunks/B9JgZhla.js                              8.64 kB │ gzip:   2.77 kB │ map:    29.00 kB
+.svelte-kit/output/client/app/immutable/chunks/Yy_VGwJm.js                              8.78 kB │ gzip:   2.34 kB │ map:    24.75 kB
+.svelte-kit/output/client/app/immutable/nodes/12.DDeZnmxX.js                            9.47 kB │ gzip:   2.97 kB │ map:    10.55 kB
+.svelte-kit/output/client/app/immutable/chunks/Y3AGyfix.js                              9.58 kB │ gzip:   3.16 kB │ map:    37.57 kB
+.svelte-kit/output/client/app/immutable/chunks/C-rM61eA.js                              9.65 kB │ gzip:   3.59 kB │ map:    12.65 kB
+.svelte-kit/output/client/app/immutable/chunks/LWQE80zw.js                              9.85 kB │ gzip:   3.18 kB │ map:    36.49 kB
+.svelte-kit/output/client/app/immutable/chunks/Dz-OfFej.js                             10.52 kB │ gzip:   3.11 kB │ map:    25.68 kB
+.svelte-kit/output/client/app/immutable/nodes/19.CFQuKVfK.js                           10.74 kB │ gzip:   3.91 kB │ map:    17.18 kB
+.svelte-kit/output/client/app/immutable/nodes/16.CpNTK_DB.js                           11.23 kB │ gzip:   4.00 kB │ map:    17.37 kB
+.svelte-kit/output/client/app/immutable/nodes/51.CC5i-L7C.js                           11.62 kB │ gzip:   3.58 kB │ map:    11.33 kB
+.svelte-kit/output/client/app/immutable/nodes/38.CwaUp6n0.js                           12.09 kB │ gzip:   4.63 kB │ map:     2.25 kB
+.svelte-kit/output/client/app/immutable/nodes/27.B1TmoSrn.js                           12.38 kB │ gzip:   3.96 kB │ map:    12.27 kB
+.svelte-kit/output/client/app/immutable/nodes/50.CDWv_SUW.js                           12.50 kB │ gzip:   3.67 kB │ map:    14.42 kB
+.svelte-kit/output/client/app/immutable/nodes/44.CbEEXd_8.js                           12.74 kB │ gzip:   3.84 kB │ map:    20.14 kB
+.svelte-kit/output/client/app/immutable/nodes/2.C3qrWp_E.js                            13.29 kB │ gzip:   4.56 kB │ map:    20.08 kB
+.svelte-kit/output/client/app/immutable/chunks/Dw855f7x.js                             13.67 kB │ gzip:   3.64 kB │ map:    55.51 kB
+.svelte-kit/output/client/app/immutable/chunks/B4jHTHj-.js                             13.69 kB │ gzip:   3.64 kB │ map:    55.51 kB
+.svelte-kit/output/client/app/immutable/nodes/47.DPcjKsd_.js                           13.76 kB │ gzip:   3.59 kB │ map:    11.51 kB
+.svelte-kit/output/client/app/immutable/chunks/CJ2Wh9gn.js                             14.69 kB │ gzip:   4.07 kB │ map:    58.98 kB
+.svelte-kit/output/client/app/immutable/nodes/54.B01WAjlu.js                           14.89 kB │ gzip:   4.20 kB │ map:    16.32 kB
+.svelte-kit/output/client/app/immutable/nodes/28.CpECphXn.js                           15.12 kB │ gzip:   4.43 kB │ map:    13.50 kB
+.svelte-kit/output/client/app/immutable/nodes/49.Dm9MgSw1.js                           15.18 kB │ gzip:   4.47 kB │ map:    15.19 kB
+.svelte-kit/output/client/app/immutable/chunks/quFr0E5B.js                             17.39 kB │ gzip:   5.67 kB │ map:    25.88 kB
+.svelte-kit/output/client/app/immutable/chunks/Df6CkhA8.js                             17.56 kB │ gzip:   4.30 kB │ map:    45.65 kB
+.svelte-kit/output/client/app/immutable/nodes/30.DMLdW2rT.js                           17.66 kB │ gzip:   4.90 kB │ map:    17.28 kB
+.svelte-kit/output/client/app/immutable/chunks/c0r1v4eO.js                             18.32 kB │ gzip:   5.33 kB │ map:    44.33 kB
+.svelte-kit/output/client/app/immutable/nodes/18.BHG036OQ.js                           18.34 kB │ gzip:   5.66 kB │ map:    26.46 kB
+.svelte-kit/output/client/app/immutable/chunks/EbdmyMAB.js                             18.70 kB │ gzip:   4.77 kB │ map:    54.99 kB
+.svelte-kit/output/client/app/immutable/nodes/35.HCr3E1NH.js                           19.05 kB │ gzip:   5.12 kB │ map:    22.95 kB
+.svelte-kit/output/client/app/immutable/nodes/17.C3JjZFpu.js                           19.22 kB │ gzip:   5.94 kB │ map:    29.39 kB
+.svelte-kit/output/client/app/immutable/nodes/14.CcBPwjGG.js                           19.98 kB │ gzip:   5.92 kB │ map:    38.35 kB
+.svelte-kit/output/client/app/immutable/chunks/CCD5jWvN.js                             20.04 kB │ gzip:   6.35 kB │ map:    24.52 kB
+.svelte-kit/output/client/app/immutable/nodes/25.p1_f_xVU.js                           20.19 kB │ gzip:   5.45 kB │ map:    21.66 kB
+.svelte-kit/output/client/app/immutable/nodes/15.Bn4T0k88.js                           20.30 kB │ gzip:   5.72 kB │ map:    26.12 kB
+.svelte-kit/output/client/app/immutable/chunks/DqdlAeq6.js                             22.00 kB │ gzip:   6.27 kB │ map:    22.87 kB
+.svelte-kit/output/client/app/immutable/nodes/26.BJWyM-7c.js                           23.15 kB │ gzip:   6.53 kB │ map:    27.42 kB
+.svelte-kit/output/client/app/immutable/chunks/B5NxPeJx.js                             24.05 kB │ gzip:   5.75 kB │ map:    63.62 kB
+.svelte-kit/output/client/app/immutable/nodes/33.CANM7AZi.js                           25.19 kB │ gzip:   6.08 kB │ map:    27.18 kB
+.svelte-kit/output/client/app/immutable/nodes/45.B_Q72_H9.js                           25.64 kB │ gzip:   7.31 kB │ map:    31.83 kB
+.svelte-kit/output/client/app/immutable/nodes/48.HycWD72E.js                           29.83 kB │ gzip:   7.90 kB │ map:    36.00 kB
+.svelte-kit/output/client/app/immutable/chunks/QG9z3Aob.js                             31.15 kB │ gzip:   7.99 kB │ map:   102.98 kB
+.svelte-kit/output/client/app/immutable/chunks/BcnCAeIG.js                             33.33 kB │ gzip:   7.78 kB │ map:    91.16 kB
+.svelte-kit/output/client/app/immutable/chunks/WtF4578y.js                             38.01 kB │ gzip:   9.26 kB │ map:   116.02 kB
+.svelte-kit/output/client/app/immutable/chunks/BKMiM1yI.js                             43.95 kB │ gzip:  10.35 kB │ map:   119.50 kB
+.svelte-kit/output/client/app/immutable/entry/app.BdaeF4vh.js                          44.54 kB │ gzip:  11.67 kB │ map:    77.66 kB
+.svelte-kit/output/client/app/immutable/nodes/29.sTrot_Tr.js                           45.65 kB │ gzip:   9.77 kB │ map:    49.44 kB
+.svelte-kit/output/client/app/immutable/chunks/Dz3i2r7g.js                             46.91 kB │ gzip:  11.46 kB │ map:    96.31 kB
+.svelte-kit/output/client/app/immutable/chunks/Bdfhh3tt.js                             52.96 kB │ gzip:  14.69 kB │ map:   136.81 kB
+.svelte-kit/output/client/app/immutable/chunks/0Gm1NOCm.js                             56.90 kB │ gzip:  17.29 kB │ map:   208.57 kB
+.svelte-kit/output/client/app/immutable/nodes/39.DqzEf4ST.js                           57.37 kB │ gzip:  18.95 kB │ map:     8.53 kB
+.svelte-kit/output/client/app/immutable/nodes/31.B82pczmA.js                           74.69 kB │ gzip:  20.97 kB │ map:   162.85 kB
+.svelte-kit/output/client/app/immutable/chunks/BgUUvKkw.js                             80.74 kB │ gzip:  21.68 kB │ map:   309.29 kB
+.svelte-kit/output/client/app/immutable/chunks/7NGUkgfM.js                            100.96 kB │ gzip:  22.85 kB │ map:   249.61 kB
+.svelte-kit/output/client/app/immutable/nodes/37.D-CT3v0c.js                          113.78 kB │ gzip:  28.25 kB │ map:   161.65 kB
+.svelte-kit/output/client/app/immutable/chunks/DOAN57Lu.js                            122.94 kB │ gzip:  37.69 kB │ map:   347.17 kB
+.svelte-kit/output/client/app/immutable/chunks/CLhF-CI1.js                            133.02 kB │ gzip:  31.23 kB │ map:   337.67 kB
+.svelte-kit/output/client/app/immutable/nodes/34.ygHjV66c.js                          163.27 kB │ gzip:  32.03 kB │ map:   178.97 kB
+.svelte-kit/output/client/app/immutable/chunks/m5VH8zkM.js                            172.59 kB │ gzip:  45.17 kB │ map:   487.03 kB
+.svelte-kit/output/client/app/immutable/nodes/21.saojp4i2.js                          231.19 kB │ gzip:  57.15 kB │ map:   359.43 kB
+.svelte-kit/output/client/app/immutable/chunks/CxTBkiGn.js                            233.32 kB │ gzip:  56.05 kB │ map:   324.39 kB
+.svelte-kit/output/client/app/immutable/nodes/36.DcUbqVID.js                          281.88 kB │ gzip:  63.73 kB │ map:   404.69 kB
+.svelte-kit/output/client/app/immutable/chunks/ouV1p8zJ.js                            352.25 kB │ gzip:  79.61 kB │ map:   429.64 kB
+.svelte-kit/output/client/app/immutable/chunks/DNGjBmnq.js                            683.83 kB │ gzip: 190.62 kB │ map: 2,010.41 kB
+.svelte-kit/output/client/app/immutable/chunks/B1AFeGXE.js                          1,216.49 kB │ gzip: 321.69 kB │ map: 3,790.52 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 12.61s
+[environment] environment.ts loaded
+[base.service] base.service.ts loaded
+[BrowserAPI] Service initialized
+[AppStateManager] createAppStateManager: AppStateManager created {
+  state: {
+    set: [Function: set],
+    update: [Function: update],
+    subscribe: [Function: subscribe]
+  }
+}
+[getObjectFromLocalStorage] Getting key: yakklBookmarkedArticles useBrowserAPI: false
+[getObjectFromLocalStorage] Result for yakklBookmarkedArticles : null
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+📋 System extension registry initialized with 2 extensions
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+📋 System extension registry exported
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[WalletCache] currentAccountTokens: NO TOKENS FOUND {
+  activeChainId: 1,
+  activeAccountAddress: '',
+  hasChainCache: false,
+  hasAccountCache: false
+}
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[TokenStore] tokens derived - input from currentAccountTokens: { tokenCount: 0, tokensData: [] }
+[TokenStore] tokens derived - output: { resultCount: 0, hasBalances: false }
+[TokenStore] displayTokens CRITICAL: {
+  isMultiChainView: false,
+  singleTokensCount: 0,
+  multiTokensCount: 0,
+  resultCount: 0,
+  firstThreeTokens: []
+}
+currentPortfolioValue: Missing activeChainId or activeAccountAddress, returning 0
+currentPlan explorer_member
+currentPlan explorer_member
+currentPlan 2 explorer_member
+[TokenPortfolio] displayTokens derived: {
+  stableTokensCount: 0,
+  propsTokensCount: 0,
+  usingStable: false,
+  resultCount: 0,
+  resultIsArray: true,
+  firstToken: undefined
+}
+[TokenPortfolio] filteredAndSortedTokens: Processing tokens { tokenCount: 0, sortBy: 'value', sortOrder: 'desc', tokens: [] }
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[WalletCache] currentAccountTokens: NO TOKENS FOUND {
+  activeChainId: 1,
+  activeAccountAddress: '',
+  hasChainCache: false,
+  hasAccountCache: false
+}
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[TokenStore] tokens derived - input from currentAccountTokens: { tokenCount: 0, tokensData: [] }
+[TokenStore] tokens derived - output: { resultCount: 0, hasBalances: false }
+[TokenStore] displayTokens CRITICAL: {
+  isMultiChainView: false,
+  singleTokensCount: 0,
+  multiTokensCount: 0,
+  resultCount: 0,
+  firstThreeTokens: []
+}
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+[Root Layout] SSR context, skipping initialization
+[Root Layout] Load function called
+ReferenceError: document is not defined
+    at file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/_layout.js:1:35011
+    at render (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/index2.js:1:13424)
+    at Function._render [as render] (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/chunks/internal.js:1:8239)
+    at render_response (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:47580)
+    at async render_page (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:1:67342)
+    at async resolve2 (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:24535)
+    at async respond (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/.svelte-kit/output/server/index.js:7:22009)
+    at async visit (file:///Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/node_modules/.pnpm/@sveltejs+kit@2.26.1_@sveltejs+vite-plugin-svelte@6.1.0_svelte@5.37.1_vite@7.0.6_@types_f0be3e49f33ec76526de039f07c6c050/node_modules/@sveltejs/kit/src/core/postbuild/prerender.js:227:20)
+.svelte-kit/output/server/.vite/manifest.json                                                   44.31 kB
+.svelte-kit/output/server/app/immutable/assets/_page.CtrjRV7X.css                                0.06 kB
+.svelte-kit/output/server/app/immutable/assets/ScrollIndicator.7443H5x1.css                      0.07 kB
+.svelte-kit/output/server/app/immutable/assets/_layout.8PSmOl5U.css                              0.08 kB
+.svelte-kit/output/server/app/immutable/assets/_page.CAfKqLDq.css                                0.10 kB
+.svelte-kit/output/server/app/immutable/assets/_page.Dxt0OUVo.css                                0.10 kB
+.svelte-kit/output/server/app/immutable/assets/ExtensionDashboard.DZ1cTedZ.css                   0.11 kB
+.svelte-kit/output/server/app/immutable/assets/_page.D15k9NYW.css                                0.16 kB
+.svelte-kit/output/server/app/immutable/assets/_page.BcvCjPyi.css                                0.19 kB
+.svelte-kit/output/server/app/immutable/assets/TransactionDetailModal.CCBCoTpy.css               0.36 kB
+.svelte-kit/output/server/app/immutable/assets/_page.CPSq65vF.css                                0.43 kB
+.svelte-kit/output/server/app/immutable/assets/_page.BaDCgw0Y.css                                0.43 kB
+.svelte-kit/output/server/app/immutable/assets/_page.D6BwIo-r.css                                0.44 kB
+.svelte-kit/output/server/app/immutable/assets/_page.BEAeT4WR.css                                0.58 kB
+.svelte-kit/output/server/app/immutable/assets/_page.CWyAjsZH.css                                1.88 kB
+.svelte-kit/output/server/app/immutable/assets/_page.D2O2L6kK.css                                2.78 kB
+.svelte-kit/output/server/app/immutable/assets/ProtectedValue.6ZiB5IsA.css                       3.28 kB
+.svelte-kit/output/server/app/immutable/assets/OrbitalViewSelector.Bq2Zk_9p.css                  3.63 kB
+.svelte-kit/output/server/app/immutable/assets/_layout.BXdpV96d.css                              9.91 kB
+.svelte-kit/output/server/app/immutable/assets/_page.BfJvbmzF.css                               22.83 kB
+.svelte-kit/output/server/app/immutable/assets/app.BxqA7GKa.css                                394.22 kB
+.svelte-kit/output/server/entries/pages/(sidepanel)/sidepanel/_layout.ts.js                      0.10 kB │ map:     0.27 kB
+.svelte-kit/output/server/entries/pages/(wallet)/accounts/manage/_layout.ts.js                   0.10 kB │ map:     0.32 kB
+.svelte-kit/output/server/chunks/client2.js                                                      0.11 kB │ map:     1.89 kB
+.svelte-kit/output/server/chunks/index-server.js                                                 0.19 kB │ map:     1.49 kB
+.svelte-kit/output/server/chunks/html.js                                                         0.21 kB │ map:     0.64 kB
+.svelte-kit/output/server/chunks/extensionConnection.js                                          0.26 kB │ map:     6.31 kB
+.svelte-kit/output/server/internal.js                                                            0.30 kB │ map:     0.09 kB
+.svelte-kit/output/server/chunks/stores.js                                                       0.39 kB │ map:     4.88 kB
+.svelte-kit/output/server/chunks/message.service.js                                              0.39 kB │ map:     1.29 kB
+.svelte-kit/output/server/chunks/safeNavigate.js                                                 0.39 kB │ map:     0.88 kB
+.svelte-kit/output/server/chunks/client-messaging.js                                             0.49 kB │ map:     2.58 kB
+.svelte-kit/output/server/entries/pages/(wallet)/_layout.svelte.js                               0.69 kB │ map:     0.10 kB
+.svelte-kit/output/server/chunks/AIHelpButton.js                                                 0.76 kB │ map:     0.37 kB
+.svelte-kit/output/server/entries/pages/_error.svelte.js                                         0.77 kB │ map:     0.10 kB
+.svelte-kit/output/server/chunks/logger-wrapper.js                                               0.81 kB │ map:     3.47 kB
+.svelte-kit/output/server/entries/fallbacks/layout.svelte.js                                     0.82 kB │ map:     0.50 kB
+.svelte-kit/output/server/entries/pages/(wallet)/legal/_layout@.svelte.js                        0.93 kB │ map:     0.75 kB
+.svelte-kit/output/server/entries/pages/(wallet)/login/_layout@.svelte.js                        0.93 kB │ map:     0.75 kB
+.svelte-kit/output/server/chunks/virtual_browser-polyfill-mock.js                                0.96 kB │ map:     3.00 kB
+.svelte-kit/output/server/chunks/client.js                                                       0.97 kB │ map:   109.08 kB
+.svelte-kit/output/server/entries/pages/(wallet)/tokens/_page.svelte.js                          0.97 kB │ map:     0.10 kB
+.svelte-kit/output/server/entries/pages/(wallet)/preferences/_page.svelte.js                     0.99 kB │ map:     0.10 kB
+.svelte-kit/output/server/entries/pages/(wallet)/ai-help/_page.svelte.js                         1.01 kB │ map:     0.10 kB
+.svelte-kit/output/server/chunks/SimpleTooltip.js                                                1.06 kB │ map:     9.30 kB
+.svelte-kit/output/server/entries/pages/_layout.svelte.js                                        1.08 kB │ map:     0.80 kB
+.svelte-kit/output/server/entries/pages/(splash)/popup/_layout.svelte.js                         1.15 kB │ map:     0.95 kB
+.svelte-kit/output/server/entries/pages/(splash)/popup/popup/_layout.svelte.js                   1.16 kB │ map:     0.96 kB
+.svelte-kit/output/server/chunks/rateLimiter.js                                                  1.17 kB │ map:     4.46 kB
+.svelte-kit/output/server/entries/pages/(wallet)/_page.svelte.js                                 1.22 kB │ map:     0.93 kB
+.svelte-kit/output/server/chunks/LockIcon.js                                                     1.25 kB │ map:     0.88 kB
+.svelte-kit/output/server/chunks/plus.js                                                         1.26 kB │ map:     1.55 kB
+.svelte-kit/output/server/entries/pages/(splash)/popup/_page.svelte.js                           1.28 kB │ map:    10.08 kB
+.svelte-kit/output/server/chunks/search.js                                                       1.29 kB │ map:     1.64 kB
+.svelte-kit/output/server/chunks/chevron-left.js                                                 1.31 kB │ map:     1.51 kB
+.svelte-kit/output/server/entries/pages/(splash)/popup/popup/_page.svelte.js                     1.32 kB │ map:     2.70 kB
+.svelte-kit/output/server/chunks/copy.js                                                         1.34 kB │ map:     1.85 kB
+.svelte-kit/output/server/entries/pages/(wallet)/accounts/export/_page.svelte.js                 1.38 kB │ map:     4.95 kB
+.svelte-kit/output/server/chunks/download.js                                                     1.38 kB │ map:     1.90 kB
+.svelte-kit/output/server/chunks/trash-2.js                                                      1.45 kB │ map:     2.18 kB
+.svelte-kit/output/server/chunks/utils2.js                                                       1.45 kB │ map:    23.22 kB
+.svelte-kit/output/server/entries/pages/(wallet)/_layout.ts.js                                   1.60 kB │ map:     3.60 kB
+.svelte-kit/output/server/entries/pages/(wallet)/register/_page.svelte.js                        1.62 kB │ map:     3.77 kB
+.svelte-kit/output/server/entries/pages/(wallet)/logout/_page.svelte.js                          1.65 kB │ map:     1.59 kB
+.svelte-kit/output/server/entries/pages/(wallet)/accounts/import/_page.svelte.js                 1.69 kB │ map:     5.60 kB
+.svelte-kit/output/server/entries/pages/(wallet)/test-network-speed/_page.svelte.js              1.80 kB │ map:     4.23 kB
+.svelte-kit/output/server/chunks/index.js                                                        1.93 kB │ map:     8.02 kB
+.svelte-kit/output/server/chunks/ErrorNoAction.js                                                1.95 kB │ map:     1.27 kB
+.svelte-kit/output/server/chunks/Failed.js                                                       1.96 kB │ map:     1.32 kB
+.svelte-kit/output/server/entries/pages/(wallet)/send/_page.svelte.js                            2.00 kB │ map:     0.98 kB
+.svelte-kit/output/server/chunks/Button.js                                                       2.02 kB │ map:     2.55 kB
+.svelte-kit/output/server/chunks/Copyright.js                                                    2.05 kB │ map:     2.68 kB
+.svelte-kit/output/server/entries/pages/(wallet)/accounts/create/_page.svelte.js                 2.07 kB │ map:    22.82 kB
+.svelte-kit/output/server/chunks/SubMenu.js                                                      2.14 kB │ map:     1.76 kB
+.svelte-kit/output/server/chunks/AppStateManager.js                                              2.23 kB │ map:     9.73 kB
+.svelte-kit/output/server/entries/pages/(wallet)/extensions/_page.svelte.js                      2.27 kB │ map:     2.05 kB
+.svelte-kit/output/server/chunks/Copy2.js                                                        2.28 kB │ map:     9.32 kB
+.svelte-kit/output/server/entries/pages/(dapp)/dapp/_page.svelte.js                              2.41 kB │ map:     2.96 kB
+.svelte-kit/output/server/chunks/Confirmation.js                                                 2.43 kB │ map:     2.08 kB
+.svelte-kit/output/server/chunks/Modal.js                                                        2.61 kB │ map:     2.44 kB
+.svelte-kit/output/server/entries/pages/(wallet)/dashboard/_page.svelte.js                       2.68 kB │ map:    10.77 kB
+.svelte-kit/output/server/entries/pages/(wallet)/logout/_error.svelte.js                         2.71 kB │ map:     1.68 kB
+.svelte-kit/output/server/chunks/ScrollIndicator.js                                              2.74 kB │ map:     7.31 kB
+.svelte-kit/output/server/chunks/Icon2.js                                                        2.79 kB │ map:     2.72 kB
+.svelte-kit/output/server/chunks/spring.js                                                       2.83 kB │ map:    16.74 kB
+.svelte-kit/output/server/chunks/settings.js                                                     3.00 kB │ map:     4.59 kB
+.svelte-kit/output/server/entries/pages/(sidepanel)/sidepanel/_layout@.svelte.js                 3.15 kB │ map:     8.15 kB
+.svelte-kit/output/server/chunks/ui.store.js                                                     3.17 kB │ map:    10.49 kB
+.svelte-kit/output/server/chunks/environment.js                                                  3.43 kB │ map:    12.45 kB
+.svelte-kit/output/server/entries/pages/(dapp)/dapp/_layout@.svelte.js                           3.57 kB │ map:    16.71 kB
+.svelte-kit/output/server/chunks/authValidation.js                                               3.60 kB │ map:    12.09 kB
+.svelte-kit/output/server/entries/pages/(wallet)/phishing/_page.svelte.js                        4.05 kB │ map:     3.37 kB
+.svelte-kit/output/server/entries/pages/(wallet)/login/_page.svelte.js                           4.09 kB │ map:     6.45 kB
+.svelte-kit/output/server/chunks/browser-api-messages.js                                         4.14 kB │ map:     7.35 kB
+.svelte-kit/output/server/chunks/exports.js                                                      4.47 kB │ map:    12.48 kB
+.svelte-kit/output/server/entries/pages/(dapp)/dapp/EIP6963/_page.svelte.js                      5.23 kB │ map:     8.38 kB
+.svelte-kit/output/server/chunks/Icon.js                                                         5.39 kB │ map:     4.77 kB
+.svelte-kit/output/server/chunks/PincodeVerify.js                                                5.56 kB │ map:     9.48 kB
+.svelte-kit/output/server/chunks/browser-api-port.service.js                                     5.65 kB │ map:    18.52 kB
+.svelte-kit/output/server/entries/pages/(wallet)/test-copy/_page.svelte.js                       5.68 kB │ map:     4.29 kB
+.svelte-kit/output/server/entries/pages/(dapp)/dapp/login/_page.svelte.js                        5.83 kB │ map:     7.46 kB
+.svelte-kit/output/server/chunks/RefreshIcon.js                                                  6.14 kB │ map:     4.26 kB
+.svelte-kit/output/server/entries/pages/(wallet)/swap/_page.svelte.js                            6.52 kB │ map:    12.04 kB
+.svelte-kit/output/server/entries/pages/(wallet)/test-browser-api/_page.svelte.js                6.63 kB │ map:    10.65 kB
+.svelte-kit/output/server/entries/pages/(dapp)/dapp/walletConnect/_page.svelte.js                6.78 kB │ map:     9.53 kB
+.svelte-kit/output/server/entries/pages/(dapp)/dapp/popups/wallet/_page.svelte.js                6.94 kB │ map:    14.16 kB
+.svelte-kit/output/server/entries/pages/(wallet)/test-browser-api-port/_page.svelte.js           6.96 kB │ map:     9.09 kB
+.svelte-kit/output/server/chunks/create-form.js                                                  7.29 kB │ map:    18.48 kB
+.svelte-kit/output/server/entries/pages/(dapp)/dapp/popups/permissions/_page.svelte.js           7.45 kB │ map:    14.16 kB
+.svelte-kit/output/server/chunks/Logger.js                                                       7.47 kB │ map:    23.41 kB
+.svelte-kit/output/server/entries/pages/(wallet)/test-vault/_page.svelte.js                      7.50 kB │ map:    12.69 kB
+.svelte-kit/output/server/chunks/ProtectedValue.js                                               7.62 kB │ map:    30.54 kB
+.svelte-kit/output/server/entries/pages/_layout.ts.js                                            8.64 kB │ map:    23.18 kB
+.svelte-kit/output/server/entries/pages/(wallet)/accounts/create-new/_page.svelte.js             9.12 kB │ map:    10.81 kB
+.svelte-kit/output/server/entries/pages/(dapp)/dapp/popups/sign/_page.svelte.js                  9.30 kB │ map:    24.02 kB
+.svelte-kit/output/server/entries/pages/(dapp)/dapp/popups/approve/_page.svelte.js              10.62 kB │ map:    26.71 kB
+.svelte-kit/output/server/chunks/Upgrade.js                                                     11.19 kB │ map:    20.32 kB
+.svelte-kit/output/server/entries/pages/(wallet)/contacts/_page.svelte.js                       11.54 kB │ map:    22.90 kB
+.svelte-kit/output/server/entries/pages/(wallet)/accounts/print-emergency-kit/_page.svelte.js   12.32 kB │ map:    22.25 kB
+.svelte-kit/output/server/entries/pages/(wallet)/legal/privacy/_page.svelte.js                  12.75 kB │ map:     2.19 kB
+.svelte-kit/output/server/entries/pages/(dapp)/dapp/popups/accounts/_page.svelte.js             13.24 kB │ map:    33.87 kB
+.svelte-kit/output/server/chunks/OrbitalViewSelector.js                                         13.61 kB │ map:    24.04 kB
+.svelte-kit/output/server/entries/pages/(dapp)/dapp/popups/transactions/_page.svelte.js         13.90 kB │ map:    22.30 kB
+.svelte-kit/output/server/chunks/auth-store.js                                                  14.96 kB │ map:    42.76 kB
+.svelte-kit/output/server/chunks/internal.js                                                    15.16 kB │ map:    66.42 kB
+.svelte-kit/output/server/entries/pages/(wallet)/register/create/_page.svelte.js                16.16 kB │ map:    25.69 kB
+.svelte-kit/output/server/entries/pages/(wallet)/accounts/manage/_address_/_page.svelte.js      17.20 kB │ map:    17.71 kB
+.svelte-kit/output/server/chunks/view.store.js                                                  17.40 kB │ map:    45.57 kB
+.svelte-kit/output/server/chunks/index2.js                                                      17.95 kB │ map:    71.57 kB
+.svelte-kit/output/server/entries/pages/(wallet)/accounts/_page.svelte.js                       18.17 kB │ map:    21.15 kB
+.svelte-kit/output/server/chunks/Login.js                                                       18.58 kB │ map:    22.18 kB
+.svelte-kit/output/server/entries/pages/(wallet)/settings/_page.svelte.js                       19.61 kB │ map:    11.11 kB
+.svelte-kit/output/server/entries/pages/(wallet)/settings/keys/_page.svelte.js                  22.78 kB │ map:    32.32 kB
+.svelte-kit/output/server/chunks/session.js                                                     32.32 kB │ map:    91.07 kB
+.svelte-kit/output/server/chunks/utils.js                                                       39.83 kB │ map:   202.06 kB
+.svelte-kit/output/server/chunks/ExtensionDashboard.js                                          41.61 kB │ map:    94.83 kB
+.svelte-kit/output/server/entries/pages/(wallet)/legal/tos/_page.svelte.js                      55.83 kB │ map:     6.54 kB
+.svelte-kit/output/server/chunks/TransactionDetailModal.js                                      85.75 kB │ map:   148.16 kB
+.svelte-kit/output/server/entries/pages/(wallet)/innovation/_page.svelte.js                     85.92 kB │ map:   140.08 kB
+.svelte-kit/output/server/index.js                                                              97.54 kB │ map:   307.14 kB
+.svelte-kit/output/server/entries/pages/(sidepanel)/sidepanel/sidepanel/_page.svelte.js        119.39 kB │ map:   291.71 kB
+.svelte-kit/output/server/chunks/_layout.js                                                    158.20 kB │ map:   291.17 kB
+.svelte-kit/output/server/entries/pages/(wallet)/home/_page.svelte.js                          174.03 kB │ map:   302.80 kB
+.svelte-kit/output/server/chunks/utilities.js                                                  415.24 kB │ map: 1,341.47 kB
+.svelte-kit/output/server/chunks/index3.js                                                     679.77 kB │ map: 1,942.35 kB
+[Root Layout] SSR context, skipping initialization
+[vite-plugin-static-copy] Copied 1 items.
+✓ built in 22.58s
+
+Run npm run preview to preview your production build locally.
+
+> Using sveltekit-adapter-chrome-extension
+  Removing Inline Scripts
+  ✔ Inline script extracted and saved at: build/script-1wvgtu1.js
+  ✔ Inline script extracted and saved at: build/script-tq76v9.js
+  Removing App Manifest
+  Removing App Manifest
+  ✔ Removed app manifest file at path: /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/build/manifest.json
+  Re-writing extension manifest
+  ✔ Successfully re-wrote extension manifest
+  ✔ done
+  Wrote site to "build"
+[CSP Build] Injected browser polyfill into ./build/eip6963-test.html
+[CSP Build] Injected browser polyfill into ./build/index.html
+[CSP Build] Injected browser polyfill into ./build/sidepanel_orig.html
+[CSP Build] Injected browser polyfill into ./build/snippet-privacy.html
+[CSP Build] Injected browser polyfill into ./build/snippet-tos.html

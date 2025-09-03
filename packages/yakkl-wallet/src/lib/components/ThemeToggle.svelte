@@ -2,6 +2,11 @@
   const { className = '' }: { className?: string } = $props();
 
   function setTheme(mode: 'light' | 'dark' | 'system') {
+    // Check if we're in a browser environment
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return;
+    }
+    
     sessionStorage.setItem('class', mode);
     document.documentElement.classList.remove('light', 'dark');
     if (mode === 'light') {

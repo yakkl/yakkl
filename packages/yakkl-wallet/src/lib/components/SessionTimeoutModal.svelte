@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import Modal from '$lib/components/Modal.svelte';
-	import Button from '$lib/components/Button.svelte';
+	import Modal from '@yakkl/ui/src/components/Modal.svelte';
+	import Button from '@yakkl/ui/src/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { fade, scale } from 'svelte/transition';
 	import { browser_ext } from '$lib/common/environment';

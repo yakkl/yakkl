@@ -125,9 +125,14 @@ export class ExtensionContextManager {
     const extension = (globalThis as any).chrome?.extension || (globalThis as any).browser?.extension;
 
     // Check for service worker (background)
-    if (typeof ServiceWorkerGlobalScope !== 'undefined' && self instanceof ServiceWorkerGlobalScope) {
-      this.contextInfo = { type: 'background' };
-      return;
+    // Use try-catch since ServiceWorkerGlobalScope might not be available
+    try {
+      if (typeof self !== 'undefined' && (self as any).ServiceWorkerGlobalScope && self instanceof (self as any).ServiceWorkerGlobalScope) {
+        this.contextInfo = { type: 'background' };
+        return;
+      }
+    } catch {
+      // Not a service worker context
     }
 
     // Check for background page (legacy)

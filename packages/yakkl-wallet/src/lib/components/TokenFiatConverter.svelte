@@ -1,6 +1,6 @@
 <!-- src/lib/components/TokenFiatConverter.svelte -->
 <script lang="ts">
-	import Modal from './Modal.svelte';
+	import Modal from '@yakkl/ui/src/components/Modal.svelte';
 	import { onMount } from 'svelte';
 	import type { TokenData } from '$lib/common';
 	import { PriceManager } from '$lib/managers/PriceManager';

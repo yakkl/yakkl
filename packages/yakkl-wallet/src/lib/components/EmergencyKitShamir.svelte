@@ -2,7 +2,7 @@
   import { ShamirSecretManager, type ShamirResult, type ShamirShard } from '$lib/managers/ShamirSecretManager';
   import { notificationService } from '$lib/services/notification.service';
   import { log } from '$lib/common/logger-wrapper';
-  import Modal from '$lib/components/Modal.svelte';
+  import Modal from '@yakkl/ui/src/components/Modal.svelte';
   
   let { 
     show = $bindable(false),

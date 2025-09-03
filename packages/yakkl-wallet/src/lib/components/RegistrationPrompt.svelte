@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Modal from './Modal.svelte';
+	import Modal from '@yakkl/ui/src/components/Modal.svelte';
 	import { browser_ext } from '$lib/common/environment';
 
 	interface Props {

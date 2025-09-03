@@ -3,7 +3,7 @@
  * Abstraction for browser.storage API with type safety
  */
 
-import type { Storage } from 'webextension-polyfill';
+import type { Storage, Browser } from 'webextension-polyfill';
 
 export type StorageArea = 'local' | 'sync' | 'managed' | 'session';
 
@@ -30,26 +30,40 @@ export class ExtensionStorage<T extends Record<string, any> = Record<string, any
   private area: Storage.StorageArea;
   private prefix: string;
   private encrypt: boolean;
+  private timeout: number;
 
   constructor(options: StorageOptions = {}) {
     this.prefix = options.prefix || '';
     this.encrypt = options.encrypt || false;
+    this.timeout = 2000; // Default timeout for operations
     this.area = this.getStorageArea(options.area || 'local');
   }
 
   /**
-   * Get item from storage
+   * Get item from storage with timeout support
    */
-  async get<K extends keyof T>(key: K): Promise<T[K] | undefined> {
+  async get<K extends keyof T>(key: K, timeoutMs?: number): Promise<T[K] | undefined> {
     const fullKey = this.getFullKey(key as string);
-    const result = await this.area.get(fullKey);
+    const timeout = timeoutMs || this.timeout;
     
-    if (result[fullKey] === undefined) {
+    try {
+      const storagePromise = this.area.get(fullKey);
+      const timeoutPromise = new Promise<null>((resolve) =>
+        setTimeout(() => resolve(null), timeout)
+      );
+      
+      const result = await Promise.race([storagePromise, timeoutPromise]);
+      
+      if (!result || result[fullKey] === undefined) {
+        return undefined;
+      }
+
+      const value = result[fullKey];
+      return this.encrypt ? await this.decryptValue(value) : value;
+    } catch (error) {
+      console.error('Error getting object from storage:', error);
       return undefined;
     }
-
-    const value = result[fullKey];
-    return this.decrypt ? await this.decryptValue(value) : value;
   }
 
   /**
@@ -248,11 +262,62 @@ export class ExtensionStorage<T extends Record<string, any> = Record<string, any
   /**
    * Get browser API
    */
-  private async getBrowser(): Promise<typeof import('webextension-polyfill')> {
-    if (typeof browser !== 'undefined') {
-      return browser as any;
+  private async getBrowser(): Promise<Browser> {
+    if (typeof globalThis !== 'undefined' && (globalThis as any).browser) {
+      return (globalThis as any).browser as Browser;
     }
-    return await import('webextension-polyfill');
+    // Use static import at top of file for service worker compatibility
+    const webExtension = await import('webextension-polyfill');
+    return webExtension.default || webExtension;
+  }
+  
+  /**
+   * Direct storage access (bypasses prefix)
+   */
+  async getDirect<V = any>(key: string, timeoutMs?: number): Promise<V | null> {
+    const timeout = timeoutMs || this.timeout;
+    
+    try {
+      const storagePromise = this.area.get(key);
+      const timeoutPromise = new Promise<null>((resolve) =>
+        setTimeout(() => resolve(null), timeout)
+      );
+      
+      const result = await Promise.race([storagePromise, timeoutPromise]);
+      
+      if (!result || !(key in result)) {
+        return null;
+      }
+      
+      return result[key] as V;
+    } catch (error) {
+      console.error('Error getting object from storage (direct):', error);
+      return null;
+    }
+  }
+  
+  /**
+   * Set item directly (bypasses prefix)
+   */
+  async setDirect<V = any>(key: string, value: V): Promise<void> {
+    try {
+      await this.area.set({ [key]: value });
+    } catch (error) {
+      console.error('Error setting object in storage (direct):', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Remove item directly (bypasses prefix)
+   */
+  async removeDirect(key: string): Promise<void> {
+    try {
+      await this.area.remove(key);
+    } catch (error) {
+      console.error('Error removing object from storage (direct):', error);
+      throw error;
+    }
   }
 }
 

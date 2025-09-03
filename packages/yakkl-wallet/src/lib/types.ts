@@ -144,3 +144,73 @@ export interface UIResponse {
   error?: string;
   id: string;
 }
+
+// Cache-related types
+export interface TokenCache {
+  address: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  balance: string;
+  price?: number;
+  value?: string;
+  logo?: string;
+  icon?: string; // Legacy compatibility (alias for logo)
+  isNative?: boolean;
+  chainId?: number;
+  balanceLastUpdated?: Date | string; // Legacy compatibility
+  priceLastUpdated?: Date | string; // Legacy compatibility
+  price24hChange?: number; // Legacy compatibility
+}
+
+export interface TransactionCache {
+  hash: string;
+  from: string;
+  to: string;
+  value: string;
+  timestamp: number;
+  status: 'pending' | 'confirmed' | 'failed';
+  type: 'send' | 'receive' | 'swap' | 'contract';
+  gas?: string;
+  gasPrice?: string;
+  blockNumber?: string;
+  chainId?: number;
+}
+
+export interface AccountCache {
+  address: string;
+  chainId: number;
+  tokens: TokenCache[];
+  transactions: TransactionCache[];
+  updateDate: string;
+}
+
+export interface WalletCacheController {
+  version: number;
+  accounts: Record<string, AccountCache>;
+  chainAccountCache?: Record<number, Record<string, any>>; // Legacy compatibility
+  currentAccount: any | null; // Using any temporarily until YakklAccount is properly imported
+  currentNetwork: number;
+  activeAccountAddress?: string; // Legacy compatibility
+  activeChainId?: number; // Legacy compatibility
+  lastUpdateDate: string;
+  lastSync?: string; // Legacy compatibility
+  isInitializing: boolean;
+  hasEverLoaded: boolean;
+  portfolioRollups?: { // Legacy compatibility
+    grandTotal?: { totalValue: any };
+    [key: string]: any;
+  };
+  accountMetadata?: { // Legacy compatibility
+    watchListAccounts?: any[];
+    [key: string]: any;
+  };
+}
+
+export interface Portfolio {
+  accountId: string;
+  totalValue: string;
+  tokens: TokenCache[];
+  lastUpdated: string;
+  chains: number[];
+}

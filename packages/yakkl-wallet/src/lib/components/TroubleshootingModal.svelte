@@ -6,7 +6,7 @@
   import PerformanceProfiler from './troubleshooting/PerformanceProfiler.svelte';
   import { isProUser } from '$lib/stores/plan.store';
   import Upgrade from './Upgrade.svelte';
-  import Modal from './Modal.svelte';
+  import Modal from '@yakkl/ui/src/components/Modal.svelte';
 	import { canUseFeature } from '$lib/utils/features';
 
   let { show = $bindable(false) } = $props();

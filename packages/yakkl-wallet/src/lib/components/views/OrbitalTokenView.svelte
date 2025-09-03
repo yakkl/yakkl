@@ -223,9 +223,11 @@
 		}
 		
 		// Add global mouse event listeners for drag
-		document.addEventListener('mousemove', handleDragMove);
-		document.addEventListener('mouseup', handleDragEnd);
-		document.addEventListener('keydown', handleKeydown);
+		if (typeof document !== 'undefined') {
+			document.addEventListener('mousemove', handleDragMove);
+			document.addEventListener('mouseup', handleDragEnd);
+			document.addEventListener('keydown', handleKeydown);
+		}
 	});
 	
 	onDestroy(() => {
@@ -233,9 +235,11 @@
 		if (containerEl) {
 			containerEl.removeEventListener('wheel', handleWheel);
 		}
-		document.removeEventListener('mousemove', handleDragMove);
-		document.removeEventListener('mouseup', handleDragEnd);
-		document.removeEventListener('keydown', handleKeydown);
+		if (typeof document !== 'undefined') {
+			document.removeEventListener('mousemove', handleDragMove);
+			document.removeEventListener('mouseup', handleDragEnd);
+			document.removeEventListener('keydown', handleKeydown);
+		}
 		
 		// Stop auto-rotate
 		stopAutoRotate();

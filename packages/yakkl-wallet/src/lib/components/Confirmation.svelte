@@ -1,6 +1,6 @@
 <!-- Confirmation.svelte -->
 <script lang="ts">
-	import Modal from './Modal.svelte';
+	import Modal from '@yakkl/ui/src/components/Modal.svelte';
 
 	interface Props {
 		show: boolean;
