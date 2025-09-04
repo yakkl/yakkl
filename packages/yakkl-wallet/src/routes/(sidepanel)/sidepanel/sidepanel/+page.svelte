@@ -9,7 +9,6 @@
 	import { onMount } from 'svelte';
 	import {
 		getYakklSettingsDirect,
-		setYakklSettingsStorage,
 		setYakklCombinedTokenStorage,
 		updateCombinedTokenStore,
 		yakklCombinedTokenStore
@@ -31,11 +30,11 @@
 	import { isProLevel } from '$lib/common/utils';
 	import Upgrade from '$lib/components/Upgrade.svelte';
 	// import GenericFooter from '$lib/components/GenericFooter.svelte';
-	import UpgradeFooter from '$lib/components/UpgradeFooter.svelte';
+	// import UpgradeFooter from '$lib/components/UpgradeFooter.svelte';
 	// import Placeholder from '$lib/components/Placeholder.svelte';
 	import DynamicRSSNewsFeed from '$lib/components/DynamicRSSNewsFeed.svelte';
-	import PlanBadge from '$lib/components/PlanBadge.svelte';
-	import { type Sponsor } from '$lib/components/Sponsorship.svelte';
+	// import PlanBadge from '$lib/components/PlanBadge.svelte';
+	// import { type Sponsor } from '$lib/components/Sponsorship.svelte';
 	import ScrollIndicator from '$lib/components/ScrollIndicator.svelte';
 	import SimpleTooltip from '$lib/components/SimpleTooltip.svelte';
 	import ChainSelector from '$lib/components/ChainSelector.svelte';
@@ -46,20 +45,17 @@
 	let showChainSelector = $state(false);
 	let showResponsiveMessage = $state(true);
 	let showFooter = $state(true);
-	let showTokenFiatConverter = $state(false);
+	// let showTokenFiatConverter = $state(false);
 	let init = $state(false);
 	let locked = $state(false); // No longer locked
-	let foundingUser = $state(false);
 	let tokensLockedCount = $state(0); // Show all tokens for both Basic and Pro
 	let newsfeedsLockedCount = $state(6);
 	let maxVisibleTokens = $state(0); // Show all tokens initially
 	// let showBanner = $state(true);
-	let showNewsfeeds = $state(false);
+	// let showNewsfeeds = $state(false);
 	let showDynamicNewsfeeds = $state(false);
-	// let showLegalTerms = $state(false);
-	let isAgreed = $state(false);
 	// let planType = $state('yakkl_pro (Trial)');
-	let trialEnds = $state('2025-07-01');
+	// let trialEnds = $state('2025-07-01');
 
 	// List of crypto news RSS feeds
 	// Note: Some feeds like DeepNewz will use a proxy automatically to prevent preload warnings
@@ -87,12 +83,19 @@
 	async function openWallet() {
 		if (browser_ext) {
 			try {
-				// Use browser_ext directly for reliability
-				console.log('[Sidepanel] Opening wallet popup via browser_ext...');
-				const response = await browser_ext.runtime.sendMessage({ type: 'popout' });
-				console.log('[Sidepanel] Popup response:', response);
-			} catch (error) {
-				console.error('[Sidepanel] Failed to open wallet:', error);
+				await browser_ext.runtime.sendMessage({ type: 'popout' });
+			} catch (error: any) {
+				console.warn('[Sidepanel] Failed to open wallet:', error);
+
+				// Try direct chrome API as fallback
+				if (typeof chrome !== 'undefined' && chrome?.runtime?.sendMessage) {
+					console.log('[Sidepanel] Trying direct chrome.runtime.sendMessage...');
+					try {
+						chrome.runtime.sendMessage({ type: 'popout' });
+					} catch (chromeError: any) {
+						console.error('[Sidepanel] Chrome API also failed:', chromeError?.message);
+					}
+				}
 			}
 		} else {
 			console.error('[Sidepanel] browser_ext not available');
@@ -100,16 +103,16 @@
 	}
 
 	// DO NOT REMOVE THESE BANNER ITEMS NOR COMMENTS
-	const bannerItems = [
-		{
-			type: 'banner' as const,
-			title: 'Welcome to YAKKL',
-			message: 'Your secure crypto wallet'
-			// ctaText: 'UPGRADE',
-			// onCallToAction: (index: number) => {
-			//   console.log('Upgrade clicked for item at index:', index);
-			// }
-		}
+	// const bannerItems = [
+	// 	{
+	// 		type: 'banner' as const,
+	// 		title: 'Welcome to YAKKL',
+	// 		message: 'Your secure crypto wallet'
+	// 		// ctaText: 'UPGRADE',
+	// 		// onCallToAction: (index: number) => {
+	// 		//   console.log('Upgrade clicked for item at index:', index);
+	// 		// }
+	// 	}
 		// #region example of an ad
 		// {
 		//   type: 'ad' as const,
@@ -137,34 +140,34 @@
 		//   }
 		// }
 		// #endregion
-	];
+	// ];
 
-	const content = `
-    <div class="w-full h-full flex flex-col rounded-2xl overflow-hidden bg-white shadow-md hover:shadow-lg transition-shadow duration-300">
-    <!-- Image Section -->
-    <div class="flex-grow aspect-[1/1] relative">
-      <img
-        src="/images/sponsors/logoCryptoGrampsTrimmed.png"
-        alt="CryptoGramps Sponsorship Ad"
-        class="w-full h-full object-contain p-4"
-      />
-    </div>
-
-    <!-- Content Section -->
-    <div class="p-4 text-center flex flex-col justify-center">
-      <h3 class="text-base md:text-lg font-semibold text-gray-800 mb-1">Sponsored by CryptoGramps</h3>
-      <p class="text-sm md:text-base text-gray-600 mb-2">Bridging AI & Blockchain wisdom.</p>
-      <a
-        href="https://CryptoGramps.ai"
-        class="inline-block px-4 py-2 bg-blue-600 text-white text-sm md:text-base rounded-lg hover:bg-blue-700 transition"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        CryptoGramps.ai
-      </a>
-    </div>
-    </div>
-  `;
+	// const content = `
+  //   <div class="w-full h-full flex flex-col rounded-2xl overflow-hidden bg-white shadow-md hover:shadow-lg transition-shadow duration-300">
+  //   <!-- Image Section -->
+  //   <div class="flex-grow aspect-[1/1] relative">
+  //     <img
+  //       src="/images/sponsors/logoCryptoGrampsTrimmed.png"
+  //       alt="CryptoGramps Sponsorship Ad"
+  //       class="w-full h-full object-contain p-4"
+  //     />
+  //   </div>
+  //
+  //   <!-- Content Section -->
+  //   <div class="p-4 text-center flex flex-col justify-center">
+  //     <h3 class="text-base md:text-lg font-semibold text-gray-800 mb-1">Sponsored by CryptoGramps</h3>
+  //     <p class="text-sm md:text-base text-gray-600 mb-2">Bridging AI & Blockchain wisdom.</p>
+  //     <a
+  //       href="https://CryptoGramps.ai"
+  //       class="inline-block px-4 py-2 bg-blue-600 text-white text-sm md:text-base rounded-lg hover:bg-blue-700 transition"
+  //       target="_blank"
+  //       rel="noopener noreferrer"
+  //     >
+  //       CryptoGramps.ai
+  //     </a>
+  //   </div>
+  //   </div>
+  // `;
 
 	// Example of how to handle onCallToAction in a single function
 	// Define a single handler function
@@ -206,26 +209,26 @@
 	// }
 
 	// This is for the sponsors section that lives in the sidepanel and not the banner which is above.
-	const sponsors = [
-		{
-			id: 'cryptogramps',
-			name: 'Cryptogramps.ai',
-			url: 'https://cryptogramps.ai',
-			content: content, //'<img src="/images/sponsors/logoCryptoGrampsTrimmed.png" alt="cryptogramps.ai" class="w-full h-auto aspect-1/1" />',
-			weight: 1,
-			duration: 5000,
-			category: 'premium'
-		}
+	// const sponsors = [
+	// 	{
+	// 		id: 'cryptogramps',
+	// 		name: 'Cryptogramps.ai',
+	// 		url: 'https://cryptogramps.ai',
+	// 		content: content, //'<img src="/images/sponsors/logoCryptoGrampsTrimmed.png" alt="cryptogramps.ai" class="w-full h-auto aspect-1/1" />',
+	// 		weight: 1,
+	// 		duration: 5000,
+	// 		category: 'premium'
+	// 	// }
 		// Add more sponsors...
-	];
+	// ];
 
-	function handleSponsorClick(sponsor: Sponsor) {
-		console.log('Sponsor clicked:', sponsor.name);
-	}
+	// function handleSponsorClick(sponsor: Sponsor) {
+	// 	console.log('Sponsor clicked:', sponsor.name);
+	// }
 
-	function handleSponsorImpression(sponsor: Sponsor) {
-		console.log('Sponsor impression:', sponsor.name);
-	}
+	// function handleSponsorImpression(sponsor: Sponsor) {
+	// 	console.log('Sponsor impression:', sponsor.name);
+	// }
 
 	onMount(async () => {
 		try {
@@ -236,7 +239,7 @@
 			// preload directives for fonts that aren't used in RSS content
 			if (typeof window !== 'undefined' && window.console) {
 				const originalWarn = console.warn;
-				const originalError = console.error;
+				// const originalError = console.error;
 
 				// Create a filter for known harmless warnings
 				const suppressedPatterns = [
@@ -285,7 +288,8 @@
 							await enhancedBookmarkStore.addBookmark(message.data);
 							log.info('Bookmark added from context menu');
 						} else if (message.type === 'ADD_BOOKMARK_WITH_NOTE') {
-							const bookmark = await enhancedBookmarkStore.addBookmark(message.data);
+							// const bookmark =
+							await enhancedBookmarkStore.addBookmark(message.data);
 							// TODO: Open note editor for this bookmark
 							log.info('Bookmark added with note request from context menu');
 						}
@@ -318,7 +322,7 @@
 				tokensLockedCount = 0; // Show all tokens for both Basic and Pro
 				newsfeedsLockedCount = (await isProLevel()) ? 10 : 4;
 				// planType = (await isProLevel()) ? 'yakkl_pro' : 'explorer_member';
-				trialEnds = settings.plan?.trialEndDate || null;
+				// trialEnds = settings.plan?.trialEndDate || null;
 			}
 
 			// Always load default tokens regardless of init state
@@ -350,37 +354,6 @@
 		// Refresh any necessary data
 	}
 
-	async function handleLegalAccept() {
-		if (!isAgreed) return;
-
-		try {
-			const settings = await getYakklSettingsDirect();
-			if (settings) {
-				settings.legal.privacyViewed = true;
-				settings.legal.termsAgreed = true;
-				settings.isLocked = true;
-				await setYakklSettingsStorage(settings);
-
-				// Hide legal terms and show normal sidepanel
-				// showLegalTerms = false;
-				init = true;
-
-				// Update local state instead of reloading
-				locked = (await isProLevel()) ? false : true;
-				tokensLockedCount = 0; // Show all tokens for both Basic and Pro
-				newsfeedsLockedCount = (await isProLevel()) ? 10 : 4;
-				// planType = (await isProLevel()) ? 'yakkl_pro' : 'explorer_member';
-				trialEnds = settings.plan?.trialEndDate || null;
-
-				// Load default tokens and update stores
-				await loadDefaultTokens();
-				updateCombinedTokenStore();
-				await setYakklCombinedTokenStorage(get(yakklCombinedTokenStore));
-			}
-		} catch (error) {
-			log.error('Error accepting legal terms:', false, error);
-		}
-	}
 </script>
 
 <Upgrade

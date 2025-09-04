@@ -5,13 +5,12 @@ import {
 	setYakklSettingsStorage,
 	getYakklSettings,
 	setProfileStorage,
-	getYakklCurrentlySelected,
 	setYakklCurrentlySelectedStorage,
 	setYakklPrimaryAccountsStorage,
 	getYakklPrimaryAccounts,
 	getYakklAccounts,
-	setYakklAccountsStorage
 } from '$lib/common/stores';
+import { getYakklCurrentlySelected } from '$lib/common/currentlySelected';
 import { encryptData, decryptData } from '$lib/common/encryption';
 import { DEFAULT_DERIVED_PATH_ETH, DEFAULT_PERSONA } from '$lib/common/constants';
 import type {
@@ -31,6 +30,7 @@ import { AccountTypeCategory, NetworkType } from '$lib/common/types';
 import { VERSION } from '$lib/common/constants';
 import { log } from '$lib/managers/Logger';
 import { addressExist } from '$lib/common/utils';
+import { setYakklAccountsStorage } from '$lib/common/accounts';
 
 export async function createPortfolioAccount(yakklMiscStore: string, profile: Profile) {
 	try {

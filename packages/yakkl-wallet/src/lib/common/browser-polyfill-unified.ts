@@ -9,6 +9,7 @@
  */
 
 import type { Browser } from 'webextension-polyfill';
+import { log } from './logger-wrapper';
 
 // Cache the browser instance
 let cachedBrowser: Browser | null = null;
@@ -57,14 +58,14 @@ async function waitForPolyfill(): Promise<void> {
   const maxWait = 5000;
   const checkInterval = 50;
   const maxChecks = maxWait / checkInterval;
-  
+
   for (let i = 0; i < maxChecks; i++) {
     if (getBrowserFromGlobal()) {
       return;
     }
     await new Promise(resolve => setTimeout(resolve, checkInterval));
   }
-  
+
   throw new Error('Browser polyfill failed to load after 5 seconds');
 }
 
@@ -112,7 +113,7 @@ async function loadBrowserAPI(): Promise<Browser> {
           return browser;
         }
       } catch (importError) {
-        console.warn('[browser-polyfill-unified] Dynamic import failed:', importError);
+        log.warn('[browser-polyfill-unified] Dynamic import failed:', false, importError);
       }
 
       throw new Error('Failed to load browser API from any source');
@@ -132,6 +133,7 @@ export function getBrowserSync(): Browser | null {
   if (cachedBrowser) return cachedBrowser;
 
   const browser = getBrowserFromGlobal();
+
   if (browser) {
     cachedBrowser = browser;
     return browser;
@@ -153,40 +155,38 @@ export async function getBrowserAsync(): Promise<Browser> {
  */
 export async function initializeBrowserPolyfill(): Promise<Browser> {
   const browser = await loadBrowserAPI();
-  console.log('[browser-polyfill-unified] Browser API initialized successfully');
   return browser;
 }
 
 /**
- * Export a proxy that loads the browser API on first access
- * This allows synchronous-looking code while handling async loading
+ * Export the browser API directly for extension contexts
+ * In extension contexts (sidepanel, popup, background), browser.* is always available
+ * For SSR/non-extension contexts, this will be null
  */
-export const browserExtension = new Proxy({} as Browser, {
-  get(target, prop) {
-    const browser = getBrowserSync();
-    if (browser) {
-      return (browser as any)[prop];
-    }
-
-    // If not loaded yet, trigger loading and return a promise-like proxy
-    loadBrowserAPI().catch(console.error);
-
-    // Return a function that returns a promise for method calls
-    return (...args: any[]) => {
-      return loadBrowserAPI().then(browser => {
-        const method = (browser as any)[prop];
-        if (typeof method === 'function') {
-          return method.apply(browser, args);
-        }
-        return method;
-      });
-    };
+export function getBrowserExtension(): Browser | null {
+  // Check window.browser (polyfill adds it globally)
+  if (typeof window !== 'undefined' && (window as any).browser?.runtime?.id) {
+    return (window as any).browser as Browser;
   }
-});
+
+  // Fallback to chrome if browser isn't available
+  if (typeof chrome !== 'undefined' && chrome?.runtime?.id) {
+    // Chrome API exists in extension contexts
+    // The polyfill should wrap this, but we can use it directly if needed
+    return chrome as any as Browser;
+  }
+
+  // In SSR or non-extension contexts, return null
+  return null;
+}
+
+// For backward compatibility, export a simple object that tries to get the browser
+// This removes the complex Proxy that was causing issues
+export const browserExtension = getBrowserExtension();
 
 // Auto-initialize in browser environment (non-blocking)
 if (isBrowser()) {
   initializeBrowserPolyfill().catch(error => {
-    console.error('[browser-polyfill-unified] Auto-initialization failed:', error);
+    log.warn('[browser-polyfill-unified] Auto-initialization failed:', false, error);
   });
 }

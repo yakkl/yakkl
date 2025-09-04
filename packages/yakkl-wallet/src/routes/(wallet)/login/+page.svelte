@@ -10,6 +10,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import browser from '$lib/common/browser-wrapper';
+  import { authStore } from '$lib/stores/auth-store';
 
   // State
   let showError = $state(false);
@@ -55,6 +56,12 @@
     try {
       // Set the username in the global store
       $yakklUserNameStore = profile.username || '';
+
+      // Store JWT token in session storage for background to pick up
+      if (jwtToken) {
+        sessionStorage.setItem('wallet-jwt-token', jwtToken);
+        log.info('[LOGIN] JWT token stored in sessionStorage for background sync');
+      }
 
       // Mark as authenticated for instant navigation
       sessionStorage.setItem('wallet-authenticated', 'true');
@@ -134,7 +141,7 @@
           cancelButtonText="Exit/Logout"
           minimumAuth={false}
           useAuthStore={false}
-          generateJWT={false}
+          generateJWT={true}
           inputTextClass="text-zinc-900 dark:text-white"
           inputBgClass="bg-white dark:bg-zinc-800"
         />

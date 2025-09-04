@@ -6,6 +6,7 @@
   import { log } from '$lib/common/logger-wrapper';
   import { getMiscStore } from '$lib/common/stores';
   import EmergencyKitShamir from './EmergencyKitShamir.svelte';
+	import { getProfile } from '$lib/common/profile';
 
   let { onClose } = $props();
 
@@ -33,7 +34,7 @@
     try {
       // Get all the necessary data
       const {
-        getPreferences, getYakklSettings, getProfile, getYakklCurrentlySelected,
+        getPreferences, getYakklSettings, getYakklCurrentlySelected,
         getYakklContacts, getYakklChats, getYakklAccounts, getYakklPrimaryAccounts,
         getYakklWatchList, getYakklBlockedList, getYakklConnectedDomains,
         	getYakklTokenData, getYakklTokenDataCustom, getYakklCombinedTokens,

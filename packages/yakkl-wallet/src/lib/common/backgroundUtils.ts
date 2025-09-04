@@ -47,7 +47,29 @@ export async function manageLockedState() {
 				}); //await setObjectInLocalStorage(STORAGE_YAKKL_CURRENTLY_SELECTED, yakklCurrentlySelected);
 				await browser.storage.local.set({ [STORAGE_YAKKL_SETTINGS]: yakklSettings }); //await setObjectInLocalStorage(STORAGE_YAKKL_SETTINGS, yakklSettings);
 			}
-			if (yakklSettings.isLocked) {
+			if (browser?.action?.setIcon) {
+				if (yakklSettings.isLocked) {
+					await browser.action.setIcon({
+						path: {
+							16: '/images/logoBullLock16x16.png',
+							32: '/images/logoBullLock32x32.png',
+							48: '/images/logoBullLock48x48.png',
+							128: '/images/logoBullLock128x128.png'
+						}
+					});
+				} else {
+					await browser.action.setIcon({
+						path: {
+							16: '/images/logoBull16x16.png',
+							32: '/images/logoBull32x32.png',
+							48: '/images/logoBull48x48.png',
+							128: '/images/logoBull128x128.png'
+						}
+					});
+				}
+			}
+		} else {
+			if (browser?.action?.setIcon) {
 				await browser.action.setIcon({
 					path: {
 						16: '/images/logoBullLock16x16.png',
@@ -56,25 +78,7 @@ export async function manageLockedState() {
 						128: '/images/logoBullLock128x128.png'
 					}
 				});
-			} else {
-				await browser.action.setIcon({
-					path: {
-						16: '/images/logoBull16x16.png',
-						32: '/images/logoBull32x32.png',
-						48: '/images/logoBull48x48.png',
-						128: '/images/logoBull128x128.png'
-					}
-				});
 			}
-		} else {
-			await browser.action.setIcon({
-				path: {
-					16: '/images/logoBullLock16x16.png',
-					32: '/images/logoBullLock32x32.png',
-					48: '/images/logoBullLock48x48.png',
-					128: '/images/logoBullLock128x128.png'
-				}
-			});
 		}
 	} catch (error) {
 		log.error('Error managing locked state:', false, error);

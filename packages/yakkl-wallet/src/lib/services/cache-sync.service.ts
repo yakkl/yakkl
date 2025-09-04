@@ -8,16 +8,18 @@ import { TokenService } from './token.service';
 import { TransactionService } from './transaction.service';
 import type { TokenCache } from '$lib/types';
 import { updateTokenPrices } from '$lib/common/tokenPriceManager';
-import { getInstances } from '$lib/common';
 import { log } from '$lib/common/logger-wrapper';
-// Removed direct ethers import - use blockchain-bridge instead
-import { formatUnits, formatEther } from '$lib/utils/blockchain-bridge';
+import { formatUnits } from '$lib/utils/blockchain-bridge';
 import { getYakklCombinedTokens, getYakklTokenCache } from '$lib/common/stores';
 import { loadDefaultTokens } from '$lib/managers/tokens/loadDefaultTokens';
 import { BigNumberishUtils } from '../common/BigNumberishUtils';
 import { DecimalMath } from '../common/DecimalMath';
 import Decimal from 'decimal.js';
 import { compareTokenData, hasChanged } from '$lib/utils/deepCompare';
+// STATIC IMPORT - NO DYNAMIC IMPORTS ALLOWED
+import { sendMessage } from '$lib/messaging/client-messaging';
+import { sendMessageWithPromise } from '$lib/messaging/promise-messaging';
+import { nativeTokenPriceService } from './native-token-price.service';
 
 export class CacheSyncManager {
 	private static instance: CacheSyncManager;
@@ -91,7 +93,7 @@ export class CacheSyncManager {
 				// Create a minimal YakklAccount from AccountDisplay
 				const yakklAccount = {
 					address: account.address,
-					name: account.username || 'Account'
+					name: account.name || 'Account'
 					// Add minimal required properties
 				} as any; // Cast to any since we only need address
 				walletCacheStore.initializeAccountCache(yakklAccount, chain.chainId);
@@ -232,13 +234,16 @@ export class CacheSyncManager {
 				const hasNativeToken = tokenCache.some((t) => t.isNative);
 
 				if (!hasNativeToken) {
-					// Get actual ETH balance from provider
-					const instances = await getInstances();
-					if (instances && instances[1]) {
-						const provider = instances[1].getProvider();
-						try {
-							const balance = await provider.getBalance(address);
-							const balanceFormatted = formatUnits(balance.toString(), 18);
+					// Get actual ETH balance from background service
+					try {
+						const response = await sendMessageWithPromise({
+							type: 'GET_NATIVE_BALANCE',
+							data: { address, chainId }
+						});
+
+						if (response.success && response.data) {
+							const balance = response.data.balance;
+							const balanceFormatted = formatUnits(balance, 18);
 
 							// Get current ETH price
 							const tokenCacheEntries = await getYakklTokenCache();
@@ -268,37 +273,44 @@ export class CacheSyncManager {
 							};
 
 							tokenCache.unshift(nativeToken); // Add as first token
-							log.info('[CacheSync] Added ETH with provider balance:', false, balanceFormatted);
-						} catch (error) {
-							log.warn('[CacheSync] Failed to get ETH balance from provider:', false, error);
-							// Still add a native token with 0 balance as fallback
-							const nativeToken: TokenCache = {
-								address: '0x0000000000000000000000000000000000000000',
-								symbol: 'ETH',
-								name: 'Ethereum',
-								decimals: 18,
-								balance: '0',
-								balanceLastUpdated: new Date(),
-								price: 3579.97,
-								priceLastUpdated: new Date(),
-								value: '0',
-								icon: '/images/eth.svg',
-								isNative: true,
-								chainId
-							};
-							tokenCache.unshift(nativeToken);
+							log.info('[CacheSync] Added ETH with balance from background:', false, balanceFormatted);
+						} else {
+							throw new Error(response.error || 'Failed to get balance');
 						}
+					} catch (error) {
+						log.warn('[CacheSync] Failed to get ETH balance from background:', false, error);
+						// Still add a native token with 0 balance as fallback
+						const nativeToken: TokenCache = {
+							address: '0x0000000000000000000000000000000000000000',
+							symbol: 'ETH',
+							name: 'Ethereum',
+							decimals: 18,
+							balance: '0',
+							balanceLastUpdated: new Date(),
+							price: 3579.97,
+							priceLastUpdated: new Date(),
+							value: '0',
+							icon: '/images/eth.svg',
+							isNative: true,
+							chainId
+						};
+						tokenCache.unshift(nativeToken);
 					}
 				} else {
 					// Update existing native token balance from provider if available
 					const nativeTokenIndex = tokenCache.findIndex((t) => t.isNative);
 					if (nativeTokenIndex >= 0) {
-						const instances = await getInstances();
-						if (instances && instances[1]) {
-							const provider = instances[1].getProvider();
-							try {
-								const balance = await provider.getBalance(address);
-								const balanceFormatted = formatUnits(balance.toString(), 18);
+						// Remove direct provider access - use background message instead
+						try {
+							const response = await sendMessageWithPromise({
+								type: 'GET_NATIVE_BALANCE',
+								data: { address, chainId }
+							});
+
+							if (response.success && response.data) {
+								// Balance already comes from background service
+								const balance = response.data.balance;
+								const balanceFormatted = formatUnits(balance, 18);
 
 								// Update the native token with fresh balance
 								tokenCache[nativeTokenIndex] = {
@@ -312,13 +324,13 @@ export class CacheSyncManager {
 								};
 
 								log.info(
-									'[CacheSync] Updated existing ETH token with provider balance:',
+									'[CacheSync] Updated existing ETH token with balance from background:',
 									false,
 									balanceFormatted
 								);
-							} catch (error) {
-								log.warn('[CacheSync] Failed to update ETH balance from provider:', false, error);
 							}
+						} catch (error) {
+							log.warn('[CacheSync] Failed to update ETH balance from background:', false, error);
 						}
 					}
 				}
@@ -399,6 +411,16 @@ export class CacheSyncManager {
 						isDate: verifyToken.balanceLastUpdated instanceof Date
 					});
 				}
+
+				// CRITICAL: Trigger price update after tokens are loaded
+				// This ensures tokens have prices populated
+				try {
+					console.log('[CacheSync] Triggering native token price update after token sync');
+					await nativeTokenPriceService.triggerUpdate();
+					console.log('[CacheSync] Native token price update triggered successfully');
+				} catch (error) {
+					console.warn('[CacheSync] Failed to trigger price update (non-critical):', error);
+				}
 			}
 		} catch (error) {
 			console.warn('[CacheSync] Error syncing token balances:', error);
@@ -413,59 +435,63 @@ export class CacheSyncManager {
 		try {
 			console.log(`[CacheSync] STARTING direct blockchain fetch for ${address} on chain ${chainId}`);
 
-			// Get provider for direct blockchain access
-			const instances = await getInstances();
-			console.log('[CacheSync] getInstances() result:', {
-				hasInstances: !!instances,
-				instanceCount: instances?.length || 0,
-				hasWallet: !!instances?.[0],
-				hasProvider: !!instances?.[1],
-				hasBlockchain: !!instances?.[2],
-				hasTokenService: !!instances?.[3]
-			});
+			// Import messaging service for background communication
+			// Using static import from top of file - dynamic imports break service workers
+			// Get native token balance from background service with retry logic
+			console.log(`[CacheSync] Getting native balance for ${address} using Promise-based messaging`);
 
-			if (!instances || !instances[1]) {
-				console.error('[CacheSync] CRITICAL: No provider available from getInstances()', {
-					instances,
-					providerIndex: instances?.[1]
-				});
-				throw new Error('No provider available');
+			// Retry logic with exponential backoff
+			let nativeResponse = null;
+			let retries = 3;
+			let delay = 1000; // Start with 1 second
+
+			while (retries > 0 && !nativeResponse?.success) {
+				try {
+					// Add timeout to prevent hanging
+					const timeoutPromise = new Promise((_, reject) =>
+						setTimeout(() => reject(new Error('Request timeout')), 5000)
+					);
+
+					const messagePromise = sendMessageWithPromise({
+						type: 'GET_NATIVE_BALANCE',
+						data: { address, chainId }
+					});
+
+					nativeResponse = await Promise.race([messagePromise, timeoutPromise]) as any;
+
+					if (nativeResponse?.success) {
+						break; // Success, exit retry loop
+					}
+				} catch (error) {
+					console.warn(`[CacheSync] Attempt ${4 - retries} failed:`, error);
+
+					if (retries > 1) {
+						console.log(`[CacheSync] Retrying in ${delay}ms...`);
+						await new Promise(resolve => setTimeout(resolve, delay));
+						delay *= 2; // Exponential backoff
+					}
+				}
+
+				retries--;
 			}
 
-			const provider = instances[1].getProvider();
-			console.log('[CacheSync] Provider details:', {
-				hasProvider: !!provider,
-				providerType: provider?.constructor?.name,
-				hasGetBalance: typeof provider?.getBalance === 'function',
-				hasGetNetwork: typeof provider?.getNetwork === 'function'
-			});
-
-			if (!provider) {
-				throw new Error('Provider is null');
+			// Handle null or undefined response
+			if (!nativeResponse) {
+				console.error('[CacheSync] No response from background service after retries');
+				throw new Error('Background service not responding - provider may be initializing');
 			}
 
-			// CRITICAL: Verify provider network before proceeding
-			try {
-				const network = await provider.getNetwork();
-				console.log('[CacheSync] Provider network info:', {
-					networkChainId: Number(network.chainId),
-					requested: chainId,
-					matches: Number(network.chainId) === chainId,
-					networkName: network.name
-				});
-			} catch (networkError) {
-				console.error('[CacheSync] Failed to get network info from provider:', networkError);
+			if (!nativeResponse.success) {
+				console.error('[CacheSync] Failed to get native balance after retries:', nativeResponse.error);
+				throw new Error(nativeResponse.error || 'Failed to get native balance - please try again');
 			}
 
-			// Get native token balance directly
-			console.log(`[CacheSync] Getting native balance for ${address}`);
-			const nativeBalance = await provider.getBalance(address);
-			const nativeBalanceFormatted = formatUnits(nativeBalance.toString(), 18);
+			const nativeBalanceFormatted = formatUnits(nativeResponse.data.balance, 18);
 			console.log(`[CacheSync] Native balance: ${nativeBalanceFormatted} ETH`);
 
-			// Get ERC20 tokens directly from blockchain
+			// Get ERC20 tokens from background service
 			console.log('[CacheSync] Starting ERC20 token fetch...');
-			const erc20Tokens = await this.fetchERC20TokensFromBlockchain(address, chainId, provider);
+			const erc20Tokens = await this.fetchERC20TokensFromBlockchain(address, chainId);
 			console.log(`[CacheSync] ERC20 fetch complete: ${erc20Tokens.length} tokens`);
 
 			// Combine native + ERC20 tokens
@@ -479,6 +505,8 @@ export class CacheSyncManager {
 					isNative: true,
 					chainId,
 					icon: '/images/eth.svg',
+					price: 0, // Will be populated by nativeTokenPriceService
+					value: 0, // Will be calculated after price is fetched
 				},
 				...erc20Tokens
 			];
@@ -507,20 +535,12 @@ export class CacheSyncManager {
 	}
 
 	/**
-	 * Fetch ERC20 token balances directly from blockchain
+	 * Fetch ERC20 token balances via background service
 	 */
-	private async fetchERC20TokensFromBlockchain(address: string, chainId: number, provider: any): Promise<any[]> {
+	private async fetchERC20TokensFromBlockchain(address: string, chainId: number): Promise<any[]> {
 		try {
-			// CRITICAL DEBUG: Verify network connection and chain ID
-			const networkInfo = await provider.getNetwork();
-			const actualChainId = Number(networkInfo.chainId);
-			console.log(`[CacheSync] Provider connected to chain ${actualChainId}, expected ${chainId}`);
-
-			if (actualChainId !== chainId) {
-				console.error(`[CacheSync] CHAIN MISMATCH: Provider on chain ${actualChainId}, but fetching for chain ${chainId}`);
-				// Use the actual chain ID from provider
-				chainId = actualChainId;
-			}
+			// Import messaging service
+			// Using static import from top of file - dynamic imports break service workers
 
 			// Get token list from combined tokens (not from cache)
 			const combinedTokens = await getYakklCombinedTokens();
@@ -530,12 +550,20 @@ export class CacheSyncManager {
 			console.log(`[CacheSync] Tokens for chain ${chainId}: ${chainTokens.length}`,
 				chainTokens.map(t => `${t.symbol}(${t.address})`));
 
-			// Test ETH balance first to verify provider connectivity
+			// Test ETH balance first to verify connectivity
 			try {
-				const ethBalance = await provider.getBalance(address);
-				console.log(`[CacheSync] ETH balance check: ${formatEther(ethBalance.toString())} ETH`);
+				const ethResponse = await sendMessageWithPromise({
+					type: 'GET_NATIVE_BALANCE',
+					data: { address, chainId }
+				});
+				if (ethResponse && ethResponse.success) {
+					const ethBalance = formatUnits(ethResponse.data.balance, 18);
+					console.log(`[CacheSync] ETH balance check: ${ethBalance} ETH`);
+				} else {
+					console.warn('[CacheSync] ETH balance check returned invalid response:', ethResponse);
+				}
 			} catch (ethError) {
-				console.error('[CacheSync] ETH balance check failed - provider may be disconnected:', ethError);
+				console.error('[CacheSync] ETH balance check failed:', ethError);
 				return [];
 			}
 
@@ -562,7 +590,7 @@ export class CacheSyncManager {
 
 					// Use message passing instead of direct contract call
 					// Send request to background service for ERC20 token data
-					const { sendMessage } = await import('$lib/messaging/client-messaging');
+					// Using static import from top of file - dynamic imports break service workers
 					const tokenResponse = await sendMessage({
 						type: 'GET_TOKEN_BALANCE',
 						data: {
@@ -572,8 +600,14 @@ export class CacheSyncManager {
 						}
 					});
 
-					if (!tokenResponse?.success) {
-						throw new Error(tokenResponse?.error || 'Failed to get token balance');
+					if (!tokenResponse) {
+						console.error(`[CacheSync] No response for token ${tokenData.symbol}`);
+						throw new Error('No response from background service');
+					}
+
+					if (!tokenResponse.success) {
+						console.error(`[CacheSync] Failed to get balance for ${tokenData.symbol}:`, tokenResponse.error);
+						throw new Error(tokenResponse.error || 'Failed to get token balance');
 					}
 
 					const balance = BigInt(tokenResponse.data.balance || '0');
@@ -643,7 +677,7 @@ export class CacheSyncManager {
 
 				try {
 					// Use message passing instead of direct contract call
-					const { sendMessage } = await import('$lib/messaging/client-messaging');
+					// Using static import from top of file - dynamic imports break service workers
 					const tokenResponse = await sendMessage({
 						type: 'GET_TOKEN_BALANCE',
 						data: {
@@ -653,8 +687,14 @@ export class CacheSyncManager {
 						}
 					});
 
-					if (!tokenResponse?.success) {
-						throw new Error(tokenResponse?.error || 'Failed to get token balance');
+					if (!tokenResponse) {
+						console.error(`[CacheSync] No response for token ${tokenData.symbol}`);
+						throw new Error('No response from background service');
+					}
+
+					if (!tokenResponse.success) {
+						console.error(`[CacheSync] Failed to get balance for ${tokenData.symbol}:`, tokenResponse.error);
+						throw new Error(tokenResponse.error || 'Failed to get token balance');
 					}
 
 					const balance = BigInt(tokenResponse.data.balance || '0');
@@ -1111,17 +1151,20 @@ export class CacheSyncManager {
 
 			// Always ensure we have native token balance
 			if (!balanceData['0x0000000000000000000000000000000000000000']) {
-				// Get native balance from provider
-				const instances = await getInstances();
-				if (instances && instances[1]) {
-					const provider = instances[1].getProvider();
-					try {
-						const balance = await provider.getBalance(address);
-						const balanceFormatted = formatUnits(balance.toString(), 18);
+				// Get native balance from background service
+				try {
+					const response = await sendMessageWithPromise({
+						type: 'GET_NATIVE_BALANCE',
+						data: { address, chainId }
+					});
+
+					if (response.success && response.data) {
+						const balance = response.data.balance;
+						const balanceFormatted = formatUnits(balance, 18);
 						balanceData['0x0000000000000000000000000000000000000000'] = balanceFormatted;
-					} catch (error) {
-						console.warn(`[CacheSync] Failed to fetch native balance for ${address}`, error);
 					}
+				} catch (error) {
+					console.warn(`[CacheSync] Failed to fetch native balance for ${address}`, error);
 				}
 			}
 

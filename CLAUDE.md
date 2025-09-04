@@ -109,6 +109,25 @@ This creates the Claude structure with proper symlinks.
 - Test affected packages
 - Requires permission for any cross-project changes
   
+## Critical Rules - APPLY TO ALL PACKAGES
+
+### 🚨 RULE #1: NO DYNAMIC IMPORTS IN SERVICE WORKERS
+**This rule caused CRITICAL production failures - treat violations as P0 bugs**
+
+- Dynamic imports (`await import(...)`) **COMPLETELY BREAK** browser extension service workers
+- Service workers CANNOT load code at runtime - ALL code must be statically available at build time
+- **THE ONLY VALID EXCEPTION**: When Svelte SSR tries to access browser-only APIs and fails during build
+  - Example: `webextension-polyfill` in client context when SSR attempts to process it
+  - In this case, wrap in environment check: `if (!import.meta.env.SSR) { await import(...) }`
+- **ALL OTHER USES ARE FORBIDDEN** - No exceptions for:
+  - Lazy loading (breaks service workers)
+  - Code splitting (breaks service workers)
+  - Conditional loading (use static imports with conditional execution instead)
+  - Provider abstraction (use static imports of all providers)
+  - **Messaging modules** (NEVER use `await import('$lib/messaging/client-messaging')` - use static imports)
+- If you think you need a dynamic import, you're wrong - find another solution
+- **RECENT INCIDENT (2025-09-06)**: Dynamic imports in cache-sync.service.ts caused complete messaging failure between client and background contexts in yakkl-wallet, breaking all blockchain data loading
+
 ## All changes
 - All changes, regardless of project, must have a plan created and approved before any code changes take place
 - ALL plans require the best effort for identifying the files that may be impacted or changed in the plan

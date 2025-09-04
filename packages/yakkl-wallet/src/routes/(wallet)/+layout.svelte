@@ -22,9 +22,9 @@
   import { sessionManager } from '$lib/managers/SessionManager';
   import {
     getYakklAccounts,
-    getProfile,
     getMiscStore,
   } from '$lib/common/stores';
+  import { getProfile } from '$lib/common/profile';
   import type { ChainDisplay } from '$lib/types';
   import { goto } from '$app/navigation';
   import { decryptData, isEncryptedData, type ProfileData } from '$lib/common';
@@ -32,6 +32,8 @@
   import { lockWallet } from '$lib/common/lockWallet';
   import { appStateManager, AppPhase } from '$lib/managers/AppStateManager';
   import IdleCountdownModalEnhanced from '$lib/components/IdleCountdownModalEnhanced.svelte';
+  import { authStore } from '$lib/stores/auth-store';
+  import { storageSyncService } from '$lib/services/storage-sync.service';
 
   interface Props {
     children?: import('svelte').Snippet;
@@ -40,7 +42,7 @@
 
   // --- State ---
   let appState = $state($appStateManager);
-  let initializing = $state(true);
+  let initializing = $state(false);  // Default to false since we check app state separately
   let isAuthenticating = $state(true);  // Show loader while authenticating
   let showTestnets = $state(false);
   let showSettings = $state(false);
@@ -71,23 +73,36 @@
     // Subscribe to app state changes
     const unsubscribe = appStateManager.subscribe(state => {
       appState = state;
-      initializing = state.phase !== AppPhase.READY && state.phase !== AppPhase.ERROR;
-      console.log('[(wallet)/+Layout.svelte] appStateManager >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', {appState, initializing, phase: state.phase});
+      // Only show initializing for actual initialization phases
+      initializing = state.phase === AppPhase.BOOTSTRAPPING ||
+                   state.phase === AppPhase.LOADING_STORES ||
+                   state.phase === AppPhase.LOADING_CACHE;
     });
 
     // Run async initialization
     (async () => {
       try {
-        // Wait for app to be ready (extension connected, stores loaded, cache initialized)
-        console.log('[(wallet)/+Layout.svelte] appStateManager >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', {appStateManager});
-        await appStateManager.waitForReady();
+        // CRITICAL: Start storage sync service IMMEDIATELY
+        // This ensures all persistent data is loaded into stores before login
+        log.info('[(wallet)/+Layout.svelte] Starting storage sync service immediately...');
+        await storageSyncService.start();
+        log.info('[(wallet)/+Layout.svelte] Storage sync service started - data loaded from persistent storage');
+
+        // Initialize auth store first to ensure JWT and authentication state is loaded
+        await authStore.initialize();
+
+        // Try to wait for app ready, but don't block on timeout
+        try {
+          await appStateManager.waitForReady(5000); // Reduced timeout to 5 seconds
+        } catch (error) {
+          log.warn('[(wallet)/+Layout.svelte] AppStateManager timeout, continuing anyway:', false, error);
+          // Continue initialization even if AppStateManager times out
+        }
 
         // Authentication has already been validated in +layout.ts
         // We can assume we're authenticated if we reach this component
         isAuthenticated = true;
         isAuthenticating = false;  // Hide loader once authenticated
-
-        console.log('[(wallet)/+Layout.svelte] isAuthenticated >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', isAuthenticated);
 
         // Load remaining stores that aren't critical for initialization
         await Promise.all([
@@ -96,42 +111,53 @@
           planStore.loadPlan()
         ]);
 
-        console.log('[(wallet)/+Layout.svelte] accountStore >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', {accountStore});
-        console.log('[(wallet)/+Layout.svelte] chainStore >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', {chainStore});
-        console.log('[(wallet)/+Layout.svelte] planStore >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', {planStore});
+        // Also initialize/refresh token store to ensure data is loaded
+        const { tokenStore } = await import('$lib/stores/token.store');
+        await tokenStore.refresh().catch(err =>
+          log.warn('[(wallet)/+layout.svelte] Token store refresh failed:', false, err));
 
         // Setup session and user preferences
         const profile = await getProfile();
-        console.log('[(wallet)/+Layout.svelte] profile >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', {profile});
         const miscStore = getMiscStore();
         if (profile && profile.data && miscStore) {
           if (isEncryptedData(profile.data)) {
             const profileData = await decryptData(profile.data, miscStore) as ProfileData;
             log.info('Layout: Starting session with JWT', false, profileData);
-            console.log('[(wallet)/+Layout.svelte] profileData >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', profileData);
-            const session = await sessionManager.startSession(
+            const jwtToken = await sessionManager.startSession(
               profile.id,
               profile.username || 'user',
               profile.id,
               profileData.planType || 'explorer_member'
             );
-            console.log('[(wallet)/+Layout.svelte] session >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', {session});
+
+            // Get the session state after starting session
+            const sessionState = sessionManager.getSessionState();
+
+            // Update auth store with session state using the new method
+            if (sessionState) {
+              authStore.updateSessionState(sessionState, sessionState.jwtToken || jwtToken);
+              log.info('Layout: Session state updated in authStore', false, { sessionState });
+            }
+
             if (profile.preferences?.showTestNetworks) {
               showTestnets = true;
               chainStore.setShowTestnets(true);
             }
           }
         }
-        console.log('[(wallet)/+Layout.svelte] Transaction monitoring handled by background context');
       } catch (error) {
-        console.error('[(wallet)/+Layout.svelte] Error during initialization:', error);
         // Show error state to user
         if (appState.phase === AppPhase.ERROR) {
-          console.error('[(wallet)/+Layout.svelte] App initialization error:', appState.error);
+          log.error('[(wallet)/+Layout.svelte] App initialization error:', false, appState.error);
+        } else {
+          log.error('[(wallet)/+Layout.svelte] App initialization error:', false, error);
         }
       } finally {
-        initializing = false;
-        isAuthenticating = false;  // Ensure loader is hidden
+        // Ensure authentication loader is hidden
+        isAuthenticating = false;
+
+        // App state manager will handle the initializing state through the subscription
+        // No need to manually set it here
       }
     })();
 
@@ -155,6 +181,8 @@
     return () => {
       unsubscribe();
       document.removeEventListener('keydown', handleKeyboardShortcuts);
+      // Stop storage sync service
+      storageSyncService.stop();
     };
   });
 
@@ -183,12 +211,11 @@
   async function handleCreateAccountForNetwork() {
     if (!pendingChain) return;
     try {
-      console.log('[(wallet)/+Layout.svelte] Creating account for network:', pendingChain);
       await chainStore.switchChain(pendingChain.chainId);
       showNetworkMismatch = false;
       pendingChain = null;
     } catch (error) {
-      console.error('[(wallet)/+Layout.svelte] Failed to create account:', error);
+      log.warn('[(wallet)/+Layout.svelte] Failed to create account:', false, error);
     }
   }
 
@@ -221,8 +248,6 @@
 
   // Service cleanup function
   async function stopAllClientServices() {
-    console.log('[(wallet)/+Layout.svelte] stopAllClientServices: Quick service cleanup...');
-
     // Stop TokenService (fire-and-forget)
     import('$lib/services/token.service').then(({ TokenService }) => {
       const tokenService = TokenService.getInstance();
@@ -246,7 +271,6 @@
         clearTimeout(i);
         clearInterval(i);
       }
-      console.log('[(wallet)/+Layout.svelte] stopAllClientServices: ✓ All intervals/timeouts cleared');
     }
   }
 
@@ -283,9 +307,6 @@
   }
 
   async function performLogout(mode: 'logout' | 'exit' = 'logout') {
-    console.log(`[(wallet)/+Layout.svelte] performLogout: FAST ${mode.toUpperCase()} STARTED`);
-    const startTime = Date.now();
-
     // Show loading overlay for logout
     if (mode === 'logout') {
       isLoggingOut = true;
@@ -297,7 +318,6 @@
       stopAllClientServices();
 
       // Call lockWallet - now optimized to be < 1 second
-      console.log('[(wallet)/+Layout.svelte] performLogout: Calling fast lockWallet...');
       await lockWallet(mode === 'exit' ? 'user-exit' : 'user-logout');
 
       // Clear session storage (synchronous, instant)
@@ -305,16 +325,13 @@
         sessionStorage.clear();
       }
 
-      const elapsed = Date.now() - startTime;
-      console.log(`[(wallet)/+Layout.svelte] performLogout: ✓ FAST ${mode.toUpperCase()} completed in ${elapsed}ms`);
-
       // Navigate to login page for logout only
       if (mode === 'logout') {
         await goto('/login', { replaceState: true });
       }
 
     } catch (error) {
-      console.error(`[(wallet)/+Layout.svelte] performLogout: ${mode} error:`, error?.message);
+      log.warn(`[(wallet)/+Layout.svelte] performLogout: ${mode} error:`, false, error?.message);
 
       // Even on error, navigate to login for logout
       if (mode === 'logout') {
@@ -450,6 +467,3 @@
 
 <TroubleshootingFAB />
 
-<style>
-  /* Add any wallet-specific styles here */
-</style>

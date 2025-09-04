@@ -214,11 +214,6 @@
 
   // Filter out hidden items
   const visibleItems = $derived(items.filter(item => item.visible !== false));
-
-  // Debug logging
-  $effect(() => {
-    console.log('[Menu] Menu component - open:', open, 'anchorElement:', !!anchorElement, 'items:', items.length, 'menuElement:', !!menuElement, menuElement);
-  });
 </script>
 
 {#if open}
@@ -233,7 +228,6 @@
     style="pointer-events: auto;"
     onmouseenter={(e) => {
       e.stopPropagation();
-      console.log('[Menu] Menu mouseenter - keeping open');
     }}
     onmouseleave={(e) => {
       const relatedTarget = e.relatedTarget as HTMLElement;
@@ -242,7 +236,6 @@
         return;
       }
       // Otherwise trigger close
-      console.log('[Menu] Menu mouseleave - closing');
       onClose();
     }}
   >

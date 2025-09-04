@@ -6,6 +6,7 @@ import { showExtensionPopup } from '$contexts/background/extensions/chrome/ui';
 import { STORAGE_YAKKL_SETTINGS } from '$lib/common/constants';
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from '$lib/common/backgroundSecuredStorage';
 import type { YakklSettings } from '$lib/common/interfaces';
+import { updateWindowWithRetry, getWindowWithRetry } from '$lib/common/browser-retry';
 
 // NOTE: This can only be used in the background context
 
@@ -70,7 +71,7 @@ export class SingletonWindowManager {
 			if (stored?.windowId) {
 				// Verify the window still exists before using it
 				try {
-					const window = await browser.windows.get(stored.windowId as number);
+					const window = await getWindowWithRetry(stored.windowId as number);
 					if (window && window.id === stored.windowId) {
 						this.currentWindowId = stored.windowId as number;
 						log.info('Loaded and verified stored window ID', false, { windowId: this.currentWindowId });
@@ -122,7 +123,7 @@ export class SingletonWindowManager {
 
 				try {
 					// Try to get the window
-					const existingWindow = await browser.windows.get(this.currentWindowId);
+					const existingWindow = await getWindowWithRetry(this.currentWindowId);
 
 					// Check if window actually exists and is our popup
 					if (existingWindow && existingWindow.id === this.currentWindowId) {
@@ -135,7 +136,7 @@ export class SingletonWindowManager {
 						});
 
 						// Focus existing window
-						await browser.windows.update(this.currentWindowId, {
+						await updateWindowWithRetry(this.currentWindowId, {
 							focused: true,
 							drawAttention: true
 						});
@@ -234,7 +235,7 @@ export class SingletonWindowManager {
 
 			// Draw attention to the new window
 			try {
-				await browser.windows.update(window.id, { drawAttention: true });
+				await updateWindowWithRetry(window.id, { drawAttention: true });
 			} catch (e) {
 				log.warn('Failed to draw attention to window', false, e);
 			}
@@ -297,7 +298,7 @@ export class SingletonWindowManager {
 			}
 
 			try {
-				const window = await browser.windows.get(this.currentWindowId);
+				const window = await getWindowWithRetry(this.currentWindowId);
 				return !!(window && window.id === this.currentWindowId);
 			} catch (error) {
 				// Window doesn't exist

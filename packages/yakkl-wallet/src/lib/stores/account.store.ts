@@ -2,7 +2,8 @@ import { writable, derived, get } from 'svelte/store';
 import type { AccountDisplay, LoadingState, ErrorState } from '../types';
 import { WalletService } from '../services/wallet.service';
 // Import directly from the specific function to avoid circular dependency
-import { getYakklCurrentlySelected, setYakklCurrentlySelectedStorage } from '$lib/common/stores';
+import { setYakklCurrentlySelectedStorage } from '$lib/common/stores';
+import { getYakklCurrentlySelected } from '$lib/common/currentlySelected';
 import { walletCacheStore } from './wallet-cache.store';
 import { tokenStore } from './token.store';
 import { log } from '$lib/common/logger-wrapper';
@@ -37,7 +38,7 @@ function createAccountStore() {
 
       const response = await walletService.getAccounts();
 
-      console.log('loadAccounts:>>>>>>>>>>>>>>>>>>>', response);
+      log.error('[AccountStore] Load accounts response:', false, response);
 
       if (response.success && response.data) {
         // Update accounts but don't fetch balances here - let token store handle that
@@ -47,6 +48,9 @@ function createAccountStore() {
           loading: { isLoading: false },
           error: { hasError: false }
         }));
+
+        // Note: The yakklAccountsStore is already populated by walletService.getAccounts()
+        // which now reads directly from storage, so no need to update it here
 
         // Load current account if not set
         const currentResponse = await walletService.getCurrentAccount();
@@ -76,6 +80,27 @@ function createAccountStore() {
             ...state,
             currentAccount: currentResponse.data!
           }));
+        } else {
+          // CRITICAL FIX: If no current account is set and we have accounts available,
+          // automatically set the first account as current
+          log.warn('[AccountStore] No current account found, attempting to set first available account');
+
+          // Get current state to access loaded accounts
+          const currentState = get({ subscribe });
+          if (currentState.accounts && currentState.accounts.length > 0) {
+            const firstAccount = currentState.accounts[0];
+            log.info('[AccountStore] Setting first account as current:', false, firstAccount.address);
+
+            // Switch to the first account (this will also persist the selection)
+            const switchResult = await accountStore.switchAccount(firstAccount.address);
+            if (switchResult) {
+              log.info('[AccountStore] Successfully set first account as current');
+            } else {
+              log.error('[AccountStore] Failed to set first account as current');
+            }
+          } else {
+            log.warn('[AccountStore] No accounts available to set as current');
+          }
         }
       } else {
         update(state => ({
@@ -87,14 +112,34 @@ function createAccountStore() {
     },
 
     async switchAccount(address: string) {
-      const response = await walletService.switchAccount(address);
+      if (!address) {
+        log.error('[AccountStore] switchAccount called with empty address', false);
+        return false;
+      }
 
-      console.log('switchAccount:>>>>>>>>>>>>>>>>>>>', response);
+      // Add debouncing to prevent rapid switches
+      const lastSwitch = (window as any).__lastAccountSwitch || 0;
+      const now = Date.now();
+      if (now - lastSwitch < 500) {
+        log.warn('[AccountStore] Account switch throttled - too rapid');
+        return false;
+      }
+      (window as any).__lastAccountSwitch = now;
 
-      if (response.success) {
-        // Find the account first
-        const currentState = get({ subscribe });
-        const account = currentState.accounts.find(acc => acc.address === address);
+      try {
+        // Clear any existing errors before switching
+        update(state => ({
+          ...state,
+          error: { hasError: false },
+          loading: { isLoading: true, message: 'Switching account...' }
+        }));
+
+        const response = await walletService.switchAccount(address);
+
+        if (response.success) {
+          // Find the account first
+          const currentState = get({ subscribe });
+          const account = currentState.accounts.find(acc => acc.address === address);
 
         if (account) {
           // Fetch fresh balance for the new account
@@ -148,17 +193,52 @@ function createAccountStore() {
 
         // CRITICAL: Await wallet cache switch to ensure data is loaded
         // This now handles all data initialization for the new account
-        await walletCacheStore.switchAccount(address);
+        walletCacheStore.switchAccount(address);
 
         // No need to call tokenStore.refresh() - the cache switch handles everything
         // The token store will automatically update via its subscription to currentAccount
 
+        // Clear loading state
+        update(state => ({
+          ...state,
+          loading: { isLoading: false }
+        }));
+
         log.info('[AccountStore] Account switch complete, cache initialized');
 
         return true;
-      }
+      } else {
+        // Handle switch failure
+        const errorMessage = typeof response.error === 'object' && response.error?.message
+          ? response.error.message
+          : typeof response.error === 'string'
+            ? response.error
+            : 'Failed to switch account';
 
+        log.error('[AccountStore] Account switch failed:', false, errorMessage);
+        update(state => ({
+          ...state,
+          loading: { isLoading: false },
+          error: {
+            hasError: true,
+            message: errorMessage
+          }
+        }));
+        return false;
+      }
+    } catch (error: any) {
+      // Handle any unexpected errors
+      log.error('[AccountStore] Unexpected error during account switch:', false, error);
+      update(state => ({
+        ...state,
+        loading: { isLoading: false },
+        error: {
+          hasError: true,
+          message: 'An unexpected error occurred while switching accounts. Please try again.'
+        }
+      }));
       return false;
+    }
     },
 
     setCurrentAccount(account: AccountDisplay) {

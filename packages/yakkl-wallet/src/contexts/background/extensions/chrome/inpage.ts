@@ -1168,22 +1168,41 @@ function cleanup() {
 }
 
 // Set up cleanup on page unload
-try {
-	window.addEventListener('beforeunload', cleanup);
-} catch (e: any) {
-	if (e.message.includes('fenced frames')) {
-		log.debug('Skipping unload in fenced frame context', false);
-	} else {
+// First check if we're in a fenced frame context
+function isFencedFrame(): boolean {
+	try {
+		// Fenced frames have restrictions on certain APIs
+		// Check if we can access window.top - in fenced frames this throws
+		return window.self !== window.top && !window.top;
+	} catch {
+		// If accessing window.top throws, we might be in a fenced frame
+		return true;
+	}
+}
+
+// Only add beforeunload handler if not in a fenced frame
+if (!isFencedFrame()) {
+	try {
+		window.addEventListener('beforeunload', cleanup);
+	} catch (e: any) {
+		// Still catch any other potential errors
 		log.debug(`Failed to add unload handler:`, false, e);
 	}
+} else {
+	log.debug('Skipping unload handler in fenced frame context', false);
 }
 
 try {
     // Install guards and start the initialization process
     // Error guards already installed at the top of the file
-    // Only initialize in browser environment (not during SSR)
+    // Only initialize in browser environment (not during SSR) and not in fenced frames
     if (typeof document !== 'undefined' && typeof window !== 'undefined') {
-        initializeInpageScript();
+        // Skip initialization in fenced frames
+        if (isFencedFrame()) {
+            log.debug('Skipping inpage script initialization in fenced frame', false);
+        } else {
+            initializeInpageScript();
+        }
     }
 } catch (e: any) {
     log.debug(`Failed to initialize inpage script:`, false, e);

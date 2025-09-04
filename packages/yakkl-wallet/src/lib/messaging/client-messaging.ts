@@ -2,6 +2,7 @@
  * Client-side messaging utilities
  * Provides message passing to background service without direct browser API access
  */
+import browser from 'webextension-polyfill';
 
 /**
  * Send a message to the background service
@@ -13,16 +14,28 @@ export async function sendMessage(message: {
   data?: any;
 }): Promise<any> {
   try {
-    // Use browser runtime if available
-    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-      return await chrome.runtime.sendMessage(message);
+    // Validate message has a type field
+    if (!message || !message.type) {
+      const error = new Error(`[ClientMessaging] Invalid message: missing 'type' field. Message: ${JSON.stringify(message)}`);
+      console.error(error.message);
+      throw error;
     }
     
-    // Fallback for non-extension context (e.g., testing)
-    console.warn('[ClientMessaging] Not in extension context, returning mock response');
-    return { success: false, error: 'Not in extension context' };
+    // Log message being sent for debugging
+    console.log('[ClientMessaging] Sending message:', message);
+    
+    // Send message and wait for response
+    const response = await browser.runtime.sendMessage(message);
+    
+    console.log('[ClientMessaging] Received response:', response);
+    return response;
   } catch (error) {
     console.error('[ClientMessaging] Failed to send message:', error);
+    // Check if it's a connection error
+    if (error.message?.includes('Could not establish connection')) {
+      console.error('[ClientMessaging] Extension context not available or background script not responding');
+      return null;
+    }
     return { success: false, error: error.message };
   }
 }
@@ -35,13 +48,9 @@ export async function sendMessage(message: {
 export function onMessage(
   handler: (message: any, sender: any, sendResponse: (response: any) => void) => boolean | void
 ): () => void {
-  if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
-    chrome.runtime.onMessage.addListener(handler);
-    return () => chrome.runtime.onMessage.removeListener(handler);
-  }
-  
-  // No-op cleanup for non-extension context
-  return () => {};
+  // Cast to any to avoid type issues with browser API
+  browser.runtime.onMessage.addListener(handler as any);
+  return () => browser.runtime.onMessage.removeListener(handler as any);
 }
 
 /**
@@ -50,15 +59,5 @@ export function onMessage(
  * @returns Port connection
  */
 export function connect(name: string): any {
-  if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.connect) {
-    return chrome.runtime.connect({ name });
-  }
-  
-  // Mock port for non-extension context
-  return {
-    postMessage: () => {},
-    onMessage: { addListener: () => {}, removeListener: () => {} },
-    onDisconnect: { addListener: () => {}, removeListener: () => {} },
-    disconnect: () => {}
-  };
+  return browser.runtime.connect({ name });
 }

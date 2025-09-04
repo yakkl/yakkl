@@ -37,13 +37,16 @@ export class EnhancedKeyManager implements IKeyManager {
    */
   async initialize(): Promise<void> {
     if (this.initialized) {
+      console.log('[EnhancedKeyManager] Already initialized, skipping');
       return;
     }
 
+    console.log('[EnhancedKeyManager] Initializing...');
     // Load configurations from environment or storage
     await this.loadConfigurations();
     
     this.initialized = true;
+    console.log('[EnhancedKeyManager] Initialization complete. Registered providers:', Array.from(this.providers.keys()));
   }
 
   /**
@@ -68,6 +71,7 @@ export class EnhancedKeyManager implements IKeyManager {
 
     // Production key 1
     const prodKey1 = this.getEnvKey('ALCHEMY_API_KEY_PROD_1');
+    console.log('[EnhancedKeyManager] Looking for ALCHEMY_API_KEY_PROD_1, found:', !!prodKey1);
     if (prodKey1) {
       keys.push({
         id: 'alchemy_prod_1',
@@ -118,7 +122,10 @@ export class EnhancedKeyManager implements IKeyManager {
     }
 
     if (keys.length > 0) {
+      console.log('[EnhancedKeyManager] Registering Alchemy provider with', keys.length, 'keys');
       await this.registerProvider('alchemy', keys);
+    } else {
+      console.log('[EnhancedKeyManager] No Alchemy keys found in environment');
     }
   }
 
@@ -184,21 +191,26 @@ export class EnhancedKeyManager implements IKeyManager {
    * Get environment variable key
    */
   private getEnvKey(key: string): string | null {
-    // Check process.env first (for Node.js/background context)
-    if (typeof process !== 'undefined' && process.env && process.env[key]) {
-      return process.env[key];
-    }
-
-    // Check Vite env with VITE_ prefix
+    // Check Vite env with VITE_ prefix first (most common in browser extension)
     const viteKey = `VITE_${key}`;
     if (typeof import.meta !== 'undefined' && import.meta.env) {
-      // Try with VITE_ prefix first
+      // Try with VITE_ prefix first (this is what's in our .env file)
       if (import.meta.env[viteKey]) {
         return import.meta.env[viteKey];
       }
       // Fallback to key without prefix
       if (import.meta.env[key]) {
         return import.meta.env[key];
+      }
+    }
+
+    // Check process.env as fallback (for Node.js/background context)
+    if (typeof process !== 'undefined' && process.env) {
+      if (process.env[viteKey]) {
+        return process.env[viteKey];
+      }
+      if (process.env[key]) {
+        return process.env[key];
       }
     }
 

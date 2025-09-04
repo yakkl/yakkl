@@ -5,7 +5,6 @@ import { YAKKL_INTERNAL } from '$lib/common/constants';
 import { handleLockDown } from '$lib/common/handlers';
 import { log } from '$lib/common/logger-wrapper';
 import { appStateManager } from '$lib/managers/AppStateManager';
-import type { Browser } from 'webextension-polyfill';
 import type { Runtime } from '$lib/types/browser-types';
 import { browser_ext } from '$lib/common/environment';
 import { initializationManager } from '$lib/common/initialization-manager';
@@ -30,25 +29,19 @@ class PortManager {
 	}
 
 	async connect(): Promise<boolean> {
-		console.log('[PortManager] connect() called');
-
 		if (typeof window === 'undefined') {
-			console.log('[PortManager] No window object, returning false');
 			return false;
 		}
 
 		// Return true if already connected and port is alive
 		if (this.isConnected && this.port) {
-			console.log('[PortManager] Already connected, verifying port...');
 			// Verify port is still alive
 			try {
 				// Test the port by checking if we can access it
 				if (this.port.name === YAKKL_INTERNAL) {
-					console.log('[PortManager] ✓ Port already connected and alive');
 					return true;
 				}
 			} catch (e) {
-				console.log('[PortManager] Port check failed, reconnecting...');
 				this.isConnected = false;
 				this.port = undefined;
 			}
@@ -56,16 +49,11 @@ class PortManager {
 
 		// Prevent concurrent connection attempts
 		if (this.connectionPromise) {
-			console.log('[PortManager] Connection already in progress, waiting...');
 			return this.connectionPromise;
 		}
-
-		console.log('[PortManager] Initiating new connection...');
-
 		this.connectionPromise = this.performConnection();
 		const result = await this.connectionPromise;
 		this.connectionPromise = null;
-
 		return result;
 	}
 
@@ -83,21 +71,17 @@ class PortManager {
 
 			// Ensure browser API is available
 			if (!browser_ext || !browser_ext.runtime || !browser_ext.runtime.connect) {
-				console.error('[PortManager] Browser API not available');
 				return false;
 			}
 
-			console.log('[PortManager] Creating port connection...');
 			this.port = browser_ext.runtime.connect({ name: YAKKL_INTERNAL }) as Runtime.Port;
 
 			if (!this.port) {
-				console.error('[PortManager] Port creation returned null');
 				return false;
 			}
 
 			// Set up disconnect handler BEFORE marking as connected
 			this.port.onDisconnect.addListener(() => {
-				console.log('[PortManager] Port disconnected');
 				this.handleDisconnect();
 			});
 
@@ -110,15 +94,12 @@ class PortManager {
 				window.yakkl = {} as any;
 			}
 			window.yakkl.isConnected = true;
-
-			console.log('[PortManager] ✓ Successfully connected');
 			return true;
-
 		} catch (error) {
-			console.error('[PortManager] Connection failed:', error);
+			log.error('[PortManager] Connection failed:', false, error);
 
 			if (error instanceof Error && error.message?.includes('Receiving end does not exist')) {
-				console.log('[PortManager] Background script not ready');
+				log.debug('[PortManager] Background script not ready');
 			}
 
 			this.isConnected = false;
@@ -137,21 +118,21 @@ class PortManager {
 
 		// Check for Chrome runtime errors
 		if (browser_ext?.runtime?.lastError) {
-			console.error('[PortManager] Chrome runtime error:', browser_ext.runtime.lastError);
+			log.error('[PortManager] Chrome runtime error:', false, browser_ext.runtime.lastError);
 		}
 
 		// Only attempt reconnect if we haven't exceeded max attempts
 		if (this.reconnectAttempts < this.maxReconnectAttempts) {
 			this.reconnectAttempts++;
-			console.log(`[PortManager] Attempting reconnect ${this.reconnectAttempts}/${this.maxReconnectAttempts}...`);
+			log.debug(`[PortManager] Attempting reconnect ${this.reconnectAttempts}/${this.maxReconnectAttempts}...`);
 
 			setTimeout(() => {
 				this.connect().catch(err => {
-					console.error('[PortManager] Reconnect failed:', err);
+					log.error('[PortManager] Reconnect failed:', false, err);
 				});
 			}, 1000 * this.reconnectAttempts); // Exponential backoff
 		} else {
-			console.error('[PortManager] Max reconnect attempts reached, giving up');
+			log.error('[PortManager] Max reconnect attempts reached, giving up');
 			handleLockDown();
 		}
 	}
@@ -180,26 +161,21 @@ async function connectPort(): Promise<boolean> {
 
 // This function will only be called during load, not during SSR
 async function performLayoutInitialization() {
-	console.log('[performLayoutInitialization] Starting...');
+	log.debug('[performLayoutInitialization] Starting...');
 
 	if (typeof window === 'undefined') {
-		console.log('[performLayoutInitialization] No window object, skipping');
 		return;
 	}
 
 	// Ensure browser polyfill is loaded first
 	await initializeBrowserPolyfill();
-	console.log('[performLayoutInitialization] Browser polyfill ready');
 
 	try {
-		console.log('[performLayoutInitialization] Attempting to connect port...');
 		// Try connecting immediately, no arbitrary delay
 		let connected = await connectPort();
-		console.log('[performLayoutInitialization] Initial connection result:', connected);
 
 		// If initial connection fails, retry with exponential backoff
 		if (!connected) {
-			console.log('[performLayoutInitialization] Initial connection failed, starting retries...');
 			const maxRetries = 5;
 			let retryDelay = 100; // Start with 100ms
 
@@ -216,9 +192,7 @@ async function performLayoutInitialization() {
 		}
 
 		// Initialize the app state after port connection
-		console.log('[performLayoutInitialization] Initializing AppStateManager...');
 		await appStateManager.initialize();
-		console.log('[performLayoutInitialization] AppStateManager initialized successfully');
 	} catch (error) {
 		log.error('Layout initialization failed:', false, error);
 		throw error;
@@ -227,24 +201,17 @@ async function performLayoutInitialization() {
 
 // Move the initialization to the load function to prevent SSR issues
 export const load = async () => {
-	console.log('[Root Layout] Load function called');
-
 	// Skip extension initialization during SSR
 	if (typeof window === 'undefined') {
-		console.log('[Root Layout] SSR context, skipping initialization');
 		return {};
 	}
-
-	console.log('[Root Layout] Browser context, delegating to InitializationManager');
 
 	try {
 		// Use centralized initialization manager to prevent race conditions
 		// This ensures only one initialization path runs, preventing the hang
 		await initializationManager.initialize(performLayoutInitialization);
-		console.log('[Root Layout] Initialization completed successfully');
 	} catch (error) {
-		console.error('[Root Layout] Error during initialization:', error);
-		log.error('Error during initialization:', false, error);
+		log.error('[Root Layout] Error during initialization:', false, error);
 		// App will show error state via AppStateManager
 	}
 	return {};

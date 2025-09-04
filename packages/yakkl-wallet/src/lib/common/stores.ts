@@ -6,6 +6,8 @@ export const prerender = false;
 
 import { getObjectFromLocalStorage, setObjectInLocalStorage, removeObjectFromLocalStorage } from '$lib/common/storage';
 import { writable, get } from 'svelte/store';
+import { getYakklCurrentlySelected } from './currentlySelected';
+export { getYakklCurrentlySelected };
 import {
 	yakklSettings,
 	profile,
@@ -22,13 +24,8 @@ import {
 } from '$lib/models/dataModels';
 import {
 	STORAGE_YAKKL_REGISTERED_DATA,
-	STORAGE_YAKKL_ACCOUNTS,
-	STORAGE_YAKKL_PRIMARY_ACCOUNTS,
 	STORAGE_YAKKL_CURRENTLY_SELECTED,
-	STORAGE_YAKKL_PROFILE,
-	STORAGE_YAKKL_PREFERENCES,
 	STORAGE_YAKKL_SETTINGS,
-	STORAGE_YAKKL_CONTACTS,
 	STORAGE_YAKKL_WATCHLIST,
 	STORAGE_YAKKL_BLOCKEDLIST,
 	STORAGE_YAKKL_CONNECTED_DOMAINS,
@@ -42,7 +39,7 @@ import {
  STORAGE_YAKKL_ADDRESS_TOKEN_CACHE
 } from '$lib/common/constants';
 
-import { encryptData, decryptData } from '$lib/common/encryption';
+import { encryptData, decryptData, verifyEncryption } from '$lib/common/encryption';
 import { isEncryptedData } from '$lib/common/misc';
 import { type PricingStore } from '$lib/common/types';
 import { isEqual } from 'lodash-es';
@@ -58,7 +55,6 @@ import type {
 	YakklContact,
 	YakklRegisteredData,
 	YakklPrimaryAccount,
-	HasData,
 	YakklConnectedDomain,
 	YakklChat,
 	GasTransStore,
@@ -81,7 +77,7 @@ import type { RSSItem } from '$lib/managers/ExtensionRSSFeedService';
 import { BigNumber } from '$lib/common/bignumber';
 import { browser_ext } from '$lib/common/environment';
 import { walletCacheStore } from '$lib/stores/wallet-cache.store';
-import { detectBrowserContext } from './browserContext';
+import { getProfile } from './profile';
 
 // Svelte writeable stores
 export const alert = writable({
@@ -121,36 +117,7 @@ export async function loadCheckCurrentlySelectedStore(): Promise<YakklCurrentlyS
 	}
 }
 
-export async function verifyEncryption<T extends HasData<any>>(value: T | T[]): Promise<T | T[]> {
-	try {
-		const miscStore = getMiscStore();
-
-		if (miscStore) {
-			// Helper function to process each item
-			const processItem = async (item: T) => {
-				if (!isEncryptedData(item.data)) {
-					const result = await encryptData(item.data, miscStore);
-					item.data = result as any;
-				}
-				return item;
-			};
-
-			// If the input value is an array, process each item in the array
-			if (Array.isArray(value)) {
-				return Promise.all(value.map(processItem));
-			} else {
-				// If the input value is a single item, process it directly
-				return processItem(value);
-			}
-		}
-
-		return value;
-	} catch (error) {
-		log.error('Error in verifyEncryption:', false, error);
-		throw error;
-	}
-}
-
+export { verifyEncryption } from './encryption';
 //
 // NOTE: getYakkl... or setYakkl... represents both a storage and store. If there is no Yakkl prefix like 'getMiscStore' then it is only in memory and not stored
 //
@@ -351,7 +318,7 @@ export function storageChange(changes: any) {
 // Prioritized store loading for specific stores
 export async function syncStorageToStore(storeName?: string): Promise<void> {
 	if (storeName) {
-    console.log('[stores.ts] syncStorageToStore: storeName:', storeName);
+    log.info('[stores.ts] syncStorageToStore: loading store:', false, storeName);
 
 		// Load a specific store
 		try {
@@ -587,6 +554,7 @@ export function getYakklContractStore() {
 }
 
 // Memory only
+// getMisc calls this if typeof window !== 'undefined'
 export function getMiscStore() {
 	const store = get(yakklMiscStore);
 	return store;
@@ -873,22 +841,8 @@ export async function getYakklRegisteredData(
 }
 
 export async function getYakklContacts(id?: string, persona?: string): Promise<YakklContact[]> {
-	try {
-		const value = await getObjectFromLocalStorage<YakklContact[]>(STORAGE_YAKKL_CONTACTS);
-		if (typeof value === 'string') {
-			// Handle the case where value is a string, which shouldn't happen in this context
-			throw new Error('Unexpected string value received from local storage');
-		}
-
-		if (id && persona) {
-			// TODO: Implement this later
-		}
-
-		return value || []; // Return an empty array or provide a default value if necessary
-	} catch (error) {
-		console.error('[stores.ts] getYakklContacts: Error:', error);
-		throw error;
-	}
+  const { getYakklContacts } = await import('./contacts');
+  return getYakklContacts(id, persona);
 }
 
 export async function getYakklTokenData(id?: string, persona?: string): Promise<TokenData[]> {
@@ -1054,129 +1008,23 @@ export async function getYakklConnectedDomains(
 }
 
 export async function getPreferences(id?: string, persona?: string): Promise<Preferences | null> {
-	try {
-		const value = await getObjectFromLocalStorage<Preferences>(STORAGE_YAKKL_PREFERENCES);
-		if (typeof value === 'string') {
-			// Handle the case where value is a string, which shouldn't happen in this context
-			throw new Error('Unexpected string value received from local storage');
-		}
-
-		if (id && persona) {
-			// TODO: Implement this later
-		}
-
-		return value; // Return an empty object or provide a default value if necessary
-	} catch (error) {
-		console.error('[stores.ts] getPreferences: Error:', error);
-		throw error;
-	}
+  const { getPreferences } = await import('./preferences');
+  return getPreferences(id, persona);
 }
 
+// getProfile was fully moved to profile.ts - some of the others may need to be moved as well
+
+// Note: some functions are re-exported and other functions are dynamically imported - depending on how they are used above.
+// Move to settings.ts so remove later
 export async function getYakklSettings(id?: string, persona?: string): Promise<YakklSettings | null> {
-	try {
-		const value = await getObjectFromLocalStorage<YakklSettings>(STORAGE_YAKKL_SETTINGS);
-		if (typeof value === 'string') {
-			// Handle the case where value is a string, which shouldn't happen in this context
-			throw new Error('Unexpected string value received from local storage');
-		}
-
-		if (id && persona) {
-			// TODO: Implement this later
-		}
-
-		return value; // Return an empty object or provide a default value if necessary
-	} catch (error) {
-		console.error('[stores.ts] getYakklSettings: Error:', error);
-		throw error;
-	}
+  const { getYakklSettings } = await import('./settings');
+  return getYakklSettings(id, persona);
 }
 
 // Direct version for critical initialization paths (sidepanel)
-export async function getYakklSettingsDirect(id?: string, persona?: string): Promise<YakklSettings | null> {
-	try {
-		const { getObjectFromLocalStorageDirect } = await import('./storage');
-		const value = await getObjectFromLocalStorageDirect<YakklSettings>(STORAGE_YAKKL_SETTINGS);
-		if (typeof value === 'string') {
-			// Handle the case where value is a string, which shouldn't happen in this context
-			throw new Error('Unexpected string value received from local storage');
-		}
+export { getYakklSettingsDirect } from './settings';
 
-		if (id && persona) {
-			// TODO: Implement this later
-		}
-
-		return value; // Return an empty object or provide a default value if necessary
-	} catch (error) {
-		console.error('[stores.ts] getYakklSettingsDirect: Error:', error);
-		return null; // Return null instead of throwing to handle initialization gracefully
-	}
-}
-
-export async function getProfile(id?: string, persona?: string): Promise<Profile | null> {
-	try {
-		const value = await getObjectFromLocalStorage<Profile>(STORAGE_YAKKL_PROFILE);
-		if (typeof value === 'string') {
-			// Handle the case where value is a string, which shouldn't happen in this context
-			throw new Error('Unexpected string value received from local storage');
-		}
-
-		if (id && persona) {
-			// TODO: Implement this later
-		}
-
-		return value; // Return an empty object or provide a default value if necessary
-	} catch (error) {
-		console.error('[stores.ts] getProfile: Error:', error);
-		throw error;
-	}
-}
-
-// Re-export from the utility module to break circular dependency
-// export { getYakklCurrentlySelected } from '../stores/account-utils';
-
-export async function getYakklCurrentlySelected(
-	id?: string,
-	persona?: string
-): Promise<YakklCurrentlySelected> {
-	try {
-		// Use context-aware storage for background context
-		const context = detectBrowserContext();
-		const isBackground = context === 'background';
-		console.log(
-			'[getYakklCurrentlySelected] Browser context:',
-			context,
-			'isBackground:',
-			isBackground
-		);
-
-		// const value = isBackground
-		// 	? await getFromStorage<YakklCurrentlySelected>(STORAGE_YAKKL_CURRENTLY_SELECTED)
-		// 	: await getObjectFromLocalStorage<YakklCurrentlySelected>(STORAGE_YAKKL_CURRENTLY_SELECTED);
-
-    const value = await getObjectFromLocalStorage<YakklCurrentlySelected>(
-			STORAGE_YAKKL_CURRENTLY_SELECTED
-		);
-
-		console.log('[getYakklCurrentlySelected] Raw value from storage:', value);
-		console.log('[getYakklCurrentlySelected] Value type:', typeof value);
-
-		if (id && persona) {
-			// TODO: Implement this later
-		}
-
-		// If no value or value is a string, return default values
-		if (!value || typeof value === 'string') {
-			console.warn('[getYakklCurrentlySelected] No currently selected Yakkl found, using defaults', value);
-      return yakklCurrentlySelected; // Default values - models/dataModels.ts
-		}
-		return value;
-	} catch (error) {
-		log.error('Error in getYakklCurrentlySelected:', false, error);
-		throw error;
-	}
-}
-
-
+// Function is imported at the top of this file to avoid dynamic imports
 
 export async function getYakklWatchList(id?: string, persona?: string): Promise<YakklWatch[]> {
 	// eslint-disable-next-line no-useless-catch
@@ -1219,56 +1067,13 @@ export async function getYakklBlockedList(id?: string, persona?: string): Promis
 }
 
 export async function getYakklAccounts(id?: string, persona?: string): Promise<YakklAccount[]> {
-	// eslint-disable-next-line no-useless-catch
-	try {
-		console.log('[getYakklAccounts] Loading accounts from storage...');
-		const value = await getObjectFromLocalStorage<YakklAccount[]>(STORAGE_YAKKL_ACCOUNTS);
-		console.log('[getYakklAccounts] Raw value:', value);
-		console.log('[getYakklAccounts] Value type:', typeof value);
-
-		if (typeof value === 'string') {
-			// Handle the case where value is a string, which shouldn't happen in this context
-			console.error('[getYakklAccounts] ERROR: String value received from storage:', value);
-			throw new Error('Unexpected string value received from local storage');
-		}
-
-		if (id && persona) {
-			// TODO: Implement this later
-		}
-
-		const accounts = value || [];
-		console.log('[getYakklAccounts] Returning accounts count:', accounts.length);
-		return accounts;
-	} catch (error) {
-		log.error('Error in getYakklAccounts:', false, error);
-		console.error('[getYakklAccounts] ERROR:', error);
-		throw error;
-	}
+  const { getYakklAccounts } = await import('./accounts');
+  return getYakklAccounts(id, persona);
 }
 
-export async function getYakklPrimaryAccounts(
-	id?: string,
-	persona?: string
-): Promise<YakklPrimaryAccount[]> {
-	// eslint-disable-next-line no-useless-catch
-	try {
-		const value = await getObjectFromLocalStorage<YakklPrimaryAccount[]>(
-			STORAGE_YAKKL_PRIMARY_ACCOUNTS
-		);
-		if (typeof value === 'string') {
-			// Handle the case where value is a string, which shouldn't happen in this context
-			throw new Error('Unexpected string value received from local storage');
-		}
-
-		if (id && persona) {
-			// TODO: Implement this later
-		}
-
-		return value || [];
-	} catch (error) {
-		log.error('Error in getYakklPrimaryAccounts:', false, error);
-		throw error;
-	}
+export async function getYakklPrimaryAccounts(id?: string, persona?: string): Promise<YakklPrimaryAccount[]> {
+  const { getYakklPrimaryAccounts } = await import('./primaryAccounts');
+  return getYakklPrimaryAccounts(id, persona);
 }
 
 // --------------------------------
@@ -1637,18 +1442,6 @@ export async function setYakklBlockedListStorage(values: YakklBlocked[]) {
 		await setObjectInLocalStorage('yakklBlockedList', values);
 	} catch (error) {
 		log.error('Error in setYakklBlockedListStorage:', false, error);
-		throw error;
-	}
-}
-
-// No need for memory store since only being held in persistent storage
-export async function setYakklAccountsStorage(values: YakklAccount[]) {
-	try {
-		const newValues = (await verifyEncryption(values)) as unknown as YakklAccount[];
-		yakklAccountsStore.set(newValues);
-		await setObjectInLocalStorage<YakklAccount[]>('yakklAccounts', newValues);
-	} catch (error) {
-		log.error('Error in setYakklAccountsStorage:', false, error);
 		throw error;
 	}
 }

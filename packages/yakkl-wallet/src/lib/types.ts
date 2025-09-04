@@ -18,7 +18,7 @@ export type {
 export interface AccountDisplay {
   address: string;
   ens?: string | null;
-  username?: string;
+  name?: string;
   avatar?: string | null;
   isActive: boolean;
   balance?: string;               // Keep as string for display

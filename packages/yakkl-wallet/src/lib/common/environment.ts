@@ -1,9 +1,7 @@
 // $lib/common/environment.ts
 import { log } from '$lib/managers/Logger';
 import type { Browser } from 'webextension-polyfill';
-import { getBrowserSync, getBrowserAsync, initializeBrowserPolyfill, browserExtension } from './browser-polyfill-unified';
-
-console.log('[environment] environment.ts loaded');
+import { getBrowserSync, getBrowserAsync, browserExtension } from './browser-polyfill-unified';
 
 // Use a more generic type or create your own
 type BrowserAPI = Browser; // or create a proper interface in your types file
@@ -53,16 +51,12 @@ if (!isClient && typeof globalThis !== 'undefined') {
 
 // Get the browser API from unified loader
 export async function getBrowserExtFromGlobal(): Promise<BrowserAPI | null> {
-	console.log('[getBrowserExtFromGlobal] Called');
-
 	if (!isClient) {
-		console.log('[getBrowserExtFromGlobal] Not in browser, returning mock');
 		return mockBrowser;
 	}
 
 	// Return cached if available
 	if (cachedBrowserApi) {
-		console.log('[getBrowserExtFromGlobal] Returning cached API');
 		return cachedBrowserApi;
 	}
 
@@ -70,12 +64,10 @@ export async function getBrowserExtFromGlobal(): Promise<BrowserAPI | null> {
 		// Use unified loader to get browser API
 		const api = await getBrowserAsync();
 		if (api) {
-			console.log('[getBrowserExtFromGlobal] Got API from unified loader');
 			cachedBrowserApi = api;
 			return api;
 		}
 
-		console.warn('[getBrowserExtFromGlobal] No browser API found');
 		return null;
 	} catch (err) {
 		console.error('[getBrowserExtFromGlobal] Error accessing browser API:', err);
@@ -102,9 +94,22 @@ export function getBrowserExt(): BrowserAPI | null {
 	return null;
 }
 
-// Use the proxy from unified loader for immediate access
-// This will work synchronously if already loaded, or async if not
-export const browser_ext: BrowserAPI = isClient ? browserExtension : mockBrowser;
+// Use direct browser API for extension contexts
+// In sidepanel/popup/etc, browser is always available
+// For SSR, use mockBrowser to prevent build errors
+export const browser_ext: BrowserAPI = isClient ? (browserExtension || mockBrowser) : mockBrowser;
+
+// Debug logging to help troubleshoot
+// if (isClient) {
+//   console.log('[environment] browser_ext initialized:', {
+//     isClient,
+//     hasBrowserExtension: !!browserExtension,
+//     browserExtType: browserExtension ? 'real' : 'mock',
+//     hasRuntime: !!(browserExtension as any)?.runtime,
+//     hasSendMessage: !!(browserExtension as any)?.runtime?.sendMessage
+//   });
+// }
+
 export const browserSvelte = true; // Always true now since we have mock for SSR
 
 // Add cached browser API for reliable access

@@ -31,7 +31,9 @@ async function initializePriceUpdater() {
 
 // NOTE: May want to pass in priceManager as a parameter to allow for different configurations
 export async function updateTokenPrices() {
-	// Ensure priceUpdater is initialized before use
+	// Ensure timer and priceUpdater are initialized before use
+	await ensureTimerInitialized();
+	
 	if (!priceUpdater) {
 		await initializePriceUpdater();
 	}
@@ -135,8 +137,12 @@ export async function updateTokenPrices() {
 // Get the TimerManager instance
 const timerManager = TimerManager.getInstance();
 
-// Setup price updater timer asynchronously
-(async () => {
+// Setup price updater timer - defer initialization until first use
+let timerInitialized = false;
+
+async function ensureTimerInitialized() {
+	if (timerInitialized) return;
+	
 	if (!timerManager.hasTimer('tokenPriceUpdater')) {
 		log.info('Setting up token price updater timer');
 		await initializePriceUpdater(); // Use the new initialization function
@@ -154,11 +160,19 @@ const timerManager = TimerManager.getInstance();
 		log.info('Starting token price updater timer');
 		timerManager.startTimer('tokenPriceUpdater');
 	}
-})();
+	
+	timerInitialized = true;
+}
 
-// Run initial update immediately to populate prices
-updateTokenPrices().then(() => {
-	log.info('Initial token price update completed');
-}).catch(error => {
-	log.error('Initial token price update failed:', false, error);
-});
+// Export a function to start the price updates
+export async function startPriceUpdates() {
+	await ensureTimerInitialized();
+}
+
+// CRITICAL FIX: Do NOT run updateTokenPrices immediately at module level
+// This causes "Cannot access before initialization" errors because stores aren't ready yet
+// Instead, the initial update should be triggered after stores are initialized
+// This is now handled by components that import this module after initialization
+// 
+// The previous immediate call was causing:
+// ReferenceError: Cannot access 'yakklCombinedTokenStore' before initialization

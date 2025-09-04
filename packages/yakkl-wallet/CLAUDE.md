@@ -97,14 +97,21 @@ Rework prompts if they:
 - Could benefit from architectural review
 
 ## Critical Rules - DO NOT VIOLATE
-1. **NO DYNAMIC IMPORTS** - Use static imports only. Dynamic imports (`await import(...)`) break webpack in service worker contexts.
-   - Exceptions (use ONLY when absolutely necessary):
-     - `webextension-polyfill` in client context with browser environment
-     - Circular dependency resolution (must be documented with comment)
-     - Provider/blockchain abstraction where different implementations are loaded conditionally
-     - Network providers (Alchemy, Infura, etc.) loaded based on configuration
-   - All other imports MUST be static at the top of the file
-   - If using dynamic import for valid reason, MUST add comment explaining why
+1. **NO DYNAMIC IMPORTS - ABSOLUTELY FORBIDDEN IN SERVICE WORKERS** 
+   - Dynamic imports (`await import(...)`) **COMPLETELY BREAK** browser extension service workers
+   - Service workers CANNOT load code at runtime - ALL code must be statically available at build time
+   - **THE ONLY VALID EXCEPTION**: When Svelte SSR tries to access browser-only APIs and fails during build
+     - Example: `webextension-polyfill` in client context when SSR attempts to process it
+     - In this case, wrap in environment check: `if (!import.meta.env.SSR) { await import(...) }`
+   - **ALL OTHER USES ARE FORBIDDEN** - No exceptions for:
+     - Lazy loading (breaks service workers)
+     - Code splitting (breaks service workers)  
+     - Conditional loading (use static imports with conditional execution instead)
+     - Provider abstraction (use static imports of all providers)
+     - **Messaging modules** (NEVER use `await import('$lib/messaging/client-messaging')` - use static imports)
+   - If you think you need a dynamic import, you're wrong - find another solution
+   - This rule caused CRITICAL production failures - treat violations as P0 bugs
+   - **RECENT INCIDENT (2025-09-06)**: Dynamic imports in cache-sync.service.ts caused complete messaging failure between client and background contexts, breaking all blockchain data loading
 2. **Never modify webextension-polyfill import handling** - It has special handling for browser/non-browser contexts
 3. **NO BIG NUMBER DISPLAY ERRORS** - Always use our proper BigNumber formatting utilities found in $lib/common/bignumber.ts and others there
    - Use `formatBigNumberForDisplay()` for UI values

@@ -9,6 +9,7 @@ import { SingletonWindowManager } from '$lib/managers/SingletonWindowManager';
 import { quickAuthCheck } from '$lib/common/authValidation';
 import { getYakklSettings } from '$lib/common/stores';
 import { popupSecurityManager } from '$lib/managers/PopupSecurityManager';
+import { createWindowWithRetry, getStorageWithRetry } from '$lib/common/browser-retry';
 
 // NOTE: For background usage
 type WindowsWindow = Windows.Window;
@@ -24,13 +25,23 @@ export async function showExtensionPopup(
 	pinnedLocation: string = '0'
 ): Promise<WindowsWindow> {
 	try {
-		// Uses the default 'get' here
-		const pref = (await browser.storage.local.get(STORAGE_YAKKL_PREFERENCES)) as {
+		// Uses the default 'get' here with retry logic
+		const pref = (await getStorageWithRetry(STORAGE_YAKKL_PREFERENCES)) as {
 			yakklPreferences: Preferences;
 		};
 		const yakkl = pref['yakklPreferences'] as Preferences;
 		// eslint-disable-next-line prefer-const, @typescript-eslint/no-unused-vars
-		let { left, top } = await browser.windows.getCurrent();
+		let left = 0, top = 0;
+		if (browser?.windows?.getCurrent) {
+			try {
+				const currentWindow = await browser.windows.getCurrent();
+				left = currentWindow.left || 0;
+				top = currentWindow.top || 0;
+			} catch (e) {
+				// Use defaults if getCurrent fails
+				log.debug('Could not get current window position, using defaults', false, e);
+			}
+		}
 
 		// Pull from settings and get pin information...
 		if (yakkl && yakkl.wallet) {
@@ -92,7 +103,33 @@ export async function showExtensionPopup(
 
 		// Use the URL as-is
 		let finalUrl = url || 'index.html';
-		const fullUrl = browser.runtime.getURL(finalUrl);
+		
+		// Safely get the full URL with fallback to chrome API if needed
+		let fullUrl: string;
+		try {
+			// Try using the polyfill first
+			if (browser?.runtime?.getURL) {
+				fullUrl = browser.runtime.getURL(finalUrl);
+			} else if (typeof chrome !== 'undefined' && chrome?.runtime?.getURL) {
+				// Fallback to chrome API if polyfill is not available
+				fullUrl = chrome.runtime.getURL(finalUrl);
+			} else {
+				// Last resort: construct the URL manually
+				const extensionId = chrome?.runtime?.id || browser?.runtime?.id || '';
+				fullUrl = `chrome-extension://${extensionId}/${finalUrl}`;
+				log.warn('Using manual URL construction as fallback', false, { extensionId, finalUrl });
+			}
+		} catch (err) {
+			// If all else fails, use chrome API directly
+			try {
+				fullUrl = chrome.runtime.getURL(finalUrl);
+			} catch (chromeErr) {
+				// Final fallback: construct manually
+				const extensionId = chrome?.runtime?.id || '';
+				fullUrl = `chrome-extension://${extensionId}/${finalUrl}`;
+				log.error('All runtime.getURL attempts failed, using manual construction', false, { err, chromeErr });
+			}
+		}
 
 		log.info('showExtensionPopup: Creating window', false, {
 			finalUrl,
@@ -106,7 +143,8 @@ export async function showExtensionPopup(
 		});
 
 		try {
-			const window = await browser.windows.create({
+			// Use retry logic for window creation
+			const window = await createWindowWithRetry({
 				url: fullUrl,
 				type: 'popup',
 				left: left,
@@ -114,6 +152,9 @@ export async function showExtensionPopup(
 				width: popupWidth,
 				height: popupHeight,
 				focused: true
+			}, {
+				maxRetries: 5,
+				initialDelay: 100
 			});
 
 			log.info('showExtensionPopup: Window created successfully', false, {

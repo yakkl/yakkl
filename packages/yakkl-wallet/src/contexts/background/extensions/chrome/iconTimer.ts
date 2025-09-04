@@ -7,15 +7,16 @@ import {
 	STORAGE_YAKKL_SETTINGS,
 	TIMER_ICON_CHECK_TIME
 } from '$lib/common/constants';
-import { yakklCurrentlySelectedStore } from '$lib/common/stores';
-import { getTimerManager } from '$lib/managers/TimerManager';
-import { log } from '$lib/managers/Logger';
+// Removed Svelte store import - using direct storage only in background
+import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
+import { log } from '$lib/common/logger-wrapper';
 
-// NOTE: This is used on extension UI side as well which could be a problem
+// NOTE: This file is BACKGROUND ONLY - UI contexts should use messaging
 
 export function startLockIconTimer() {
 	try {
-		getTimerManager().addTimer(
+		const timerManager = UnifiedTimerManager.getInstance();
+		timerManager.addInterval(
 			'iconTimer_lockIcon',
 			async () => {
 				try {
@@ -33,7 +34,7 @@ export function startLockIconTimer() {
 								STORAGE_YAKKL_CURRENTLY_SELECTED,
 								yakklCurrentlySelected
 							);
-							yakklCurrentlySelectedStore.set(yakklCurrentlySelected);
+							// Removed Svelte store update - background only uses storage
 						}
 					}
 					if (yakklSettings.isLocked) {
@@ -48,7 +49,7 @@ export function startLockIconTimer() {
 			},
 			TIMER_ICON_CHECK_TIME
 		);
-		getTimerManager().startTimer('iconTimer_lockIcon');
+		timerManager.startInterval('iconTimer_lockIcon');
 	} catch (error: any) {
 		log.error('Error starting lock icon timer:', false, error, error?.stack);
 	}
@@ -59,7 +60,8 @@ export async function stopLockIconTimer() {
 		await setIconLock();
 		const yakklSettings = (await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS)) as YakklSettings;
 		if (yakklSettings) {
-			getTimerManager().removeTimer('iconTimer_lockIcon'); // Stops and clears the timer
+			const timerManager = UnifiedTimerManager.getInstance();
+			timerManager.stopInterval('iconTimer_lockIcon'); // Stops and clears the timer
 			// Don't send message from background to itself
 		}
 	} catch (error: any) {

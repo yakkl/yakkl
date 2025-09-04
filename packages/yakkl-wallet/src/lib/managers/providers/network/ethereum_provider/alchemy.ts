@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { log } from '$lib/managers/Logger';
 import { EIP1193_ERRORS } from './eip-types';
-import { getYakklCurrentlySelected } from '$lib/common/stores';
+import { getYakklCurrentlySelected } from '$lib/common/currentlySelected';
 import { EnhancedKeyManager } from '$lib/sdk/security/EnhancedKeyManager';
 
 // Get Alchemy API key from EnhancedKeyManager

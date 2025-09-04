@@ -12,65 +12,6 @@
 
 	let { tokens = [], className = '', maxRows = 6, loading = false } = $props();
 
-// Add comprehensive validation for tokens prop
-$effect(() => {
-	console.log('[TokenPortfolio] Props validation', {
-		tokens: {
-			value: tokens,
-			isArray: Array.isArray(tokens),
-			count: tokens?.length || 0,
-			type: typeof tokens,
-			firstToken: tokens?.[0]
-		},
-		loading,
-		maxRows,
-		className
-	});
-	
-	// Validate that tokens is an array
-	if (tokens !== undefined && tokens !== null && !Array.isArray(tokens)) {
-		console.error('[TokenPortfolio] Invalid tokens prop - expected array but got:', {
-			tokens,
-			type: typeof tokens
-		});
-	}
-	
-	// Validate each token structure
-	if (Array.isArray(tokens)) {
-		tokens.forEach((token, index) => {
-			if (!token) {
-				log.warn(`[TokenPortfolio] Token at index ${index} is null/undefined`, false);
-				return;
-			}
-			
-			const issues = [];
-			if (!token.symbol) issues.push('missing symbol');
-			if (token.value !== undefined && token.value !== null && !isFinite(Number(token.value)) && typeof token.value !== 'bigint' && typeof token.value !== 'string') {
-				issues.push('invalid value type');
-			}
-			if (token.price !== undefined && token.price !== null && !isFinite(Number(token.price))) {
-				issues.push('invalid price');
-			}
-			if (token.qty !== undefined && token.qty !== null && !isFinite(Number(token.qty))) {
-				issues.push('invalid quantity');
-			}
-			
-			if (issues.length > 0) {
-				log.warn(`[TokenPortfolio] Token ${token.symbol || index} has validation issues:`, false, {
-					issues,
-					token: {
-						symbol: token.symbol,
-						value: token.value,
-						valueType: typeof token.value,
-						price: token.price,
-						qty: token.qty
-					}
-				});
-			}
-		});
-	}
-});
-
 	let expanded = $state(false);
 	let sortBy = $state<'name' | 'value' | 'price' | 'quantity'>('value');
 	let sortOrder = $state<'asc' | 'desc'>('desc');
@@ -78,28 +19,23 @@ $effect(() => {
 	let isRefreshing = $state(false);
 	let lastRefreshTime = $state(0);
 	let timeUntilNextRefresh = $state(0);
-	
+
 	// Get stable token data from stability service
 	const stableTokens = portfolioStability.getStableTokens();
 	const tokenState = portfolioStability.getPortfolioState();
-	
+
+	// Rate limiting constants
+	const REFRESH_COOLDOWN_MS = 5000; // 5 seconds between refreshes
+	const MIN_TIME_BETWEEN_CLICKS = 1000; // 1 second minimum between button clicks
+
+
 	// Update stability service when tokens prop changes
 	$effect(() => {
-		console.log('[TokenPortfolio] Tokens prop changed, updating stability service', {
-			tokens: {
-				count: tokens?.length || 0,
-				isArray: Array.isArray(tokens),
-				hasValue: !!tokens,
-				data: tokens?.slice(0, 2).map(t => ({
-					symbol: t?.symbol,
-					value: t?.value,
-					valueType: typeof t?.value,
-					price: t?.price,
-					qty: t?.qty
-				}))
-			}
-		});
-		
+		// Only log in development when there are actual tokens
+		if (process.env.NODE_ENV === 'development' && tokens?.length > 0) {
+			log.debug('[TokenPortfolio] Updating stability service with tokens:', false, { count: tokens.length });
+		}
+
 		if (tokens && Array.isArray(tokens) && tokens.length > 0) {
 			log.info('[TokenPortfolio] Updating portfolio stability with new tokens', false, { count: tokens.length });
 			portfolioStability.updateTokenList(tokens, 'fetched');
@@ -107,28 +43,77 @@ $effect(() => {
 			log.debug('[TokenPortfolio] No valid tokens to update stability service', false, { tokens });
 		}
 	});
-	
+
 	// Use stable tokens if available, otherwise use props
 	let displayTokens = $derived.by(() => {
 		const stableTokensArray = $stableTokens;
 		const hasStableTokens = Array.isArray(stableTokensArray) && stableTokensArray.length > 0;
 		const result = hasStableTokens ? stableTokensArray : tokens;
-		
-		console.log('[TokenPortfolio] displayTokens derived:', {
-			stableTokensCount: stableTokensArray?.length || 0,
-			propsTokensCount: tokens?.length || 0,
-			usingStable: hasStableTokens,
-			resultCount: result?.length || 0,
-			resultIsArray: Array.isArray(result),
-			firstToken: result?.[0]
-		});
-		
+
+		// Only log when there's interesting data in development
+		if (process.env.NODE_ENV === 'development' && result?.length > 0) {
+			log.debug('[TokenPortfolio] Using tokens:', false, {
+				source: hasStableTokens ? 'stable' : 'props',
+				count: result.length
+			});
+		}
+
 		return result;
 	});
 
-	// Rate limiting constants
-	const REFRESH_COOLDOWN_MS = 5000; // 5 seconds between refreshes
-	const MIN_TIME_BETWEEN_CLICKS = 1000; // 1 second minimum between button clicks
+  // Add comprehensive validation for tokens prop
+  $effect(() => {
+    // Only log validation issues, not normal operations
+    if (process.env.NODE_ENV === 'development' && tokens !== undefined && tokens !== null && !Array.isArray(tokens)) {
+      log.error('[TokenPortfolio] Invalid tokens prop - expected array but got:', false, {
+        type: typeof tokens,
+        value: tokens
+      });
+    }
+
+    // Validate that tokens is an array
+    if (tokens !== undefined && tokens !== null && !Array.isArray(tokens)) {
+      console.error('[TokenPortfolio] Invalid tokens prop - expected array but got:', {
+        tokens,
+        type: typeof tokens
+      });
+    }
+
+    // Validate each token structure
+    if (Array.isArray(tokens)) {
+      tokens.forEach((token, index) => {
+        if (!token) {
+          log.warn(`[TokenPortfolio] Token at index ${index} is null/undefined`, false);
+          return;
+        }
+
+        const issues = [];
+        if (!token.symbol) issues.push('missing symbol');
+        if (token.value !== undefined && token.value !== null && !isFinite(Number(token.value)) && typeof token.value !== 'bigint' && typeof token.value !== 'string') {
+          issues.push('invalid value type');
+        }
+        if (token.price !== undefined && token.price !== null && !isFinite(Number(token.price))) {
+          issues.push('invalid price');
+        }
+        if (token.qty !== undefined && token.qty !== null && !isFinite(Number(token.qty))) {
+          issues.push('invalid quantity');
+        }
+
+        if (issues.length > 0) {
+          log.warn(`[TokenPortfolio] Token ${token.symbol || index} has validation issues:`, false, {
+            issues,
+            token: {
+              symbol: token.symbol,
+              value: token.value,
+              valueType: typeof token.value,
+              price: token.price,
+              qty: token.qty
+            }
+          });
+        }
+      });
+    }
+  });
 
 	// Update timeUntilNextRefresh reactively instead of using interval
 	$effect(() => {
@@ -150,14 +135,14 @@ $effect(() => {
 			log.debug('[TokenPortfolio] totalValue: displayTokens is not array', false, { displayTokens });
 			return 0;
 		}
-		
+
 		const total = displayTokens.reduce((sum, token, index) => {
 			// Guard against undefined tokens to prevent flickering
 			if (!token || token.value === undefined || token.value === null) {
 				log.debug(`[TokenPortfolio] totalValue: Token ${index} is invalid`, false, { token });
 				return sum;
 			}
-			
+
 			// Convert token value to number (dollars) safely
 			let value = 0;
 			try {
@@ -170,7 +155,7 @@ $effect(() => {
 						qty: token.qty
 					}
 				});
-				
+
 				if (typeof token.value === 'bigint') {
 					// bigint values are in cents, convert to dollars
 					value = Number(token.value) / 100;
@@ -191,7 +176,7 @@ $effect(() => {
 					value = Number(bigintVal) / 100; // Assuming cents
 					log.debug(`[TokenPortfolio] totalValue: Converted object ${str} to ${value}`, false);
 				}
-				
+
 				// Validate the result and provide detailed diagnostics
 				if (!isFinite(value) || isNaN(value)) {
 					log.error(`[TokenPortfolio] totalValue: CRITICAL - NaN/Infinite value detected for ${token.symbol}`, false, {
@@ -204,10 +189,10 @@ $effect(() => {
 						tokenQty: token.qty,
 						calculationDebug: {
 							priceTimesQty: token.price && token.qty ? token.price * token.qty : 'N/A',
-							bigintConversion: typeof token.value === 'bigint' ? 
-								(token.value <= BigInt(Number.MAX_SAFE_INTEGER) 
-									? `${token.value} -> ${Number(token.value)} -> ${Number(token.value) / 100}` 
-									: `${token.value} (too large for safe conversion)`) 
+							bigintConversion: typeof token.value === 'bigint' ?
+								(token.value <= BigInt(Number.MAX_SAFE_INTEGER)
+									? `${token.value} -> ${Number(token.value)} -> ${Number(token.value) / 100}`
+									: `${token.value} (too large for safe conversion)`)
 								: 'N/A'
 						}
 					});
@@ -224,11 +209,11 @@ $effect(() => {
 				});
 				value = 0;
 			}
-			
+
 			log.debug(`[TokenPortfolio] totalValue: Token ${token.symbol} contributes ${value} to total`, false);
 			return sum + value;
 		}, 0);
-		
+
 		log.debug('[TokenPortfolio] totalValue: Final total calculated', false, { total, tokenCount: displayTokens.length });
 		return total;
 	});
@@ -240,20 +225,16 @@ $effect(() => {
 			log.debug('[TokenPortfolio] filteredAndSortedTokens: displayTokens is not array', false, { displayTokens });
 			return [];
 		}
-		
-		console.log('[TokenPortfolio] filteredAndSortedTokens: Processing tokens', {
-			tokenCount: displayTokens.length,
-			sortBy,
-			sortOrder,
-			tokens: displayTokens.map(t => ({
-				symbol: t?.symbol,
-				value: t?.value,
-				valueType: typeof t?.value,
-				price: t?.price,
-				qty: t?.qty
-			}))
-		});
-		
+
+		// Only log sorting in development when there are tokens
+		if (process.env.NODE_ENV === 'development' && displayTokens.length > 0) {
+			log.debug('[TokenPortfolio] Sorting tokens:', false, {
+				count: displayTokens.length,
+				sortBy,
+				sortOrder
+			});
+		}
+
 		// For debugging: show all tokens, not just those with value > 0
 		// const filtered = displayTokens.filter(token => {
 		//   const value = typeof token.value === 'number' ? token.value : parseFloat(token.value || '0');
@@ -287,18 +268,15 @@ $effect(() => {
 								const aBN = new BigNumber(a.value);
 								aVal = aBN.toNumber() || 0;
 							}
-							
+
 							if (typeof b.value === 'number') {
 								bVal = b.value;
 							} else if (b.value !== undefined && b.value !== null) {
 								const bBN = new BigNumber(b.value);
 								bVal = bBN.toNumber() || 0;
 							}
-							
-							log.debug('[TokenPortfolio] filteredAndSortedTokens: Comparing values', false, {
-								a: { symbol: a.symbol, value: a.value, converted: aVal },
-								b: { symbol: b.symbol, value: b.value, converted: bVal }
-							});
+
+							// Values compared for sorting
 						} catch (error) {
 							log.error('[TokenPortfolio] filteredAndSortedTokens: Error converting values for sorting', false, {
 								error,
@@ -355,7 +333,7 @@ $effect(() => {
 				formattedValue: formatValue(t.value)
 			}))
 		});
-		
+
 		return sorted;
 	});
 
@@ -364,30 +342,34 @@ $effect(() => {
 			log.warn('[TokenPortfolio] visible: filteredAndSortedTokens is not an array', false, { filteredAndSortedTokens });
 			return [];
 		}
-		
+
 		const result = expanded ? filteredAndSortedTokens : filteredAndSortedTokens.slice(0, maxRows);
-		log.debug('[TokenPortfolio] visible tokens calculated', false, {
-			expanded,
-			maxRows,
-			totalTokens: filteredAndSortedTokens.length,
-			visibleCount: result.length
-		});
+		// log.error('[TokenPortfolio] visible tokens calculated', false, {
+    //   result,
+		// 	expanded,
+		// 	maxRows,
+		// 	totalTokens: filteredAndSortedTokens.length,
+		// 	visibleCount: result.length
+		// }); // just for debugging
+
 		return result;
 	});
-	
+
 	let hidden = $derived.by(() => {
 		if (!Array.isArray(filteredAndSortedTokens)) {
 			log.warn('[TokenPortfolio] hidden: filteredAndSortedTokens is not an array', false, { filteredAndSortedTokens });
 			return [];
 		}
-		
+
 		const result = expanded ? [] : filteredAndSortedTokens.slice(maxRows);
-		log.debug('[TokenPortfolio] hidden tokens calculated', false, {
-			expanded,
-			maxRows,
-			totalTokens: filteredAndSortedTokens.length,
-			hiddenCount: result.length
-		});
+		// log.error('[TokenPortfolio] hidden tokens calculated', false, {
+    //   result,
+		// 	expanded,
+		// 	maxRows,
+		// 	totalTokens: filteredAndSortedTokens.length,
+		// 	hiddenCount: result.length
+		// }); // just for debugging
+
 		return result;
 	});
 
@@ -424,7 +406,7 @@ $effect(() => {
 			sortOrder,
 			tokenState: $tokenState
 		});
-		
+
 		// Log any NaN values found
 		if (Array.isArray(displayTokens)) {
 			displayTokens.forEach((token, index) => {
@@ -446,7 +428,7 @@ $effect(() => {
 				}
 			});
 		}
-		
+
 		// Comprehensive NaN detection and debugging
 		if (isNaN(totalValue) || !isFinite(totalValue)) {
 			log.error('[TokenPortfolio] CRITICAL: totalValue is NaN or infinite!', false, {
@@ -463,13 +445,13 @@ $effect(() => {
 					valueString: String(t?.value),
 					valueNumber: typeof t?.value === 'bigint' ? Number(t?.value) / 100 : Number(t?.value),
 					priceTimesQty: t?.price && t?.qty ? (
-						typeof t?.qty === 'bigint' 
+						typeof t?.qty === 'bigint'
 							? t.price * (Number(t?.qty) / Math.pow(10, 18)) // Rough conversion for display
 							: t.price * Number(t?.qty)
 					) : null
 				}))
 			});
-			
+
 			// Try to identify the problematic token
 			if (Array.isArray(displayTokens)) {
 				displayTokens.forEach((token, index) => {
@@ -484,7 +466,7 @@ $effect(() => {
 								const bn = new BigNumber(token.value || '0');
 								testValue = bn.toNumber() || 0;
 							}
-							
+
 							if (isNaN(testValue) || !isFinite(testValue)) {
 								log.error(`[TokenPortfolio] FOUND NaN SOURCE: Token ${token.symbol} at index ${index}`, false, {
 									token,
@@ -506,21 +488,14 @@ $effect(() => {
 		}
 	});
 
-	// Helper for long values
-	function needsEllipsis(val: number | undefined) {
-		const result = String(val ?? '').length > 9;
-		log.debug('[TokenPortfolio] needsEllipsis check', false, { val, length: String(val ?? '').length, needsEllipsis: result });
-		return result;
-	}
-
 	function formatValue(val: number | bigint | undefined): string {
 		log.debug('[TokenPortfolio] formatValue called', false, { val, type: typeof val });
-		
+
 		if (val === undefined || val === null) {
 			log.debug('[TokenPortfolio] formatValue: Value is undefined/null', false);
 			return '$0.00';
 		}
-		
+
 		// Handle zero values
 		if (val === 0 || val === 0n) {
 			log.debug('[TokenPortfolio] formatValue: Value is zero', false);
@@ -528,7 +503,7 @@ $effect(() => {
 		}
 
 		let numValue: number;
-		
+
 		try {
 			// Convert bigint (cents) to number (dollars) for display
 			if (typeof val === 'bigint') {
@@ -538,7 +513,7 @@ $effect(() => {
 				numValue = val;
 				log.debug('[TokenPortfolio] formatValue: Using number value directly', false, { numValue });
 			}
-			
+
 			// Validate the numeric value with detailed diagnostics
 			if (!isFinite(numValue) || isNaN(numValue)) {
 				log.error('[TokenPortfolio] formatValue: CRITICAL - NaN/Infinite detected in formatValue', false, {
@@ -553,7 +528,7 @@ $effect(() => {
 				});
 				return '$0.00';
 			}
-			
+
 			const absValue = Math.abs(numValue);
 			log.debug('[TokenPortfolio] formatValue: Processing valid value', false, { numValue, absValue });
 
@@ -581,7 +556,7 @@ $effect(() => {
 				minimumFractionDigits: 2,
 				maximumFractionDigits: 2
 			}).format(numValue);
-			
+
 			log.debug('[TokenPortfolio] formatValue: Formatted as currency', false, { result });
 			return result;
 		} catch (error) {
@@ -590,28 +565,37 @@ $effect(() => {
 		}
 	}
 
-	function formatPrice(price: number | undefined): string {
+	function formatPrice(price: number | undefined | any): string {
 		log.debug('[TokenPortfolio] formatPrice called', false, { price, type: typeof price });
-		
-		if (price === undefined || price === null || isNaN(price) || !isFinite(price)) {
-			log.debug('[TokenPortfolio] formatPrice: Invalid price', false, { price });
+
+		// Extract numeric price from price object if needed
+		let numericPrice: number | undefined;
+		if (typeof price === 'object' && price !== null && 'price' in price) {
+			numericPrice = price.price;
+			log.debug('[TokenPortfolio] formatPrice: Extracted price from object', false, { original: price, extracted: numericPrice });
+		} else {
+			numericPrice = price;
+		}
+
+		if (numericPrice === undefined || numericPrice === null || isNaN(numericPrice) || !isFinite(numericPrice)) {
+			log.debug('[TokenPortfolio] formatPrice: Invalid price', false, { numericPrice });
 			return '$0.00';
 		}
-		
-		if (price === 0) {
+
+		if (numericPrice === 0) {
 			log.debug('[TokenPortfolio] formatPrice: Price is zero', false);
 			return '$0.00';
 		}
 
-		const absPrice = Math.abs(price);
-		log.debug('[TokenPortfolio] formatPrice: Processing valid price', false, { price, absPrice });
-		
+		const absPrice = Math.abs(numericPrice);
+		log.debug('[TokenPortfolio] formatPrice: Processing valid price', false, { price: numericPrice, absPrice });
+
 		if (absPrice >= 1e6) {
-			const result = `$${(price / 1e6).toFixed(1)}M+`;
+			const result = `$${(numericPrice / 1e6).toFixed(1)}M+`;
 			log.debug('[TokenPortfolio] formatPrice: Formatted as millions', false, { result });
 			return result;
 		} else if (absPrice >= 1e3) {
-			const result = `$${(price / 1e3).toFixed(1)}K+`;
+			const result = `$${(numericPrice / 1e3).toFixed(1)}K+`;
 			log.debug('[TokenPortfolio] formatPrice: Formatted as thousands', false, { result });
 			return result;
 		} else if (absPrice < 0.01) {
@@ -623,26 +607,26 @@ $effect(() => {
 			style: 'currency',
 			currency: 'USD',
 			minimumFractionDigits: 2,
-			maximumFractionDigits: price < 1 ? 6 : 2
-		}).format(price);
-		
+			maximumFractionDigits: numericPrice < 1 ? 6 : 2
+		}).format(numericPrice);
+
 		log.debug('[TokenPortfolio] formatPrice: Formatted as currency', false, { result });
 		return result;
 	}
 
 	function formatValueFull(val: number | bigint | undefined): string {
 		log.debug('[TokenPortfolio] formatValueFull called', false, { val, type: typeof val });
-		
+
 		if (val === undefined || val === null) {
 			log.debug('[TokenPortfolio] formatValueFull: Value is undefined/null', false);
 			return '$0.00';
 		}
-		
+
 		if (val === 0 || val === 0n) {
 			log.debug('[TokenPortfolio] formatValueFull: Value is zero', false);
 			return '$0.00';
 		}
-		
+
 		// Convert bigint (cents) to number (dollars) for display
 		let numValue: number;
 		if (typeof val === 'bigint') {
@@ -652,49 +636,49 @@ $effect(() => {
 			numValue = val;
 			log.debug('[TokenPortfolio] formatValueFull: Using number directly', false, { numValue });
 		}
-		
+
 		if (!isFinite(numValue) || isNaN(numValue)) {
 			log.warn('[TokenPortfolio] formatValueFull: Invalid numeric value', false, { val, numValue });
 			return '$0.00';
 		}
-		
+
 		const result = new Intl.NumberFormat('en-US', {
 			style: 'currency',
 			currency: 'USD',
 			minimumFractionDigits: 2,
 			maximumFractionDigits: 2
 		}).format(numValue);
-		
+
 		log.debug('[TokenPortfolio] formatValueFull: Final result', false, { result });
 		return result;
 	}
 
 	function getFullPriceDisplay(price: number | undefined): string {
 		log.debug('[TokenPortfolio] getFullPriceDisplay called', false, { price, type: typeof price });
-		
+
 		if (price === undefined || price === null || isNaN(price) || !isFinite(price)) {
 			log.debug('[TokenPortfolio] getFullPriceDisplay: Invalid price', false, { price });
 			return '$0.00000000';
 		}
-		
+
 		if (price === 0) {
 			log.debug('[TokenPortfolio] getFullPriceDisplay: Price is zero', false);
 			return '$0.00000000';
 		}
-		
+
 		if (price < 0.00000001) {
 			const result = `$${price.toExponential(8)}`;
 			log.debug('[TokenPortfolio] getFullPriceDisplay: Formatted as exponential', false, { result });
 			return result;
 		}
-		
+
 		const result = new Intl.NumberFormat('en-US', {
 			style: 'currency',
 			currency: 'USD',
 			minimumFractionDigits: 2,
 			maximumFractionDigits: 10
 		}).format(price);
-		
+
 		log.debug('[TokenPortfolio] getFullPriceDisplay: Final result', false, { result });
 		return result;
 	}
@@ -835,6 +819,8 @@ $effect(() => {
 		</div>
 
 		<!-- Sort controls -->
+    {console.error('[TokenPortfolio] filteredAndSortedTokens', { filteredAndSortedTokens })}
+
 		{#if filteredAndSortedTokens.length > 0}
 			<div class="flex items-center gap-2 text-xs">
 				<span class="text-zinc-500 dark:text-zinc-400">Sort by:</span>
@@ -970,20 +956,19 @@ $effect(() => {
 						>
 							<ProtectedValue
 								value={(() => {
-									const qty = token.qty;
-									log.debug('[TokenPortfolio] Processing quantity for display', false, {
-										symbol: token.symbol,
-										qty,
-										qtyType: typeof qty
-									});
-									
-									if (qty === undefined || qty === null || isNaN(Number(qty))) {
-										log.warn('[TokenPortfolio] Invalid quantity detected', false, { symbol: token.symbol, qty });
-										return '0';
-									}
-									
-									const qtyStr = String(qty);
-									return needsEllipsis(qty) ? qtyStr.slice(0, 9) + '…' : qtyStr;
+									// Use balance field, fallback to qty if needed
+									const qty = token.balance || token.qty || '0';
+
+									// Format the number properly
+									const num = typeof qty === 'string' ? parseFloat(qty) : Number(qty);
+									if (isNaN(num)) return '0';
+
+									// Format with appropriate decimals
+									if (num === 0) return '0';
+									if (num < 0.0001) return '<0.0001';
+									if (num < 1) return num.toFixed(4);
+									if (num < 100) return num.toFixed(2);
+									return num.toLocaleString();
 								})()}
 								placeholder="****"
 							/>
@@ -997,7 +982,7 @@ $effect(() => {
 						maxWidth="250px"
 					>
 						<div class="text-xs text-zinc-500 dark:text-zinc-400 text-center cursor-help">
-							<ProtectedValue 
+							<ProtectedValue
 								value={(() => {
 									log.debug('[TokenPortfolio] Formatting price for display', false, {
 										symbol: token.symbol,
@@ -1005,8 +990,8 @@ $effect(() => {
 										priceType: typeof token.price
 									});
 									return formatPrice(token.price);
-								})()} 
-								placeholder="****" 
+								})()}
+								placeholder="****"
 							/>
 						</div>
 					</SimpleTooltip>
@@ -1022,22 +1007,32 @@ $effect(() => {
 								? 'break-all'
 								: 'truncate max-w-[96px]'}"
 						>
-							<ProtectedValue 
+							<ProtectedValue
 								value={(() => {
-									log.debug('[TokenPortfolio] Formatting value for display', false, {
-										symbol: token.symbol,
-										value: token.value,
-										valueType: typeof token.value
-									});
-									const result = formatValue(token.value);
-									log.debug('[TokenPortfolio] Formatted value result', false, {
-										symbol: token.symbol,
-										result,
-										containsNaN: result.includes('NaN')
-									});
-									return result;
-								})()} 
-								placeholder="*****" 
+									// Simply display the value if it exists
+									if (token.value !== undefined && token.value !== null) {
+										// If value is already calculated, just format it
+										return formatValue(token.value);
+									}
+
+									// Calculate value = price * balance if both exist
+									const balance = token.balance || token.qty || 0;
+									const price = token.price || 0;
+
+									if (price && balance) {
+										const balanceNum = typeof balance === 'string' ? parseFloat(balance) : Number(balance);
+										const priceNum = typeof price === 'number' ? price : parseFloat(price || '0');
+										const value = balanceNum * priceNum;
+
+										// Format as currency
+										if (value === 0) return '$0.00';
+										if (value < 0.01) return '<$0.01';
+										return `$${value.toFixed(2)}`;
+									}
+
+									return '$0.00';
+								})()}
+								placeholder="*****"
 							/>
 						</div>
 					</SimpleTooltip>
@@ -1071,7 +1066,7 @@ $effect(() => {
 			<div class="flex justify-between items-center">
 				<span class="text-sm font-medium text-zinc-600 dark:text-zinc-400">Total Value:</span>
 				<span class="text-sm font-bold text-zinc-800 dark:text-zinc-200">
-					<ProtectedValue 
+					<ProtectedValue
 						value={(() => {
 							log.debug('[TokenPortfolio] Formatting total value for display', false, {
 								totalValue,
@@ -1083,8 +1078,8 @@ $effect(() => {
 								containsNaN: result.includes('NaN')
 							});
 							return result;
-						})()} 
-						placeholder="*****" 
+						})()}
+						placeholder="*****"
 					/>
 				</span>
 			</div>

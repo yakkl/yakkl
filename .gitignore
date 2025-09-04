@@ -25,14 +25,22 @@ packages/yakkl-wallet/docs/build/
 packages/yakkl-wallet/docs/build/
 
 # Closed-source packages (completely ignored)
-packages/yakkl-ai/
+packages/yakkl-ai-ts/
 packages/yakkl-ai-python/
 packages/yakkl-ai-private/
 packages/yakkl-staging/
 packages/yakkl-security/
+packages/yakkl-security-ui/
+packages/yakkl-auth/
+packages/yakkl-identity/
+packages/yakkl-sdk-pro/
+packages/yakkl-analytics/
 packages/yakkl-backend/
 packages/yakkl-wallet-private/
 packages/yakkl-wallet-pro/
+packages/yakkl-blockchain-private/
+packages/yakkl-routing/
+packages/yakkl-swaps/
 # packages/yakkl-sdk/
 
 # Ignore all v1 files

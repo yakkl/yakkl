@@ -6,7 +6,7 @@ export default function mockBrowserPolyfill() {
 		resolveId(id, importer, options) {
 			// Only mock during SSR, not for client builds
 			if (options?.ssr && (id === 'webextension-polyfill' || id.includes('webextension-polyfill'))) {
-				console.log(`[mock-browser-polyfill] Intercepting SSR import: ${id} from ${importer}`);
+				// console.log(`[mock-browser-polyfill] Intercepting SSR import: ${id} from ${importer}`);
 				// Return a custom id that our plugin will handle
 				return 'virtual:browser-polyfill-mock';
 			}
@@ -15,7 +15,7 @@ export default function mockBrowserPolyfill() {
 		load(id) {
 			// If this is our special ID, return a mock implementation
 			if (id === 'virtual:browser-polyfill-mock') {
-				console.log('[mock-browser-polyfill] Loading mock implementation');
+				// console.log('[mock-browser-polyfill] Loading mock implementation');
 				return `
           // Mock browser polyfill for SSR
           const mockBrowser = {
@@ -58,9 +58,9 @@ export default function mockBrowserPolyfill() {
               update: () => Promise.resolve({})
             }
           };
-          
+
           export default mockBrowser;
-          
+
           // Also export as named exports for compatibility
           export const runtime = mockBrowser.runtime;
           export const storage = mockBrowser.storage;

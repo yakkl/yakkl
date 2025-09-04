@@ -1,16 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { browserSvelte } from '$lib/common/environment';
   import {
     getYakklSettings,
     setYakklSettingsStorage,
     getYakklAccounts,
-    setYakklAccountsStorage,
     getYakklPrimaryAccounts,
-    getProfile
   } from '$lib/common/stores';
-  import { currentAccount, accounts as accountsStore, accountStore } from '$lib/stores/account.store';
+  import { accountStore } from '$lib/stores/account.store';
+  import { getProfile } from '$lib/common/profile';
   import {
     PATH_HOME,
     type YakklAccount,
@@ -79,7 +77,7 @@
       // Set as current account (if not already done by createPortfolioAccount)
       accountStore.setCurrentAccount({
         address: newAccount.address,
-        username: newAccount.name,
+        name: newAccount.name,
         isActive: true,
         balance: newAccount.quantity?.toString() || '0'
       });

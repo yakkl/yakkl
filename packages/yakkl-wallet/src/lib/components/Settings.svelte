@@ -3,13 +3,15 @@
 	import { createForm } from 'svelte-forms-lib';
 	import * as yup from 'yup';
 	import Modal from '@yakkl/ui/src/components/Modal.svelte';
-	import { getYakklSettings, setYakklSettings, getProfile, setProfileStorage } from '$lib/common/stores';
+	import { getYakklSettings, setYakklSettings, setProfileStorage } from '$lib/common/stores';
+	import { getProfile } from '$lib/common/profile';
 	import { log } from '$lib/managers/Logger';
 	import type { YakklSettings, Profile } from '$lib/common/interfaces';
 	import { SystemTheme, PlanType } from '$lib/common/types';
 	import SoundSettings from './SoundSettings.svelte';
 	import IdleTimeoutSettings from './IdleTimeoutSettings.svelte';
 	import { chainStore } from '$lib/stores/chain.store';
+	import { planStore } from '$lib/stores/plan.store';
 
 	interface Props {
 		show?: boolean;
@@ -30,6 +32,8 @@
 	let error = $state('');
 	let success = $state('');
 	let hasChanges = $state(false);
+	// Keep track of initial values for change detection
+	let initialValues = $state<any>(null);
 
 	// Available options
 	const themeOptions = [
@@ -122,36 +126,26 @@
 	$effect(() => {
 		if (show) {
 			loadSettingsData();
+			// Ensure planStore is loaded
+			planStore.loadPlan();
 		}
 	});
 
-	// Track form changes
+	// Track form changes using proper reactive approach
 	$effect(() => {
-		if (settings && profile && !isLoading) {
+		if (settings && profile && !isLoading && initialValues) {
 			const currentValues = $form;
-			// Only track changes if form has been properly initialized
-			const originalValues = {
-				showTestNetworks: profile.preferences?.showTestNetworks ?? false,
-				theme: profile.preferences?.dark ?? SystemTheme.SYSTEM,
-				locale: profile.preferences?.locale ?? 'en-US',
-				currency: profile.preferences?.currency?.code ?? 'USD',
-				idleDelayInterval: profile.preferences?.idleDelayInterval ?? 300,
-				idleAutoLock: profile.preferences?.idleAutoLock ?? true,
-				idleAutoLockCycle: profile.preferences?.idleAutoLockCycle ?? 180,
-				showHints: settings.showHints ?? true,
-				trialCountdownPinned: settings.trialCountdownPinned ?? false
-			};
 
 			hasChanges =
-				currentValues.showTestNetworks !== originalValues.showTestNetworks ||
-				currentValues.theme !== originalValues.theme ||
-				currentValues.locale !== originalValues.locale ||
-				currentValues.currency !== originalValues.currency ||
-				currentValues.idleDelayInterval !== originalValues.idleDelayInterval ||
-				currentValues.idleAutoLock !== originalValues.idleAutoLock ||
-				currentValues.idleAutoLockCycle !== originalValues.idleAutoLockCycle ||
-				currentValues.showHints !== originalValues.showHints ||
-				currentValues.trialCountdownPinned !== originalValues.trialCountdownPinned;
+				currentValues.showTestNetworks !== initialValues.showTestNetworks ||
+				currentValues.theme !== initialValues.theme ||
+				currentValues.locale !== initialValues.locale ||
+				currentValues.currency !== initialValues.currency ||
+				currentValues.idleDelayInterval !== initialValues.idleDelayInterval ||
+				currentValues.idleAutoLock !== initialValues.idleAutoLock ||
+				currentValues.idleAutoLockCycle !== initialValues.idleAutoLockCycle ||
+				currentValues.showHints !== initialValues.showHints ||
+				currentValues.trialCountdownPinned !== initialValues.trialCountdownPinned;
 		} else {
 			hasChanges = false;
 		}
@@ -188,6 +182,19 @@
 			updateField('idleAutoLockCycle', profile.preferences?.idleAutoLockCycle ?? 180);
 			updateField('showHints', settings.showHints ?? true);
 			updateField('trialCountdownPinned', settings.trialCountdownPinned ?? false);
+
+			// Set initial values for change detection
+			initialValues = {
+				showTestNetworks: profile.preferences?.showTestNetworks ?? false,
+				theme: profile.preferences?.dark ?? SystemTheme.SYSTEM,
+				locale: profile.preferences?.locale ?? 'en-US',
+				currency: profile.preferences?.currency?.code ?? 'USD',
+				idleDelayInterval: profile.preferences?.idleDelayInterval ?? 300,
+				idleAutoLock: profile.preferences?.idleAutoLock ?? true,
+				idleAutoLockCycle: profile.preferences?.idleAutoLockCycle ?? 180,
+				showHints: settings.showHints ?? true,
+				trialCountdownPinned: settings.trialCountdownPinned ?? false
+			};
 
 		} catch (e) {
 			log.error('Error loading settings data:', false, e);
@@ -249,11 +256,34 @@
 			// Update chain store to reflect test network preference
 			chainStore.setShowTestnets(values.showTestNetworks);
 
+			// Apply theme changes immediately
+			if (values.theme) {
+				// Import and use ui store to apply theme
+				const { uiStore } = await import('$lib/stores/ui.store');
+				if (values.theme === SystemTheme.SYSTEM) {
+					uiStore.applyTheme('auto');
+				} else if (values.theme === SystemTheme.LIGHT) {
+					uiStore.applyTheme('light');
+				} else if (values.theme === SystemTheme.DARK) {
+					uiStore.applyTheme('dark');
+				}
+			}
+
 			success = 'Settings updated successfully!';
 			hasChanges = false;
 
-			// Call completion callback
-			onComplete();
+			// Update initialValues to reflect the saved state
+			initialValues = {
+				showTestNetworks: values.showTestNetworks,
+				theme: values.theme,
+				locale: values.locale,
+				currency: values.currency,
+				idleDelayInterval: values.idleDelayInterval,
+				idleAutoLock: values.idleAutoLock,
+				idleAutoLockCycle: values.idleAutoLockCycle,
+				showHints: values.showHints,
+				trialCountdownPinned: values.trialCountdownPinned
+			};
 
 			// Call completion callback
 			onComplete();
@@ -285,16 +315,16 @@
 	}
 
 	function resetForm() {
-		if (settings && profile) {
-			updateField('showTestNetworks', profile.preferences?.showTestNetworks ?? false);
-			updateField('theme', profile.preferences?.dark ?? SystemTheme.SYSTEM);
-			updateField('locale', profile.preferences?.locale ?? 'en-US');
-			updateField('currency', profile.preferences?.currency?.code ?? 'USD');
-			updateField('idleDelayInterval', profile.preferences?.idleDelayInterval ?? 300);
-			updateField('idleAutoLock', profile.preferences?.idleAutoLock ?? true);
-			updateField('idleAutoLockCycle', profile.preferences?.idleAutoLockCycle ?? 180);
-			updateField('showHints', settings.showHints ?? true);
-			updateField('trialCountdownPinned', settings.trialCountdownPinned ?? false);
+		if (settings && profile && initialValues) {
+			updateField('showTestNetworks', initialValues.showTestNetworks);
+			updateField('theme', initialValues.theme);
+			updateField('locale', initialValues.locale);
+			updateField('currency', initialValues.currency);
+			updateField('idleDelayInterval', initialValues.idleDelayInterval);
+			updateField('idleAutoLock', initialValues.idleAutoLock);
+			updateField('idleAutoLockCycle', initialValues.idleAutoLockCycle);
+			updateField('showHints', initialValues.showHints);
+			updateField('trialCountdownPinned', initialValues.trialCountdownPinned);
 		}
 	}
 
@@ -318,35 +348,35 @@
 	}
 </script>
 
-<Modal bind:show title="Account Settings" onClose={handleClose} className="max-w-2xl">
+<Modal bind:show={show} title="Account Settings" onClose={handleClose} className="max-w-2xl">
 	<div class="space-y-6 p-6">
 		{#if isLoading}
 			<div class="flex items-center justify-center py-8">
 				<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-				<span class="ml-2 text-gray-600">Loading settings...</span>
+				<span class="ml-2 text-base-content/70">Loading settings...</span>
 			</div>
 		{:else}
 			<form onsubmit={handleFormSubmit} class="space-y-6">
 				<!-- Account Information (Read-only) -->
 				{#if settings && profile}
-					<div class="bg-gray-50 p-4 rounded-lg">
-						<h3 class="text-lg font-medium text-gray-900 mb-3">Account Information</h3>
+					<div class="bg-base-200 p-4 rounded-lg">
+						<h3 class="text-lg font-medium text-base-content mb-3">Account Information</h3>
 						<div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
 							<div>
-								<span class="font-medium text-gray-700">Plan:</span>
-								<span class="ml-2 text-gray-600">{getPlanLabel(settings.plan.type)}</span>
+								<span class="font-medium text-base-content">Plan:</span>
+								<span class="ml-2 text-base-content/70">{getPlanLabel($planStore.plan.type)}</span>
 							</div>
 							<div>
-								<span class="font-medium text-gray-700">Member since:</span>
-								<span class="ml-2 text-gray-600">{new Date(settings.createDate).toLocaleDateString()}</span>
+								<span class="font-medium text-base-content">Member since:</span>
+								<span class="ml-2 text-base-content/70">{new Date(settings.createDate).toLocaleDateString()}</span>
 							</div>
 							<div>
-								<span class="font-medium text-gray-700">Profile ID:</span>
-								<span class="ml-2 text-gray-600 font-mono text-xs">{settings.id.substring(0, 8)}...</span>
+								<span class="font-medium text-base-content">Profile ID:</span>
+								<span class="ml-2 text-base-content/70 font-mono text-xs">{settings.id.substring(0, 8)}...</span>
 							</div>
 							<div>
-								<span class="font-medium text-gray-700">Version:</span>
-								<span class="ml-2 text-gray-600">{settings.version}</span>
+								<span class="font-medium text-base-content">Version:</span>
+								<span class="ml-2 text-base-content/70">{settings.version}</span>
 							</div>
 						</div>
 					</div>
@@ -354,10 +384,10 @@
 
 				<!-- Display & Theme Settings -->
 				<div>
-					<h3 class="text-lg font-medium text-gray-900 mb-4">Display & Theme</h3>
+					<h3 class="text-lg font-medium text-base-content mb-4">Display & Theme</h3>
 					<div class="space-y-4">
 						<div>
-							<label for="theme" class="block text-sm font-medium text-gray-700 mb-1">
+							<label for="theme" class="block text-sm font-medium text-base-content mb-1">
 								Theme
 							</label>
 							<select
@@ -378,7 +408,7 @@
 								bind:checked={$form.showTestNetworks}
 								class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
 							/>
-							<label for="showTestNetworks" class="ml-2 block text-sm text-gray-900">
+							<label for="showTestNetworks" class="ml-2 block text-sm text-base-content">
 								Show test networks
 							</label>
 						</div>
@@ -390,7 +420,7 @@
 								bind:checked={$form.showHints}
 								class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
 							/>
-							<label for="showHints" class="ml-2 block text-sm text-gray-900">
+							<label for="showHints" class="ml-2 block text-sm text-base-content">
 								Show helpful hints and tips
 							</label>
 						</div>
@@ -399,10 +429,10 @@
 
 				<!-- Localization Settings -->
 				<div>
-					<h3 class="text-lg font-medium text-gray-900 mb-4">Localization</h3>
+					<h3 class="text-lg font-medium text-base-content mb-4">Localization</h3>
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 						<div>
-							<label for="locale" class="block text-sm font-medium text-gray-700 mb-1">
+							<label for="locale" class="block text-sm font-medium text-base-content mb-1">
 								Language <span class="text-red-500">*</span>
 							</label>
 							<select
@@ -421,7 +451,7 @@
 						</div>
 
 						<div>
-							<label for="currency" class="block text-sm font-medium text-gray-700 mb-1">
+							<label for="currency" class="block text-sm font-medium text-base-content mb-1">
 								Currency <span class="text-red-500">*</span>
 							</label>
 							<select
@@ -443,20 +473,20 @@
 
 				<!-- Security Settings -->
 				<div>
-					<h3 class="text-lg font-medium text-gray-900 mb-4">Security & Privacy</h3>
+					<h3 class="text-lg font-medium text-base-content mb-4">Security & Privacy</h3>
 					<IdleTimeoutSettings />
 				</div>
 
 				<!-- Notification Settings -->
 				<div>
-					<h3 class="text-lg font-medium text-gray-900 mb-4">Notifications</h3>
+					<h3 class="text-lg font-medium text-base-content mb-4">Notifications</h3>
 					<SoundSettings className="mt-4" />
 				</div>
 
 				<!-- Trial Settings (if applicable) -->
 				{#if settings?.plan?.trialEndDate}
 					<div>
-						<h3 class="text-lg font-medium text-gray-900 mb-4">Trial Settings</h3>
+						<h3 class="text-lg font-medium text-base-content mb-4">Trial Settings</h3>
 						<div class="flex items-center">
 							<input
 								id="trialCountdownPinned"
@@ -464,7 +494,7 @@
 								bind:checked={$form.trialCountdownPinned}
 								class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
 							/>
-							<label for="trialCountdownPinned" class="ml-2 block text-sm text-gray-900">
+							<label for="trialCountdownPinned" class="ml-2 block text-sm text-base-content">
 								Pin trial countdown to top of interface
 							</label>
 						</div>
@@ -489,7 +519,7 @@
 					<button
 						type="button"
 						onclick={resetForm}
-						class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+						class="btn btn-ghost"
 						disabled={!hasChanges || isSaving}
 					>
 						Reset
@@ -499,7 +529,7 @@
 						<button
 							type="button"
 							onclick={handleClose}
-							class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+							class="btn btn-ghost"
 							disabled={isSaving}
 						>
 							Cancel
@@ -524,7 +554,7 @@
 
 				<!-- Last Updated Info -->
 				{#if settings?.updateDate}
-					<div class="text-xs text-gray-500 text-center pt-2 border-t">
+					<div class="text-xs text-base-content/50 text-center pt-2 border-t border-base-300">
 						Last updated: {new Date(settings.updateDate).toLocaleString()}
 					</div>
 				{/if}

@@ -177,6 +177,23 @@ function createAuthStore() {
 					}
 				}
 
+				// Check for JWT token in sessionStorage (set during login)
+				if (browser && typeof window !== 'undefined') {
+					const storedJWT = sessionStorage.getItem('wallet-jwt-token');
+					if (storedJWT && !validation.hasValidJWT) {
+						// We have a JWT from login but validation doesn't see it yet
+						update((state) => ({
+							...state,
+							jwtToken: storedJWT
+						}));
+						
+						// Clear from sessionStorage after retrieving
+						sessionStorage.removeItem('wallet-jwt-token');
+						
+						log.debug('Retrieved JWT from sessionStorage during initialization', false);
+					}
+				}
+
 				// Start session validation if authenticated
 				// Commented out to prevent immediate validation on page load
 				// Validation will start after grace period via background service
@@ -259,30 +276,67 @@ function createAuthStore() {
 					}
 				}
 
-				// Start session with JWT token generation
-				const jwtToken = await sessionManager.startSession(
-					profile.id || profile.username,
-					profile.username,
-					profile.id || profile.username,
-					planLevel
-				);
-
-				const sessionState = sessionManager.getSessionState();
-
+				// IMMEDIATELY mark user as authenticated for instant login experience
 				update((state) => ({
 					...state,
 					isAuthenticated: true,
 					profile,
 					lastActivity: Date.now(),
-					sessionState,
-					jwtToken
+					sessionState: null, // Will be updated async
+					jwtToken: null // Will be generated async
 				}));
 
-				log.info('Auth store updated after login', false, {
+				// Generate JWT asynchronously AFTER user sees they're logged in
+				// This ensures FAST login experience
+				setTimeout(async () => {
+					try {
+						const jwtToken = await sessionManager.startSession(
+							profile.id || profile.username,
+							profile.username,
+							profile.id || profile.username,
+							planLevel
+						);
+
+						const sessionState = sessionManager.getSessionState();
+
+						// Update store with JWT and session state
+						update((state) => ({
+							...state,
+							sessionState,
+							jwtToken
+						}));
+
+						log.info('JWT generated after login', false, {
+							hasJwtToken: !!jwtToken,
+							hasSessionState: !!sessionState
+						});
+
+						// NOW notify background script with the actual JWT token
+						if (typeof window !== 'undefined' && browser_ext.runtime) {
+							browser_ext.runtime.sendMessage({
+								type: 'USER_LOGIN_SUCCESS',
+								sessionId: sessionState?.sessionId,
+								hasJWT: !!jwtToken,
+								jwtToken: jwtToken, // Include the actual JWT token for background storage
+								userId: profile.id || profile.username,
+								username: profile.username,
+								profileId: profile.id || profile.username,
+								planLevel
+							}).then(() => {
+								log.debug('Background notified with JWT token');
+							}).catch((error) => {
+								log.debug('Background notification failed (non-critical):', false, error);
+							});
+						}
+					} catch (error) {
+						log.error('Failed to generate JWT after login:', false, error);
+						// User is still logged in, just without JWT
+					}
+				}, 100); // Small delay to ensure UI updates first
+
+				log.info('User logged in successfully (JWT generation pending)', false, {
 					isAuthenticated: true,
 					hasProfile: !!profile,
-					hasSessionState: !!sessionState,
-					hasJwtToken: !!jwtToken,
 					username: profile.username
 				});
 
@@ -292,46 +346,34 @@ function createAuthStore() {
 				// Start periodic session validation
 				startSessionValidation();
 
-				// Audit successful login
-				await auditAuthEvent('login', {
+				// Audit successful login (non-blocking)
+				auditAuthEvent('login', {
 					username: normalizedUsername,
-					sessionId: sessionState?.sessionId,
-					hasJWT: !!jwtToken
+					sessionId: null, // Will be set async
+					hasJWT: false // Will be generated async
+				}).catch(error => {
+					log.debug('Audit event failed (non-critical):', false, error);
 				});
 
-				// Notify background script about login to start idle detection
-				try {
-					const sessionService = SessionVerificationService.getInstance();
-					await sessionService.verifyLogin(true);
-					log.debug('Idle detection started after login');
-				} catch (error) {
-					log.warn('Failed to start idle detection:', false, error);
-					// Don't fail login if idle detection fails
-				}
+				// Notify background script about login to start idle detection (non-blocking)
+				setTimeout(() => {
+					try {
+						const sessionService = SessionVerificationService.getInstance();
+						sessionService.verifyLogin(true).then(() => {
+							log.debug('Idle detection started after login');
+						}).catch(error => {
+							log.warn('Failed to start idle detection:', false, error);
+						});
+					} catch (error) {
+						log.warn('Failed to start idle detection:', false, error);
+					}
+				}, 200); // Slightly delayed to not block login
 
-				// Notify background script about successful login (non-blocking)
-				// Fire and forget - don't wait for response to avoid slowing down login
-				if (typeof window !== 'undefined' && browser_ext.runtime) {
-					browser_ext.runtime.sendMessage({
-						type: 'USER_LOGIN_SUCCESS',
-						sessionId: sessionState?.sessionId,
-						hasJWT: !!jwtToken,
-						jwtToken: jwtToken, // Include the actual JWT token for background storage
-						userId: profile.id || profile.username,
-						username: profile.username,
-						profileId: profile.id || profile.username,
-						planLevel
-					}).then(() => {
-						log.debug('Background notified about successful login');
-					}).catch((error) => {
-						// Silently fail - don't block login if background notification fails
-						log.debug('Background notification failed (non-critical):', false, error);
-					});
-				}
+				// Background notification moved to async JWT generation block above
 
 				log.debug('User logged in successfully', false, {
-					username: normalizedUsername,
-					sessionId: sessionState?.sessionId
+					username: normalizedUsername
+					// sessionId will be set asynchronously
 				});
 				return profile;
 			} catch (error) {
@@ -512,6 +554,19 @@ function createAuthStore() {
 
 			const now = Date.now();
 			return Math.max(0, Math.round((state.sessionState.expiresAt - now) / 1000));
+		},
+
+		// Method to update session state from external sources
+		updateSessionState(sessionState: SessionState | null, jwtToken?: string | null) {
+			update((state) => ({
+				...state,
+				sessionState,
+				jwtToken: jwtToken !== undefined ? jwtToken : (sessionState?.jwtToken || state.jwtToken)
+			}));
+			log.debug('Session state updated externally', false, { 
+				hasSessionState: !!sessionState, 
+				hasJWT: !!(jwtToken || sessionState?.jwtToken) 
+			});
 		}
 	};
 }

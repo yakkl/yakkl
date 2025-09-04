@@ -66,12 +66,20 @@ export class BackgroundManager {
 				return;
 			}
 
-			if (!browser.runtime.onConnect) {
-				log.error('browser.runtime.onConnect not available');
+			// Check both chrome and browser for onConnect
+			const runtime = chrome?.runtime || browser?.runtime;
+			if (!runtime?.onConnect) {
+				log.warn('runtime.onConnect not available yet - will retry');
+				// Retry after a delay
+				setTimeout(() => {
+					this.initialize().catch(error => {
+						log.error('Failed to retry onConnect initialization:', false, error);
+					});
+				}, 2000);
 				return;
 			}
 
-			browser.runtime.onConnect.addListener((port) => {
+			runtime.onConnect.addListener((port) => {
 				if (this.isValidConnectionType(port.name)) {
 					this.handleNewConnection(port);
 				}

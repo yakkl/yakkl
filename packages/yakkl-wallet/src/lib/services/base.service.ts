@@ -3,8 +3,6 @@ import messagingService from '$lib/common/messaging';
 import type { ServiceResponse, ErrorState } from '../types';
 import { log } from '$lib/common/logger-wrapper';
 
-console.log('[base.service] base.service.ts loaded');
-
 export abstract class BaseService {
   protected serviceName: string;
   protected port?: any;

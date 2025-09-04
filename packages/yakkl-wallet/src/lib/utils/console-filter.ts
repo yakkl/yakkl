@@ -27,7 +27,10 @@ export function setupConsoleFilters() {
 
     // Other common extension warnings
     /Extension context invalidated/i,
-    /Unchecked runtime.lastError/i
+    /Unchecked runtime.lastError/i,
+    /back\/forward cache/i,
+    /message channel is closed/i,
+    /page keeping the extension port is moved/i
   ];
 
   // Override console.warn

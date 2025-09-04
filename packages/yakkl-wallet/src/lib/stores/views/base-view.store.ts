@@ -233,6 +233,10 @@ export abstract class BaseViewStore<T> {
    * Start automatic sync
    */
   protected startAutoSync(): void {
+    if (typeof window === 'undefined') {
+      return; // Skip during SSR
+    }
+    
     if (this.syncTimer) {
       clearInterval(this.syncTimer);
     }

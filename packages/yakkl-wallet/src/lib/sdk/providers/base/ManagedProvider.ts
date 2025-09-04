@@ -32,10 +32,19 @@ export abstract class ManagedProvider extends BaseProvider {
    * Get the current API key for the operation type
    */
   protected async getApiKey(operation: 'read' | 'write' | 'archive' | 'trace' | 'websocket' | 'any' = 'read'): Promise<string> {
+    console.log(`[ManagedProvider] Getting ${operation} API key for ${this.providerName}`);
     const key = await this.keyManager.getKey(this.providerName, operation, this.chainId);
     if (!key) {
+      console.error(`[ManagedProvider] No ${operation} API key available for ${this.providerName}`);
+      // Try to get any key as fallback
+      const anyKey = await this.keyManager.getKey(this.providerName, 'any', this.chainId);
+      if (anyKey) {
+        console.log(`[ManagedProvider] Using 'any' operation key as fallback for ${this.providerName}`);
+        return anyKey;
+      }
       throw new Error(`No ${operation} API key available for ${this.providerName}`);
     }
+    console.log(`[ManagedProvider] Found API key for ${this.providerName}`);
     return key;
   }
 
@@ -48,12 +57,20 @@ export abstract class ManagedProvider extends BaseProvider {
    * Connect with API key management
    */
   protected async doConnect(chainId: number): Promise<void> {
-    // Get API key for read operations (most common)
-    const apiKey = await this.getApiKey('read');
-    this._endpoint = this.buildEndpoint(apiKey);
-    
-    // Initialize the raw provider
-    await this.initializeProvider(apiKey);
+    try {
+      console.log(`[ManagedProvider] Connecting ${this.providerName} for chain ${chainId}`);
+      // Get API key for read operations (most common)
+      const apiKey = await this.getApiKey('read');
+      this._endpoint = this.buildEndpoint(apiKey);
+      console.log(`[ManagedProvider] Built endpoint for ${this.providerName}`);
+      
+      // Initialize the raw provider
+      await this.initializeProvider(apiKey);
+      console.log(`[ManagedProvider] Successfully connected ${this.providerName}`);
+    } catch (error) {
+      console.error(`[ManagedProvider] Failed to connect ${this.providerName}:`, error);
+      throw error;
+    }
   }
 
   /**

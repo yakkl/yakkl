@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { type SaltedKey } from '$lib/common';
-import type { EncryptedData } from '$lib/common';
+import { getMiscStore } from '$lib/common/miscStore';
+import { isEncryptedData, type SaltedKey } from '$lib/common';
+import type { EncryptedData, HasData } from '$lib/common';
 import { log } from '$lib/managers/Logger';
 // import { encodeJSON } from '$lib/utilities/utilities';
 import { Buffer } from 'buffer';
@@ -58,6 +59,8 @@ async function generateSalt(): Promise<string> {
 	return bufferToBase64(saltBuffer);
 }
 
+// NOTE: digestMessage has been moved to @yakkl/security
+// Use: import { digestMessage } from '@yakkl/security';
 export async function digestMessage(message: string) {
 	const encoder = new TextEncoder();
 	const data = encoder.encode(message);
@@ -114,7 +117,7 @@ function encodeJSON<T>(obj: T) {
 export async function encryptData(
 	data: any,
 	passwordOrSaltedKey: string | SaltedKey
-): Promise<EncryptedData> {
+): Promise<EncryptedData | null> {
 	try {
 		if (!data) {
 			throw new Error('Missing data to encrypt');
@@ -153,7 +156,7 @@ export async function encryptData(
 export async function decryptData<T>(
 	encryptedData: EncryptedData,
 	passwordOrSaltedKey: string | SaltedKey
-): Promise<T> {
+): Promise<T | null> {
 	try {
 		if (!passwordOrSaltedKey) {
 			throw new Error('Missing password or key to decrypt data');
@@ -188,4 +191,34 @@ function ensureArrayBuffer(data: Uint8Array): Uint8Array {
 		return newArray;
 	}
 	return data;
+}
+
+export async function verifyEncryption<T extends HasData<any>>(value: T | T[]): Promise<T | T[]> {
+	try {
+		const miscStore = await getMiscStore();
+
+		if (miscStore) {
+			// Helper function to process each item
+			const processItem = async (item: T) => {
+				if (!isEncryptedData(item.data)) {
+					const result = await encryptData(item.data, miscStore);
+					item.data = result as any;
+				}
+				return item;
+			};
+
+			// If the input value is an array, process each item in the array
+			if (Array.isArray(value)) {
+				return Promise.all(value.map(processItem));
+			} else {
+				// If the input value is a single item, process it directly
+				return processItem(value);
+			}
+		}
+
+		return value;
+	} catch (error) {
+		log.error('Error in verifyEncryption:', false, error);
+		throw error;
+	}
 }

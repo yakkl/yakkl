@@ -26,10 +26,10 @@ function getEnvKeys() {
 
 module.exports = {
 	entry: {
-		background: ['./src/contexts/background/extensions/chrome/background.ts'],
-		content: ['./src/contexts/background/extensions/chrome/content.ts'],
-		inpage: ['./src/contexts/background/extensions/chrome/inpage.ts'],
-		sandbox: ['./src/contexts/background/extensions/chrome/sandbox.ts']
+		background: './src/contexts/background/extensions/chrome/background.ts',
+		content: './src/contexts/background/extensions/chrome/content.ts',
+		inpage: './src/contexts/background/extensions/chrome/inpage.ts',
+		sandbox: './src/contexts/background/extensions/chrome/sandbox.ts'
 	},
 	target: 'webworker',
 	mode: process.env.NODE_ENV || 'development',
@@ -38,12 +38,28 @@ module.exports = {
 		filename: '[name].js',
 		path: path.resolve(__dirname, 'static/ext'),
 		publicPath: '/',
-		chunkLoadingGlobal: 'webpackChunkYakkl'
+		// Disable chunk loading completely
+		// chunkLoadingGlobal: 'webpackChunkYakkl',
+		// chunkLoading: false,
+		// Prevent webpack from using importScripts in module service workers
+		// globalObject: 'self',
+		// Ensure no dynamic imports
+		// chunkFormat: false,
+		// wasmLoading: false,
+		// workerChunkLoading: false,
+		// workerWasmLoading: false
 	},
 	optimization: {
+		// Disable ALL code splitting and chunking
 		splitChunks: false,
 		runtimeChunk: false,
-		minimize: true,
+		// Prevent async chunks
+		// usedExports: false,
+		// sideEffects: false,
+		// Ensure no chunks are created
+		// chunkIds: 'named',
+		// moduleIds: 'named',
+		minimize: process.env.NODE_ENV === 'production',
 		minimizer: [
 			new TerserPlugin({
 				terserOptions: {
@@ -60,9 +76,6 @@ module.exports = {
 				}
 			})
 		]
-		// splitChunks: {
-		//   chunks: 'all', // Splits common dependencies into separate files
-		// },
 	},
 	module: {
 		rules: [
@@ -104,15 +117,12 @@ module.exports = {
 		alias: {
 			'process/browser': require.resolve('process/browser'),
 			'webextension-polyfill': require.resolve('webextension-polyfill'),
-			'dexie': require.resolve('dexie'), // Force resolution to a single dexie instance
-			// Add SvelteKit path aliases for webpack
 			'$lib': path.resolve(__dirname, './src/lib'),
 			'$base': path.resolve(__dirname, './src'),
 			'$static': path.resolve(__dirname, './src/static'),
 			'$components': path.resolve(__dirname, './src/lib/components'),
 			'$routes': path.resolve(__dirname, './src/routes'),
 			'$managers': path.resolve(__dirname, './src/lib/managers'),
-			'$plugins': path.resolve(__dirname, './src/lib/plugins'),
 			'$contexts': path.resolve(__dirname, './src/contexts')
 		},
 		fallback: {
@@ -175,7 +185,6 @@ module.exports = {
 			'import.meta.env.VITE_LOG_LEVEL': JSON.stringify(process.env.VITE_LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'warn' : 'debug'))
 		}),
 		new webpack.ProvidePlugin({
-			browser: ['webextension-polyfill', 'default'],
 			process: 'process/browser',
 			Buffer: ['buffer', 'Buffer']
 		}),

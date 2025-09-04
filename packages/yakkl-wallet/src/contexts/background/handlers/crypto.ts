@@ -8,8 +8,10 @@ import { dateString } from '$lib/common/datetime';
 import type { YakklAccount, AccountData } from '$lib/common/interfaces';
 import { AccountTypeCategory } from '$lib/common/types';
 import { DEFAULT_PERSONA, VERSION, DEFAULT_DERIVED_PATH_ETH } from '$lib/common/constants';
-import { getYakklSettings, getYakklCurrentlySelected, getYakklAccounts, setYakklAccountsStorage, getMiscStore } from '$lib/common/stores';
-import { getSymbol } from '$lib/utilities/utilities';
+import { getYakklAccounts, setYakklAccountsStorage } from '$lib/common/accounts';
+import { getYakklCurrentlySelected } from '$lib/common/currentlySelected';
+import { getYakklSettings } from '$lib/common/settings';
+import { getMiscStoreAsync } from '$lib/common/miscStore';
 
 export const cryptoHandlers = new Map<string, MessageHandlerFunc>([
   ['yakkl_importPrivateKey', async (payload): Promise<MessageResponse> => {
@@ -41,7 +43,7 @@ export const cryptoHandlers = new Map<string, MessageHandlerFunc>([
       // Get current state
       const currentlySelected = await getYakklCurrentlySelected();
       const settings = await getYakklSettings();
-      const encryptionPassword = getMiscStore() || '';
+      const encryptionPassword = await getMiscStoreAsync() || '';
 
       if (!encryptionPassword) {
         return { success: false, error: 'Encryption password not found' };
@@ -133,7 +135,7 @@ export const cryptoHandlers = new Map<string, MessageHandlerFunc>([
       // Get current state
       const currentlySelected = await getYakklCurrentlySelected();
       const settings = await getYakklSettings();
-      const encryptionPassword = getMiscStore() || '';
+      const encryptionPassword = await getMiscStoreAsync() || '';
 
       if (!encryptionPassword) {
         return { success: false, error: 'Encryption password not found' };
@@ -206,7 +208,7 @@ export const cryptoHandlers = new Map<string, MessageHandlerFunc>([
 
       // Get encryption password
       const settings = await getYakklSettings();
-      const encryptionPassword = getMiscStore() || '';
+      const encryptionPassword = await getMiscStoreAsync() || '';
 
       if (!encryptionPassword) {
         return { success: false, error: 'Encryption password not found' };

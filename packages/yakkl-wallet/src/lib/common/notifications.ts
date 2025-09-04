@@ -6,7 +6,7 @@ import type {
 	NotificationOptions,
 	ProgressNotificationOptions
 } from './types';
-import { startLockIconTimer, stopLockIconTimer } from '$contexts/background/extensions/chrome/iconTimer';
+import { startLockIconTimer, stopLockIconTimer } from './iconTimerWrapper';
 import { browser_ext } from './environment';
 import { log } from '$lib/common/logger-wrapper';
 import type { Notifications } from '$lib/types/browser-types';
@@ -1084,7 +1084,7 @@ export async function sendNotificationStartLockIconTimer() {
 
 		log.info('sendNotificationStartLockIconTimer - starting lock icon timer:', false);
 
-		startLockIconTimer();
+		await startLockIconTimer();
 	} catch (error) {
 		log.warn('Error starting lock icon timer:', false, error);
 	}
@@ -1096,7 +1096,7 @@ export async function sendNotificationStartLockIconTimer() {
 export async function sendNotificationStopLockIconTimer() {
 	try {
 		if (!browser_ext) return;
-		stopLockIconTimer();
+		await stopLockIconTimer();
 	} catch (error) {
 		log.warn('Error stopping lock icon timer:', false, error);
 	}

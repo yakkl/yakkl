@@ -64,7 +64,6 @@ export default defineConfig(({ mode }) => {
 				$components: path.resolve('./src/lib/components'),
 				$routes: path.resolve('./src/routes'),
 				$managers: path.resolve('./src/lib/managers'),
-				$plugins: path.resolve('./src/lib/plugins'),
 				$contexts: path.resolve('./src/contexts'),
 				// Let webextension-polyfill resolve normally
 				// The mock plugin will handle SSR, and the unified loader handles client
@@ -135,6 +134,9 @@ export default defineConfig(({ mode }) => {
 		build: {
 			sourcemap: true,
 			minify: 'terser',
+			// CRITICAL: Disable code splitting for browser extensions
+			// Dynamic imports break service workers and extension contexts
+			chunkSizeWarningLimit: 10000, // Increase limit since we're bundling everything
 			terserOptions: {
 				compress: false,
 				mangle: false,
@@ -149,6 +151,12 @@ export default defineConfig(({ mode }) => {
 				include: [/node_modules/]
 			},
 			rollupOptions: {
+				output: {
+					// CRITICAL: Disable code splitting - browser extensions can't use dynamic imports
+					inlineDynamicImports: true,
+					// Ensure everything is in a single bundle per entry point
+					manualChunks: undefined
+				},
 				// Don't externalize webextension-polyfill, let it be bundled
 				plugins: [
 					// Prevent webextension-polyfill from being loaded during build

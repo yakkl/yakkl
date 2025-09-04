@@ -36,10 +36,6 @@
 
     const position = calculateSubmenuPositionFixed(itemElement, submenuElement);
 
-    console.log('[Menu] position', position);
-    console.log('[Menu] submenuElement', submenuElement);
-    console.log('[Menu] itemElement', itemElement);
-
     submenuElement.style.position = "fixed";
     submenuElement.style.left = `${position.x}px`;
     submenuElement.style.top = `${position.y}px`;
