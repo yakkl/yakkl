@@ -437,7 +437,20 @@
 
   let lastUpdate = $derived.by(() => {
     try {
-      return $lastTokenUpdate || null;
+      const updateValue = $lastTokenUpdate;
+      if (!updateValue) return null;
+
+      // Convert string to Date if it's a string
+      if (typeof updateValue === 'string') {
+        return new Date(updateValue);
+      }
+
+      // If it's already a Date, return it
+      if (updateValue && typeof updateValue === 'object' && 'getTime' in updateValue) {
+        return updateValue as Date;
+      }
+
+      return null;
     } catch (error) {
       console.error('[(wallet)/home/+page.svelte] Error getting last update:', error);
       return null;

@@ -37,19 +37,19 @@
   // Format value for display
   const formattedValue = $derived(() => {
     // Handle undefined, null, or invalid portfolio values
-    if (portfolioValue === undefined || portfolioValue === null || portfolioValue === '') {
+    if (portfolioValue === undefined || portfolioValue === null) {
       return formatCurrency(0, 'USD');
     }
-    
+
     try {
       // Check if it's a BigNumber object from ethers.js
-      let valueToConvert = portfolioValue;
-      if (portfolioValue && typeof portfolioValue === 'object' && '_hex' in portfolioValue) {
-        // It's a BigNumber object, convert to hex string
-        valueToConvert = portfolioValue._hex || '0x00';
-      }
-      
-      const value = BigNumberishUtils.toBigInt(valueToConvert);
+      // let valueToConvert = portfolioValue;
+      // if (portfolioValue && typeof portfolioValue === 'object' && '_hex' in portfolioValue) {
+      //   // It's a BigNumber object, convert to hex string
+      //   valueToConvert = portfolioValue._hex || '0x00';
+      // }
+
+      const value = BigNumberishUtils.toBigInt(portfolioValue);
       // Convert from cents to dollars
       const dollars = Number(value) / 100;
       return formatCurrency(dollars, 'USD');
@@ -63,14 +63,14 @@
   function getResponsiveFontSize(value: any): string {
     try {
       if (!value) return 'text-4xl';
-      
+
       // Check if it's a BigNumber object from ethers.js
       let valueToConvert = value;
       if (value && typeof value === 'object' && '_hex' in value) {
         // It's a BigNumber object, convert to hex string
         valueToConvert = value._hex || '0x00';
       }
-      
+
       // Safely convert to bigint and handle invalid values
       const bigintValue = BigNumberishUtils.toBigInt(valueToConvert);
       const numValue = Number(bigintValue) / 100; // Convert cents to dollars

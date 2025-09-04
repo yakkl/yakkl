@@ -7,6 +7,78 @@ YAKKL is a core product line the emcompasses a number of other projects. The fla
 **Structure**: 11+ projects using pnpm workspaces
 **Focus**: Browser extension ecosystem plus security, backend, MCP servers, agents and smart contracts
 
+## Claude Code Organization
+
+### Architecture Overview
+This monorepo uses a **hybrid orchestration model** for Claude Code:
+
+1. **Root Orchestrator** (`.claude/`) - Central coordination and shared components
+2. **Package Instances** (`packages/*/.claude/`) - Package-specific configurations with symlinks to shared components
+
+### Root Claude Structure
+```
+.claude/
+├── orchestration/          # Cross-package coordination agents
+│   ├── monorepo-coordinator.md
+│   ├── dependency-analyzer.md
+│   ├── impact-analyzer.md
+│   └── release-manager.md
+├── agents/shared/          # Shared agents for all packages
+│   ├── architecture-enforcer.md
+│   ├── security-auditor.md
+│   ├── performance-optimizer.md
+│   ├── test-runner.md
+│   └── documentation-updater.md
+├── commands/shared/        # Shared commands
+├── hooks/shared/          # Shared hooks
+└── scripts/               # Setup and maintenance scripts
+```
+
+### Package Claude Structure
+Each package has its own `.claude/` directory with:
+- Package-specific agents
+- Symlinks to root shared components
+- Local settings and configurations
+
+### Working with Claude Code
+
+#### At Root Level
+Use when:
+- Making cross-package changes
+- Analyzing dependencies
+- Coordinating releases
+- Running monorepo-wide operations
+
+```bash
+# From /yakkl directory
+claude "Refactor shared utilities from wallet to core"
+```
+
+#### At Package Level
+Use when:
+- Working on package-specific features
+- Making isolated changes
+- Testing package functionality
+
+```bash
+# From /yakkl/packages/yakkl-wallet directory
+claude "Add new wallet connection method"
+```
+
+### Claude Code Coordination Flow
+1. **Simple Package Changes**: Use package-level Claude
+2. **Cross-Package Changes**: Start at root level
+3. **Complex Features**: Root orchestrates, packages execute
+4. **Dependency Updates**: Root analyzes, then coordinates
+
+### Setup New Package with Claude
+Run from root directory:
+```bash
+./scripts/setup-claude-package.sh <package-name>
+```
+
+This creates the Claude structure with proper symlinks.
+
 ## Projects
 - **yakkl-wallet**: Main browser extension (primary work) - super app
 - **yakkl-wallet-private**: Parts of the super app that is private
