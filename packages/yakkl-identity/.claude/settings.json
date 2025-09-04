@@ -1,0 +1,10 @@
+{
+  "package": "yakkl-identity",
+  "description": "Claude configuration for yakkl-identity package",
+  "extends": "../../../.claude/settings.json",
+  "customCommands": {
+    "build": "pnpm run build",
+    "test": "pnpm run test",
+    "lint": "pnpm run lint"
+  }
+}

@@ -1,0 +1,8 @@
+# Claude ignore patterns for yakkl-ui
+node_modules/
+dist/
+build/
+coverage/
+*.log
+.env
+.env.local
