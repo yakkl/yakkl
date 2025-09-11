@@ -1,7 +1,11 @@
 /**
- * Background Price Service
- * Fetches token prices using PriceManager with failover support
- * Updates token values in storage for UI display
+ * DEPRECATED: Legacy Background Price Service
+ *
+ * This service is DEPRECATED and replaced by BackgroundPriceService.ts (in background/ folder)
+ * The new service is service worker compatible and includes proper request deduplication
+ * to prevent duplicate API calls.
+ *
+ * DO NOT USE THIS SERVICE - Use BackgroundPriceService.getInstance() instead
  */
 
 import browser from 'webextension-polyfill';
@@ -147,6 +151,21 @@ export class BackgroundPriceService {
         return;
       }
 
+      // Log cache structure to debug
+      const chainCount = Object.keys(walletCache.chainAccountCache).length;
+      let totalAccounts = 0;
+      let totalTokens = 0;
+      for (const [chainId, chainData] of Object.entries(walletCache.chainAccountCache)) {
+        const accounts = Object.keys(chainData as any);
+        totalAccounts += accounts.length;
+        for (const [address, accountData] of Object.entries(chainData as any)) {
+          const tokenCount = (accountData as any).tokens?.length || 0;
+          totalTokens += tokenCount;
+        }
+      }
+      
+      log.info(`[BackgroundPriceService] Cache structure: ${chainCount} chains, ${totalAccounts} accounts, ${totalTokens} total tokens`);
+
       let updatedTokenCount = 0;
       let failedTokenCount = 0;
 
@@ -157,8 +176,11 @@ export class BackgroundPriceService {
           const cache = accountCache as any;
 
           if (!cache.tokens || cache.tokens.length === 0) {
+            log.debug(`[BackgroundPriceService] No tokens for ${address} on chain ${chainId}`);
             continue;
           }
+
+          log.info(`[BackgroundPriceService] Processing ${cache.tokens.length} tokens for ${address} on chain ${chainId}`);
 
           // Update prices for each token
           for (let i = 0; i < cache.tokens.length; i++) {

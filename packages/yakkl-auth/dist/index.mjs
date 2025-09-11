@@ -1,5 +1,5 @@
-import { jwtVerify as h, SignJWT as d } from "jose";
-class y {
+import { jwtVerify as d, SignJWT as l } from "jose";
+class m {
   constructor(e = {}) {
     this.name = "jwt", this.type = "local", this.config = {
       secret: e.secret || "default-secret-change-in-production",
@@ -16,7 +16,7 @@ class y {
           success: !1,
           error: "Username or email required"
         };
-      const t = e.username || e.email || "unknown", r = await this.generateToken(t, e), s = await this.generateRefreshToken(t);
+      const t = e.username || e.email || "unknown", s = await this.generateToken(t, e), r = await this.generateRefreshToken(t);
       return {
         success: !0,
         user: {
@@ -30,8 +30,8 @@ class y {
         session: {
           id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
           userId: t,
-          token: r,
-          refreshToken: s,
+          token: s,
+          refreshToken: r,
           expiresAt: new Date(Date.now() + this.getExpiryMs()),
           createdAt: /* @__PURE__ */ new Date()
         }
@@ -45,7 +45,7 @@ class y {
   }
   async verify(e) {
     try {
-      const { payload: t } = await h(e, this.secret, {
+      const { payload: t } = await d(e, this.secret, {
         issuer: this.config.issuer,
         audience: this.config.audience
       });
@@ -56,7 +56,7 @@ class y {
   }
   async refresh(e) {
     try {
-      const { payload: t } = await h(e, this.secret, {
+      const { payload: t } = await d(e, this.secret, {
         issuer: this.config.issuer,
         audience: this.config.audience
       });
@@ -65,14 +65,14 @@ class y {
           success: !1,
           error: "Invalid refresh token"
         };
-      const r = await this.generateToken(t.sub, { id: t.sub }), s = await this.generateRefreshToken(t.sub);
+      const s = await this.generateToken(t.sub, { id: t.sub }), r = await this.generateRefreshToken(t.sub);
       return {
         success: !0,
         session: {
           id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
           userId: t.sub,
-          token: r,
-          refreshToken: s,
+          token: s,
+          refreshToken: r,
           expiresAt: new Date(Date.now() + this.getExpiryMs()),
           createdAt: /* @__PURE__ */ new Date()
         }
@@ -88,13 +88,13 @@ class y {
     console.log("[JWTProvider] Token revoked (would be blacklisted in production)");
   }
   async generateToken(e, t = {}) {
-    return await new d({
+    return await new l({
       ...t,
       sub: e
     }).setProtectedHeader({ alg: this.config.algorithm }).setIssuedAt().setIssuer(this.config.issuer).setAudience(this.config.audience).setExpirationTime(this.config.expiresIn).sign(this.secret);
   }
   async generateRefreshToken(e) {
-    return await new d({
+    return await new l({
       sub: e,
       type: "refresh"
     }).setProtectedHeader({ alg: this.config.algorithm }).setIssuedAt().setIssuer(this.config.issuer).setAudience(this.config.audience).setExpirationTime("7d").sign(this.secret);
@@ -105,22 +105,22 @@ class y {
       return e * 1e3;
     const t = e?.toString().match(/^(\d+)([hdms])$/);
     if (!t) return 36e5;
-    const [, r, s] = t, a = parseInt(r);
-    switch (s) {
+    const [, s, r] = t, i = parseInt(s);
+    switch (r) {
       case "d":
-        return a * 24 * 60 * 60 * 1e3;
+        return i * 24 * 60 * 60 * 1e3;
       case "h":
-        return a * 60 * 60 * 1e3;
+        return i * 60 * 60 * 1e3;
       case "m":
-        return a * 60 * 1e3;
+        return i * 60 * 1e3;
       case "s":
-        return a * 1e3;
+        return i * 1e3;
       default:
         return 36e5;
     }
   }
 }
-class m {
+class y {
   constructor() {
     this.name = "local", this.priority = 1;
   }
@@ -134,7 +134,7 @@ class m {
    * Authenticate using local strategy
    */
   async authenticate(e) {
-    const { PasswordProvider: t } = await Promise.resolve().then(() => l);
+    const { PasswordProvider: t } = await Promise.resolve().then(() => g);
     return new t({
       minLength: 8,
       requireUppercase: !0,
@@ -146,7 +146,7 @@ class m {
    * Register new user
    */
   async register(e) {
-    const { PasswordProvider: t } = await Promise.resolve().then(() => l);
+    const { PasswordProvider: t } = await Promise.resolve().then(() => g);
     return new t({
       minLength: 8,
       requireUppercase: !0,
@@ -160,7 +160,7 @@ class m {
     });
   }
 }
-class w {
+class S {
   constructor() {
     this.store = /* @__PURE__ */ new Map();
   }
@@ -177,26 +177,26 @@ class w {
     this.store.clear();
   }
 }
-class b {
+class E {
   constructor(e = {}) {
-    this.currentSession = null, this.config = this.mergeConfig(e), this.providers = /* @__PURE__ */ new Map(), this.strategies = e.strategies || [new m()], this.storage = e.storage || new w(), this.initializeProviders();
+    this.currentSession = null, this.config = this.mergeConfig(e), this.providers = /* @__PURE__ */ new Map(), this.strategies = e.strategies || [new y()], this.storage = e.storage || new S(), this.initializeProviders();
   }
   /**
    * Authenticate user with credentials
    */
   async authenticate(e) {
     try {
-      const t = [...this.strategies].sort((r, s) => s.priority - r.priority);
-      for (const r of t)
-        if (r.canHandle(e)) {
-          const s = await r.authenticate(e);
-          return s.success && s.session && (this.currentSession = s.session, await this.storage.set("session", s.session), await this.storage.set("user", s.user)), s;
+      const t = [...this.strategies].sort((s, r) => r.priority - s.priority);
+      for (const s of t)
+        if (s.canHandle(e)) {
+          const r = await s.authenticate(e);
+          return r.success && r.session && (this.currentSession = r.session, await this.storage.set("session", r.session), await this.storage.set("user", r.user)), r;
         }
       if (e.provider) {
-        const r = this.providers.get(e.provider);
-        if (r) {
-          const s = await r.authenticate(e);
-          return s.success && s.session && (this.currentSession = s.session, await this.storage.set("session", s.session), await this.storage.set("user", s.user)), s;
+        const s = this.providers.get(e.provider);
+        if (s) {
+          const r = await s.authenticate(e);
+          return r.success && r.session && (this.currentSession = r.session, await this.storage.set("session", r.session), await this.storage.set("user", r.user)), r;
         }
       }
       return {
@@ -217,8 +217,8 @@ class b {
     try {
       const t = e || this.currentSession?.token;
       if (!t) return !1;
-      const r = this.providers.get("jwt");
-      return r ? await r.verify(t) : this.currentSession ? /* @__PURE__ */ new Date() < new Date(this.currentSession.expiresAt) : !1;
+      const s = this.providers.get("jwt");
+      return s ? await s.verify(t) : this.currentSession ? /* @__PURE__ */ new Date() < new Date(this.currentSession.expiresAt) : !1;
     } catch (t) {
       return console.error("[AuthManager] Verification error:", t), !1;
     }
@@ -295,13 +295,13 @@ class b {
    * Add authentication strategy
    */
   addStrategy(e) {
-    this.strategies.push(e), this.strategies.sort((t, r) => r.priority - t.priority);
+    this.strategies.push(e), this.strategies.sort((t, s) => s.priority - t.priority);
   }
   /**
    * Initialize default providers
    */
   initializeProviders() {
-    if (this.providers.has("jwt") || this.addProvider(new y({
+    if (this.providers.has("jwt") || this.addProvider(new m({
       secret: process.env.JWT_SECRET || "default-secret-change-in-production"
     })), this.config.providers)
       for (const e of this.config.providers)
@@ -323,7 +323,7 @@ class b {
     };
   }
 }
-class S {
+class I {
   constructor(e) {
     this.name = "web3", this.type = "web3", this.config = {
       message: "Sign this message to authenticate with YAKKL",
@@ -333,18 +333,18 @@ class S {
   }
   async authenticate(e) {
     try {
-      const { address: t, signature: r, message: s, nonce: a } = e;
-      if (!t || !r)
+      const { address: t, signature: s, message: r, nonce: i } = e;
+      if (!t || !s)
         return {
           success: !1,
           error: "Wallet address and signature required"
         };
-      if (this.config.verifySignature && !await this.verifySignature(t, r, s || this.config.message))
+      if (this.config.verifySignature && !await this.verifySignature(t, s, r || this.config.message))
         return {
           success: !1,
           error: "Invalid signature"
         };
-      const n = this.generateSessionId(), i = await this.generateWeb3Token(t, a);
+      const a = this.generateSessionId(), o = await this.generateWeb3Token(t, i);
       return {
         success: !0,
         user: {
@@ -359,9 +359,9 @@ class S {
           updatedAt: /* @__PURE__ */ new Date()
         },
         session: {
-          id: n,
+          id: a,
           userId: t.toLowerCase(),
-          token: i,
+          token: o,
           expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1e3),
           // 24 hours
           createdAt: /* @__PURE__ */ new Date(),
@@ -381,13 +381,13 @@ class S {
     try {
       const t = e.split(".");
       if (t.length !== 3) return !1;
-      const r = JSON.parse(atob(t[1]));
-      return !(r.exp && r.exp < Date.now() / 1e3);
+      const s = JSON.parse(atob(t[1]));
+      return !(s.exp && s.exp < Date.now() / 1e3);
     } catch {
       return !1;
     }
   }
-  async verifySignature(e, t, r) {
+  async verifySignature(e, t, s) {
     try {
       return !(!t.startsWith("0x") || t.length !== 132);
     } catch {
@@ -395,24 +395,24 @@ class S {
     }
   }
   async generateWeb3Token(e, t) {
-    const r = {
+    const s = {
       alg: "ES256K",
       typ: "JWT"
-    }, s = {
+    }, r = {
       sub: e.toLowerCase(),
       iat: Math.floor(Date.now() / 1e3),
       exp: Math.floor(Date.now() / 1e3) + 86400,
       // 24 hours
       chainId: this.config.chainId,
       nonce: t
-    }, a = btoa(JSON.stringify(r)), n = btoa(JSON.stringify(s));
-    return `${a}.${n}.mock-signature`;
+    }, i = btoa(JSON.stringify(s)), a = btoa(JSON.stringify(r));
+    return `${i}.${a}.mock-signature`;
   }
   generateSessionId() {
     return `web3_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
   }
 }
-class T {
+class _ {
   constructor(e) {
     this.name = "oauth", this.type = "oauth", this.config = e, this.providers = {
       google: {
@@ -458,61 +458,61 @@ class T {
    * Start OAuth flow - returns authorization URL
    */
   getAuthorizationUrl(e) {
-    const t = this.providers[this.config.provider], r = this.config.authEndpoint || t.authEndpoint, s = this.config.scopes || t.scopes, a = new URLSearchParams({
+    const t = this.providers[this.config.provider], s = this.config.authEndpoint || t.authEndpoint, r = this.config.scopes || t.scopes, i = new URLSearchParams({
       client_id: this.config.clientId,
       redirect_uri: this.config.redirectUri,
       response_type: "code",
-      scope: s.join(" "),
+      scope: r.join(" "),
       state: e || this.generateState()
     });
-    return this.config.provider === "google" ? (a.set("access_type", "offline"), a.set("prompt", "consent")) : this.config.provider === "apple" && a.set("response_mode", "form_post"), `${r}?${a.toString()}`;
+    return this.config.provider === "google" ? (i.set("access_type", "offline"), i.set("prompt", "consent")) : this.config.provider === "apple" && i.set("response_mode", "form_post"), `${s}?${i.toString()}`;
   }
   /**
    * Exchange authorization code for tokens
    */
   async exchangeCode(e) {
-    const t = this.providers[this.config.provider], r = this.config.tokenEndpoint || t.tokenEndpoint, s = {
+    const t = this.providers[this.config.provider], s = this.config.tokenEndpoint || t.tokenEndpoint, r = {
       grant_type: "authorization_code",
       code: e,
       redirect_uri: this.config.redirectUri,
       client_id: this.config.clientId
     };
-    this.config.clientSecret && (s.client_secret = this.config.clientSecret);
-    const a = await fetch(r, {
+    this.config.clientSecret && (r.client_secret = this.config.clientSecret);
+    const i = await fetch(s, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
         Accept: "application/json"
       },
-      body: new URLSearchParams(s).toString()
+      body: new URLSearchParams(r).toString()
     });
-    if (!a.ok) {
-      const i = await a.text();
-      throw new Error(`Token exchange failed: ${i}`);
+    if (!i.ok) {
+      const o = await i.text();
+      throw new Error(`Token exchange failed: ${o}`);
     }
-    const n = await a.json();
+    const a = await i.json();
     return {
-      accessToken: n.access_token,
-      refreshToken: n.refresh_token,
-      idToken: n.id_token
+      accessToken: a.access_token,
+      refreshToken: a.refresh_token,
+      idToken: a.id_token
     };
   }
   /**
    * Get user info from OAuth provider
    */
   async getUserInfo(e) {
-    const t = this.providers[this.config.provider], r = this.config.userInfoEndpoint || t.userInfoEndpoint;
-    if (!r)
+    const t = this.providers[this.config.provider], s = this.config.userInfoEndpoint || t.userInfoEndpoint;
+    if (!s)
       return this.config.provider === "apple" ? this.decodeIdToken(e) : null;
-    const s = await fetch(r, {
+    const r = await fetch(s, {
       headers: {
         Authorization: `Bearer ${e}`,
         Accept: "application/json"
       }
     });
-    if (!s.ok)
-      throw new Error(`Failed to fetch user info: ${s.statusText}`);
-    return s.json();
+    if (!r.ok)
+      throw new Error(`Failed to fetch user info: ${r.statusText}`);
+    return r.json();
   }
   /**
    * Main authentication method
@@ -524,13 +524,13 @@ class T {
           success: !1,
           error: "Authorization code required"
         };
-      const t = await this.exchangeCode(e.code), r = await this.getUserInfo(t.accessToken), s = this.mapUserInfo(r), a = this.generateSessionId();
+      const t = await this.exchangeCode(e.code), s = await this.getUserInfo(t.accessToken), r = this.mapUserInfo(s), i = this.generateSessionId();
       return {
         success: !0,
-        user: s,
+        user: r,
         session: {
-          id: a,
-          userId: s.id,
+          id: i,
+          userId: r.id,
           token: t.accessToken,
           refreshToken: t.refreshToken,
           expiresAt: new Date(Date.now() + 36e5),
@@ -563,40 +563,40 @@ class T {
    * Refresh OAuth token
    */
   async refresh(e) {
-    const t = this.providers[this.config.provider], r = this.config.tokenEndpoint || t.tokenEndpoint, s = {
+    const t = this.providers[this.config.provider], s = this.config.tokenEndpoint || t.tokenEndpoint, r = {
       grant_type: "refresh_token",
       refresh_token: e,
       client_id: this.config.clientId
     };
-    this.config.clientSecret && (s.client_secret = this.config.clientSecret);
+    this.config.clientSecret && (r.client_secret = this.config.clientSecret);
     try {
-      const a = await fetch(r, {
+      const i = await fetch(s, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
           Accept: "application/json"
         },
-        body: new URLSearchParams(s).toString()
+        body: new URLSearchParams(r).toString()
       });
-      if (!a.ok)
+      if (!i.ok)
         throw new Error("Token refresh failed");
-      const n = await a.json();
+      const a = await i.json();
       return {
         success: !0,
         session: {
           id: this.generateSessionId(),
           userId: "",
           // Would need to decode or fetch
-          token: n.access_token,
-          refreshToken: n.refresh_token || e,
-          expiresAt: new Date(Date.now() + (n.expires_in || 3600) * 1e3),
+          token: a.access_token,
+          refreshToken: a.refresh_token || e,
+          expiresAt: new Date(Date.now() + (a.expires_in || 3600) * 1e3),
           createdAt: /* @__PURE__ */ new Date()
         }
       };
-    } catch (a) {
+    } catch (i) {
       return {
         success: !1,
-        error: a.message || "Token refresh failed"
+        error: i.message || "Token refresh failed"
       };
     }
   }
@@ -698,30 +698,30 @@ class k {
           success: !1,
           error: "User already exists"
         };
-      const r = this.validatePassword(e.password);
-      if (!r.valid)
+      const s = this.validatePassword(e.password);
+      if (!s.valid)
         return {
           success: !1,
-          error: r.errors.join(", ")
+          error: s.errors.join(", ")
         };
-      const s = await this.hashPassword(e.password), a = {
+      const r = await this.hashPassword(e.password), i = {
         id: this.generateUserId(),
         username: e.username,
         email: e.email,
-        password: s,
+        password: r,
         metadata: e.metadata || {},
         createdAt: /* @__PURE__ */ new Date(),
         updatedAt: /* @__PURE__ */ new Date()
       };
-      this.users.set(t, a);
-      const n = this.generateSessionId();
+      this.users.set(t, i);
+      const a = this.generateSessionId();
       return {
         success: !0,
-        user: this.sanitizeUser(a),
+        user: this.sanitizeUser(i),
         session: {
-          id: n,
-          userId: a.id,
-          token: this.generateToken(a.id),
+          id: a,
+          userId: i.id,
+          token: this.generateToken(i.id),
           expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1e3),
           createdAt: /* @__PURE__ */ new Date()
         }
@@ -745,37 +745,37 @@ class k {
           error: "Username/email and password required"
         };
       if (this.isLockedOut(t)) {
-        const n = this.lockouts.get(t);
+        const a = this.lockouts.get(t);
         return {
           success: !1,
           error: `Account locked. Try again in ${Math.ceil(
-            (n.getTime() - Date.now()) / 6e4
+            (a.getTime() - Date.now()) / 6e4
           )} minutes`
         };
       }
-      const r = this.users.get(t);
-      if (!r)
+      const s = this.users.get(t);
+      if (!s)
         return this.recordFailedAttempt(t), {
           success: !1,
           error: "Invalid credentials"
         };
       if (!await this.verifyPassword(
         e.password,
-        r.password
+        s.password
       ))
         return this.recordFailedAttempt(t), {
           success: !1,
           error: "Invalid credentials"
         };
       this.attempts.delete(t);
-      const a = this.generateSessionId();
+      const i = this.generateSessionId();
       return {
         success: !0,
-        user: this.sanitizeUser(r),
+        user: this.sanitizeUser(s),
         session: {
-          id: a,
-          userId: r.id,
-          token: this.generateToken(r.id),
+          id: i,
+          userId: s.id,
+          token: this.generateToken(s.id),
           expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1e3),
           createdAt: /* @__PURE__ */ new Date()
         }
@@ -790,36 +790,36 @@ class k {
   /**
    * Change password
    */
-  async changePassword(e, t, r) {
+  async changePassword(e, t, s) {
     try {
-      let s, a;
-      for (const [g, u] of this.users.entries())
+      let r, i;
+      for (const [w, u] of this.users.entries())
         if (u.id === e) {
-          s = u, a = g;
+          r = u, i = w;
           break;
         }
-      if (!s || !a)
+      if (!r || !i)
         return {
           success: !1,
           error: "User not found"
         };
-      if (!await this.verifyPassword(t, s.password))
+      if (!await this.verifyPassword(t, r.password))
         return {
           success: !1,
           error: "Current password is incorrect"
         };
-      const i = this.validatePassword(r);
-      if (!i.valid)
+      const o = this.validatePassword(s);
+      if (!o.valid)
         return {
           success: !1,
-          error: i.errors.join(", ")
+          error: o.errors.join(", ")
         };
-      const c = await this.hashPassword(r);
-      return s.password = c, s.updatedAt = /* @__PURE__ */ new Date(), this.users.set(a, s), { success: !0 };
-    } catch (s) {
+      const h = await this.hashPassword(s);
+      return r.password = h, r.updatedAt = /* @__PURE__ */ new Date(), this.users.set(i, r), { success: !0 };
+    } catch (r) {
       return {
         success: !1,
-        error: s.message || "Password change failed"
+        error: r.message || "Password change failed"
       };
     }
   }
@@ -827,10 +827,10 @@ class k {
    * Reset password (with reset token)
    */
   async resetPassword(e, t) {
-    const r = this.validatePassword(t);
-    return r.valid ? { success: !0 } : {
+    const s = this.validatePassword(t);
+    return s.valid ? { success: !0 } : {
       success: !1,
-      error: r.errors.join(", ")
+      error: s.errors.join(", ")
     };
   }
   /**
@@ -853,8 +853,8 @@ class k {
     };
   }
   async hashPassword(e) {
-    const r = new TextEncoder().encode(e + "salt"), s = await crypto.subtle.digest("SHA-256", r);
-    return btoa(String.fromCharCode(...new Uint8Array(s)));
+    const s = new TextEncoder().encode(e + "salt"), r = await crypto.subtle.digest("SHA-256", s);
+    return btoa(String.fromCharCode(...new Uint8Array(r)));
   }
   async verifyPassword(e, t) {
     return await this.hashPassword(e) === t;
@@ -862,10 +862,10 @@ class k {
   recordFailedAttempt(e) {
     const t = (this.attempts.get(e) || 0) + 1;
     if (this.attempts.set(e, t), t >= this.config.maxAttempts) {
-      const r = new Date(
+      const s = new Date(
         Date.now() + this.config.lockoutDuration * 6e4
       );
-      this.lockouts.set(e, r), this.attempts.delete(e);
+      this.lockouts.set(e, s), this.attempts.delete(e);
     }
   }
   isLockedOut(e) {
@@ -873,8 +873,8 @@ class k {
     return t ? t.getTime() > Date.now() ? !0 : (this.lockouts.delete(e), !1) : !1;
   }
   sanitizeUser(e) {
-    const { password: t, ...r } = e;
-    return r;
+    const { password: t, ...s } = e;
+    return s;
   }
   generateUserId() {
     return `user_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
@@ -883,12 +883,12 @@ class k {
     return `pwd_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
   }
   generateToken(e) {
-    const t = { alg: "HS256", typ: "JWT" }, r = {
+    const t = { alg: "HS256", typ: "JWT" }, s = {
       sub: e,
       iat: Math.floor(Date.now() / 1e3),
       exp: Math.floor(Date.now() / 1e3) + 86400
-    }, s = btoa(JSON.stringify(t)), a = btoa(JSON.stringify(r));
-    return `${s}.${a}.mock_signature`;
+    }, r = btoa(JSON.stringify(t)), i = btoa(JSON.stringify(s));
+    return `${r}.${i}.mock_signature`;
   }
   parseToken(e) {
     const t = e.split(".");
@@ -897,7 +897,7 @@ class k {
     return JSON.parse(atob(t[1]));
   }
 }
-const l = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const g = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   PasswordProvider: k
 }, Symbol.toStringTag, { value: "Module" }));
@@ -950,24 +950,24 @@ class f {
     try {
       if (!await this.verifyRegistration(e, t))
         return { success: !1, credentialId: "" };
-      const s = this.bufferToBase64(t.rawId), a = t.response, n = a.getPublicKey?.();
-      if (!n)
+      const r = this.bufferToBase64(t.rawId), i = t.response, a = i.getPublicKey?.();
+      if (!a)
         throw new Error("Failed to extract public key from credential");
-      const i = {
-        id: s,
-        publicKey: this.extractPublicKey(n),
+      const o = {
+        id: r,
+        publicKey: this.extractPublicKey(a),
         algorithm: -7,
         // ES256
-        transports: a.getTransports?.() || [],
-        attestationObject: a.attestationObject,
-        clientDataJSON: a.clientDataJSON
+        transports: i.getTransports?.() || [],
+        attestationObject: i.attestationObject,
+        clientDataJSON: i.clientDataJSON
       };
-      return this.credentials.set(s, i), await this.storeCredential(e, i), {
+      return this.credentials.set(r, o), await this.storeCredential(e, o), {
         success: !0,
-        credentialId: s
+        credentialId: r
       };
-    } catch (r) {
-      return console.error("[PasskeyProvider] Registration failed:", r), { success: !1, credentialId: "" };
+    } catch (s) {
+      return console.error("[PasskeyProvider] Registration failed:", s), { success: !1, credentialId: "" };
     }
   }
   /**
@@ -976,21 +976,21 @@ class f {
   async startAuthentication(e) {
     const t = this.generateChallenge();
     this.storeChallenge(e || "anonymous", t);
-    const r = {
+    const s = {
       challenge: t,
       timeout: this.config.timeout,
       userVerification: this.config.userVerification,
       rpId: this.config.rpId
     };
     if (e) {
-      const s = await this.getUserCredentials(e);
-      s.length > 0 && (r.allowCredentials = s.map((a) => ({
-        id: this.base64ToBuffer(a.id),
+      const r = await this.getUserCredentials(e);
+      r.length > 0 && (s.allowCredentials = r.map((i) => ({
+        id: this.base64ToBuffer(i.id),
         type: "public-key",
-        transports: a.transports || ["internal", "hybrid"]
+        transports: i.transports || ["internal", "hybrid"]
       })));
     }
-    return r;
+    return s;
   }
   /**
    * Complete passkey authentication
@@ -1002,30 +1002,30 @@ class f {
           success: !1,
           error: "Passkey assertion required"
         };
-      const t = e.assertion, r = t.response;
+      const t = e.assertion, s = t.response;
       if (!await this.verifyAssertion(
         t.id,
-        r,
+        s,
         e.userId
       ))
         return {
           success: !1,
           error: "Passkey verification failed"
         };
-      const a = await this.getUserFromCredential(t.id);
-      if (!a)
+      const i = await this.getUserFromCredential(t.id);
+      if (!i)
         return {
           success: !1,
           error: "User not found"
         };
-      const n = this.generateSessionId();
+      const a = this.generateSessionId();
       return {
         success: !0,
-        user: a,
+        user: i,
         session: {
-          id: n,
-          userId: a.id,
-          token: this.generateToken(a.id),
+          id: a,
+          userId: i.id,
+          token: this.generateToken(i.id),
           expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1e3),
           // 24 hours
           createdAt: /* @__PURE__ */ new Date(),
@@ -1073,45 +1073,45 @@ class f {
   }
   // Private helper methods
   async verifyRegistration(e, t) {
-    const r = this.getChallenge(e), s = t.response;
-    if (!r)
+    const s = this.getChallenge(e), r = t.response;
+    if (!s)
       return !1;
-    const a = JSON.parse(
-      new TextDecoder().decode(s.clientDataJSON)
+    const i = JSON.parse(
+      new TextDecoder().decode(r.clientDataJSON)
     );
-    return a.type === "webauthn.create" && a.origin === this.config.origin && this.bufferToBase64(new TextEncoder().encode(a.challenge)) === this.bufferToBase64(r);
+    return i.type === "webauthn.create" && i.origin === this.config.origin && this.bufferToBase64(new TextEncoder().encode(i.challenge)) === this.bufferToBase64(s);
   }
-  async verifyAssertion(e, t, r) {
-    if (!this.getChallenge(r || "anonymous"))
+  async verifyAssertion(e, t, s) {
+    if (!this.getChallenge(s || "anonymous"))
       return !1;
-    const a = JSON.parse(
+    const i = JSON.parse(
       new TextDecoder().decode(t.clientDataJSON)
     );
-    return a.type === "webauthn.get" && a.origin === this.config.origin;
+    return i.type === "webauthn.get" && i.origin === this.config.origin;
   }
   generateChallenge() {
     const e = new Uint8Array(32);
     return crypto.getRandomValues(e), e.buffer;
   }
   storeChallenge(e, t) {
-    const r = `challenge_${e}`;
-    sessionStorage.setItem(r, this.bufferToBase64(t));
+    const s = `challenge_${e}`;
+    sessionStorage.setItem(s, this.bufferToBase64(t));
   }
   getChallenge(e) {
-    const t = `challenge_${e}`, r = sessionStorage.getItem(t);
-    return r ? (sessionStorage.removeItem(t), this.base64ToBuffer(r)) : null;
+    const t = `challenge_${e}`, s = sessionStorage.getItem(t);
+    return s ? (sessionStorage.removeItem(t), this.base64ToBuffer(s)) : null;
   }
   async storeCredential(e, t) {
-    const r = `passkey_${e}`;
-    localStorage.setItem(r, JSON.stringify({
+    const s = `passkey_${e}`;
+    localStorage.setItem(s, JSON.stringify({
       ...t,
       attestationObject: void 0,
       clientDataJSON: void 0
     }));
   }
   async getUserCredentials(e) {
-    const t = `passkey_${e}`, r = localStorage.getItem(t);
-    return r ? [JSON.parse(r)] : [];
+    const t = `passkey_${e}`, s = localStorage.getItem(t);
+    return s ? [JSON.parse(s)] : [];
   }
   async getUserFromCredential(e) {
     return {
@@ -1126,12 +1126,12 @@ class f {
     return e ? this.bufferToBase64(e) : "extracted_public_key";
   }
   generateToken(e) {
-    const t = { alg: "HS256", typ: "JWT" }, r = {
+    const t = { alg: "HS256", typ: "JWT" }, s = {
       sub: e,
       iat: Math.floor(Date.now() / 1e3),
       exp: Math.floor(Date.now() / 1e3) + 86400
-    }, s = btoa(JSON.stringify(t)), a = btoa(JSON.stringify(r));
-    return `${s}.${a}.mock_signature`;
+    }, r = btoa(JSON.stringify(t)), i = btoa(JSON.stringify(s));
+    return `${r}.${i}.mock_signature`;
   }
   parseToken(e) {
     const t = e.split(".");
@@ -1147,25 +1147,25 @@ class f {
   }
   bufferToBase64(e) {
     const t = new Uint8Array(e);
-    let r = "";
-    for (let s = 0; s < t.byteLength; s++)
-      r += String.fromCharCode(t[s]);
-    return btoa(r);
+    let s = "";
+    for (let r = 0; r < t.byteLength; r++)
+      s += String.fromCharCode(t[r]);
+    return btoa(s);
   }
   base64ToBuffer(e) {
-    const t = atob(e), r = new Uint8Array(t.length);
-    for (let s = 0; s < t.length; s++)
-      r[s] = t.charCodeAt(s);
-    return r.buffer;
+    const t = atob(e), s = new Uint8Array(t.length);
+    for (let r = 0; r < t.length; r++)
+      s[r] = t.charCodeAt(r);
+    return s.buffer;
   }
 }
-class A {
+class P {
   constructor(e = "yakkl_auth_") {
     this.prefix = e, this.store = /* @__PURE__ */ new Map();
   }
   async initialize(e) {
     if (e && typeof crypto < "u") {
-      const t = new TextEncoder(), r = await crypto.subtle.importKey(
+      const t = new TextEncoder(), s = await crypto.subtle.importKey(
         "raw",
         t.encode(e),
         "PBKDF2",
@@ -1179,7 +1179,7 @@ class A {
           iterations: 1e5,
           hash: "SHA-256"
         },
-        r,
+        s,
         { name: "AES-GCM", length: 256 },
         !1,
         ["encrypt", "decrypt"]
@@ -1189,18 +1189,18 @@ class A {
   async get(e) {
     const t = `${this.prefix}${e}`;
     if (typeof localStorage < "u") {
-      const r = localStorage.getItem(t);
-      return r && this.encryptionKey ? this.decrypt(r) : r ? JSON.parse(r) : null;
+      const s = localStorage.getItem(t);
+      return s && this.encryptionKey ? this.decrypt(s) : s ? JSON.parse(s) : null;
     }
     return this.store.get(t);
   }
   async set(e, t) {
-    const r = `${this.prefix}${e}`, s = JSON.stringify(t);
+    const s = `${this.prefix}${e}`, r = JSON.stringify(t);
     if (typeof localStorage < "u") {
-      const a = this.encryptionKey ? await this.encrypt(s) : s;
-      localStorage.setItem(r, a);
+      const i = this.encryptionKey ? await this.encrypt(r) : r;
+      localStorage.setItem(s, i);
     } else
-      this.store.set(r, t);
+      this.store.set(s, t);
   }
   async remove(e) {
     const t = `${this.prefix}${e}`;
@@ -1213,23 +1213,23 @@ class A {
   }
   async encrypt(e) {
     if (!this.encryptionKey) return e;
-    const t = new TextEncoder(), r = crypto.getRandomValues(new Uint8Array(12)), s = await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv: r },
+    const t = new TextEncoder(), s = crypto.getRandomValues(new Uint8Array(12)), r = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv: s },
       this.encryptionKey,
       t.encode(e)
-    ), a = new Uint8Array(r.length + s.byteLength);
-    return a.set(r), a.set(new Uint8Array(s), r.length), btoa(String.fromCharCode(...a));
+    ), i = new Uint8Array(s.length + r.byteLength);
+    return i.set(s), i.set(new Uint8Array(r), s.length), btoa(String.fromCharCode(...i));
   }
   async decrypt(e) {
     if (!this.encryptionKey) return JSON.parse(e);
     const t = new Uint8Array(
-      atob(e).split("").map((i) => i.charCodeAt(0))
-    ), r = t.slice(0, 12), s = t.slice(12), a = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: r },
+      atob(e).split("").map((o) => o.charCodeAt(0))
+    ), s = t.slice(0, 12), r = t.slice(12), i = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: s },
       this.encryptionKey,
-      s
-    ), n = new TextDecoder();
-    return JSON.parse(n.decode(a));
+      r
+    ), a = new TextDecoder();
+    return JSON.parse(a.decode(i));
   }
 }
 class p {
@@ -1263,13 +1263,13 @@ class p {
     const t = (e - 300) * 1e3;
     t > 0 && this.onRefresh && (this.refreshTimer = setTimeout(async () => {
       try {
-        const r = await this.getToken();
-        if (r && this.onRefresh) {
-          const s = await this.onRefresh(r);
-          await this.saveToken(s, e);
+        const s = await this.getToken();
+        if (s && this.onRefresh) {
+          const r = await this.onRefresh(s);
+          await this.saveToken(r, e);
         }
-      } catch (r) {
-        console.error("[TokenManager] Failed to refresh token:", r);
+      } catch (s) {
+        console.error("[TokenManager] Failed to refresh token:", s);
       }
     }, t));
   }
@@ -1284,8 +1284,8 @@ class p {
       const t = e.split(".");
       if (t.length !== 3)
         throw new Error("Invalid JWT format");
-      const r = t[1], s = atob(r.replace(/-/g, "+").replace(/_/g, "/"));
-      return JSON.parse(s);
+      const s = t[1], r = atob(s.replace(/-/g, "+").replace(/_/g, "/"));
+      return JSON.parse(r);
     } catch (t) {
       return console.error("[TokenManager] Failed to parse JWT:", t), null;
     }
@@ -1298,17 +1298,315 @@ class p {
     return !t || !t.exp ? !0 : Date.now() >= t.exp * 1e3;
   }
 }
+const v = {
+  timeoutMinutes: 30,
+  warningMinutes: 2,
+  maxInactivityMinutes: 60,
+  autoExtendOnActivity: !0,
+  jwtExpirationMinutes: 60
+};
+class M {
+  constructor(e, t, s = console) {
+    this.config = v, this.sessionState = null, this.timeoutTimer = null, this.warningTimer = null, this.onSessionWarning = null, this.onSessionExpired = null, this.onSessionExtended = null, this.storage = e, this.jwtManager = t, this.logger = s, this.initializeFromStorage();
+  }
+  /**
+   * Start a new session
+   */
+  async startSession(e, t, s, r = "explorer_member") {
+    try {
+      const i = await this.jwtManager.generateToken(
+        e,
+        t,
+        s,
+        r,
+        this.config.jwtExpirationMinutes
+      ), a = Date.now(), o = this.generateSessionId();
+      return this.sessionState = {
+        isActive: !0,
+        userId: e,
+        username: t,
+        profileId: s,
+        planLevel: r,
+        sessionId: o,
+        lastActivity: a,
+        expiresAt: a + this.config.timeoutMinutes * 60 * 1e3,
+        jwtToken: i,
+        warningShown: !1
+      }, await this.storage.save(this.sessionState), this.startActivityTracking(), this.scheduleWarning(), this.logger.debug("Session started", {
+        userId: e,
+        username: t,
+        sessionId: o,
+        expiresAt: new Date(this.sessionState.expiresAt)
+      }), await this.onSessionStarted(this.sessionState), i;
+    } catch (i) {
+      throw this.logger.error("Failed to start session:", i), new Error("Session start failed");
+    }
+  }
+  /**
+   * Extend current session
+   */
+  async extendSession(e = 30) {
+    if (!this.sessionState || !this.sessionState.isActive)
+      throw new Error("No active session to extend");
+    try {
+      const t = Date.now(), s = t + e * 60 * 1e3;
+      if (this.sessionState.jwtToken) {
+        const r = await this.jwtManager.refreshTokenIfNeeded(
+          this.sessionState.jwtToken,
+          10
+          // Refresh if expires within 10 minutes
+        );
+        r && r !== this.sessionState.jwtToken && (this.sessionState.jwtToken = r, this.logger.debug("JWT token refreshed during session extension"));
+      }
+      this.sessionState.lastActivity = t, this.sessionState.expiresAt = s, this.sessionState.warningShown = !1, await this.storage.save(this.sessionState), this.clearTimers(), this.scheduleWarning(), this.logger.debug("Session extended", {
+        sessionId: this.sessionState.sessionId,
+        additionalMinutes: e,
+        newExpiresAt: new Date(s)
+      }), this.onSessionExtended && this.onSessionExtended(), await this.onSessionExtendedInternal(this.sessionState);
+    } catch (t) {
+      throw this.logger.error("Failed to extend session:", t), new Error("Session extension failed");
+    }
+  }
+  /**
+   * End current session
+   */
+  async endSession() {
+    this.sessionState && (this.logger.debug("Ending session", {
+      sessionId: this.sessionState.sessionId
+    }), await this.onSessionEnded(this.sessionState)), this.sessionState = null, this.clearTimers(), this.stopActivityTracking();
+    try {
+      await this.storage.clear();
+    } catch (e) {
+      this.logger.warn("Failed to clear session storage:", e);
+    }
+    this.onSessionExpired && this.onSessionExpired();
+  }
+  /**
+   * Get current session state
+   */
+  getSessionState() {
+    return this.sessionState ? { ...this.sessionState } : null;
+  }
+  /**
+   * Get current JWT token
+   */
+  getCurrentJWTToken() {
+    return this.sessionState?.jwtToken || null;
+  }
+  /**
+   * Check if session is active and valid
+   */
+  isSessionActive() {
+    return !this.sessionState || !this.sessionState.isActive ? !1 : Date.now() >= this.sessionState.expiresAt ? (this.endSession(), !1) : !0;
+  }
+  /**
+   * Update activity timestamp
+   */
+  updateActivity() {
+    if (!this.sessionState || !this.sessionState.isActive) return;
+    const e = Date.now();
+    if (this.sessionState.lastActivity = e, this.config.autoExtendOnActivity) {
+      const t = this.sessionState.expiresAt - e, s = this.config.warningMinutes * 60 * 1e3;
+      t <= s && !this.sessionState.warningShown && this.extendSession(this.config.timeoutMinutes);
+    }
+    this.storage.save(this.sessionState);
+  }
+  /**
+   * Set event callbacks
+   */
+  setCallbacks(e) {
+    this.onSessionWarning = e.onWarning || null, this.onSessionExpired = e.onExpired || null, this.onSessionExtended = e.onExtended || null;
+  }
+  /**
+   * Update session configuration
+   */
+  updateConfig(e) {
+    this.config = { ...this.config, ...e }, this.logger.debug("Session config updated", this.config);
+  }
+  /**
+   * Initialize session from storage
+   */
+  async initializeFromStorage() {
+    try {
+      const e = await this.storage.load();
+      if (e && e.isActive) {
+        const t = Date.now();
+        if (t < e.expiresAt) {
+          this.sessionState = e, this.startActivityTracking();
+          const s = e.expiresAt - t, r = this.config.warningMinutes * 60 * 1e3;
+          if (s <= r) {
+            this.logger.debug("Restored session near expiry, auto-extending", {
+              sessionId: e.sessionId,
+              timeRemaining: Math.round(s / 1e3)
+            }), this.sessionState.warningShown = !1;
+            try {
+              await this.extendSession(this.config.timeoutMinutes), this.logger.info("Auto-extended restored session that was near expiry");
+            } catch (i) {
+              this.logger.error("Failed to auto-extend restored session:", i), this.scheduleWarning();
+            }
+          } else
+            this.scheduleWarning();
+          this.logger.debug("Session restored from storage", {
+            sessionId: e.sessionId,
+            timeRemaining: Math.round((e.expiresAt - t) / 1e3)
+          });
+        } else
+          await this.storage.clear(), this.logger.debug("Expired session cleared from storage");
+      }
+    } catch (e) {
+      this.logger.warn("Failed to initialize session from storage:", e);
+    }
+  }
+  /**
+   * Schedule session warning
+   */
+  scheduleWarning() {
+    if (!this.sessionState) return;
+    const e = Date.now(), t = this.sessionState.expiresAt - e - this.config.warningMinutes * 60 * 1e3;
+    t > 0 ? this.warningTimer = setTimeout(() => {
+      this.showSessionWarning();
+    }, t) : this.showSessionWarning();
+  }
+  /**
+   * Show session warning
+   */
+  showSessionWarning() {
+    if (!this.sessionState || this.sessionState.warningShown) return;
+    this.sessionState.warningShown = !0;
+    const e = Date.now(), t = Math.max(0, Math.round((this.sessionState.expiresAt - e) / 1e3));
+    this.logger.debug("Showing session warning", { timeRemaining: t }), this.onSessionWarning && this.onSessionWarning(t), this.timeoutTimer = setTimeout(() => {
+      this.endSession();
+    }, t * 1e3);
+  }
+  /**
+   * Clear all timers
+   */
+  clearTimers() {
+    this.timeoutTimer && (clearTimeout(this.timeoutTimer), this.timeoutTimer = null), this.warningTimer && (clearTimeout(this.warningTimer), this.warningTimer = null);
+  }
+  /**
+   * Generate unique session ID
+   */
+  generateSessionId() {
+    const e = Date.now().toString(36), t = Math.random().toString(36).substring(2);
+    return `session-${e}-${t}`;
+  }
+}
+async function T(n, e) {
+  const t = n.logger || console;
+  try {
+    const s = await n.storage.get("yakkl_settings");
+    if (!s || !s.init)
+      return { isValid: !1, reason: "Wallet not initialized" };
+    if (!s.legal?.termsAgreed)
+      return { isValid: !1, reason: "Legal terms not accepted" };
+    if (!e || e.length === 0)
+      return { isValid: !1, reason: "No authentication digest" };
+    const r = await n.storage.get("yakkl_profile");
+    if (!r)
+      return { isValid: !1, reason: "No user profile" };
+    if (!r.data)
+      return { isValid: !1, reason: "Profile data missing" };
+    let i = !1;
+    if (n.sessionManager?.isSessionActive()) {
+      const a = n.sessionManager.getCurrentJWTToken();
+      if (a && n.jwtManager)
+        try {
+          await n.jwtManager.verifyToken(a) && (i = !0);
+        } catch (o) {
+          t.warn("JWT token verification error", o);
+        }
+    }
+    return /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(r.id) ? {
+      isValid: !0,
+      profile: r,
+      hasValidSession: n.sessionManager?.isSessionActive(),
+      hasValidJWT: i
+    } : (t.warn("Authentication failed: Invalid profile ID format"), { isValid: !1, reason: "Invalid profile format" });
+  } catch (s) {
+    return t.warn("Authentication validation error", s), { isValid: !1, reason: "Validation error" };
+  }
+}
+async function C(n, e) {
+  try {
+    const t = await n.storage.get("yakkl_settings");
+    return !!(t && t.isLocked === !1 && e && e.length > 0);
+  } catch {
+    return !1;
+  }
+}
+async function A(n, e, t) {
+  const s = n.logger || console;
+  try {
+    const r = await n.storage.get("yakkl_settings");
+    r && (r.isLocked = !0, await n.storage.set("yakkl_settings", r)), e();
+    try {
+      n.sessionManager?.isSessionActive() && await n.sessionManager.endSession();
+    } catch (i) {
+      s.warn("Error ending session during auth clear", i);
+    }
+    t && t(), s.info("Authentication state cleared");
+  } catch (r) {
+    s.warn("Error clearing authentication state", r);
+  }
+}
+async function U(n, e, t, s) {
+  const r = n.logger || console;
+  try {
+    if (!(await T(n, e)).isValid)
+      return await A(n, t, s), !1;
+    if (n.sessionManager?.isSessionActive())
+      try {
+        await n.sessionManager.extendSession();
+      } catch (a) {
+        r.warn("Failed to extend session during auth refresh", a);
+      }
+    return !0;
+  } catch (i) {
+    return r.warn("Error validating and refreshing auth", i), !1;
+  }
+}
+async function N(n, e = {}, t) {
+  const s = t || console;
+  try {
+    const r = {
+      event: n,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+      details: e,
+      profileId: e.profileId || "unknown"
+    };
+    n === "validation_failed" || n === "unauthorized_access" ? s.warn("Security audit event", r) : s.debug("Security audit event", r);
+  } catch (r) {
+    s.warn("Error auditing auth event", r);
+  }
+}
+const c = /* @__PURE__ */ new Map(), b = 5, x = 15 * 60 * 1e3;
+function R(n) {
+  const e = Date.now(), t = c.get(n);
+  return t ? e - t.lastAttempt > x ? (c.set(n, { attempts: 1, lastAttempt: e }), !0) : t.attempts >= b ? !1 : (t.attempts++, t.lastAttempt = e, !0) : (c.set(n, { attempts: 1, lastAttempt: e }), !0);
+}
+function $(n) {
+  c.delete(n);
+}
 export {
-  b as AuthManager,
-  y as JWTProvider,
-  m as LocalAuthStrategy,
-  w as MemoryStorage,
-  T as OAuthProvider,
+  E as AuthManager,
+  m as JWTProvider,
+  y as LocalAuthStrategy,
+  S as MemoryStorage,
+  _ as OAuthProvider,
   f as PasskeyProvider,
   k as PasswordProvider,
-  A as SecureStorage,
+  P as SecureStorage,
+  M as SessionManagerBase,
   p as TokenManager,
-  S as Web3Provider,
-  b as default
+  I as Web3Provider,
+  N as auditAuthEvent,
+  R as checkAuthRateLimit,
+  $ as clearAuthRateLimit,
+  A as clearAuthenticationState,
+  E as default,
+  C as quickAuthCheck,
+  U as validateAndRefreshAuth,
+  T as validateAuthentication
 };
 //# sourceMappingURL=index.mjs.map

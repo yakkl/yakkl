@@ -200,8 +200,8 @@ export interface Blockchain {
 	sendTransaction(transaction: TransactionRequest): Promise<TransactionResponse>;
 	setProvider(provider: Provider, chainId: number): void;
 	signMessage(message: string): Promise<string>;
-	signTransaction(transaction: Transaction): Promise<string>;
-	signTypedData(transaction: Transaction): Promise<string>;
+	signTransaction(transaction: TransactionRequest): Promise<string>;
+	signTypedData(transaction: TransactionRequest): Promise<string>;
 }
 
 /**
@@ -582,7 +582,7 @@ export abstract class AbstractBlockchain<T extends BaseTransaction> implements B
 
 	abstract signTransaction(transaction: TransactionRequest): Promise<string>;
 	abstract signMessage(message: string): Promise<string>;
-	abstract signTypedData(transction: TransactionRequest): Promise<string>;
+	abstract signTypedData(transaction: TransactionRequest): Promise<string>;
 
 	/**
 	 * Protected method to add or override metadata.

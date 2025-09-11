@@ -2,32 +2,31 @@ import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 import { getYakklSettings, setYakklSettingsStorage } from '$lib/common/stores';
 import { log } from '$lib/common/logger-wrapper';
 import browser from 'webextension-polyfill';
-// Static imports - NO DYNAMIC IMPORTS unless absolutely necessary (per project rule)
-// CRITICAL: Use background-compatible services only - no Svelte stores!
 import { BackgroundTransactionService } from './background/BackgroundTransactionService';
 import { BackgroundPriceService } from './background/BackgroundPriceService';
 import { BackgroundCacheStore } from './background/BackgroundCacheStore';
 import { BackgroundCacheSyncService as CacheSyncManager } from './background/BackgroundCacheSyncService';
 import { PortfolioRefreshService } from './portfolio-refresh.service';
 import { portfolioCoordinator, UpdatePriority, UpdateType } from './portfolio-data-coordinator.service';
+import { blockchainHandlers } from '$contexts/background/handlers/blockchain'; // STATIC IMPORT - NO DYNAMIC IMPORTS IN SERVICE WORKERS
 
-// Default intervals in milliseconds - OPTIMIZED to prevent flickering
-// Prices update more frequently for market data, other data less frequently
+// Default intervals in milliseconds - OPTIMIZED to prevent excessive RPC calls
+// Fixed to use reasonable intervals that respect the 15-minute cache
 const DEFAULT_INTERVALS = {
-  transactions: 3 * 60 * 1000,    // 3 minutes for transaction history (was 5 minutes)
-  prices: 15 * 1000,              // 15 seconds for market prices (testing, will be 60 seconds in production)
-  portfolio: 60 * 1000,           // 1 minute for portfolio calculation (was 2 minutes, more responsive)
-  rollups: 60 * 1000,             // 1 minute for rollup calculations (was 1.5 minutes)
-  tokenBalances: 15 * 1000,       // 15 seconds for testing (5 minutes in production)
+  transactions: 3 * 60 * 1000,    // 3 minutes for transaction history
+  prices: 60 * 1000,              // 60 seconds for market prices (was 15s - too aggressive)
+  portfolio: 2 * 60 * 1000,       // 2 minutes for portfolio calculation (was 60s)
+  rollups: 2 * 60 * 1000,         // 2 minutes for rollup calculations (was 60s)
+  tokenBalances: 5 * 60 * 1000,   // 5 MINUTES - was 15 SECONDS causing massive RPC overload!
 };
 
-// Minimum intervals to prevent too frequent updates and reduce flickering
+// Minimum intervals to prevent too frequent updates and excessive RPC calls
 const MIN_INTERVALS = {
   transactions: 60 * 1000,        // 1 minute minimum
-  prices: 15 * 1000,              // 15 seconds minimum for testing (30 seconds for production)
-  portfolio: 45 * 1000,           // 45 seconds minimum (reactive calculations)
-  rollups: 45 * 1000,             // 45 seconds minimum
-  tokenBalances: 15 * 1000,       // 15 seconds minimum for testing
+  prices: 30 * 1000,              // 30 seconds minimum (was 15s - too aggressive)
+  portfolio: 60 * 1000,           // 1 minute minimum (was 45s)
+  rollups: 60 * 1000,             // 1 minute minimum (was 45s)
+  tokenBalances: 2 * 60 * 1000,   // 2 MINUTES minimum - was 15 SECONDS!
 };
 
 export interface IntervalConfig {
@@ -90,6 +89,7 @@ export class BackgroundIntervalService {
       this.transactionService = BackgroundTransactionService.getInstance();
     }
     if (!this.priceService) {
+      // Use the new service worker compatible BackgroundPriceService
       this.priceService = BackgroundPriceService.getInstance();
     }
     if (!this.cacheStore) {
@@ -108,8 +108,6 @@ export class BackgroundIntervalService {
    * Initialize all background intervals
    */
   public async initialize(): Promise<void> {
-    log.info('[BackgroundIntervals] Initializing background intervals');
-
     // Initialize services (lazy initialization to avoid circular dependencies)
     this.ensureServicesInitialized();
 
@@ -128,8 +126,6 @@ export class BackgroundIntervalService {
 
     // Check if we have valid accounts and run initial updates if we do
     await this.runInitialUpdatesIfNeeded();
-
-    log.info('[BackgroundIntervals] Background intervals initialized');
   }
 
   /**
@@ -137,8 +133,6 @@ export class BackgroundIntervalService {
    */
   private async runInitialUpdatesIfNeeded(): Promise<void> {
     try {
-      log.info('[BackgroundIntervals] Checking for valid accounts to run initial updates');
-
       // First check if user is logged in
       await this.checkLoginState();
 
@@ -163,14 +157,11 @@ export class BackgroundIntervalService {
         cache.activeAccountAddress !== '0x0';
 
       if (hasAccounts || hasSelectedAccount) {
-        log.info('[BackgroundIntervals] Valid accounts found, running initial data updates');
-
         // FIRST: Fetch native balance immediately
         try {
           await this.fetchNativeBalance();
-          log.info('[BackgroundIntervals] Native balance fetched on startup');
         } catch (error) {
-          log.error('[BackgroundIntervals] Failed to fetch native balance on startup', error);
+          log.error('[BackgroundIntervals] Failed to fetch native balance on startup', false, error);
         }
 
         // Run initial updates immediately (not waiting for first interval)
@@ -181,7 +172,7 @@ export class BackgroundIntervalService {
           this.flags.transactionsRunning = true;
           await this.fetchAllTransactions();
         } catch (error) {
-          log.error('[BackgroundIntervals] Error in initial transaction fetch', error);
+          log.error('[BackgroundIntervals] Error in initial transaction fetch', false, error);
         } finally {
           this.flags.transactionsRunning = false;
         }
@@ -198,7 +189,7 @@ export class BackgroundIntervalService {
             data: priceData
           });
         } catch (error) {
-          log.error('[BackgroundIntervals] Error in initial price update', error);
+          log.error('[BackgroundIntervals] Error in initial price update', false, error);
         } finally {
           this.flags.pricesRunning = false;
         }
@@ -208,7 +199,7 @@ export class BackgroundIntervalService {
           this.flags.portfolioRunning = true;
           await this.updatePortfolio();
         } catch (error) {
-          log.error('[BackgroundIntervals] Error in initial portfolio update', error);
+          log.error('[BackgroundIntervals] Error in initial portfolio update', false, error);
         } finally {
           this.flags.portfolioRunning = false;
         }
@@ -218,17 +209,13 @@ export class BackgroundIntervalService {
           this.flags.rollupsRunning = true;
           await this.updateRollups();
         } catch (error) {
-          log.error('[BackgroundIntervals] Error in initial rollup update', error);
+          log.error('[BackgroundIntervals] Error in initial rollup update', false, error);
         } finally {
           this.flags.rollupsRunning = false;
         }
-
-        log.info('[BackgroundIntervals] Initial data updates completed');
-      } else {
-        log.info('[BackgroundIntervals] No valid accounts found, skipping initial updates');
       }
     } catch (error) {
-      log.error('[BackgroundIntervals] Error checking for initial updates', error);
+      log.error('[BackgroundIntervals] Error checking for initial updates', false, error);
     }
   }
 
@@ -242,7 +229,7 @@ export class BackgroundIntervalService {
         this.updateIntervals(settings.dataRefreshIntervals);
       }
     } catch (error) {
-      log.warn('[BackgroundIntervals] Failed to load interval settings, using defaults', error);
+      log.warn('[BackgroundIntervals] Failed to load interval settings, using defaults', false, error);
     }
   }
 
@@ -250,8 +237,6 @@ export class BackgroundIntervalService {
    * Update interval configuration dynamically
    */
   public async updateIntervals(config: IntervalConfig): Promise<void> {
-    log.info('[BackgroundIntervals] Updating interval configuration', config);
-
     // Validate and apply new intervals
     if (config.transactions && config.transactions >= MIN_INTERVALS.transactions) {
       this.currentIntervals.transactions = config.transactions;
@@ -288,7 +273,7 @@ export class BackgroundIntervalService {
         await setYakklSettingsStorage(settings);
       }
     } catch (error) {
-      log.error('[BackgroundIntervals] Failed to save interval settings', error);
+      log.error('[BackgroundIntervals] Failed to save interval settings', false, error);
     }
   }
 
@@ -299,20 +284,15 @@ export class BackgroundIntervalService {
     const callback = async () => {
       // Skip if manual refresh is pending or already running
       if (this.flags.manualRefreshPending || this.flags.transactionsRunning) {
-        log.debug('[BackgroundIntervals] Skipping transaction fetch - already running or manual refresh pending');
         return;
       }
 
       try {
         this.flags.transactionsRunning = true;
-        log.debug('[BackgroundIntervals] Starting scheduled transaction fetch');
-
         // Fetch transactions for all accounts
         await this.fetchAllTransactions();
-
-        log.debug('[BackgroundIntervals] Scheduled transaction fetch completed');
       } catch (error) {
-        log.error('[BackgroundIntervals] Error in transaction fetch interval', error);
+        log.error('[BackgroundIntervals] Error in transaction fetch interval', false, error);
       } finally {
         this.flags.transactionsRunning = false;
       }
@@ -328,14 +308,11 @@ export class BackgroundIntervalService {
     const callback = async () => {
       // Skip if already running
       if (this.flags.pricesRunning) {
-        log.debug('[BackgroundIntervals] Skipping price update - already running');
         return;
       }
 
       try {
         this.flags.pricesRunning = true;
-        log.debug('[BackgroundIntervals] Starting scheduled price update');
-
         // Fetch new prices
         const priceData = await this.fetchPriceData();
 
@@ -346,10 +323,8 @@ export class BackgroundIntervalService {
           source: 'background-interval',
           data: priceData
         });
-
-        log.debug('[BackgroundIntervals] Scheduled price update queued');
       } catch (error) {
-        log.error('[BackgroundIntervals] Error in price update interval', error);
+        log.error('[BackgroundIntervals] Error in price update interval', false, error);
       } finally {
         this.flags.pricesRunning = false;
       }
@@ -365,7 +340,6 @@ export class BackgroundIntervalService {
     const callback = async () => {
       // Skip if already running
       if (this.flags.portfolioRunning) {
-        log.debug('[BackgroundIntervals] Skipping portfolio update - already running');
         return;
       }
 
@@ -384,7 +358,6 @@ export class BackgroundIntervalService {
     const callback = async () => {
       // Skip if already running
       if (this.flags.rollupsRunning) {
-        log.debug('[BackgroundIntervals] Skipping rollup update - already running');
         return;
       }
 
@@ -401,13 +374,11 @@ export class BackgroundIntervalService {
     const callback = async () => {
       // Skip if already running
       if (this.flags.tokenBalancesRunning) {
-        log.debug('[BackgroundIntervals] Skipping token balance update - already running');
         return;
       }
 
       try {
         this.flags.tokenBalancesRunning = true;
-        log.debug('[BackgroundIntervals] Starting scheduled token balance update');
 
         // Fetch balance data
         const balanceData = await this.fetchAllBalances();
@@ -419,10 +390,8 @@ export class BackgroundIntervalService {
           source: 'background-balances',
           data: balanceData
         });
-
-        log.debug('[BackgroundIntervals] Token balance update queued');
       } catch (error) {
-        log.error('[BackgroundIntervals] Error in token balance interval', error);
+        log.error('[BackgroundIntervals] Error in token balance interval', false, error);
       } finally {
         this.flags.tokenBalancesRunning = false;
       }
@@ -437,11 +406,8 @@ export class BackgroundIntervalService {
   private async updatePortfolio(): Promise<void> {
     try {
       this.flags.portfolioRunning = true;
-      log.debug('[BackgroundIntervals] Starting portfolio update');
-
       // Ensure services are initialized
       this.ensureServicesInitialized();
-
       // Queue portfolio update through coordinator
       portfolioCoordinator.queueUpdate({
         type: UpdateType.ROLLUP_ONLY,
@@ -449,10 +415,8 @@ export class BackgroundIntervalService {
         source: 'background-portfolio',
         data: {}
       });
-
-      log.debug('[BackgroundIntervals] Portfolio update queued');
     } catch (error) {
-      log.error('[BackgroundIntervals] Error updating portfolio', error);
+      log.error('[BackgroundIntervals] Error updating portfolio', false, error);
     } finally {
       this.flags.portfolioRunning = false;
     }
@@ -469,13 +433,10 @@ export class BackgroundIntervalService {
       const refreshService = PortfolioRefreshService.getInstance();
 
       if (refreshService.isRefreshInProgress()) {
-        log.debug('[BackgroundIntervals] Portfolio refresh in progress, skipping rollup update');
         return;
       }
 
       this.flags.rollupsRunning = true;
-      log.debug('[BackgroundIntervals] Starting rollup update');
-
       // Ensure services are initialized
       this.ensureServicesInitialized();
 
@@ -492,8 +453,6 @@ export class BackgroundIntervalService {
         // Log the specific sync error but don't throw - let the interval continue
         log.warn('[BackgroundIntervals] Failed to sync portfolio rollups:', false, syncError);
       }
-
-      log.debug('[BackgroundIntervals] Rollup update completed');
     } catch (error) {
       log.error('[BackgroundIntervals] Error updating rollups', false, error);
     } finally {
@@ -512,44 +471,41 @@ export class BackgroundIntervalService {
       // Get all accounts and chains from cache
       const cache = await this.cacheStore.getCache();
       if (!cache || !cache.chainAccountCache) {
-        log.debug('[BackgroundIntervals] No cache data available for transaction fetch');
         return;
       }
-
-      console.log('fetchAllTransactions: cache>>>>>>>>>>>>>>', cache);
 
       // Fetch transactions for each account on each chain
       for (const [chainId, accounts] of Object.entries(cache.chainAccountCache)) {
         for (const [address] of Object.entries(accounts)) {
           try {
-            await this.transactionService.getTransactionHistory(address);
+            // Use the correct method name from BackgroundTransactionService
+            await this.transactionService.fetchTransactions(Number(chainId), address, 50);
           } catch (error) {
-            log.warn(`[BackgroundIntervals] Failed to fetch transactions for ${address} on chain ${chainId}`, error);
+            log.warn(`[BackgroundIntervals] Failed to fetch transactions for ${address} on chain ${chainId}`, false, error);
           }
         }
       }
     } catch (error) {
-      log.error('[BackgroundIntervals] Error fetching all transactions', error);
+      log.error('[BackgroundIntervals] Error fetching all transactions', false, error);
     }
   }
 
   /**
-   * Fetch price data for all tokens
-   * Returns price data to be processed by coordinator
+   * Fetch price data for all tokens and calculate values
+   * Uses single coordinated call to prevent duplicate API requests
    */
   private async fetchPriceData(): Promise<any> {
     try {
       // Ensure services are initialized
       this.ensureServicesInitialized();
 
-      // Fetch market prices
-      const prices = await this.priceService.fetchLatestPrices();
+      // Use the coordinated update method that includes caching and deduplication
+      await this.priceService.updatePricesAndValues();
 
-      log.debug('[BackgroundIntervals] Price data fetched');
-      return prices;
+      return { updated: true }; // Return success indicator
     } catch (error) {
-      log.error('[BackgroundIntervals] Error fetching price data', false, error);
-      return {};
+      log.error('[BackgroundIntervals] Error updating price data and values', false, error);
+      return { updated: false };
     }
   }
 
@@ -561,15 +517,12 @@ export class BackgroundIntervalService {
     const balanceData: Record<string, any> = {};
 
     try {
-      log.debug('[BackgroundIntervals] Fetching token balances for all accounts');
-
       // Ensure services are initialized
       this.ensureServicesInitialized();
 
       // Get all accounts and chains from cache
       const cache = await this.cacheStore.getCache();
       if (!cache || !cache.chainAccountCache) {
-        log.debug('[BackgroundIntervals] No cache data available for balance fetch');
         return balanceData;
       }
 
@@ -581,7 +534,7 @@ export class BackgroundIntervalService {
         for (const [address] of Object.entries(accounts)) {
           try {
             // Sync account balances directly
-            await syncManager.syncAccount(Number(chainId), address);
+            await syncManager.syncBalances();
             const balances = [];
 
             if (!balanceData[address]) {
@@ -589,17 +542,15 @@ export class BackgroundIntervalService {
             }
             balanceData[address] = balances;
 
-            log.debug(`[BackgroundIntervals] Fetched token balances for ${address} on chain ${chainId}`);
           } catch (error) {
-            log.warn(`[BackgroundIntervals] Failed to fetch balances for ${address} on chain ${chainId}`, error);
+            log.warn(`[BackgroundIntervals] Failed to fetch balances for ${address} on chain ${chainId}`, false, error);
           }
         }
       }
 
-      log.debug('[BackgroundIntervals] Token balance fetch completed');
       return balanceData;
     } catch (error) {
-      log.error('[BackgroundIntervals] Error fetching token balances', error);
+      log.error('[BackgroundIntervals] Error fetching token balances', false, error);
       return balanceData;
     }
   }
@@ -610,15 +561,12 @@ export class BackgroundIntervalService {
    */
   public async updateAllTokenBalances(): Promise<void> {
     try {
-      log.debug('[BackgroundIntervals] Updating token balances for all accounts');
-
       // Ensure services are initialized
       this.ensureServicesInitialized();
 
       // Get all accounts and chains from cache
       const cache = await this.cacheStore.getCache();
       if (!cache || !cache.chainAccountCache) {
-        log.debug('[BackgroundIntervals] No cache data available for balance update');
         return;
       }
 
@@ -633,16 +581,14 @@ export class BackgroundIntervalService {
             // Note: syncBalances updates storage directly
             await syncManager.syncBalances();
 
-            log.debug(`[BackgroundIntervals] Updated token balances for ${address} on chain ${chainId}`);
           } catch (error) {
-            log.warn(`[BackgroundIntervals] Failed to update balances for ${address} on chain ${chainId}`, error);
+            log.warn(`[BackgroundIntervals] Failed to update balances for ${address} on chain ${chainId}`, false, error);
           }
         }
       }
 
-      log.debug('[BackgroundIntervals] Token balance update completed - storage updated via syncTokenBalances');
     } catch (error) {
-      log.error('[BackgroundIntervals] Error updating token balances', error);
+      log.error('[BackgroundIntervals] Error updating token balances', false, error);
     }
   }
 
@@ -658,8 +604,6 @@ export class BackgroundIntervalService {
    * This is called when user clicks refresh button
    */
   public async handleManualRefresh(type: 'transactions' | 'prices' | 'all'): Promise<void> {
-    log.info('[BackgroundIntervals] Manual refresh requested:', type);
-
     // Set manual refresh flag
     this.flags.manualRefreshPending = true;
 
@@ -668,7 +612,6 @@ export class BackgroundIntervalService {
         case 'transactions':
           // Stop running interval temporarily
           if (this.flags.transactionsRunning) {
-            log.debug('[BackgroundIntervals] Waiting for current transaction fetch to complete');
             await this.waitForFlag('transactionsRunning', false, 5000);
           }
 
@@ -769,8 +712,6 @@ export class BackgroundIntervalService {
    * Start all intervals
    */
   public startAll(): void {
-    log.info('[BackgroundIntervals] Starting all background intervals');
-
     this.timerManager.startInterval('bg-transactions');
     this.timerManager.startInterval('bg-prices');
     this.timerManager.startInterval('bg-token-balances');
@@ -790,8 +731,6 @@ export class BackgroundIntervalService {
    * Stop all intervals
    */
   public stopAll(): void {
-    log.info('[BackgroundIntervals] Stopping all background intervals');
-
     this.timerManager.stopInterval('bg-transactions');
     this.timerManager.stopInterval('bg-prices');
     this.timerManager.stopInterval('bg-token-balances');
@@ -839,10 +778,8 @@ export class BackgroundIntervalService {
       const session = stored['yakkl-session'] as any;
 
       this.isLoggedIn = !!(session?.isAuthenticated || (settings && !settings.isLocked));
-
-      log.debug('[BackgroundIntervals] Login state:', this.isLoggedIn);
     } catch (error) {
-      log.error('[BackgroundIntervals] Failed to check login state', error);
+      log.error('[BackgroundIntervals] Failed to check login state', false, error);
       this.isLoggedIn = false;
     }
   }
@@ -859,8 +796,6 @@ export class BackgroundIntervalService {
 
       // Check if it's 4AM and we haven't checked today
       if (currentHour === 4 && lastCheckDate !== todayDate) {
-        log.info('[BackgroundIntervals] Running 4AM daily offline check');
-
         // Fetch native balance
         await this.fetchNativeBalance();
 
@@ -874,22 +809,22 @@ export class BackgroundIntervalService {
         });
 
         this.lastOfflineCheck = now;
-        log.info('[BackgroundIntervals] 4AM offline check completed');
       }
     } catch (error) {
-      log.error('[BackgroundIntervals] Failed to perform offline check', error);
+      log.error('[BackgroundIntervals] Failed to perform offline check', false, error);
     }
   }
 
   /**
    * Fetch native balance for currently selected account
+   * FIXED: Now uses the cached GET_NATIVE_BALANCE handler instead of direct provider calls
+   * This prevents excessive RPC calls by leveraging the 15-minute cache
    */
   private async fetchNativeBalance(): Promise<void> {
     try {
       // Get currently selected data from storage
       const stored = await browser.storage.local.get('yakkl-currently-selected');
       if (!stored || !stored['yakkl-currently-selected']) {
-        log.debug('[BackgroundIntervals] No currently selected data for native balance');
         return;
       }
 
@@ -898,37 +833,37 @@ export class BackgroundIntervalService {
       const chainId = currentlySelected?.shortcuts?.chainId;
 
       if (!address || !chainId) {
-        log.debug('[BackgroundIntervals] Missing address or chainId for native balance');
         return;
       }
 
-      log.info('[BackgroundIntervals] Fetching native balance for', { address, chainId });
+      log.debug('[BackgroundIntervals] Fetching native balance through CACHED handler for', false, { address, chainId });
 
-      // Import the background provider manager
-      const { backgroundProviderManager } = await import('$contexts/background/services/provider-manager');
+      // Use the cached GET_NATIVE_BALANCE handler which has 15-minute caching
+      // FIXED: Using static import instead of dynamic import (which breaks service workers)
+      const getNativeBalanceHandler = blockchainHandlers.get('GET_NATIVE_BALANCE');
 
-      // Ensure provider is initialized
-      if (!backgroundProviderManager.isReady() || backgroundProviderManager.getCurrentChainId() !== chainId) {
-        await backgroundProviderManager.initialize(chainId);
-      }
-
-      const provider = backgroundProviderManager.getProvider();
-      if (!provider) {
-        log.error('[BackgroundIntervals] Provider not available for native balance');
+      if (!getNativeBalanceHandler) {
+        log.error('[BackgroundIntervals] GET_NATIVE_BALANCE handler not found');
         return;
       }
 
-      // Fetch the balance
-      const balance = await provider.getBalance(address);
-      const balanceString = balance.toString();
+      // Call the handler directly (we're in the background context)
+      const response = await getNativeBalanceHandler({
+        type: 'GET_NATIVE_BALANCE',
+        data: {
+          address,
+          chainId
+        }
+      });
 
-      log.info('[BackgroundIntervals] Native balance fetched:', balanceString);
-
-      // Store in cache if different
-      // Note: We'll implement differential storage in the next step
-      // For now, just log that we have the balance
+      if (response.success && response.data) {
+        // The GET_NATIVE_BALANCE handler already updates the cache
+        // No need for additional storage here
+      } else {
+        log.error('[BackgroundIntervals] Failed to fetch native balance:', false, response.error);
+      }
     } catch (error) {
-      log.error('[BackgroundIntervals] Failed to fetch native balance', error);
+      log.error('[BackgroundIntervals] Failed to fetch native balance', false, error);
     }
   }
 }

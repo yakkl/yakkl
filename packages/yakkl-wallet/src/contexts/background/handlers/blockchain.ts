@@ -8,6 +8,9 @@ import browser from 'webextension-polyfill';
 import { ProviderRoutingManager } from '$lib/managers/ProviderRoutingManager';
 import { BackgroundIntervalService } from '$lib/services/background-interval.service';
 import { backgroundProviderManager } from '../services/provider-manager';
+import { providerCache } from '../services/provider-cache.service';
+import { ethers } from 'ethers'; // Keep for Contract functionality only
+import { BigNumberishUtils, type ProviderInterface } from '@yakkl/core'; // Use for formatUnits replacement
 
 // In-memory cache for native balances to prevent repeated provider calls
 const nativeBalanceCache = new Map<string, { balance: string; timestamp: number }>();
@@ -22,16 +25,16 @@ async function updateStorageIfChanged(chainId: number, address: string, newBalan
     const storageKey = `native_balance_${chainId}_${address.toLowerCase()}`;
     const stored = await browser.storage.local.get(storageKey);
     const currentBalance = stored[storageKey];
-    
+
     // Only update if balance changed
     if (currentBalance !== newBalance) {
-      log.info('[Blockchain] Balance changed, updating storage', { 
-        old: currentBalance, 
+      log.info('[Blockchain] Balance changed, updating storage', {
+        old: currentBalance,
         new: newBalance,
         chainId,
-        address 
+        address
       });
-      
+
       await browser.storage.local.set({
         [storageKey]: newBalance,
         [`${storageKey}_updated`]: Date.now()
@@ -168,24 +171,21 @@ export const blockchainHandlers = new Map<string, MessageHandlerFunc>([
   ['GET_TOKEN_BALANCE', async (payload): Promise<MessageResponse> => {
     try {
       const { address, tokenAddress, chainId } = payload?.data || payload || {};
-      
+
       if (!address || !tokenAddress || !chainId) {
         log.error('GET_TOKEN_BALANCE: Missing required parameters', false, { address, tokenAddress, chainId });
-        return { 
-          success: false, 
-          error: 'Missing required parameters: address, tokenAddress, or chainId' 
+        return {
+          success: false,
+          error: 'Missing required parameters: address, tokenAddress, or chainId'
         };
       }
 
       log.info('GET_TOKEN_BALANCE: Fetching token balance', false, { address, tokenAddress, chainId });
 
-      // Import required modules
-      const ethers = await import('ethers');
-      
       // Initialize and get provider from background manager
       await backgroundProviderManager.initialize(chainId);
       const provider = backgroundProviderManager.getProvider();
-      
+
       if (!provider) {
         log.error('GET_TOKEN_BALANCE: No provider available', false);
         return { success: false, error: 'No provider available' };
@@ -205,9 +205,9 @@ export const blockchainHandlers = new Map<string, MessageHandlerFunc>([
         ...provider,
         // Add any missing methods that ethers.Contract expects
         getNetwork: async () => ({ chainId: BigInt(chainId), name: 'ethereum' }),
-        call: async (transaction: any) => provider.call ? provider.call(transaction) : provider.request('eth_call', [transaction, 'latest'])
+        call: async (transaction: any) => provider.call ? provider.call(transaction) : provider.request({ method: 'eth_call', params: [transaction, 'latest'] })
       };
-      
+
       const tokenContract = new ethers.Contract(tokenAddress, erc20Abi, ethersProvider as any);
 
       // Fetch token data in parallel
@@ -218,8 +218,8 @@ export const blockchainHandlers = new Map<string, MessageHandlerFunc>([
         tokenContract.name().catch(() => 'Unknown Token')
       ]);
 
-      // Format the balance
-      const formattedBalance = ethers.utils.formatUnits(balance, decimals);
+      // Format the balance using yakkl utilities
+      const formattedBalance = BigNumberishUtils.format(balance, decimals);
 
       const result = {
         balance: formattedBalance,
@@ -239,53 +239,39 @@ export const blockchainHandlers = new Map<string, MessageHandlerFunc>([
         stack: error instanceof Error ? error.stack : undefined,
         payload
       });
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Failed to get token balance' 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get token balance'
       };
     }
   }],
 
   ['GET_NATIVE_BALANCE', async (payload): Promise<MessageResponse> => {
     try {
-      console.log('GET_NATIVE_BALANCE handler: Starting execution');
-      console.log('GET_NATIVE_BALANCE handler: Received payload:', {
-        payload,
-        payloadType: typeof payload,
-        payloadKeys: payload ? Object.keys(payload) : [],
-        hasData: !!(payload?.data),
-        payloadData: payload?.data
-      });
-      
       const { address, chainId } = payload?.data || payload || {};
-      
-      console.log('GET_NATIVE_BALANCE handler: Extracted parameters:', {
-        address,
-        chainId,
-        extractedFrom: payload?.data ? 'payload.data' : 'payload'
-      });
-      
+
       if (!address || !chainId) {
         const errorMsg = 'Missing required parameters: address or chainId';
-        console.error('GET_NATIVE_BALANCE: ' + errorMsg, { 
-          address, 
+        console.error('GET_NATIVE_BALANCE: ' + errorMsg, {
+          address,
           chainId,
           payload,
           payloadData: payload?.data
         });
-        return { 
-          success: false, 
-          error: errorMsg 
+        return {
+          success: false,
+          error: errorMsg
         };
       }
-
-      console.log('GET_NATIVE_BALANCE: Fetching native token balance', { address, chainId });
 
       // Check cache first (memory cache for immediate responses)
       const cacheKey = `native_balance_${chainId}_${address.toLowerCase()}`;
       const cached = nativeBalanceCache.get(cacheKey);
-      if (cached && (Date.now() - cached.timestamp < 5000)) { // 5 second cache
-        console.log('GET_NATIVE_BALANCE: Returning cached balance');
+      // CRITICAL: 15 minute cache to prevent excessive Alchemy API calls
+      // User reported 900+ calls in 45 seconds - get_balance is VERY expensive!
+      const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+      if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+        console.log('GET_NATIVE_BALANCE: Returning cached balance (TTL: 15 minutes)');
         return {
           success: true,
           data: {
@@ -297,66 +283,69 @@ export const blockchainHandlers = new Map<string, MessageHandlerFunc>([
         };
       }
 
-      // Initialize and get provider from background manager
-      console.log('GET_NATIVE_BALANCE: Initializing background provider manager...');
+      // Get provider from cache service (handles initialization and caching)
+      let provider: ProviderInterface | null = null;
       try {
-        await backgroundProviderManager.initialize(chainId);
-        console.log('GET_NATIVE_BALANCE: Provider manager initialized successfully');
+        // Use statically imported provider cache service
+        provider = await providerCache.getProvider(chainId); // check below for error handling
       } catch (initError) {
-        console.error('GET_NATIVE_BALANCE: Failed to initialize provider manager', initError);
-        return { 
-          success: false, 
-          error: `Provider initialization failed: ${initError instanceof Error ? initError.message : 'Unknown error'}` 
-        };
+        console.error('GET_NATIVE_BALANCE: Failed to get provider from cache', initError);
+        // Fallback to direct initialization
+        try {
+          await backgroundProviderManager.initialize(chainId);
+          provider = backgroundProviderManager.getProvider();
+        } catch (fallbackError) {
+          console.error('GET_NATIVE_BALANCE: Fallback also failed', fallbackError);
+          return {
+            success: false,
+            error: `Provider initialization failed: ${initError instanceof Error ? initError.message : 'Unknown error'}`
+          };
+        }
       }
-      
-      const provider = backgroundProviderManager.getProvider();
-      console.log('GET_NATIVE_BALANCE: Got provider?', !!provider);
-      
+
       if (!provider) {
-        console.error('GET_NATIVE_BALANCE: No provider available after initialization');
-        return { success: false, error: 'No provider available after initialization' };
+        console.error('GET_NATIVE_BALANCE: No provider available');
+        return { success: false, error: 'No provider available' };
       }
 
       // Get native token balance
-      console.log('GET_NATIVE_BALANCE: Calling provider.getBalance...');
       let balance: bigint;
       try {
         balance = await provider.getBalance(address);
         console.log('GET_NATIVE_BALANCE: Raw balance received:', balance);
       } catch (balanceError) {
         console.error('GET_NATIVE_BALANCE: Failed to call getBalance', balanceError);
-        return { 
-          success: false, 
-          error: `Failed to fetch balance: ${balanceError instanceof Error ? balanceError.message : 'Unknown error'}` 
+        return {
+          success: false,
+          error: `Failed to fetch balance: ${balanceError instanceof Error ? balanceError.message : 'Unknown error'}`
         };
       }
-      
+
       const balanceString = balance.toString();
       console.log('GET_NATIVE_BALANCE: Balance as string:', balanceString);
-      
+
       // Update cache
       nativeBalanceCache.set(cacheKey, {
         balance: balanceString,
         timestamp: Date.now()
       });
-      
+
       // Check if we should update storage (differential update)
       await updateStorageIfChanged(chainId, address, balanceString);
-      
-      const responseData = { 
+
+      const responseData = {
         balance: balanceString,
         address,
         chainId
       };
-      
+
       console.log('GET_NATIVE_BALANCE: Preparing successful response:', responseData);
 
-      const finalResponse = { 
-        success: true, 
+      const finalResponse = {
+        success: true,
         data: responseData
       };
-      
+
       console.log('GET_NATIVE_BALANCE: Returning final response:', finalResponse);
       return finalResponse;
     } catch (error) {
@@ -365,9 +354,9 @@ export const blockchainHandlers = new Map<string, MessageHandlerFunc>([
         stack: error instanceof Error ? error.stack : undefined,
         payload
       });
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Failed to get native balance' 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get native balance'
       };
     }
   }],
@@ -482,42 +471,42 @@ export const blockchainHandlers = new Map<string, MessageHandlerFunc>([
   ['yakkl_getTokenBalance', async (payload): Promise<MessageResponse> => {
     try {
       const { tokenAddress, walletAddress, chainId } = payload || {};
-      
+
       if (!tokenAddress || !walletAddress) {
         return { success: false, error: 'Token address and wallet address are required' };
       }
-      
+
       log.info('Blockchain handler: Getting token balance', false, {
         tokenAddress,
         walletAddress,
         chainId: chainId || 1
       });
-      
+
       // Use ProviderRoutingManager to get the best provider with automatic failover
       const providerManager = ProviderRoutingManager.getInstance();
-      
+
       try {
         // Get provider (it automatically uses the current chain from store)
         const provider = await providerManager.getProvider();
-        
+
         // Make ERC20 balanceOf call
         const balanceOfData = `0x70a08231000000000000000000000000${walletAddress.slice(2)}` as `0x${string}`; // balanceOf(address)
-        
+
         const balance = await provider.call({
           to: tokenAddress,
           data: balanceOfData
         });
-        
-        log.info('Successfully fetched token balance', false, { 
-          tokenAddress, 
-          walletAddress, 
-          balance 
+
+        log.info('Successfully fetched token balance', false, {
+          tokenAddress,
+          walletAddress,
+          balance
         });
-        
+
         return { success: true, data: balance };
       } catch (error) {
         log.error('Failed to fetch token balance', false, error);
-        
+
         // Try failover provider if available
         try {
           const failoverProvider = await providerManager.handleProviderFailure('primary', error);
@@ -525,28 +514,28 @@ export const blockchainHandlers = new Map<string, MessageHandlerFunc>([
             to: tokenAddress,
             data: `0x70a08231000000000000000000000000${walletAddress.slice(2)}` as `0x${string}`
           });
-          
-          log.info('Successfully fetched token balance with failover provider', false, { 
-            tokenAddress, 
-            walletAddress, 
-            balance 
+
+          log.info('Successfully fetched token balance with failover provider', false, {
+            tokenAddress,
+            walletAddress,
+            balance
           });
-          
+
           return { success: true, data: balance };
         } catch (failoverError) {
           log.error('Failover also failed for token balance', false, failoverError);
-          return { 
-            success: false, 
-            error: `Failed to fetch token balance: ${failoverError instanceof Error ? failoverError.message : 'Unknown error'}` 
+          return {
+            success: false,
+            error: `Failed to fetch token balance: ${failoverError instanceof Error ? failoverError.message : 'Unknown error'}`
           };
         }
       }
-      
+
     } catch (error) {
       log.error('Token balance handler error:', false, error);
-      return { 
-        success: false, 
-        error: (error as Error).message || 'Failed to get token balance' 
+      return {
+        success: false,
+        error: (error as Error).message || 'Failed to get token balance'
       };
     }
   }],
@@ -554,22 +543,22 @@ export const blockchainHandlers = new Map<string, MessageHandlerFunc>([
   ['yakkl_updateTokenBalances', async (payload): Promise<MessageResponse> => {
     try {
       const { address, chainId } = payload || {};
-      
+
       log.info('Blockchain handler: Updating token balances', false, {
         address,
         chainId
       });
-      
+
       // Trigger the background interval service to update balances
       const intervalService = BackgroundIntervalService.getInstance();
       await intervalService.updateAllTokenBalances();
-      
+
       return { success: true, data: true };
     } catch (error) {
       log.error('Failed to update token balances:', false, error);
-      return { 
-        success: false, 
-        error: (error as Error).message || 'Failed to update token balances' 
+      return {
+        success: false,
+        error: (error as Error).message || 'Failed to update token balances'
       };
     }
   }]

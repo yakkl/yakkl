@@ -58,12 +58,18 @@ export async function sendMessageWithPromise(message: {
   initializeResponseListener();
 
   const requestId = generateRequestId();
-  
+
   return new Promise((resolve, reject) => {
     // Store the pending request
     const timeoutHandle = setTimeout(() => {
       pendingRequests.delete(requestId);
-      reject(new Error(`Request ${message.type} timed out after ${timeout}ms`));
+      // More informative timeout error
+      const timeoutError = new Error(
+        `Handler timeout after ${timeout}ms - ${message.type} did not respond. ` +
+        `This may indicate the background service is still initializing or the blockchain connection is slow.`
+      );
+      timeoutError.name = 'TimeoutError';
+      reject(timeoutError);
     }, timeout);
 
     pendingRequests.set(requestId, {

@@ -17,7 +17,9 @@
 			"$plugins": ["./src/lib/plugins"],
 			"$plugins/*": ["./src/lib/plugins/*"],
 			"$contexts": ["./src/contexts"],
-			"$contexts/*": ["./src/contexts/*"]
+			"$contexts/*": ["./src/contexts/*"],
+			"@yakkl/security-ui": ["../yakkl-security-ui/src/lib/index.ts"],
+			"@yakkl/security-ui/*": ["../yakkl-security-ui/src/lib/*"]
 		},
 		"verbatimModuleSyntax": true,
 		"allowSyntheticDefaultImports": true,

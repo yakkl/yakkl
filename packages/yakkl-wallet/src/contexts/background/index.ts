@@ -9,39 +9,43 @@ import { bookmarkContextMenu } from './extensions/chrome/contextMenu';
 import { sessionHandlers } from './handlers/session';
 import { backgroundProviderManager } from './services/provider-manager';
 
-// Initialize background cache services on extension install/startup
-// This ensures cache services run continuously from the moment the extension is installed
+// Initialize background cache services ONLY after authentication
+// CRITICAL: Services should NOT run before user is authenticated
 async function initializeCacheServices() {
   try {
-    log.info('[Background] Initializing background cache services...');
-    
+    // CRITICAL SECURITY: Check if wallet is locked/unauthenticated first
+    const settings = await browser.storage.local.get(['yakkl-settings', 'yakkl-locked']);
+
+    // Check if wallet is initialized and unlocked
+    const yakklSettings = settings['yakkl-settings'] as any;
+    const isInitialized = yakklSettings?.init === true;
+    const isLocked = settings['yakkl-locked'] !== false; // Default to locked if not explicitly false
+
+    if (!isInitialized || isLocked) {
+      return; // DO NOT START SERVICES IF LOCKED OR NOT INITIALIZED
+    }
+
     // Pre-initialize provider if we have stored data
     // This ensures provider is ready BEFORE any client requests
-    log.info('[Background] Pre-initializing provider manager...');
     await backgroundProviderManager.preInitialize();
-    
+
     // Initialize and start background intervals
     const backgroundIntervals = BackgroundIntervalService.getInstance();
     await backgroundIntervals.initialize();
     backgroundIntervals.startAll();
-    
-    log.info('[Background] Background cache services initialized and running');
   } catch (error) {
-    log.error('[Background] Failed to initialize cache services:', error);
+    log.error('[Background] Failed to initialize cache services:', false, error);
   }
 }
 
 // Listen for extension install/update events
 browser.runtime.onInstalled.addListener(async (details) => {
-  log.info('[Background] Extension installed/updated:', details.reason);
-  
   // Initialize cache services on install or update
   if (details.reason === 'install' || details.reason === 'update') {
     await initializeCacheServices();
-    
+
     // For new installs, set up initial configuration
     if (details.reason === 'install') {
-      log.info('[Background] New installation detected, setting up initial configuration');
       // Initial setup can be added here if needed
     }
   }
@@ -49,7 +53,6 @@ browser.runtime.onInstalled.addListener(async (details) => {
 
 // Listen for browser startup (when browser is opened with extension already installed)
 browser.runtime.onStartup.addListener(async () => {
-  log.info('[Background] Browser startup detected, initializing cache services');
   await initializeCacheServices();
 });
 
@@ -71,19 +74,9 @@ browser.runtime.onConnect.addListener((port) => {
 // Handle one-off messages with safe channel validation
 const safeMessageHandler = createSafeMessageHandler(
   async (request, sender) => {
-    // CRITICAL FIX: Do NOT skip GET_NATIVE_BALANCE - it needs to be processed
-    // The comment about "dedicated handler above" was incorrect - there is no such handler
-    
-    console.log('Background: safeMessageHandler CALLED with:', {
-      type: request?.type,
-      requestFull: request,
-      timestamp: Date.now()
-    });
-    
-    // Add comprehensive error handling wrapper
     try {
       // Log ALL incoming messages for debugging
-      console.log('Background: Message received (top-level):', {
+      log.debug('Background: Message received (top-level):', false, {
         type: request?.type,
         hasData: !!request?.data,
         requestKeys: request ? Object.keys(request) : [],
@@ -92,8 +85,6 @@ const safeMessageHandler = createSafeMessageHandler(
 
       // Handle special cases first
       if (request.type === 'accountChanged' || request.type === 'chainChanged') {
-        console.log('Background: Account or chain changed, restarting monitoring...');
-
         try {
           const txMonitor = TransactionMonitorService.getInstance();
           // stop() is synchronous, no await needed
@@ -101,154 +92,40 @@ const safeMessageHandler = createSafeMessageHandler(
           await txMonitor.start();
           return { success: true };
         } catch (error: any) {
-          console.error('Background: Failed to restart monitoring:', error);
+          log.error('Background: Failed to restart monitoring:', false, error);
           return { success: false, error: error.message };
         }
       }
 
-    // Handle session hash storage directly here to ensure proper response
-    // if (request.type === 'STORE_SESSION_HASH') {
-    //   try {
-    //     log.info('[Background] Handling STORE_SESSION_HASH', false, {
-    //       hasPayload: !!request?.payload,
-    //       payloadType: typeof request?.payload,
-    //       payloadLength: request?.payload?.length
-    //     });
-
-    //     if (!request?.payload || typeof request.payload !== 'string') {
-    //       log.warn('[Background] Invalid payload for STORE_SESSION_HASH', false);
-    //       return { success: false, error: 'Invalid payload' };
-    //     }
-
-    //     bgMemoryHash = request.payload;
-    //     bgSessionToken = generateSessionToken();
-
-    //     // Broadcast token after responding
-    //     setTimeout(async () => {
-    //       try {
-    //         await browser.runtime.sendMessage({
-    //           type: 'SESSION_TOKEN_BROADCAST',
-    //           token: bgSessionToken!.token,
-    //           expiresAt: bgSessionToken!.expiresAt
-    //         });
-    //       } catch (error) {
-    //         log.warn('[Background] Failed to broadcast session token', false, error);
-    //       }
-    //     }, 0);
-
-    //     const response: StoreHashResponse = {
-    //       success: true,
-    //       token: bgSessionToken.token,
-    //       expiresAt: bgSessionToken.expiresAt
-    //     };
-
-    //     log.info('[Background] Returning STORE_SESSION_HASH response', false, response);
-    //     return response;
-    //   } catch (error) {
-    //     log.error('[Background] Error handling STORE_SESSION_HASH', false, error);
-    //     return { success: false, error: 'Failed to store session hash' };
-    //   }
-    // }
-
-    // if (request.type === 'REFRESH_SESSION') {
-    //   try {
-    //     const providedToken = request?.token as string | undefined;
-    //     if (bgSessionToken && providedToken === bgSessionToken.token) {
-    //       bgSessionToken.expiresAt = Date.now() + SESSION_TIMEOUT_MS;
-
-    //       // Broadcast updated token expiry after responding
-    //       setTimeout(async () => {
-    //         try {
-    //           await browser.runtime.sendMessage({
-    //             type: 'SESSION_TOKEN_BROADCAST',
-    //             token: bgSessionToken!.token,
-    //             expiresAt: bgSessionToken!.expiresAt
-    //           });
-    //         } catch (error) {
-    //           log.warn('[Background] Failed to broadcast refreshed session token', false, error);
-    //         }
-    //       }, 0);
-
-    //       return {
-    //         success: true,
-    //         token: bgSessionToken.token,
-    //         expiresAt: bgSessionToken.expiresAt
-    //       };
-    //     } else {
-    //       // Clear on invalid token
-    //       bgSessionToken = null;
-    //       bgMemoryHash = null;
-    //       return { success: false, error: 'Unauthorized' };
-    //     }
-    //   } catch (error) {
-    //     log.error('[Background] Error handling REFRESH_SESSION', false, error);
-    //     return { success: false, error: 'Failed to refresh session' };
-    //   }
-    // }
-
-
     // Special handling for closeAllWindows message (for backwards compatibility)
     if (request.type === 'closeAllWindows') {
-      console.log('Background: Handling closeAllWindows message');
       // Use the session handler directly
       const handler = sessionHandlers.get('closeAllWindows');
       if (handler) {
         return handler(request.payload || request);
       }
     }
-    
+
     // Special handling for STORE_SESSION_HASH to ensure immediate response
     if (request.type === 'STORE_SESSION_HASH') {
-      console.log('Background: STORE_SESSION_HASH received, routing directly to handler');
       const handler = sessionHandlers.get('STORE_SESSION_HASH');
       if (handler) {
         const response = await handler(request.payload);
-        console.log('Background: STORE_SESSION_HASH response:', response);
         return response;
       }
     }
-    
-    // Handle all other messages through the standard handler
-    console.log('Background: Received message:', {
-      type: request.type,
-      hasPayload: !!request.payload,
-      fullRequest: request
-    });
-    
-    // Special logging for GET_NATIVE_BALANCE
-    if (request.type === 'GET_NATIVE_BALANCE') {
-      console.log('Background: GET_NATIVE_BALANCE message received, forwarding to handleMessage');
-      console.log('Background: GET_NATIVE_BALANCE request data:', request);
-      console.log('Background: About to call handleMessage for GET_NATIVE_BALANCE');
-      console.log('Background: Request structure:', {
-        type: request.type,
-        data: request.data,
-        payload: request.payload,
-        allKeys: Object.keys(request)
-      });
-    }
 
-    console.log('Background: Calling handleMessage with request type:', request?.type);
     const response = await handleMessage(request, sender);
-    console.log('Background: handleMessage returned:', response);
-    
-    // Log response for GET_NATIVE_BALANCE
-    if (request.type === 'GET_NATIVE_BALANCE') {
-      console.log('Background: GET_NATIVE_BALANCE response from handleMessage:', response);
-      console.log('Background: GET_NATIVE_BALANCE response type:', typeof response);
-      console.log('Background: GET_NATIVE_BALANCE response keys:', response ? Object.keys(response) : 'null');
-    }
-    
     return response;
     } catch (error) {
       // Catch any unhandled errors to ensure we always return a response
-      console.error('Background: Unhandled error in message handler:', {
+      log.error('Background: Unhandled error in message handler:', false, {
         error: error instanceof Error ? error.message : error,
         stack: error instanceof Error ? error.stack : undefined,
         requestType: request?.type,
         timestamp: Date.now()
       });
-      
+
       // Always return an error response instead of throwing
       return {
         success: false,
@@ -257,7 +134,7 @@ const safeMessageHandler = createSafeMessageHandler(
     }
   },
   {
-    timeout: 25000,
+    timeout: 45000, // Increased from 25s to 45s for blockchain operations
     logPrefix: 'Background'
   }
 );
@@ -276,9 +153,8 @@ async function sendPromiseResponse(requestId: string, data: any, error?: string)
       data,
       error
     });
-    console.log('🔵 Promise response sent for request:', requestId);
   } catch (err) {
-    console.error('🔵 Failed to send Promise response:', err);
+    log.error('🔵 Failed to send Promise response:', false, err);
   }
 }
 
@@ -290,17 +166,14 @@ browser.runtime.onMessage.addListener(safeMessageHandler as any);
 // This runs independently of UI and persists across sessions
 async function initializeBackgroundServices() {
   try {
-    console.log('Background: Initializing background services...');
-
     // Note: Provider pre-initialization is now done in initializeCacheServices()
     // which runs earlier in the startup sequence
 
     // Initialize context menu for bookmarking
     try {
       await bookmarkContextMenu.initialize();
-      console.log('Background: Context menu service initialized successfully');
     } catch (error) {
-      console.error('Background: Failed to initialize context menu:', error);
+      log.error('Background: Failed to initialize context menu:', false, error);
     }
 
     // Get transaction monitor instance
@@ -314,12 +187,8 @@ async function initializeBackgroundServices() {
 
     // Start monitoring - this will run continuously in background
     await txMonitor.start();
-
-    console.log('Background: Transaction monitoring started successfully');
-    console.log('Background: All background services initialized successfully');
-
   } catch (error) {
-    console.error('Background: Failed to initialize background services:', error);
+    log.error('Background: Failed to initialize background services:', false, error);
   }
 }
 

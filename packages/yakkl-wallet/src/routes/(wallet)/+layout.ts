@@ -11,11 +11,18 @@ export const load = async ({ url }: any) => {
   if (typeof window === 'undefined') return {};
 
   // Skip auth check for public routes
-  const publicRoutes = ['/', '/login', '/register', '/legal', '/legal/tos', '/legal/privacy', '/logout', '/phishing'];
+  // CRITICAL: Do NOT include '/' (home) in public routes - it must be protected!
+  const publicRoutes = ['/login', '/register', '/legal', '/legal/tos', '/legal/privacy', '/logout', '/phishing'];
   const currentPath = url.pathname;
 
   if (publicRoutes.some(route => currentPath.startsWith(route))) {
     return {};
+  }
+
+  // CRITICAL SECURITY: Explicitly protect home and dashboard routes
+  const protectedRoutes = ['/', '/home', '/dashboard'];
+  if (protectedRoutes.includes(currentPath)) {
+    log.error('[(wallet)/+layout.ts] Protected route accessed, enforcing authentication:', false,currentPath);
   }
 
   try {
@@ -26,7 +33,7 @@ export const load = async ({ url }: any) => {
       await appStateManager.waitForReady(3000);
     } catch (error) {
       // Log but don't fail - continue with auth check
-      console.warn('[(wallet)/+layout.ts] AppStateManager initialization warning:', error);
+      log.warn('[(wallet)/+layout.ts] AppStateManager initialization warning:', false,error);
     }
 
     // Validate authentication for protected routes
@@ -48,14 +55,10 @@ export const load = async ({ url }: any) => {
           break;
       }
 
-      console.error('[(wallet)/+layout.ts] Authentication invalid - redirecting to', redirectPath, validation);
-
       // Redirect to appropriate page
       await goto(redirectPath, { replaceState: true });
       return { authenticated: false };
     }
-
-    console.log('[(wallet)/+layout.ts] Authentication valid - proceeding with route', validation);
 
     // Authentication valid - proceed with route
     return { authenticated: true };

@@ -4,11 +4,21 @@
 
 import { EventEmitter } from 'eventemitter3';
 import type {
-  IBlockchainProvider,
+  ProviderInterface,
   ChainInfo,
   ProviderConfig,
-  TransactionStatusInfo,
+  ProviderMetadata,
+  ProviderCostMetrics,
+  ProviderHealthMetrics,
   Block,
+  BlockTag,
+  BlockWithTransactions,
+  TransactionRequest,
+  TransactionResponse,
+  TransactionReceipt,
+  FeeData,
+  Log,
+  Filter,
   ProviderEvents
 } from '../interfaces/provider.interface';
 import type { Address, HexString } from '../types';
@@ -18,17 +28,31 @@ import type { SignatureRequest, SignatureResult } from '../interfaces/crypto.int
 /**
  * Abstract base provider class
  */
-export abstract class BaseProvider extends EventEmitter<ProviderEvents> implements IBlockchainProvider {
+export abstract class BaseProvider extends EventEmitter<ProviderEvents> implements ProviderInterface {
   protected _chainInfo: ChainInfo;
   protected _isConnected: boolean = false;
   protected config: ProviderConfig;
   protected rpcUrl: string;
+  readonly metadata: ProviderMetadata;
 
   constructor(chainInfo: ChainInfo, config?: ProviderConfig) {
     super();
     this._chainInfo = chainInfo;
     this.config = config || {};
     this.rpcUrl = config?.rpcUrl || chainInfo.rpcUrls[0];
+
+    // Initialize metadata for routing
+    this.metadata = {
+      name: 'base-provider',
+      priority: config?.priority || 10,
+      supportedMethods: ['*'],
+      supportedChainIds: [Number(chainInfo.chainId)],
+      costStructure: 'free',
+      features: {
+        websocket: false,
+        batchRequests: false
+      }
+    };
   }
 
   get chainInfo(): ChainInfo {
@@ -42,7 +66,7 @@ export abstract class BaseProvider extends EventEmitter<ProviderEvents> implemen
   /**
    * Connect to the blockchain
    */
-  async connect(): Promise<void> {
+  async connect(chainId?: number): Promise<void> {
     try {
       // Verify connection with a simple RPC call
       await this.getBlockNumber();
@@ -133,18 +157,38 @@ export abstract class BaseProvider extends EventEmitter<ProviderEvents> implemen
   abstract switchChain(chainId: string | number): Promise<void>;
   abstract getAccounts(): Promise<Address[]>;
   abstract requestAccounts(): Promise<Address[]>;
-  abstract getBalance(address: Address, tokenAddress?: Address): Promise<string>;
-  abstract sendTransaction(tx: TransactionSignRequest): Promise<string>;
-  abstract signTransaction(tx: TransactionSignRequest): Promise<string>;
-  abstract getTransaction(hash: string): Promise<TransactionStatusInfo>;
-  abstract estimateGas(tx: TransactionSignRequest): Promise<string>;
-  abstract getGasPrice(): Promise<string>;
   abstract signMessage(request: SignatureRequest): Promise<SignatureResult>;
   abstract signTypedData(request: SignatureRequest): Promise<SignatureResult>;
+  abstract signTransaction(tx: TransactionSignRequest): Promise<string>;
+
+  // Core blockchain operations from ProviderInterface
+  abstract getNetwork(): Promise<{ name: string; chainId: number }>;
+  abstract getChainId(): Promise<number>;
   abstract getBlockNumber(): Promise<number>;
-  abstract getBlock(blockHashOrNumber: string | number): Promise<Block>;
-  abstract getTransactionCount(address: Address): Promise<number>;
-  abstract call(tx: TransactionSignRequest): Promise<string>;
+  abstract getBlock(blockHashOrTag: BlockTag | string): Promise<Block | null>;
+  abstract getBlockWithTransactions(blockHashOrTag: BlockTag | string): Promise<BlockWithTransactions | null>;
+  abstract getBalance(address: string, blockTag?: BlockTag): Promise<bigint>;
+  abstract getTransactionCount(address: string, blockTag?: BlockTag): Promise<number>;
+  abstract getCode(address: string, blockTag?: BlockTag): Promise<string>;
+  abstract call(transaction: TransactionRequest, blockTag?: BlockTag): Promise<string>;
+  abstract estimateGas(transaction: TransactionRequest): Promise<bigint>;
+  abstract sendTransaction(transaction: TransactionRequest): Promise<TransactionResponse>;
+  abstract getTransaction(transactionHash: string): Promise<TransactionResponse | null>;
+  abstract getTransactionReceipt(transactionHash: string): Promise<TransactionReceipt | null>;
+  abstract waitForTransaction(transactionHash: string, confirmations?: number, timeout?: number): Promise<TransactionReceipt>;
+  abstract getGasPrice(): Promise<bigint>;
+  abstract getFeeData(): Promise<FeeData>;
+  abstract getLogs(filter: Filter): Promise<Log[]>;
+
+  // EIP-1193 compliance
+  abstract request<T = any>(args: { method: string; params?: any[] }): Promise<T>;
+
+  // Provider-specific features
+  abstract getRawProvider(): any;
+  abstract getEndpoint(): string;
+  abstract getCostMetrics(): Promise<ProviderCostMetrics>;
+  abstract getHealthMetrics(): Promise<ProviderHealthMetrics>;
+  abstract healthCheck(): Promise<ProviderHealthMetrics>;
 }
 
 /**

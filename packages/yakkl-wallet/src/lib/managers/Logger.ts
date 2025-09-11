@@ -253,47 +253,54 @@ class Logger {
 	}
 
 	private persistLogIndexedDB(log: LogEntry): void {
-		// Skip IndexedDB in content scripts
-		if (isContentScriptContext() || !openDB) {
+		// Skip IndexedDB in content scripts or when not available
+		if (isContentScriptContext() || !openDB || !canUseIndexedDB()) {
 			return;
 		}
 		
-		const dbPromise = openDB(STORAGE_KEY, 1, {
-			upgrade(db) {
-				if (!db.objectStoreNames.contains('logs')) {
-					db.createObjectStore('logs', {
-						keyPath: 'id',
-						autoIncrement: true
-					});
-				}
-			}
-		});
-
-		// Ensure args are serializable
-		if (log.args) {
-			log.args = log.args.map((arg) => {
-				try {
-					JSON.parse(JSON.stringify(arg));
-					return arg;
-				} catch {
-					return String(arg);
+		try {
+			const dbPromise = openDB(STORAGE_KEY, 1, {
+				upgrade(db) {
+					if (!db.objectStoreNames.contains('logs')) {
+						db.createObjectStore('logs', {
+							keyPath: 'id',
+							autoIncrement: true
+						});
+					}
 				}
 			});
-		}
 
-		dbPromise.then(async (db) => {
-			const tx = db.transaction('logs', 'readwrite');
-			const store = tx.objectStore('logs');
-			await store.add(log);
-
-			// Keep only latest logs
-			const allLogs = await store.getAll();
-			while (allLogs.length > MAX_STORED_LOGS) {
-				await store.delete(allLogs[0].id);
-				allLogs.shift();
+			// Ensure args are serializable
+			if (log.args) {
+				log.args = log.args.map((arg) => {
+					try {
+						JSON.parse(JSON.stringify(arg));
+						return arg;
+					} catch {
+						return String(arg);
+					}
+				});
 			}
-			await tx.done;
-		});
+
+			dbPromise.then(async (db) => {
+				const tx = db.transaction('logs', 'readwrite');
+				const store = tx.objectStore('logs');
+				await store.add(log);
+
+				// Keep only latest logs
+				const allLogs = await store.getAll();
+				while (allLogs.length > MAX_STORED_LOGS) {
+					await store.delete(allLogs[0].id);
+					allLogs.shift();
+				}
+				await tx.done;
+			}).catch((error) => {
+				// Silently fail - IndexedDB not available in sandboxed contexts
+				// This is expected on sites like LinkedIn
+			});
+		} catch (error) {
+			// Silently fail - IndexedDB not available in sandboxed contexts
+		}
 	}
 
 	private persistLogDexie(log: LogEntry): void {

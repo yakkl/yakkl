@@ -82,14 +82,18 @@ function createTokenStore() {
 
           // Listen for account changes with better error handling
           currentAccount.subscribe(async (account) => {
-            if (account) {
+            // Add null/undefined check before accessing properties
+            if (account && account.address) {
               log.info('[TokenStore] Account changed, initializing cache...', false, account.address);
               try {
                 await syncManager.initializeCurrentAccount();
                 // Ensure rollups are recalculated for new account
                 await walletCacheStore.calculateAllRollups();
-              } catch (error) {
-                log.error('[TokenStore] Failed to initialize cache for account change:', false, error);
+              } catch (error: any) {
+                // Only log actual errors, not expected conditions during startup
+                if (error?.message && !error.message.includes('No account or chain yet')) {
+                  log.warn('[TokenStore] Failed to initialize cache for account change:', false, error.message);
+                }
               }
             }
           });
@@ -99,14 +103,17 @@ function createTokenStore() {
 
         // Listen for chain changes with better error handling
         currentChain.subscribe(async (chain) => {
-          if (chain) {
+          if (chain && chain.chainId) {
             log.info('[TokenStore] Chain changed, initializing cache...', false, chain.chainId);
             try {
               await syncManager.initializeCurrentAccount();
               // Ensure rollups are recalculated for new chain
               await walletCacheStore.calculateAllRollups();
-            } catch (error) {
-              log.error('[TokenStore] Failed to initialize cache for chain change:', false, error);
+            } catch (error: any) {
+              // Only log actual errors, not expected conditions during startup
+              if (error?.message && !error.message.includes('No account or chain yet')) {
+                log.warn('[TokenStore] Failed to initialize cache for chain change:', false, error.message);
+              }
             }
           }
         });
@@ -431,24 +438,42 @@ function createTokenStore() {
 
       try {
         const cache = walletCacheStore.getCacheSync();
-        if (!cache) return;
+        if (!cache) {
+          log.debug('[TokenStore] Cache not yet initialized, skipping update');
+          return;
+        }
 
         // Determine which account/chain to update
         const address = data.address || cache.activeAccountAddress;
         const chainId = data.chainId || cache.activeChainId;
 
-        if (cache.chainAccountCache[chainId]?.[address]) {
-          // Update the token list
-          cache.chainAccountCache[chainId][address].tokens = data.tokens;
-          cache.chainAccountCache[chainId][address].lastTokenRefresh = new Date();
-
-          // Trigger wallet cache update
-          await walletCacheStore.updateFromCoordinator(cache);
+        if (!address || !chainId) {
+          log.debug('[TokenStore] No active account or chain yet, skipping update');
+          return;
         }
+
+        // Initialize cache structure if needed
+        if (!cache.chainAccountCache[chainId]) {
+          cache.chainAccountCache[chainId] = {};
+        }
+        if (!cache.chainAccountCache[chainId][address]) {
+          cache.chainAccountCache[chainId][address] = {
+            tokens: [],
+            lastTokenRefresh: new Date(),
+            portfolioTotal: 0
+          };
+        }
+
+        // Update the token list
+        cache.chainAccountCache[chainId][address].tokens = data.tokens || [];
+        cache.chainAccountCache[chainId][address].lastTokenRefresh = new Date();
+
+        // Trigger wallet cache update
+        await walletCacheStore.updateFromCoordinator(cache);
 
         log.debug('[TokenStore] Token list updated from coordinator');
       } catch (error) {
-        log.error('[TokenStore] Error updating token list from coordinator:', false, error);
+        log.warn('[TokenStore] Error updating token list from coordinator (non-critical):', false, error);
       }
     }
   };
@@ -563,7 +588,8 @@ export const displayTokens = derived(
     // Always ensure we return an array, even if empty
     const result = Array.isArray(tokenList) ? tokenList : [];
 
-    console.error('[TokenStore] displayTokens', {$store, $singleTokens, $multiTokens, tokenList, result});
+    // Remove debug console.error - was causing noise in logs
+    // console.error('[TokenStore] displayTokens', {$store, $singleTokens, $multiTokens, tokenList, result});
 
     // Only log if there's an unexpected state (debug logging can be re-enabled if needed)
     if (process.env.NODE_ENV === 'development' && result.length > 0) {

@@ -39,6 +39,8 @@ import {
  STORAGE_YAKKL_ADDRESS_TOKEN_CACHE
 } from '$lib/common/constants';
 
+// MIGRATION: Move to @yakkl/security
+// import { encryptData, decryptData, verifyEncryption } from '@yakkl/security/wallet/encryption-utils';
 import { encryptData, decryptData, verifyEncryption } from '$lib/common/encryption';
 import { isEncryptedData } from '$lib/common/misc';
 import { type PricingStore } from '$lib/common/types';

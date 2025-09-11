@@ -4,7 +4,7 @@
  * This file demonstrates how to use the YAKKL SDK for common blockchain operations
  */
 
-import { YakklSDK, GenericRPCProvider, BigNumber, EthereumBigNumber } from '../index';
+import { YakklSDK, GenericRPCProvider, BigNumber } from '../index';
 import { CurrencyCode } from '../../common/bignumber';
 
 /**
@@ -23,7 +23,7 @@ export async function basicUsageExample() {
   // Get the current provider
   const provider = sdk.getProvider();
   if (provider) {
-    console.log(`Connected to ${provider.name} on chain ${provider.chainId}`);
+    console.log(`Connected to ${provider.metadata.name} on chain ${provider.chainInfo.chainId}`);
     
     // Get latest block number
     const blockNumber = await provider.getBlockNumber();
@@ -32,7 +32,7 @@ export async function basicUsageExample() {
     // Get ETH balance for Vitalik's address
     const vitalikAddress = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
     const balance = await provider.getBalance(vitalikAddress);
-    const ethBalance = EthereumBigNumber.fromWei(balance.toString(), 18);
+    const ethBalance = BigNumber.fromWei(balance.toString(), 18);
     console.log(`Vitalik's ETH balance: ${ethBalance} ETH`);
     
     // Get current gas price
@@ -71,7 +71,7 @@ export async function transactionHistoryExample() {
       console.log(`  Block: ${tx.blockNumber}`);
       console.log(`  From: ${tx.from}`);
       console.log(`  To: ${tx.to}`);
-      console.log(`  Value: ${EthereumBigNumber.fromWei(tx.value, 18)} ETH`);
+      console.log(`  Value: ${BigNumber.fromWei(tx.value, 18)} ETH`);
       console.log(`  Gas Used: ${tx.gasUsed}`);
       console.log('---');
     }
@@ -135,22 +135,22 @@ export async function bigNumberExample() {
   const amount2 = BigNumber.from('500000000000000000');  // 0.5 ETH in wei
   
   const sum = amount1.add(amount2);
-  console.log('1 ETH + 0.5 ETH =', EthereumBigNumber.fromWei(sum.toString(), 18), 'ETH');
+  console.log('1 ETH + 0.5 ETH =', BigNumber.fromWei(sum.toString(), 18), 'ETH');
   
   const product = amount1.mul(2);
-  console.log('1 ETH * 2 =', EthereumBigNumber.fromWei(product.toString(), 18), 'ETH');
+  console.log('1 ETH * 2 =', BigNumber.fromWei(product.toString(), 18), 'ETH');
   
   // Ethereum-specific operations
-  const ethAmount = EthereumBigNumber.fromEther('2.5');
+  const ethAmount = BigNumber.fromEther('2.5');
   console.log('2.5 ETH in wei:', ethAmount.toWei().toString());
   
   // Price calculations
   const ethPriceUSD = 3000;
-  const usdValue = EthereumBigNumber.toFiat(ethAmount.toWei().value, ethPriceUSD);
+  const usdValue = BigNumber.toFiat(ethAmount.toWei().value, ethPriceUSD);
   console.log(`2.5 ETH at $${ethPriceUSD}/ETH = $${usdValue}`);
   
   // Formatted fiat display
-  const formatted = EthereumBigNumber.toFormattedFiat(
+  const formatted = BigNumber.toFormattedFiat(
     ethAmount.toWei().value,
     ethPriceUSD,
     CurrencyCode.USD,
@@ -177,7 +177,7 @@ export async function chainSwitchingExample() {
   
   const provider = sdk.getProvider();
   if (provider) {
-    console.log(`Now connected to chain ${provider.chainId}`);
+    console.log(`Now connected to chain ${provider.chainInfo.chainId}`);
     const blockNumber = await provider.getBlockNumber();
     console.log('Polygon block number:', blockNumber);
   }
@@ -188,7 +188,7 @@ export async function chainSwitchingExample() {
   
   const baseProvider = sdk.getProvider();
   if (baseProvider) {
-    console.log(`Now connected to chain ${baseProvider.chainId}`);
+    console.log(`Now connected to chain ${baseProvider.chainInfo.chainId}`);
     const blockNumber = await baseProvider.getBlockNumber();
     console.log('Base block number:', blockNumber);
   }
@@ -214,7 +214,7 @@ export async function healthMonitoringExample() {
   const provider = sdk.getProvider();
   if (provider) {
     const providerHealth = await provider.healthCheck();
-    console.log(`${provider.name} health:`, providerHealth);
+    console.log(`${provider.metadata.name} health:`, providerHealth);
   }
   
   await sdk.cleanup();

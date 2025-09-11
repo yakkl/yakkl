@@ -12,8 +12,10 @@ import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 import { BackgroundCacheStore } from './BackgroundCacheStore';
 import { BackgroundTransactionService } from './BackgroundTransactionService';
 import { BackgroundPriceService } from './BackgroundPriceService';
-import { providers, utils } from 'ethers';
+import { providerCache } from '../../../contexts/background/services/provider-cache.service';
+import { BigNumberishUtils } from '@yakkl/core'; // Use for formatEther replacement
 import type { TokenData } from '$lib/common/interfaces';
+import { blockchainHandlers } from '$contexts/background/handlers/blockchain'; // STATIC IMPORT - NO DYNAMIC IMPORTS IN SERVICE WORKERS
 
 export class BackgroundCacheSyncService {
   private static instance: BackgroundCacheSyncService | null = null;
@@ -21,7 +23,7 @@ export class BackgroundCacheSyncService {
   private cacheStore: BackgroundCacheStore;
   private transactionService: BackgroundTransactionService;
   private priceService: BackgroundPriceService;
-  private providers: Map<number, providers.Provider> = new Map();
+  // Use centralized provider cache instead of local providers
   private isRunning = false;
 
   private constructor() {
@@ -149,14 +151,54 @@ export class BackgroundCacheSyncService {
 
   /**
    * Sync balance for a specific account
+   * FIXED: Now uses the cached GET_NATIVE_BALANCE handler instead of direct provider calls
    */
   private async syncAccountBalance(chainId: number, address: string): Promise<void> {
     try {
-      const provider = await this.getProvider(chainId);
-      if (!provider) return;
+      // Use the cached GET_NATIVE_BALANCE handler instead of direct provider call
+      // This leverages the 15-minute cache to prevent excessive RPC calls
+      // FIXED: Using static import instead of dynamic import (which breaks service workers)
+      const getNativeBalanceHandler = blockchainHandlers.get('GET_NATIVE_BALANCE');
 
-      // Get native balance
-      const balance = await provider.getBalance(address);
+      if (!getNativeBalanceHandler) {
+        log.error('[BackgroundCacheSync] GET_NATIVE_BALANCE handler not found');
+        return;
+      }
+
+      // Call the handler with timeout to prevent hanging
+      let response;
+      try {
+        const handlerPromise = getNativeBalanceHandler({
+          type: 'GET_NATIVE_BALANCE',
+          data: {
+            address,
+            chainId
+          }
+        });
+        const timeoutPromise = new Promise<any>((_, reject) =>
+          setTimeout(() => reject(new Error('Balance fetch timeout after 10 seconds')), 10000)
+        );
+        response = await Promise.race([handlerPromise, timeoutPromise]);
+      } catch (error: any) {
+        log.warn('[BackgroundCacheSync] Balance fetch failed', false, {
+          chainId,
+          address,
+          error: error.message
+        });
+        return;
+      }
+
+      if (!response.success || !response.data) {
+        log.warn('[BackgroundCacheSync] Failed to get balance from handler', false, {
+          chainId,
+          address,
+          error: response.error
+        });
+        return;
+      }
+
+      // The balance is returned in Wei format from the handler
+      const balance = response.data.balance;
       const balanceString = balance.toString();
 
       // Get existing tokens from cache
@@ -172,7 +214,7 @@ export class BackgroundCacheSyncService {
           return {
             ...token,
             balance: balanceString,
-            qty: utils.formatEther(balance)
+            qty: BigNumberishUtils.format(balance, 18) // formatEther equivalent
           };
         }
         return token;
@@ -186,7 +228,7 @@ export class BackgroundCacheSyncService {
           name: this.getNativeName(chainId),
           decimals: 18,
           balance: balanceString,
-          qty: utils.formatEther(balance),
+          qty: BigNumberishUtils.format(balance, 18), // formatEther equivalent
           isNative: true,
           chainId,
           icon: this.getNativeIcon(chainId),
@@ -245,57 +287,29 @@ export class BackgroundCacheSyncService {
   }
 
   /**
-   * Get or create provider for a chain
+   * Get provider from centralized cache
    */
-  private async getProvider(chainId: number): Promise<providers.Provider | null> {
+  private async getProvider(chainId: number): Promise<any | null> {
     try {
-      if (this.providers.has(chainId)) {
-        return this.providers.get(chainId)!;
-      }
-
-      // Get RPC configuration
-      const storage = await browser.storage.local.get(['yakklProviderConfigs']);
-      const configs = storage.yakklProviderConfigs || {};
-      
-      let rpcUrl = configs[chainId]?.rpcUrl || this.getDefaultRpcUrl(chainId);
-      
-      if (!rpcUrl) {
-        log.error('[BackgroundCacheSync] No RPC URL for chain', false, { chainId });
-        return null;
-      }
-
-      const provider = new providers.JsonRpcProvider(rpcUrl);
-      this.providers.set(chainId, provider);
-      
+      // Use the centralized provider cache
+      const provider = await providerCache.getProvider(chainId);
       return provider;
     } catch (error) {
-      log.error('[BackgroundCacheSync] Failed to get provider', false, error);
+      log.error('[BackgroundCacheSync] Failed to get provider from cache', false, {
+        chainId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       return null;
     }
   }
 
   /**
-   * Get default RPC URL for common chains
+   * Get default RPC URL for common chains (keeping for reference)
+   * Note: Not used anymore as we use ProviderCache now
    */
   private getDefaultRpcUrl(chainId: number): string | undefined {
-    switch (chainId) {
-      case 1:
-        return 'https://eth.llamarpc.com';
-      case 137:
-        return 'https://polygon-rpc.com';
-      case 56:
-        return 'https://bsc-dataseed.binance.org';
-      case 43114:
-        return 'https://api.avax.network/ext/bc/C/rpc';
-      case 42161:
-        return 'https://arb1.arbitrum.io/rpc';
-      case 10:
-        return 'https://mainnet.optimism.io';
-      case 11155111:
-        return 'https://sepolia.infura.io/v3/public';
-      default:
-        return undefined;
-    }
+    // This method is deprecated - using ProviderCache instead
+    return undefined;
   }
 
   /**

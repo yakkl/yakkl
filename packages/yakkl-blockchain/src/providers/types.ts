@@ -1,140 +1,83 @@
 /**
  * Provider types and interfaces for blockchain interactions
+ *
+ * This file re-exports types from @yakkl/core for backward compatibility.
+ * The core types have been consolidated in yakkl-core for consistency across packages.
  */
 
-// Common blockchain types
-export type BlockTag = 
-  | 'latest' 
-  | 'earliest' 
-  | 'pending' 
-  | 'finalized' 
-  | 'safe'
-  | number 
-  | string;
+// Import unified types from yakkl-core
+// ChainType is imported as a value since it's an enum
+import { ChainType } from '@yakkl/core';
 
-export type BigNumberish = string | number | bigint;
+import type {
+  ProviderInterface,
+  EVMProviderInterface,
+  BitcoinProviderInterface,
+  SolanaProviderInterface,
+  BlockTag,
+  BigNumberish,
+  TransactionRequest,
+  TransactionResponse,
+  TransactionReceipt,
+  FeeData,
+  Log,
+  Filter,
+  Block,
+  BlockWithTransactions,
+  ChainInfo,
+  ProviderConfig,
+  ProviderCostMetrics,
+  ProviderHealthMetrics,
+  ProviderMetadata
+} from '@yakkl/core';
 
-export interface TransactionRequest {
-  to?: string;
-  from?: string;
-  value?: BigNumberish;
-  data?: string;
-  gasLimit?: BigNumberish;
-  gasPrice?: BigNumberish;
-  maxFeePerGas?: BigNumberish;
-  maxPriorityFeePerGas?: BigNumberish;
-  nonce?: number;
-  chainId?: number;
-  type?: number;
-}
+// Re-export imported types for backward compatibility
+export type {
+  BlockTag,
+  BigNumberish,
+  TransactionRequest,
+  TransactionResponse,
+  TransactionReceipt,
+  FeeData,
+  Log,
+  Filter,
+  Block,
+  BlockWithTransactions,
+  ChainInfo,
+  ProviderConfig,
+  ProviderCostMetrics,
+  ProviderHealthMetrics,
+  ProviderMetadata
+};
 
-export interface TransactionResponse {
-  hash: string;
-  blockHash?: string;
-  blockNumber?: number;
-  transactionIndex?: number;
-  from: string;
-  to?: string;
-  value: BigNumberish;
-  gasPrice?: BigNumberish;
-  gasLimit: BigNumberish;
-  data: string;
-  nonce: number;
-  confirmations?: number;
-  type?: number;
-  maxFeePerGas?: BigNumberish;
-  maxPriorityFeePerGas?: BigNumberish;
-  accessList?: Array<{
-    address: string;
-    storageKeys: string[];
-  }>;
-  chainId?: number;
-  wait: (confirmations?: number) => Promise<TransactionReceipt>;
-}
+// Re-export ChainType enum as a value
+export { ChainType };
 
-export interface TransactionReceipt {
-  transactionHash: string;
-  blockHash: string;
-  blockNumber: number;
-  transactionIndex: number;
-  from: string;
-  to?: string;
-  contractAddress?: string;
-  cumulativeGasUsed: BigNumberish;
-  gasUsed: BigNumberish;
-  effectiveGasPrice?: BigNumberish;
-  logs: Log[];
-  logsBloom: string;
-  status?: number;
-  type?: number;
-  byzantium?: boolean;
-}
+// Re-export specialized provider interfaces
+export type {
+  ProviderInterface,
+  EVMProviderInterface,
+  BitcoinProviderInterface,
+  SolanaProviderInterface
+};
 
-export interface FeeData {
-  gasPrice: bigint | null;
-  lastBaseFeePerGas?: bigint | null;
-  maxFeePerGas?: bigint | null;
-  maxPriorityFeePerGas?: bigint | null;
-}
+// Legacy export for backward compatibility (DEPRECATED - use ProviderInterface)
+/**
+ * @deprecated Use ProviderInterface instead. IProvider is kept for backward compatibility only.
+ */
+export type IProvider = ProviderInterface;
 
-export interface Log {
-  address: string;
-  topics: string[];
-  data: string;
-  blockNumber?: number;
-  blockHash?: string;
-  transactionHash?: string;
-  transactionIndex?: number;
-  logIndex?: number;
-  removed?: boolean;
-}
-
-export interface Filter {
-  address?: string | string[];
-  topics?: Array<string | string[] | null>;
-  fromBlock?: BlockTag;
-  toBlock?: BlockTag;
-}
-
-export interface Block {
-  hash: string;
-  parentHash: string;
-  number: number;
-  timestamp: number;
-  gasLimit: BigNumberish;
-  gasUsed: BigNumberish;
-  miner: string;
-  baseFeePerGas?: BigNumberish;
-  transactions: string[];
-  difficulty?: BigNumberish;
-  totalDifficulty?: BigNumberish;
-  extraData?: string;
-  size?: number;
-  nonce?: string;
-  sha3Uncles?: string;
-  uncles?: string[];
-}
-
-export interface BlockWithTransactions extends Omit<Block, 'transactions'> {
-  transactions: TransactionResponse[];
-}
-
-// Provider configuration types
-export interface ProviderConfig {
-  url?: string;
-  apiKey?: string;
-  network?: string;
-  chainId?: number;
-  timeout?: number;
-  retries?: number;
-  headers?: Record<string, string>;
-}
+// Event types that are local to this package
+export type EventType = string | Array<string | string[]> | Filter;
+export type Listener = (...args: any[]) => void;
 
 // Network provider types
 export interface NetworkProviderConfig extends ProviderConfig {
   name: string;
   blockchains: string[];
   chainIds: number[];
+  url?: string;        // RPC endpoint URL
+  priority?: number;   // Priority for routing decisions
 }
 
 // Price provider types
@@ -169,47 +112,3 @@ export interface GasEstimate {
   };
 }
 
-// Event types
-export type EventType = string | Array<string | string[]> | Filter;
-export type Listener = (...args: any[]) => void;
-
-// Base provider interface
-export interface IProvider {
-  // Network information
-  getNetwork(): Promise<{ name: string; chainId: number }>;
-  getChainId(): Promise<number>;
-  
-  // Block information
-  getBlockNumber(): Promise<number>;
-  getBlock(blockHashOrBlockTag: BlockTag | string): Promise<Block | null>;
-  getBlockWithTransactions(blockHashOrBlockTag: BlockTag | string): Promise<BlockWithTransactions | null>;
-  
-  // Account information
-  getBalance(address: string, blockTag?: BlockTag): Promise<bigint>;
-  getTransactionCount(address: string, blockTag?: BlockTag): Promise<number>;
-  getCode(address: string, blockTag?: BlockTag): Promise<string>;
-  
-  // Transaction operations
-  call(transaction: TransactionRequest, blockTag?: BlockTag): Promise<string>;
-  estimateGas(transaction: TransactionRequest): Promise<bigint>;
-  sendTransaction(transaction: TransactionRequest): Promise<TransactionResponse>;
-  getTransaction(transactionHash: string): Promise<TransactionResponse | null>;
-  getTransactionReceipt(transactionHash: string): Promise<TransactionReceipt | null>;
-  waitForTransaction(transactionHash: string, confirmations?: number, timeout?: number): Promise<TransactionReceipt>;
-  
-  // Gas and fees
-  getGasPrice(): Promise<bigint>;
-  getFeeData(): Promise<FeeData>;
-  
-  // Logs and events
-  getLogs(filter: Filter): Promise<Log[]>;
-  on(eventName: EventType, listener: Listener): void;
-  once(eventName: EventType, listener: Listener): void;
-  off(eventName: EventType, listener?: Listener): void;
-  removeAllListeners(eventName?: EventType): void;
-  
-  // Provider lifecycle
-  connect(): Promise<void>;
-  disconnect(): Promise<void>;
-  isConnected(): boolean;
-}

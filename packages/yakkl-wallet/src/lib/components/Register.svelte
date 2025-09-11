@@ -14,7 +14,7 @@
   import type { Profile, Preferences, ProfileData, Name } from '$lib/common/interfaces';
   import { SystemTheme } from '$lib/common/types';
   import { encryptData } from '$lib/common/encryption';
-  import { jwtManager } from '$lib/utilities/jwt';
+  import { browserJWT as jwtManager } from '@yakkl/security';
   import { getNormalizedSettings } from '$lib/common';
   import SimpleTooltip from '$lib/components/SimpleTooltip.svelte';
   import { browser_ext } from '$lib/common/environment';
@@ -330,11 +330,16 @@
           const normalizedSettings = await getNormalizedSettings();
           const planLevel = normalizedSettings?.plan?.type || 'explorer_member';
           
+        const sessionId = crypto.randomUUID();
+        const secureHash = crypto.randomUUID();
           jwtToken = await jwtManager.generateToken(
             profile.id,
             fullUsername,
             profile.id,
-            planLevel
+            planLevel,
+            sessionId,
+            60, // 60 minutes
+            secureHash
           );
           
           log.info('[Register] JWT token generated successfully');

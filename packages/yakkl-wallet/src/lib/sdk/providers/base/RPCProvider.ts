@@ -1,7 +1,8 @@
 import { BaseProvider } from './BaseProvider';
-import { BigNumber, type BigNumberish } from '../../core/bignumber';
-import type { BlockTag, TransactionRequest, TransactionResponse, FeeData, Log, Filter, Block, BlockWithTransactions, TransactionReceipt } from './BaseProvider';
+import { BigNumber, type BigNumberish } from '@yakkl/core';
+import type { BlockTag, TransactionRequest, TransactionResponse, FeeData, Log, Filter, Block, BlockWithTransactions } from './BaseProvider';
 import type { Log as EVMLog } from '$lib/common/evm';
+import type { TransactionReceipt as CoreTransactionReceipt } from '@yakkl/core';
 
 /**
  * Base class for URL-based RPC providers
@@ -29,11 +30,18 @@ export abstract class RPCProvider extends BaseProvider {
   }
 
   /**
-   * Make a JSON-RPC request
+   * EIP-1193 request format override for BaseProvider compatibility
    */
-  async request<T = unknown>(method: string, params?: unknown[]): Promise<T> {
+  async request<T = any>(args: { method: string; params?: any[] }): Promise<T> {
+    return this.requestWithMethod<T>(args.method, args.params);
+  }
+
+  /**
+   * Make a JSON-RPC request with method and params
+   */
+  async requestWithMethod<T = unknown>(method: string, params?: unknown[]): Promise<T> {
     this.validateConnection();
-    
+
     const id = this.requestId++;
     const payload = {
       jsonrpc: '2.0',
@@ -43,12 +51,19 @@ export abstract class RPCProvider extends BaseProvider {
     };
 
     const response = await this.makeHttpRequest(payload);
-    
+
     if (response.error) {
       throw new Error(`RPC Error ${response.error.code}: ${response.error.message}`);
     }
-    
+
     return response.result as T;
+  }
+
+  /**
+   * Implementation of doRequest for BaseProvider compatibility
+   */
+  protected async doRequest<T = unknown>(method: string, params?: unknown[]): Promise<T> {
+    return this.requestWithMethod<T>(method, params);
   }
 
   /**
@@ -126,26 +141,26 @@ export abstract class RPCProvider extends BaseProvider {
 
   // Core blockchain operations with RPC calls
   async getBlockNumber(): Promise<number> {
-    const result = await this.request<string>('eth_blockNumber');
+    const result = await this.requestWithMethod<string>('eth_blockNumber');
     return parseInt(result, 16);
   }
 
   async getBalance(address: string, blockTag: BlockTag = 'latest'): Promise<bigint> {
-    const result = await this.request<string>('eth_getBalance', [address, blockTag]);
+    const result = await this.requestWithMethod<string>('eth_getBalance', [address, blockTag]);
     return BigInt(result);
   }
 
   async getCode(address: string, blockTag: BlockTag = 'latest'): Promise<string> {
-    return await this.request<string>('eth_getCode', [address, blockTag]);
+    return await this.requestWithMethod<string>('eth_getCode', [address, blockTag]);
   }
 
   async getStorageAt(address: string, position: BigNumberish, blockTag: BlockTag = 'latest'): Promise<string> {
     const positionHex = typeof position === 'string' ? position : `0x${position.toString(16)}`;
-    return await this.request<string>('eth_getStorageAt', [address, positionHex, blockTag]);
+    return await this.requestWithMethod<string>('eth_getStorageAt', [address, positionHex, blockTag]);
   }
 
   async getGasPrice(): Promise<bigint> {
-    const result = await this.request<string>('eth_gasPrice');
+    const result = await this.requestWithMethod<string>('eth_gasPrice');
     return BigInt(result);
   }
 
@@ -186,42 +201,42 @@ export abstract class RPCProvider extends BaseProvider {
   }
 
   async sendRawTransaction(signedTransaction: string): Promise<TransactionResponse> {
-    const hash = await this.request<string>('eth_sendRawTransaction', [signedTransaction]);
+    const hash = await this.requestWithMethod<string>('eth_sendRawTransaction', [signedTransaction]);
     return { hash } as TransactionResponse;
   }
 
   async call(transaction: TransactionRequest, blockTag: BlockTag = 'latest'): Promise<string> {
-    return await this.request<string>('eth_call', [transaction, blockTag]);
+    return await this.requestWithMethod<string>('eth_call', [transaction, blockTag]);
   }
 
   async estimateGas(transaction: TransactionRequest): Promise<bigint> {
-    const result = await this.request<string>('eth_estimateGas', [transaction]);
+    const result = await this.requestWithMethod<string>('eth_estimateGas', [transaction]);
     return BigInt(result);
   }
 
   async getTransactionCount(address: string, blockTag: BlockTag = 'latest'): Promise<number> {
-    const result = await this.request<string>('eth_getTransactionCount', [address, blockTag]);
+    const result = await this.requestWithMethod<string>('eth_getTransactionCount', [address, blockTag]);
     return parseInt(result, 16);
   }
 
   async getBlock(blockHashOrTag: BlockTag | string): Promise<Block> {
-    return await this.request<Block>('eth_getBlockByNumber', [blockHashOrTag, false]);
+    return await this.requestWithMethod<Block>('eth_getBlockByNumber', [blockHashOrTag, false]);
   }
 
   async getBlockWithTransactions(blockHashOrTag: BlockTag | string): Promise<BlockWithTransactions> {
-    return await this.request<BlockWithTransactions>('eth_getBlockByNumber', [blockHashOrTag, true]);
+    return await this.requestWithMethod<BlockWithTransactions>('eth_getBlockByNumber', [blockHashOrTag, true]);
   }
 
   async getTransaction(transactionHash: string): Promise<TransactionResponse> {
-    return await this.request<TransactionResponse>('eth_getTransactionByHash', [transactionHash]);
+    return await this.requestWithMethod<TransactionResponse>('eth_getTransactionByHash', [transactionHash]);
   }
 
-  async getTransactionReceipt(transactionHash: string): Promise<TransactionReceipt> {
-    return await this.request<TransactionReceipt>('eth_getTransactionReceipt', [transactionHash]);
+  async getTransactionReceipt(transactionHash: string): Promise<CoreTransactionReceipt> {
+    return await this.requestWithMethod<CoreTransactionReceipt>('eth_getTransactionReceipt', [transactionHash]);
   }
 
   async getLogs(filter: Filter): Promise<EVMLog[]> {
-    const logs = await this.request<Log[]>('eth_getLogs', [filter]);
+    const logs = await this.requestWithMethod<Log[]>('eth_getLogs', [filter]);
     return logs.map(log => ({
       ...log,
       blockNumber: log.blockNumber || 0,
@@ -235,13 +250,13 @@ export abstract class RPCProvider extends BaseProvider {
 
   // ENS support (Ethereum only)
   async resolveName?(name: string): Promise<string | null> {
-    if (this._blockchain.toLowerCase() !== 'ethereum') {
+    if (this.blockchain.toLowerCase() !== 'ethereum') {
       return null;
     }
-    
+
     try {
       // This is a simplified ENS resolution - full implementation would be more complex
-      const result = await this.request<string>('eth_resolveName', [name]);
+      const result = await this.requestWithMethod<string>('eth_resolveName', [name]);
       return result;
     } catch (error) {
       return null;
@@ -249,12 +264,12 @@ export abstract class RPCProvider extends BaseProvider {
   }
 
   async lookupAddress?(address: string): Promise<string | null> {
-    if (this._blockchain.toLowerCase() !== 'ethereum') {
+    if (this.blockchain.toLowerCase() !== 'ethereum') {
       return null;
     }
-    
+
     try {
-      const result = await this.request<string>('eth_lookupAddress', [address]);
+      const result = await this.requestWithMethod<string>('eth_lookupAddress', [address]);
       return result;
     } catch (error) {
       return null;

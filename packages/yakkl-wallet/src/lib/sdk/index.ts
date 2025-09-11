@@ -19,7 +19,7 @@ export { AlchemyPriceProvider } from './providers/price/AlchemyPriceProvider';
 export { BaseProvider, ManagedProvider, RPCProvider } from './providers/base';
 
 // Interfaces
-export type { IProvider } from './interfaces/IProvider';
+export type { IProvider } from './interfaces';
 export type {
   ITransactionFetcher,
   TransactionFetchOptions,
@@ -54,13 +54,12 @@ export type {
 // Core utilities
 export {
   BigNumber,
-  EthereumBigNumber,
   type BigNumberish,
   type Numeric,
   type IBigNumber,
   CurrencyCode
-} from './core/bignumber';
-export { BigNumberishMath } from './core/math';
+} from '@yakkl/core';
+export { BigNumberishMath } from '@yakkl/core';
 export {
   detectAndResolveChain,
   clearChainCache,

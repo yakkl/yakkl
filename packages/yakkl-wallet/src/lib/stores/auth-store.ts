@@ -1,12 +1,12 @@
 import { writable, derived, get } from 'svelte/store';
-import { browser } from '$app/environment';
 import { verify } from '$lib/common/security';
+const browser = typeof window !== 'undefined';
 import { getYakklSettings, getMiscStore, setMiscStore } from '$lib/common/stores';
 import type { Profile, ProfileData } from '$lib/common/interfaces';
 import { decryptData, isEncryptedData } from '$lib/common';
 import { log } from '$lib/common/logger-wrapper';
 import { sessionManager, type SessionState } from '$lib/managers/SessionManager';
-import { jwtManager } from '$lib/utilities/jwt';
+import { browserJWT as jwtManager } from '@yakkl/security';
 import { auditAuthEvent, checkAuthRateLimit, clearAuthRateLimit, validateAuthentication } from '$lib/common/authValidation';
 import { SessionVerificationService } from '$lib/services/session-verification.service';
 import { setLocks } from '$lib/common/locks';
@@ -166,31 +166,39 @@ function createAuthStore() {
 				setupSessionCallbacks();
 
 				// Check for existing session from validation
-				if (validation.hasValidSession) {
+				if (validation.hasValidSession || validation.hasValidJWT) {
 					const sessionState = sessionManager.getSessionState();
-					if (sessionState) {
-						update((state) => ({
-							...state,
-							sessionState,
-							jwtToken: sessionState.jwtToken
-						}));
-					}
+					const jwtToken = sessionManager.getCurrentJWTToken();
+
+					// Update state with session and JWT info
+					update((state) => ({
+						...state,
+						sessionState,
+						jwtToken: jwtToken || state.jwtToken,
+						isAuthenticated: true // Ensure we're marked as authenticated with valid JWT
+					}));
+
+					log.debug('Session state updated from validation', false, {
+						hasSessionState: !!sessionState,
+						hasJWTToken: !!jwtToken
+					});
 				}
 
 				// Check for JWT token in sessionStorage (set during login)
+				// This handles cases where JWT was just set but not yet in session manager
 				if (browser && typeof window !== 'undefined') {
 					const storedJWT = sessionStorage.getItem('wallet-jwt-token');
-					if (storedJWT && !validation.hasValidJWT) {
-						// We have a JWT from login but validation doesn't see it yet
+					if (storedJWT) {
+						// Update our state with the JWT
 						update((state) => ({
 							...state,
-							jwtToken: storedJWT
+							jwtToken: storedJWT,
+							isAuthenticated: true // JWT means we're authenticated
 						}));
-						
-						// Clear from sessionStorage after retrieving
-						sessionStorage.removeItem('wallet-jwt-token');
-						
-						log.debug('Retrieved JWT from sessionStorage during initialization', false);
+
+						// Don't remove from sessionStorage yet - let background process handle it
+						// This ensures it's available for background service to pick up
+						log.debug('Found JWT in sessionStorage during initialization', false);
 					}
 				}
 
@@ -282,12 +290,12 @@ function createAuthStore() {
 					isAuthenticated: true,
 					profile,
 					lastActivity: Date.now(),
-					sessionState: null, // Will be updated async
-					jwtToken: null // Will be generated async
+					sessionState: null, // Will be updated after JWT generation
+					jwtToken: null // Will be generated after successful login
 				}));
 
-				// Generate JWT asynchronously AFTER user sees they're logged in
-				// This ensures FAST login experience
+				// Generate JWT AFTER successful login
+				// This is the correct flow - user must be logged in before getting JWT
 				setTimeout(async () => {
 					try {
 						const jwtToken = await sessionManager.startSession(
@@ -306,28 +314,14 @@ function createAuthStore() {
 							jwtToken
 						}));
 
-						log.info('JWT generated after login', false, {
+						log.info('JWT generated after successful login', false, {
 							hasJwtToken: !!jwtToken,
 							hasSessionState: !!sessionState
 						});
 
-						// NOW notify background script with the actual JWT token
-						if (typeof window !== 'undefined' && browser_ext.runtime) {
-							browser_ext.runtime.sendMessage({
-								type: 'USER_LOGIN_SUCCESS',
-								sessionId: sessionState?.sessionId,
-								hasJWT: !!jwtToken,
-								jwtToken: jwtToken, // Include the actual JWT token for background storage
-								userId: profile.id || profile.username,
-								username: profile.username,
-								profileId: profile.id || profile.username,
-								planLevel
-							}).then(() => {
-								log.debug('Background notified with JWT token');
-							}).catch((error) => {
-								log.debug('Background notification failed (non-critical):', false, error);
-							});
-						}
+						// SessionManager.startSession already sends USER_LOGIN_SUCCESS
+						// No need to send it again here to avoid duplicates
+						log.debug('JWT generated successfully, background already notified via SessionManager');
 					} catch (error) {
 						log.error('Failed to generate JWT after login:', false, error);
 						// User is still logged in, just without JWT
@@ -589,11 +583,15 @@ export const hasValidJWT = derived(authStore, ($auth) => {
 	if (!$auth.jwtToken) return false;
 
 	try {
-		const decoded = jwtManager.decodeToken($auth.jwtToken);
-		if (!decoded) return false;
+		// Simple JWT decode without verification for derived store
+		const parts = $auth.jwtToken.split('.');
+		if (parts.length !== 3) return false;
+
+		const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+		if (!payload.exp) return false;
 
 		const now = Math.floor(Date.now() / 1000);
-		return decoded.payload.exp > now;
+		return payload.exp > now;
 	} catch {
 		return false;
 	}

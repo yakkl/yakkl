@@ -52,8 +52,10 @@ export class EthereumSigner extends Signer {
 	 * Converts custom BigNumberish to ethersv6.BigNumberish (as a hex string)
 	 */
 	private toEthersHex(value: BigNumberish | null | undefined): string | null | undefined {
-		if (value instanceof BigNumber) {
-			return value.toHex();
+		if ((value as any) instanceof BigNumber) {
+			const bigNum = value as unknown as BigNumber;
+			// Use toString() method which is available on BigNumber
+			return '0x' + BigInt(bigNum.toString()).toString(16);
 		}
 		if (typeof value === 'bigint') {
 			return '0x' + value.toString(16);
@@ -211,7 +213,7 @@ export class EthereumSigner extends Signer {
 			from: receipt.from as `0x${string}`,
 			contractAddress: receipt.contractAddress ?? undefined,
 			transactionIndex: receipt.index,
-			root: receipt.root ?? undefined,
+			// root: receipt.root ?? undefined, // Not supported in core TransactionReceipt
 			gasUsed: receipt.gasUsed.toString(),
 			logsBloom: receipt.logsBloom as `0x${string}`,
 			blockHash: receipt.blockHash as `0x${string}`,
@@ -230,10 +232,8 @@ export class EthereumSigner extends Signer {
 				})
 			),
 			blockNumber: receipt.blockNumber,
-			confirmations: await receipt.confirmations(), // This is now a number in ethers v6
 			cumulativeGasUsed: receipt.cumulativeGasUsed.toString(),
 			effectiveGasPrice: receipt.gasPrice?.toString() ?? undefined,
-			byzantium: true, // Assuming all transactions are post-Byzantium
 			type: receipt.type,
 			status: receipt.status !== null ? (receipt.status as 0 | 1) : undefined
 		};

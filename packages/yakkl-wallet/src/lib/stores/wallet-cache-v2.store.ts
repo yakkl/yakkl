@@ -10,10 +10,11 @@ import type {
   TokenCache,
   TransactionCache,
   WalletCacheController,
-  AccountCache
 } from '$lib/types';
-import { BigNumber } from 'ethers';
-import type { BigNumberish } from 'ethers';
+// IMPORTANT: Using yakkl BigNumber utilities, NOT ethers!
+import { BigNumber } from '$lib/common/bignumber';
+import type { BigNumberish } from '$lib/common/bignumber';
+import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
 
 // Default cache structure
 function getDefaultCache(): WalletCacheController & { chainAccountCache?: any } {
@@ -32,6 +33,15 @@ function getDefaultCache(): WalletCacheController & { chainAccountCache?: any } 
   };
 }
 
+// Debounce helper
+function debounce<T extends (...args: any[]) => any>(func: T, wait: number): T {
+  let timeout: NodeJS.Timeout | null = null;
+  return ((...args: Parameters<T>) => {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  }) as T;
+}
+
 // Create the main store
 function createWalletCacheStore() {
   const { subscribe, set, update } = writable<WalletCacheController>(getDefaultCache());
@@ -41,6 +51,20 @@ function createWalletCacheStore() {
   if (isBrowser) {
     cacheService.initialize().catch(console.error);
   }
+
+  // Track last update time to prevent rapid-fire updates
+  let lastUpdateTime = 0;
+  const MIN_UPDATE_INTERVAL = 1000; // 1 second minimum between updates
+
+  // Debounced save function to prevent excessive storage writes
+  const debouncedSave = debounce(async (state: WalletCacheController) => {
+    try {
+      const cacheKey = 'wallet-cache-state';
+      await cacheService.setPortfolio(cacheKey, state as any);
+    } catch (error) {
+      console.error('Failed to save cache to storage:', error);
+    }
+  }, 2000); // 2 second debounce
 
   return {
     subscribe,
@@ -65,72 +89,66 @@ function createWalletCacheStore() {
 
     async loadFromStorage() {
       try {
-        // Load all cached data
-        const state = get({ subscribe });
-        const cacheKey = 'wallet-cache-state';
-        let cached = await cacheService.getPortfolio(cacheKey);
+        console.log('[Cache] Starting loadFromStorage (client-side)...');
 
-        // FALLBACK: Try loading from old localStorage key if new key is empty
-        if (!cached && typeof window !== 'undefined') {
-          try {
-            const oldCached = localStorage.getItem('yakklWalletCache');
-            if (oldCached) {
-              cached = JSON.parse(oldCached);
-              console.log('[Cache] Loaded cache from old localStorage key');
-            }
-          } catch (e) {
-            console.warn('[Cache] Failed to load old cache:', e);
-          }
-        }
+        // In client context, we should NEVER access chrome.storage directly
+        // Data comes from background via messaging and storage events
+
+        // Try @yakkl/cache service first (client-safe storage)
+        const cacheKey = 'wallet-cache-state';
+        let cached = await cacheService.getPortfolio(cacheKey) as any;
 
         if (cached) {
-          // CRITICAL FIX: Migrate old chainAccountCache data to new accounts structure
-          const migratedCache = cached as any;
+          console.log('[Cache] Loaded from @yakkl/cache service');
+          set(cached);
+          return;
+        }
 
-          // If we have chainAccountCache but no accounts, migrate the data
-          if (migratedCache.chainAccountCache && (!migratedCache.accounts || Object.keys(migratedCache.accounts).length === 0)) {
-            console.log('[Cache] Migrating chainAccountCache to accounts structure');
-            migratedCache.accounts = {};
+        // Fallback: Try localStorage (client-safe)
+        if (typeof window !== 'undefined') {
+          try {
+            // Test if localStorage is accessible (fails in sandboxed iframes)
+            const testKey = '__yakkl_storage_test__';
+            localStorage.setItem(testKey, 'test');
+            localStorage.removeItem(testKey);
 
-            // Iterate through all chains and accounts in chainAccountCache
-            for (const [chainId, chainData] of Object.entries(migratedCache.chainAccountCache)) {
-              for (const [address, accountData] of Object.entries(chainData as any)) {
-                const key = `${chainId}_${address}`;
-                migratedCache.accounts[key] = {
-                  address,
-                  chainId: Number(chainId),
-                  tokens: (accountData as any).tokens || [],
-                  transactions: (accountData as any).transactions?.transactions || [],
-                  updateDate: (accountData as any).lastTokenRefresh || new Date().toISOString()
-                };
-                console.log(`[Cache] Migrated account ${address} on chain ${chainId}`);
-              }
+            const stored = localStorage.getItem('yakklWalletCache');
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              console.log('[Cache] Loaded from localStorage');
+              set(parsed);
+              return;
+            }
+          } catch (e) {
+            // Silently skip localStorage if not available (sandboxed contexts)
+            // This is expected behavior on sites like Coindesk with sandboxed iframes
+            if (!e.message?.includes('SecurityError') && !e.message?.includes('sandboxed')) {
+              console.debug('[Cache] localStorage not available (likely sandboxed context)');
             }
           }
-
-          set(migratedCache);
         }
+
+        console.log('[Cache] No cached data found, waiting for background sync...');
       } catch (error) {
-        console.error('Failed to load cache from storage:', error);
+        console.error('[Cache] Failed to load cache from storage:', error);
       }
     },
 
     async saveToStorage(state?: WalletCacheController) {
-      try {
-        const currentState = state || get({ subscribe });
-        const cacheKey = 'wallet-cache-state';
-        await cacheService.setPortfolio(cacheKey, currentState as any);
-      } catch (error) {
-        console.error('Failed to save cache to storage:', error);
-      }
+      const currentState = state || get({ subscribe });
+      // Use debounced save to prevent excessive writes
+      debouncedSave(currentState);
     },
 
     updateTokens(chainId: number, address: string, tokens: TokenCache[]) {
       update((cache: any) => {
-        const key = `${chainId}_${address}`;
+        // Use lowercase for consistent key matching
+        const key = `${chainId}_${address.toLowerCase()}`;
+        if (!cache.accounts) cache.accounts = {};
+
         if (!cache.accounts[key]) {
           cache.accounts[key] = {
-            address,
+            address: address.toLowerCase(),
             chainId,
             tokens: [],
             transactions: [],
@@ -144,15 +162,83 @@ function createWalletCacheStore() {
         cache.lastSync = new Date().toISOString();
 
         // Maintain compatibility with old chainAccountCache structure
+        // CRITICAL: Background price service expects this structure
         if (!cache.chainAccountCache) cache.chainAccountCache = {};
         if (!cache.chainAccountCache[chainId]) cache.chainAccountCache[chainId] = {};
-        cache.chainAccountCache[chainId][address] = {
+        cache.chainAccountCache[chainId][address.toLowerCase()] = {
+          account: { address }, // Background service needs this
           portfolio: { totalValue: tokens.reduce((sum, t) => sum + (t.price || 0) * parseFloat(t.balance || '0'), 0) },
-          tokens
+          tokens,
+          lastTokenRefresh: new Date().toISOString()
         };
+
+        console.log(`[Cache] Updated tokens for ${address} on chain ${chainId}:`, {
+          tokenCount: tokens.length,
+          firstToken: tokens[0] ? {
+            symbol: tokens[0].symbol,
+            balance: tokens[0].balance,
+            price: tokens[0].price,
+            value: tokens[0].value
+          } : null
+        });
 
         // Save to new cache service
         cacheService.setTokens(address, chainId, tokens as any).catch(console.error);
+
+        return cache;
+      });
+    },
+
+    // New method to handle complete cache updates from background
+    updateFromBackground(backgroundCache: any) {
+      // Throttle updates to prevent rapid-fire syncing
+      const now = Date.now();
+      if (now - lastUpdateTime < MIN_UPDATE_INTERVAL) {
+        console.debug('[Cache] Skipping rapid update (throttled)');
+        return;
+      }
+      lastUpdateTime = now;
+
+      console.log('[Cache] Received update from background:', {
+        hasChainAccountCache: !!backgroundCache.chainAccountCache,
+        chainCount: backgroundCache.chainAccountCache ? Object.keys(backgroundCache.chainAccountCache).length : 0
+      });
+
+      update((cache) => {
+        // Initialize accounts if needed
+        if (!cache.accounts) cache.accounts = {};
+
+        // Process chainAccountCache from background
+        if (backgroundCache.chainAccountCache) {
+          for (const [chainId, chainData] of Object.entries(backgroundCache.chainAccountCache)) {
+            for (const [address, accountData] of Object.entries(chainData as any)) {
+              const key = `${chainId}_${address.toLowerCase()}`;
+              const tokens = (accountData as any).tokens || [];
+
+              cache.accounts[key] = {
+                address: address.toLowerCase(),
+                chainId: Number(chainId),
+                tokens: tokens,
+                transactions: (accountData as any).transactions?.transactions || [],
+                updateDate: (accountData as any).lastTokenRefresh || new Date().toISOString()
+              };
+
+              console.log(`[Cache] Synced account ${address} on chain ${chainId}:`, {
+                tokenCount: tokens.length,
+                hasTokens: tokens.length > 0
+              });
+            }
+          }
+        }
+
+        // Update other fields
+        cache.currentAccount = backgroundCache.currentAccount || cache.currentAccount;
+        cache.currentNetwork = backgroundCache.currentNetwork || cache.currentNetwork;
+        cache.lastUpdateDate = backgroundCache.lastUpdateDate || new Date().toISOString();
+        cache.lastSync = new Date().toISOString();
+
+        // Keep chainAccountCache in sync
+        cache.chainAccountCache = backgroundCache.chainAccountCache || cache.chainAccountCache;
 
         return cache;
       });
@@ -206,6 +292,21 @@ function createWalletCacheStore() {
               const price = priceMap.get(token.address.toLowerCase());
               if (price !== undefined) {
                 token.price = price;
+                // CRITICAL: Recalculate value when price changes - MUST use decimals!
+                if (token.balance) {
+                  try {
+                    // Convert balance from smallest unit (wei) to token units using decimals
+                    const balanceBigInt = BigNumber.from(token.balance);
+                    const decimals = token.decimals || 18;
+                    // Format balance to proper decimal representation (e.g., wei to ETH)
+                    const balanceInTokenUnits = parseFloat(BigNumberishUtils.format(balanceBigInt, decimals));
+                    // Calculate value in USD
+                    token.value = (price * balanceInTokenUnits).toFixed(2);
+                  } catch (error) {
+                    console.warn('[wallet-cache-v2] Error calculating value for token:', token.symbol, error);
+                    token.value = '0.00';
+                  }
+                }
               }
             });
             account.updateDate = new Date().toISOString();
@@ -227,6 +328,21 @@ function createWalletCacheStore() {
             const newBalance = newBalances.get(token.address.toLowerCase());
             if (newBalance !== undefined) {
               token.balance = BigNumber.from(newBalance).toString();
+              // CRITICAL: Recalculate value when balance changes - MUST use decimals!
+              if (token.price) {
+                try {
+                  // Convert balance from smallest unit (wei) to token units using decimals
+                  const balanceBigInt = BigNumber.from(token.balance);
+                  const decimals = token.decimals || 18;
+                  // Format balance to proper decimal representation (e.g., wei to ETH)
+                  const balanceInTokenUnits = parseFloat(BigNumberishUtils.format(balanceBigInt, decimals));
+                  // Calculate value in USD
+                  token.value = (token.price * balanceInTokenUnits).toFixed(2);
+                } catch (error) {
+                  console.warn('[wallet-cache-v2] Error calculating value for token:', token.symbol, error);
+                  token.value = '0.00';
+                }
+              }
             }
           });
           account.updateDate = new Date().toISOString();
@@ -242,6 +358,7 @@ function createWalletCacheStore() {
       cacheService.clearAll().catch(console.error);
     },
 
+
     clearAccountCache(chainId: number, address: string) {
       update((cache) => {
         const key = `${chainId}_${address}`;
@@ -254,6 +371,7 @@ function createWalletCacheStore() {
         return cache;
       });
     },
+
 
     getAccountCache(chainId: number, address: string): any {
       const state = get({ subscribe });
@@ -339,6 +457,20 @@ function createWalletCacheStore() {
             updateDate: new Date().toISOString()
           };
         }
+
+        // Also initialize chainAccountCache for background service
+        if (!cache.chainAccountCache) cache.chainAccountCache = {};
+        if (!cache.chainAccountCache[chainId]) cache.chainAccountCache[chainId] = {};
+        if (!cache.chainAccountCache[chainId][account.address.toLowerCase()]) {
+          cache.chainAccountCache[chainId][account.address.toLowerCase()] = {
+            account: { address: account.address },
+            portfolio: { totalValue: 0 },
+            tokens: [],
+            transactions: { transactions: [], lastBlock: 0 },
+            lastTokenRefresh: new Date().toISOString()
+          };
+        }
+
         return cache;
       });
     },
@@ -433,10 +565,44 @@ export const currentAccount = derived(walletCacheStore, ($cache) => {
 });
 
 export const currentAccountTokens = derived(walletCacheStore, ($cache) => {
-  if (!$cache.currentAccount || !$cache.currentNetwork) return [];
+  if (!$cache.currentAccount || !$cache.currentNetwork) {
+    console.log('[Derived] currentAccountTokens: No current account or network');
+    return [];
+  }
 
-  const key = `${$cache.currentNetwork}_${$cache.currentAccount.address}`;
-  const account = $cache.accounts[key];
+  // Try both original case and lowercase for the address
+  const address = $cache.currentAccount.address;
+  const key = `${$cache.currentNetwork}_${address}`;
+  const keyLowercase = `${$cache.currentNetwork}_${address.toLowerCase()}`;
+
+  // Try to find account with either key format
+  let account = $cache.accounts[key] || $cache.accounts[keyLowercase];
+
+  // If still not found, search through all accounts for a match
+  if (!account) {
+    for (const [k, acc] of Object.entries($cache.accounts)) {
+      if (acc.address.toLowerCase() === address.toLowerCase() &&
+          acc.chainId === $cache.currentNetwork) {
+        account = acc;
+        console.log(`[Derived] Found account with different key format: ${k}`);
+        break;
+      }
+    }
+  }
+
+  console.log('[Derived] currentAccountTokens:', {
+    originalKey: key,
+    lowercaseKey: keyLowercase,
+    hasAccount: !!account,
+    tokenCount: account?.tokens?.length || 0,
+    availableKeys: Object.keys($cache.accounts || {}),
+    firstToken: account?.tokens?.[0] ? {
+      symbol: account.tokens[0].symbol,
+      balance: account.tokens[0].balance,
+      price: account.tokens[0].price,
+      value: account.tokens[0].value
+    } : null
+  });
 
   return account?.tokens || [];
 });

@@ -1,32 +1,74 @@
 <script lang="ts">
-  import Login from '$lib/components/Login.svelte';
-  import { yakklUserNameStore } from '$lib/common/stores';
+  import LoginFlow from '@yakkl/security-ui/LoginFlow.svelte';
+  import { yakklUserNameStore, getContextTypeStore, getMiscStore } from '$lib/common/stores';
   import { safeLogout } from '$lib/common/safeNavigate';
   import { log } from '$lib/common/logger-wrapper';
-  import type { Profile, YakklSettings } from '$lib/common/interfaces';
-  import { getNormalizedSettings, PATH_LEGAL_TOS, PlanType, simpleLockWallet, VERSION } from '$lib/common';
+  import type { Profile, ProfileData, YakklSettings } from '$lib/common/interfaces';
+  import { getNormalizedSettings, PATH_LEGAL_TOS, simpleLockWallet, VERSION } from '$lib/common';
   import { setLocks } from '$lib/common/locks';
+  import { verify } from '$lib/common/security';
+  import { authStore } from '$lib/stores/auth-store';
+  import { browserJWT as jwtManager } from '@yakkl/security';
   import ErrorNoAction from '$lib/components/ErrorNoAction.svelte';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import browser from '$lib/common/browser-wrapper';
-  import { authStore } from '$lib/stores/auth-store';
 
   // State
   let showError = $state(false);
   let errorValue = $state('');
-  // let planType = $state(PlanType.EXPLORER_MEMBER);
   let yakklSettings: YakklSettings | null = $state(null);
   let isInitializing = $state(false);
+  let userPlanLevel = $state('explorer_member');
 
-  // Format plan type for display
-  function formatPlanType(plan: string): string {
-    if (!plan) return '';
-    return plan
-      .replace(/_/g, ' ')
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
+  // Handle social authentication callback
+  async function handleSocialAuth(provider: 'google' | 'x', authResult: any) {
+    try {
+      log.info(`[Login] Social auth callback from ${provider}`, false, { hasUser: !!authResult.user });
+
+      // Extract profile from social auth result
+      const socialProfile = authResult.user;
+      if (!socialProfile) {
+        throw new Error(`No user profile received from ${provider}`);
+      }
+
+      // Create a profile compatible with our system
+      const profile: Profile = {
+        id: socialProfile.id || socialProfile.uid || crypto.randomUUID(),
+        username: socialProfile.email || socialProfile.displayName || `${provider}_user`,
+        preferences: {} as any,
+        data: {
+          provider,
+          socialId: socialProfile.id,
+          email: socialProfile.email,
+          displayName: socialProfile.displayName,
+          photoURL: socialProfile.photoURL
+        } as ProfileData,
+        version: VERSION,
+        createDate: new Date().toISOString(),
+        updateDate: new Date().toISOString()
+      };
+
+      // Generate JWT token for social login
+      const sessionId = crypto.randomUUID();
+      const secureHash = crypto.randomUUID();
+      const jwtToken = authResult.token || await jwtManager.generateToken(
+        profile.id,
+        profile.username,
+        profile.id,
+        userPlanLevel || 'explorer_member',
+        sessionId,
+        60, // 60 minutes expiration
+        secureHash
+      );
+
+      // Use empty digest for social auth (no password)
+      await onSuccess(profile, '', false, jwtToken);
+    } catch (error) {
+      log.error(`[Login] Social auth error for ${provider}:`, false, error);
+      errorValue = `${provider} authentication failed. Please try again.`;
+      showError = true;
+    }
   }
 
   onMount(async () => {
@@ -39,7 +81,7 @@
     getNormalizedSettings().then(async (settings) => {
       if (settings) {
         yakklSettings = settings;
-        // planType = settings?.plan?.type ?? PlanType.EXPLORER_MEMBER;
+        userPlanLevel = settings?.plan?.type || 'explorer_member';
 
         // Check legal agreement (but don't block login form)
         if (!settings.init || !settings.legal?.termsAgreed) {
@@ -52,7 +94,7 @@
   });
 
   // Handle successful login - FAST PATH
-  async function onSuccess(profile: Profile, digest: string, isMinimal: boolean, jwtToken?: string) {
+  async function onSuccess(profile: Profile, _digest: string, _isMinimal: boolean, jwtToken?: string) {
     try {
       // Set the username in the global store
       $yakklUserNameStore = profile.username || '';
@@ -60,7 +102,23 @@
       // Store JWT token in session storage for background to pick up
       if (jwtToken) {
         sessionStorage.setItem('wallet-jwt-token', jwtToken);
-        log.info('[LOGIN] JWT token stored in sessionStorage for background sync');
+        // Send USER_LOGIN_SUCCESS message to background with JWT
+        if (browser.runtime) {
+          browser.runtime.sendMessage({
+            type: 'USER_LOGIN_SUCCESS',
+            payload: {
+              jwtToken,
+              userId: profile.id || profile.username,
+              username: profile.username,
+              profileId: profile.id,
+              planLevel: yakklSettings?.plan?.type || 'explorer_member'
+            }
+          }).then(() => {
+            // log.info('[LOGIN] USER_LOGIN_SUCCESS message sent to background with JWT');
+          }).catch(err => {
+            // log.warn('[LOGIN] Failed to send USER_LOGIN_SUCCESS to background:', false, err);
+          });
+        }
       }
 
       // Mark as authenticated for instant navigation
@@ -132,28 +190,36 @@
         <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Version: {VERSION}</p>
       </div>
 
-        <!-- Login form - shown immediately -->
-        <Login
+        <!-- Login flow with social options - shown immediately -->
+        <LoginFlow
           {onSuccess}
           {onError}
           {onCancel}
-          loginButtonText="Unlock"
-          cancelButtonText="Exit/Logout"
-          minimumAuth={false}
-          useAuthStore={false}
-          generateJWT={true}
-          inputTextClass="text-zinc-900 dark:text-white"
-          inputBgClass="bg-white dark:bg-zinc-800"
+          onSocialAuth={handleSocialAuth}
+          deps={{
+            verify,
+            getContextTypeStore,
+            getMiscStore,
+            log,
+            authStore,
+            jwtManager,
+            getNormalizedSettings
+          }}
+          config={{
+            loginButtonText: "Unlock",
+            cancelButtonText: "Exit/Logout",
+            minimumAuth: false,
+            useAuthStore: false,
+            generateJWT: true,
+            inputTextClass: "text-zinc-900 dark:text-white",
+            inputBgClass: "bg-white dark:bg-zinc-800",
+            // Social auth configuration
+            googleClientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
+            xClientId: import.meta.env.VITE_X_CLIENT_ID || import.meta.env.VITE_TWITTER_CLIENT_ID || ''
+          }}
+          showSocialOptions={true}
+          planLevel={userPlanLevel}
         />
-
-      <!-- Plan type display -->
-      <!-- {#if planType && !isInitializing}
-        <div class="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
-          <p class="text-xs text-zinc-500 dark:text-zinc-400">
-            Plan: {formatPlanType(planType)}
-          </p>
-        </div>
-      {/if} -->
     </div>
   </div>
 </div>

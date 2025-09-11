@@ -1,10 +1,7 @@
 import { log } from '$lib/managers/Logger';
-// import { subtle } from 'crypto';
-// import { detectExecutionContext } from '$lib/common/utils';
 import type { Manifest } from 'webextension-polyfill';
-// import keyConfig from '../config/keys.json';
 import { initializeStorageDefaults } from '$lib/common/backgroundUtils';
-// import { isBackgroundContext } from '$lib/common/contextCheck';
+import { API_KEYS, getApiKey } from '$lib/config/api-keys.config';
 
 // Extend the WebExtension manifest type to include environment
 interface ExtendedManifest extends Manifest.WebExtensionManifest {
@@ -99,7 +96,6 @@ export class KeyManager {
 			try {
 				KeyManager.isInitializing = true;
 				await KeyManager.instance.initialize();
-				log.debug('KeyManager initialization completed');
 			} finally {
 				KeyManager.isInitializing = false;
 			}
@@ -144,8 +140,6 @@ export class KeyManager {
 		// AI provider keys
 		this.registerKey('OPENAI_API_KEY', 'ai', false);
 		this.registerKey('ANTHROPIC_API_KEY', 'ai', false);
-
-		log.info('KeyManager initialized default configs');
 	}
 
 	/**
@@ -154,18 +148,13 @@ export class KeyManager {
 	 */
 	public async initialize(): Promise<void> {
 		if (this.initialized) {
-			log.debug('KeyManager already initialized, skipping');
 			return;
 		}
-
-		log.debug('KeyManager initialize called');
 
 		try {
 			// Check if we're in a background context using storage defaults
 			// This is a reliable way to detect background context
 			initializeStorageDefaults();
-			log.debug('Background context confirmed via initializeStorageDefaults');
-
 			// Register default key configurations
 			this.initializeDefaultConfigs();
 
@@ -176,9 +165,8 @@ export class KeyManager {
 			this.setupMessageListener();
 
 			this.initialized = true;
-			log.debug('KeyManager initialization completed successfully');
 		} catch (error: any) {
-			log.error('Failed to initialize KeyManager', error);
+			log.error('Failed to initialize KeyManager', false, error);
 			throw error;
 		}
 	}
@@ -187,64 +175,81 @@ export class KeyManager {
 	 * Load keys from environment variables
 	 */
 	private async loadKeysFromEnvironment(): Promise<void> {
-		log.debug('Loading keys from environment');
+		// First try to load from the api-keys.config module
+		// This uses webpack DefinePlugin to inject values at build time
+		try {
+			// Load keys directly from the API_KEYS object
+			for (const config of this.keyConfigs) {
+				let value: string | undefined;
+				let source = '';
 
-		// Log all environment variables for debugging (only in dev)
-		if (process.env.NODE_ENV !== 'production') {
-			log.debug('Available process.env keys:', false, Object.keys(process.env || {}));
+				// Try to get the key from api-keys.config
+				value = getApiKey(config.name) || getApiKey(config.envKey);
 
-			// Check for Vite-style env variables
-			if (typeof import.meta !== 'undefined' && import.meta.env) {
-				log.debug('Available import.meta.env keys:', false, Object.keys(import.meta.env || {}));
-			}
-		}
-
-		// Load from environment variables
-		for (const config of this.keyConfigs) {
-			const envKey = config.envKey;
-			let value: string | undefined;
-			let source = '';
-
-			// Try process.env (webpack DefinePlugin replaces these)
-			if (typeof process !== 'undefined' && process.env) {
-				// Try both regular and VITE_ prefixed versions
-				value = process.env[envKey];
-				if (value) source = `process.env.${envKey}`;
-
-				if (!value) {
-					value = process.env[`VITE_${envKey}`];
-					if (value) source = `process.env.VITE_${envKey}`; // Fallback to VITE_ prefixed version
+				// Special handling for Alchemy keys
+				if (!value && config.name.includes('ALCHEMY')) {
+					// Try different Alchemy key patterns from the config
+					if (API_KEYS.ALCHEMY_API_KEY_ETHEREUM) {
+						value = API_KEYS.ALCHEMY_API_KEY_ETHEREUM;
+						source = 'api-keys.config.ALCHEMY_API_KEY_ETHEREUM';
+					} else if (API_KEYS.ALCHEMY_API_KEY_PROD_1) {
+						value = API_KEYS.ALCHEMY_API_KEY_PROD_1;
+						source = 'api-keys.config.ALCHEMY_API_KEY_PROD_1';
+					} else if (API_KEYS.ALCHEMY_API_KEY_PROD_2) {
+						value = API_KEYS.ALCHEMY_API_KEY_PROD_2;
+						source = 'api-keys.config.ALCHEMY_API_KEY_PROD_2';
+					} else if (API_KEYS.ALCHEMY_API_KEY_DEV) {
+						value = API_KEYS.ALCHEMY_API_KEY_DEV;
+						source = 'api-keys.config.ALCHEMY_API_KEY_DEV';
+					}
+				} else if (!value && config.name.includes('INFURA')) {
+					// Try Infura keys
+					if (API_KEYS.INFURA_API_KEY_PROD) {
+						value = API_KEYS.INFURA_API_KEY_PROD;
+						source = 'api-keys.config.INFURA_API_KEY_PROD';
+					} else if (API_KEYS.INFURA_API_KEY_DEV) {
+						value = API_KEYS.INFURA_API_KEY_DEV;
+						source = 'api-keys.config.INFURA_API_KEY_DEV';
+					}
+				} else if (!value && config.name.includes('BLOCKNATIVE')) {
+					if (API_KEYS.BLOCKNATIVE_API_KEY) {
+						value = API_KEYS.BLOCKNATIVE_API_KEY;
+						source = 'api-keys.config.BLOCKNATIVE_API_KEY';
+					}
+				} else if (!value && config.name.includes('OPENAI')) {
+					if (API_KEYS.OPENAI_API_KEY) {
+						value = API_KEYS.OPENAI_API_KEY;
+						source = 'api-keys.config.OPENAI_API_KEY';
+					}
+				} else if (!value && config.name.includes('ANTHROPIC')) {
+					if (API_KEYS.ANTHROPIC_API_KEY) {
+						value = API_KEYS.ANTHROPIC_API_KEY;
+						source = 'api-keys.config.ANTHROPIC_API_KEY';
+					}
+				} else if (!source && value) {
+					source = `api-keys.config.${config.name}`;
 				}
-			}
 
-			// Try import.meta.env (Vite)
-			if (!value && typeof import.meta !== 'undefined' && import.meta.env) {
-				value = import.meta.env[envKey];
-				if (value) source = `import.meta.env.${envKey}`;
 
-				if (!value) {
-					value = import.meta.env[`VITE_${envKey}`];
-					if (value) source = `import.meta.env.VITE_${envKey}`;
-				}
-			}
-
-			if (value && value !== 'undefined' && value !== '[object Object]') {
-				log.info(`Found key ${config.name} from ${source}`);
-				this.keys.set(config.name, value);
-			} else {
-				if (config.isRequired) {
-					log.warn(`Required key ${config.name} not found in environment`);
+				if (value && value !== 'undefined' && value !== '[object Object]' && value !== '') {
+					this.keys.set(config.name, value);
+					if (process.env.NODE_ENV !== 'production' && source) {
+						log.debug(`Loaded key ${config.name} from ${source}`);
+					}
 				} else {
-					log.debug(`Optional key ${config.name} not found in environment`);
+					if (config.isRequired) {
+						log.warn(`Required key ${config.name} not found`);
+					} else {
+						log.debug(`Optional key ${config.name} not found`);
+					}
 				}
 			}
+
+			// Add detailed key logging for debugging
+			this.logKeyDetails();
+		} catch (error) {
+			log.error('Failed to load keys from api-keys.config', false, error);
 		}
-
-		// Remove the hardcoded key fallbacks - we don't want to inject fake values
-		log.info(`Loaded ${this.keys.size} keys from environment`);
-
-		// Add detailed key logging for debugging
-		this.logKeyDetails();
 	}
 
 	/**
@@ -267,7 +272,6 @@ export class KeyManager {
 		//   return false; // Let other listeners handle other message types
 		// });
 
-		log.debug('KeyManager message listener set up');
 	}
 
 	/**
@@ -298,7 +302,6 @@ export class KeyManager {
 			return Promise.resolve({ error: 'Key not found' });
 		}
 
-		log.debug(`Providing key: ${keyName}`);
 		return Promise.resolve({ value });
 	}
 
@@ -307,7 +310,6 @@ export class KeyManager {
 	 */
 	public getKey(name: string): string | undefined {
 		if (!this.initialized) {
-			log.error('KeyManager not initialized');
 			return ''; // Return empty string instead of undefined
 		}
 
@@ -317,7 +319,6 @@ export class KeyManager {
 		// If the key doesn't exist, return an empty string instead of undefined
 		// This allows the code to continue running even without the actual keys
 		if (!value) {
-			log.warn(`Key requested but not found: ${name}, returning empty string as fallback`);
 			return '';
 		}
 
@@ -353,11 +354,8 @@ export class KeyManager {
 	 */
 	_forceInitializeInBackground(): void {
 		if (this.initialized) {
-			log.debug('KeyManager already initialized');
 			return;
 		}
-
-		log.warn('Forcing KeyManager initialization in background - only use in emergency');
 
 		try {
 			// Register default key configurations
@@ -367,7 +365,6 @@ export class KeyManager {
 			this.setupMessageListener();
 
 			this.initialized = true;
-			log.info('KeyManager force initialized successfully');
 		} catch (error: any) {
 			log.error('Failed to force initialize KeyManager', false, error);
 			throw error;
@@ -444,7 +441,6 @@ export class KeyManager {
 	 */
 	public debugLogKeys(): void {
 		if (!this.initialized) {
-			log.error('KeyManager not initialized');
 			return;
 		}
 
@@ -457,11 +453,8 @@ export class KeyManager {
 	 */
 	public setDevelopmentKey(name: string, value: string): void {
 		if (!this.isDevelopmentEnvironment()) {
-			log.error('setDevelopmentKey is not allowed in production');
 			return;
 		}
-
-		log.info(`Setting development key: ${name}`);
 		this.keys.set(name, value);
 	}
 
@@ -471,12 +464,10 @@ export class KeyManager {
 	 */
 	public getAllKeys(): Record<string, string> | undefined {
 		if (!this.isDevelopmentEnvironment()) {
-			log.error('getAllKeys is not allowed in production');
 			return undefined;
 		}
 
 		if (!this.initialized) {
-			log.error('KeyManager not initialized');
 			return undefined;
 		}
 

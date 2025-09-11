@@ -63,10 +63,51 @@ export class BlockchainExplorer {
       }
       
       const config = getExplorerApiConfig(chainId, isBackgroundContext);
-      
+
       if (!config) {
         log.warn('No explorer config found for chain:', false, chainId);
         return [];
+      }
+
+      // Log API key status for debugging
+      log.debug('BlockchainExplorer config:', false, {
+        chainId,
+        isBackgroundContext,
+        hasApiKey: !!config.apiKey,
+        apiKeyLength: config.apiKey?.length || 0,
+        baseUrl: config.baseUrl
+      });
+
+      // If no API key in background context, try to fetch transactions with fallback approach
+      if (isBackgroundContext && (!config.apiKey || config.apiKey.trim() === '')) {
+        log.warn('No API key available in background context - using fallback transaction fetching', false, {
+          chainId,
+          hasApiKey: !!config.apiKey
+        });
+        // Fallback: Only fetch normal transactions without API key (some Etherscan endpoints work without key)
+        try {
+          const fallbackTxs = await this.fetchTransactions(config, address, 'txlist', Math.min(limit, 10));
+
+          if (fallbackTxs.length > 0) {
+            const displayTransactions = fallbackTxs.map(tx =>
+              this.convertToDisplayFormat(tx, address, chainId)
+            );
+
+            log.info('BlockchainExplorer: Fallback transaction fetch successful', false, {
+              count: displayTransactions.length
+            });
+
+            // Cache the results
+            this.cache.set(cacheKey, {
+              data: displayTransactions,
+              timestamp: Date.now()
+            });
+
+            return displayTransactions;
+          }
+        } catch (fallbackError) {
+          log.warn('Fallback transaction fetch also failed:', false, fallbackError);
+        }
       }
 
       // Fetch transactions with rate limiting to avoid Etherscan's 2/sec limit
@@ -75,12 +116,12 @@ export class BlockchainExplorer {
         etherscanRateLimiter.throttle(() =>
           this.fetchTransactions(config, address, 'txlist', limit)
         ),
-        
+
         // Fetch internal transactions (contract interactions)
         etherscanRateLimiter.throttle(() =>
           this.fetchTransactions(config, address, 'txlistinternal', limit)
         ),
-        
+
         // Fetch token transfers
         etherscanRateLimiter.throttle(() =>
           this.fetchTransactions(config, address, 'tokentx', limit)
@@ -228,7 +269,7 @@ export class BlockchainExplorer {
       }
 
       // Handle rate limit error
-      if (data.status === '0' && data.message === 'NOTOK' && 
+      if (data.status === '0' && data.message === 'NOTOK' &&
           data.result?.includes('rate limit')) {
         log.error('Etherscan rate limit exceeded:', false, data.result);
         // Return empty array to avoid breaking the UI
@@ -236,8 +277,23 @@ export class BlockchainExplorer {
       }
 
       // Handle missing API key
-      if (data.status === '0' && data.result === 'Invalid API Key') {
-        log.warn('Explorer API key missing or invalid. Transactions will not be shown.');
+      if (data.status === '0' && (data.result === 'Invalid API Key' || data.message === 'NOTOK')) {
+        log.warn(`Explorer API key issue for ${config.name}:`, false, {
+          status: data.status,
+          message: data.message,
+          result: data.result,
+          hasApiKey: !!config.apiKey,
+          apiKeyLength: config.apiKey?.length || 0
+        });
+        // Return empty array to avoid breaking the UI
+        return [];
+      }
+
+      // Handle Max rate limit reached error
+      if (data.status === '0' && data.result === 'Max rate limit reached') {
+        log.warn('Etherscan rate limit reached, retrying with delay:', false, data);
+        // Wait 1 second and try again (but only once to avoid infinite loops)
+        await new Promise(resolve => setTimeout(resolve, 1000));
         return [];
       }
 

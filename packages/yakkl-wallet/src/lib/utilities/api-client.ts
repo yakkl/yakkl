@@ -5,8 +5,7 @@
 
 import { browser } from '$app/environment';
 import { authStore } from '$lib/stores/auth-store';
-import { jwtManager } from './jwt';
-import { backgroundJWTManager } from './jwt-background';
+import { browserJWT as jwtManager } from '@yakkl/security';
 import { log } from '$lib/common/logger-wrapper';
 
 export interface APIResponse<T = any> {
@@ -70,7 +69,7 @@ export class APIClient {
 
 			if (this.isBackgroundContext()) {
 				// Use background JWT manager for service workers/background scripts
-				token = await backgroundJWTManager.getCurrentToken();
+				token = await jwtManager.getCurrentToken();
 			} else {
 				// Use auth store for client contexts
 				token = authStore.getCurrentJWTToken();
@@ -86,7 +85,7 @@ export class APIClient {
 			// Validate token before use (context-aware)
 			let isValid: boolean;
 			if (this.isBackgroundContext()) {
-				isValid = await backgroundJWTManager.validateToken(token);
+				isValid = await jwtManager.validateToken(token);
 			} else {
 				const payload = await jwtManager.validateToken(token);
 				isValid = payload !== null;
@@ -194,7 +193,7 @@ export class APIClient {
 
 			if (this.isBackgroundContext()) {
 				// Use background JWT manager for service workers/background scripts
-				token = await backgroundJWTManager.getCurrentToken();
+				token = await jwtManager.getCurrentToken();
 			} else {
 				// Use auth store for client contexts
 				token = authStore.getCurrentJWTToken();

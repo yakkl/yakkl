@@ -142,7 +142,7 @@ export class TypeAdapterUtils {
     
     // Handle legacy BigNumber objects if they have toString method
     if (typeof value === 'object' && value !== null && 'toString' in value) {
-      return BigInt(value.toString());
+      return BigInt((value as any).toString());
     }
     
     return BigInt(0);

@@ -2,7 +2,7 @@
  * Base token implementation
  */
 import type { IToken, TokenInfo, TokenMetadata } from './types';
-import type { BigNumberish, IProvider } from '../providers/types';
+import type { BigNumberish, ProviderInterface } from '../providers/types';
 export declare abstract class BaseToken implements IToken {
     readonly address: string;
     readonly name: string;
@@ -20,15 +20,15 @@ export declare abstract class BaseToken implements IToken {
     readonly twitter?: string;
     readonly coingeckoId?: string;
     readonly coinmarketcapId?: string;
-    protected provider?: IProvider;
-    constructor(info: TokenInfo, metadata?: TokenMetadata, provider?: IProvider);
+    protected provider?: ProviderInterface;
+    constructor(info: TokenInfo, metadata?: TokenMetadata, provider?: ProviderInterface);
     abstract getBalance(address: string): Promise<BigNumberish>;
     abstract transfer(to: string, amount: BigNumberish): Promise<string>;
     abstract approve(spender: string, amount: BigNumberish): Promise<string>;
     abstract allowance(owner: string, spender: string): Promise<BigNumberish>;
     abstract totalSupply(): Promise<BigNumberish>;
-    setProvider(provider: IProvider): void;
-    getProvider(): IProvider | undefined;
+    setProvider(provider: ProviderInterface): void;
+    getProvider(): ProviderInterface | undefined;
     /**
      * Format balance from smallest unit to human-readable
      */

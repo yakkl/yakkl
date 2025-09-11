@@ -1,7 +1,6 @@
 // background.ts - Complete implementation with unified port handling and message deduplication
 import { ensureProcessPolyfill } from '$lib/common/process';
 ensureProcessPolyfill();
-
 import { initializeEIP6963 } from './eip-6963';
 import { addBackgroundListeners } from '$lib/common/listeners/background/backgroundListeners';
 import { log } from '$lib/managers/Logger';
@@ -90,7 +89,6 @@ class ConnectionManager {
 	// Remove a port
 	public removePort(portId: string): void {
 		this.ports.delete(portId);
-		log.debug('Port removed:', false, { portId });
 	}
 
 	// Update port activity
@@ -210,13 +208,6 @@ browser.runtime.onConnect.addListener((port: RuntimePort) => {
 	const sender = port.sender;
 	const portId = connectionManager.registerPort(port, sender);
 
-	log.debug('Background: Port connected:', false, {
-		portId,
-		portName: port.name,
-		sender: sender,
-		timestamp: new Date().toISOString()
-	});
-
 	// Set up message listener for this port
 	port.onMessage.addListener(async (message: any) => {
 		try {
@@ -227,9 +218,6 @@ browser.runtime.onConnect.addListener((port: RuntimePort) => {
 
 			// Check for duplicate messages to prevent handling flood
 			if (connectionManager.isDuplicateMessage(actualMessage)) {
-				log.debug('Background: Dropping duplicate message:', false, {
-					type: actualMessage.type
-				});
 				return;
 			}
 
@@ -280,10 +268,6 @@ browser.runtime.onConnect.addListener((port: RuntimePort) => {
 async function handleProviderMessage(message: any, port: RuntimePort, portId: string) {
 	// Skip duplicate requests
 	if (message.id && processedBackgroundRequests.has(message.id)) {
-		log.debug('Background: Skipping duplicate request:', false, {
-			requestId: message.id,
-			method: message.method
-		});
 		return;
 	}
 
@@ -299,7 +283,6 @@ async function handleProviderMessage(message: any, port: RuntimePort, portId: st
 			const method = message.method;
 
 			if (!method) {
-				log.warn('No method specified in provider message:', false, message);
 				sendErrorResponse(port, message.id, new Error('Method is required'));
 				return;
 			}
@@ -312,7 +295,6 @@ async function handleProviderMessage(message: any, port: RuntimePort, portId: st
 				} else if (isReadMethod(method)) {
 					await handleReadOnlyRequest(message, port);
 				} else {
-					log.warn('Unknown provider method:', false, { method });
 					sendErrorResponse(port, message.id, new Error(`Unknown method: ${method}`));
 				}
 			} catch (error) {
@@ -417,14 +399,8 @@ async function handleUnknownMessage(message: any, port: RuntimePort, portId: str
 	const now = Date.now();
 
 	// Only log unknown message types once per minute
-	if (
-		!seenUnknownMessageTypes.has(message.type) ||
-		now - seenUnknownMessageTypes.get(message.type)! > 60000
-	) {
-		log.debug('Unknown message type received:', false, {
-			type: message.type,
-			portId
-		});
+	if ( !seenUnknownMessageTypes.has(message.type) ||
+		now - seenUnknownMessageTypes.get(message.type)! > 60000 ) {
 		seenUnknownMessageTypes.set(message.type, now);
 	}
 
@@ -456,7 +432,6 @@ async function handleProviderResponse(response: any, port: RuntimePort, portId: 
 	// Find the pending request
 	const pendingRequest = pendingRequests.get(id);
 	if (!pendingRequest) {
-		log.warn('No pending request found for response:', false, { id });
 		return;
 	}
 
@@ -475,8 +450,6 @@ async function handleProviderResponse(response: any, port: RuntimePort, portId: 
 
 		// Clean up the pending request
 		pendingRequests.delete(id);
-
-		log.debug('Response forwarded successfully', false, { id });
 	} catch (error) {
 		log.error('Failed to forward response:', false, {
 			id,
@@ -566,7 +539,7 @@ async function getSecuritySettings(): Promise<SecuritySettings | null> {
 
 		return null;
 	} catch (error) {
-		console.error('Error retrieving security settings:', error);
+		log.error('Error retrieving security settings:', false, error);
 		return null;
 	}
 }
@@ -633,10 +606,7 @@ function broadcastEvent(eventName: string, data: any) {
 // Initialize background script
 async function initializeBackground() {
 	try {
-		log.debug('Initializing background script...', false);
-
 		if (typeof chrome !== 'undefined' && chrome.sidePanel) {
-			log.info('Background initializing: chrome.sidePanel is defined');
 			chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }); // Using sidepanel as default now
 		}
 
@@ -663,8 +633,6 @@ async function initializeBackground() {
 		await watchLockedState(2 * 60 * 1000);
 
 		initContextTracker();
-
-		log.debug('Background script initialized successfully', false);
 	} catch (error) {
 		log.error('Failed to initialize background script:', false, error);
 	}

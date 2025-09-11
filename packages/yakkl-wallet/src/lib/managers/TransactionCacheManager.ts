@@ -20,7 +20,7 @@ export class TransactionCacheManager {
   private static instance: TransactionCacheManager;
 
   private constructor() {
-    log.debug('TransactionCacheManager stub initialized');
+    // log.debug('TransactionCacheManager stub initialized');
   }
 
   public static getInstance(): TransactionCacheManager {
@@ -32,37 +32,37 @@ export class TransactionCacheManager {
 
   // Stub methods to prevent runtime errors
   public async initialize(): Promise<void> {
-    log.debug('TransactionCacheManager stub initialize');
+    // log.debug('TransactionCacheManager stub initialize');
   }
 
   public async getTransactions(address: string, chainId: number): Promise<TransactionData[]> {
-    log.debug('TransactionCacheManager stub getTransactions', { address, chainId });
+    // log.debug('TransactionCacheManager stub getTransactions', { address, chainId });
     return [];
   }
 
   public async getCachedTransactions(address: string, chainId: number): Promise<TransactionData[]> {
-    log.debug('TransactionCacheManager stub getCachedTransactions', { address, chainId });
+    // log.debug('TransactionCacheManager stub getCachedTransactions', { address, chainId });
     return [];
   }
 
   public async addTransaction(transaction: TransactionData): Promise<void> {
-    log.debug('TransactionCacheManager stub addTransaction', transaction);
+    // log.debug('TransactionCacheManager stub addTransaction', transaction);
   }
 
   public async updateTransaction(hash: string, updates: Partial<TransactionData>): Promise<void> {
-    log.debug('TransactionCacheManager stub updateTransaction', { hash, updates });
+    // log.debug('TransactionCacheManager stub updateTransaction', { hash, updates });
   }
 
   public async updateCache(address: string, chainId: number, transactions: TransactionData[]): Promise<void> {
-    log.debug('TransactionCacheManager stub updateCache', { address, chainId, count: transactions.length });
+    // log.debug('TransactionCacheManager stub updateCache', { address, chainId, count: transactions.length });
   }
 
   public async clearCache(address?: string, chainId?: number): Promise<void> {
-    log.debug('TransactionCacheManager stub clearCache', { address, chainId });
+    // log.debug('TransactionCacheManager stub clearCache', { address, chainId });
   }
 
   public async clear(): Promise<void> {
-    log.debug('TransactionCacheManager stub clear');
+    // log.debug('TransactionCacheManager stub clear');
   }
 }
 

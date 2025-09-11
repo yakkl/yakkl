@@ -10,7 +10,15 @@ import { STORAGE_YAKKL_CURRENTLY_SELECTED, STORAGE_YAKKL_SETTINGS } from './cons
 import { browserAPI } from '$lib/services/browser-api.service';
 import type { Browser } from 'webextension-polyfill';
 import { SingletonWindowManager } from '$lib/managers/SingletonWindowManager';
-import { invalidateJWT } from '$lib/utilities/jwt-background';
+import { browserJWT } from '@yakkl/security';
+
+// Create a local invalidateJWT function
+async function invalidateJWT(token?: string) {
+  await browserJWT.clearToken();
+  if (token) {
+    await browserJWT.revoke(token);
+  }
+}
 import type { YakklCurrentlySelected } from './interfaces';
 import { setLocks } from './locks';
 

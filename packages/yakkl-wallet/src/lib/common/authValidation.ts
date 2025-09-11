@@ -3,10 +3,16 @@ import { log } from '$lib/common/logger-wrapper';
 import { getMiscStore, resetStores, setMiscStore } from '$lib/common/stores';
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from '$lib/common/storage';
 import { STORAGE_YAKKL_SETTINGS } from '$lib/common/constants';
+// MIGRATION: Move to @yakkl/browser-extension
+// import { sessionManager } from '@yakkl/browser-extension/session/BrowserSessionManager';
 import { sessionManager } from '$lib/managers/SessionManager';
-import { jwtManager } from '$lib/utilities/jwt';
+// MIGRATION: Move to @yakkl/browser-extension
+// import { backgroundJWTManager as jwtManager } from '@yakkl/browser-extension/jwt/jwt-background';
+import { browserJWT as jwtManager } from '@yakkl/security';
 import { getProfile } from '$lib/common/profile';
 import type { Profile, ProfileData, YakklSettings } from '$lib/common/interfaces';
+// MIGRATION: Move to @yakkl/security
+// import { decryptData } from '@yakkl/security/wallet/encryption-utils';
 import { decryptData } from './encryption';
 import { isEncryptedData } from './misc';
 
@@ -35,53 +41,19 @@ export async function validateAuthentication(): Promise<ValidationResult> {
       return { isValid: false, reason: 'Legal terms not accepted' };
     }
 
-    // Step 3: Validate digest exists and is non-empty
-    // Digest should be loaded before validation is called
-    // We removed retry logic to improve performance - the digest should already be available
-    const digest = getMiscStore();
-
-    if (!digest || digest.length === 0) {
-      return { isValid: false, reason: 'No authentication digest' };
-    }
-
-    // Step 4: Verify digest matches stored value
-    // const storedDigest = get(yakklMiscStore);
-    // if (digest !== storedDigest) {
-    //   log.warn('Authentication failed: Digest mismatch');
-    //   return { isValid: false, reason: 'Invalid authentication state' };
-    // }
-
-    // Step 5: Retrieve and validate profile
-    // Profile should be loaded before validation is called
-    const profile = await getProfile();
-    if (!profile) {
-      return { isValid: false, reason: 'No user profile' };
-    }
-
-    // Step 6: Check if profile is locked
-    // Profile from getProfile is already decrypted, validate its structure
-    if (!profile.data) {
-      return { isValid: false, reason: 'Profile data missing' };
-    }
-
-    // Step 7: Validate profile data exists
-    // The profile from getProfile() is already decrypted if the digest was valid
-    if (isEncryptedData(profile.data)) {
-      const profileData = await decryptData(profile.data, digest) as ProfileData;
-      if (!profileData) {
-        return { isValid: false, reason: 'Profile data missing' };
-      }
-    }
-
-    // Step 8: Check JWT session validity
+    // Step 3: Check for valid JWT token FIRST (for social login and JWT-based auth)
     let hasValidJWT = false;
+    let jwtToken: string | null = null;
+
+    // Check session-based JWT
     if (sessionManager?.isSessionActive()) {
-      const jwtToken = sessionManager.getCurrentJWTToken();
+      jwtToken = sessionManager.getCurrentJWTToken();
       if (jwtToken) {
         try {
-          const isValid = await jwtManager.verifyToken(jwtToken);
+          const isValid = await jwtManager.validateToken(jwtToken);
           if (isValid) {
             hasValidJWT = true;
+            log.debug('Valid JWT token found in session');
           }
         } catch (error) {
           log.warn('JWT token verification error', false, error);
@@ -89,18 +61,77 @@ export async function validateAuthentication(): Promise<ValidationResult> {
       }
     }
 
-    // Step 9: Additional security checks
-    // Check if profile ID matches expected format
-    if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(profile.id)) {
-      log.warn('Authentication failed: Invalid profile ID format');
-      return { isValid: false, reason: 'Invalid profile format' };
+    // If no session JWT, check sessionStorage (for social login)
+    if (!hasValidJWT && typeof sessionStorage !== 'undefined') {
+      const storedJWT = sessionStorage.getItem('wallet-jwt-token');
+      if (storedJWT) {
+        try {
+          const isValid = await jwtManager.validateToken(storedJWT);
+          if (isValid) {
+            hasValidJWT = true;
+            jwtToken = storedJWT;
+            log.debug('Valid JWT token found in sessionStorage');
+          }
+        } catch (error) {
+          log.warn('Stored JWT token verification error', false, error);
+        }
+      }
+    }
+
+    // Step 4: Check digest (password-based auth) OR JWT (social/token-based auth)
+    const digest = getMiscStore();
+
+    // For JWT-based auth (social login), we don't require a digest
+    if (!digest || digest.length === 0) {
+      if (!hasValidJWT) {
+        // No digest AND no valid JWT - not authenticated
+        return { isValid: false, reason: 'No authentication credentials' };
+      }
+      // Has valid JWT but no digest - this is OK for social login
+      log.debug('JWT-based authentication without digest (social login)');
+    }
+
+    // Step 5: Retrieve and validate profile
+    const profile = await getProfile();
+    if (!profile) {
+      return { isValid: false, reason: 'No user profile' };
+    }
+
+    // Step 6: Check if profile data exists
+    // For social login, profile.data might be minimal
+    if (!profile.data && !hasValidJWT) {
+      return { isValid: false, reason: 'Profile data missing' };
+    }
+
+    // Step 7: Validate profile data if it's encrypted and we have a digest
+    if (digest && profile.data && isEncryptedData(profile.data)) {
+      try {
+        const profileData = await decryptData(profile.data, digest) as ProfileData;
+        if (!profileData) {
+          return { isValid: false, reason: 'Profile data decryption failed' };
+        }
+      } catch (error) {
+        log.warn('Profile data decryption error', false, error);
+        // If we have a valid JWT, allow authentication to proceed
+        if (!hasValidJWT) {
+          return { isValid: false, reason: 'Profile data validation failed' };
+        }
+      }
+    }
+
+    // Step 8: Additional security checks
+    // Check if profile ID matches expected format (UUID or social ID)
+    // Allow flexible ID format for social login
+    if (!profile.id || profile.id.length < 8) {
+      log.warn('Authentication failed: Invalid profile ID');
+      return { isValid: false, reason: 'Invalid profile ID' };
     }
 
     // All checks passed
     return {
       isValid: true,
       profile: profile,
-      hasValidSession: sessionManager.isSessionActive(),
+      hasValidSession: sessionManager.isSessionActive() || hasValidJWT,
       hasValidJWT: hasValidJWT
     };
 
@@ -112,14 +143,39 @@ export async function validateAuthentication(): Promise<ValidationResult> {
 
 /**
  * Quick validation check for non-critical operations
- * Only checks isLocked and digest existence
+ * Checks for digest OR JWT token existence
  */
 export async function quickAuthCheck(): Promise<boolean> {
   try {
     const settings = await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS) as YakklSettings;
     const digest = getMiscStore();
 
-    return !!(settings && settings.isLocked === false && digest && digest.length > 0);
+    // Check for digest-based auth
+    const hasDigestAuth = !!(settings && settings.isLocked === false && digest && digest.length > 0);
+    if (hasDigestAuth) {
+      return true;
+    }
+
+    // Check for JWT-based auth (social login)
+    if (settings && settings.isLocked === false) {
+      // Check session JWT
+      if (sessionManager?.isSessionActive()) {
+        const jwtToken = sessionManager.getCurrentJWTToken();
+        if (jwtToken) {
+          return true;
+        }
+      }
+
+      // Check sessionStorage JWT
+      if (typeof sessionStorage !== 'undefined') {
+        const storedJWT = sessionStorage.getItem('wallet-jwt-token');
+        if (storedJWT) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   } catch {
     return false;
   }

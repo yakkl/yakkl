@@ -1,5 +1,15 @@
 // SDK Interfaces - Main Export File
-export type { IProvider } from './IProvider';
+// Import unified ProviderInterface from yakkl-core
+import type { ProviderInterface } from '@yakkl/core';
+
+// Re-export as IProvider for backward compatibility (DEPRECATED)
+/**
+ * @deprecated Use ProviderInterface from @yakkl/core instead
+ */
+export type { ProviderInterface as IProvider } from '@yakkl/core';
+
+// Also export ProviderInterface directly for new code
+export type { ProviderInterface } from '@yakkl/core';
 export type {
   ITransactionFetcher,
   BaseTransactionOptions,

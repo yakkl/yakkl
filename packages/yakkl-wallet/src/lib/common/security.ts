@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { digestMessage } from '@yakkl/security';
-import { decryptData, encryptData } from '$lib/common/encryption';
+import { decryptData, digestMessage, type EncryptedData } from '@yakkl/security';
 import type {
 	AccountData,
 	CurrentlySelectedData,
@@ -16,7 +15,6 @@ import {
   setYakklSettingsStorage,
 } from '$lib/common/stores';
 import { getYakklCurrentlySelected } from '$lib/common/currentlySelected';
-import { log } from '$lib/common/logger-wrapper';
 import { storeEncryptedHash, storeSessionToken } from './auth/session';
 import { getNormalizedSettings } from './utils';
 import { planStore } from '$lib/stores';
@@ -31,7 +29,6 @@ export interface AccountKey {
 export async function verify(id: string): Promise<Profile | undefined> {
 	try {
 		if (!id) {
-			log.warn('Verify called with empty id', false);
 			return undefined;
 		}
 
@@ -39,13 +36,11 @@ export async function verify(id: string): Promise<Profile | undefined> {
 		const digest = await digestMessage(id);
 
 		if (!profile || !digest) {
-			log.warn('Profile or digest missing during verification', false, { hasProfile: !!profile, hasDigest: !!digest });
 			return undefined; // Don't set the store to anything here
 		}
 
 		// Validate profile structure before attempting decryption
 		if (!profile.data || !profile.username) {
-			log.error('Invalid profile structure', false, { hasData: !!profile.data, hasUserName: !!profile.username });
 			throw 'Invalid profile structure';
 		}
 
@@ -53,16 +48,14 @@ export async function verify(id: string): Promise<Profile | undefined> {
 			let profileData: ProfileData;
 
 			try {
-				profileData = await decryptData(profile.data, digest) as ProfileData;
+				profileData = await decryptData(profile.data as EncryptedData, digest) as ProfileData;
 			} catch (decryptError) {
-				log.error('Failed to decrypt profile data', false, decryptError);
 				throw 'Invalid credentials - decryption failed';
 			}
 
 			if (profileData) {
 				// Validate decrypted profile data
 				if (!profileData.name || !profileData.email) {
-					log.error('Decrypted profile data is incomplete', false, profileData);
 					throw 'Invalid profile data after decryption';
 				}
 
@@ -79,35 +72,18 @@ export async function verify(id: string): Promise<Profile | undefined> {
 
         const sessionToken: SessionToken = await storeEncryptedHash(digest); // Works for background context
 
-        // TODO: Remove this
-				console.log('[VERIFY] storeEncryptedHash returned:', {
-					sessionToken,
-					hasToken: !!sessionToken?.token,
-					expiresAt: sessionToken?.expiresAt
-				});
-
 				if (sessionToken) {
 					storeSessionToken(sessionToken.token, sessionToken.expiresAt);
-					console.log('[VERIFY] Stored session token in store');
-				} else {
-					console.error('[VERIFY] No session token returned from storeEncryptedHash');
 				}
-
-				log.info('Verification successful', false, {
-					username: profile.username,
-					hasSessionToken: !!sessionToken
-				});
 			} else {
 				throw 'Verification failed - no profile data after decryption';
 			}
 		} else {
-			log.warn('Profile data is not encrypted', false);
 			throw 'Profile data must be encrypted';
 		}
 
 		return profile;
 	} catch (e) {
-		log.error('Verification failed!', false, e);
 		throw `Verification failed! - ${e}`;
 	}
 }
@@ -125,11 +101,11 @@ export async function getYakklCurrentlySelectedAccountKey(): Promise<AccountKey 
 		}
 		// May want to put this in a function
 		if (isEncryptedData(currentlySelected.data)) {
-			const result = await decryptData(currentlySelected.data, yakklMiscStore);
+			const result = await decryptData(currentlySelected.data as EncryptedData, yakklMiscStore);
 			const data = result as CurrentlySelectedData;
 			address = data?.account?.address || null;
 			if (isEncryptedData(data?.account?.data)) {
-				const result = await decryptData(data.account.data, yakklMiscStore);
+				const result = await decryptData(data.account.data as EncryptedData, yakklMiscStore);
 				const accountData = result as AccountData;
 				privateKey = accountData.privateKey;
 			} else {
@@ -150,8 +126,6 @@ export async function getYakklCurrentlySelectedAccountKey(): Promise<AccountKey 
 		}
 		return accountKey;
 	} catch (e: any) {
-		// error_log(e);
-		log.errorStack(e);
 		throw `Error getting account key - ${e}`;
 	}
 }

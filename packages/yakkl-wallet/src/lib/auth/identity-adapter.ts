@@ -8,7 +8,7 @@ import { createBrowserIdentity } from '@yakkl/identity';
 import type { Identity, AuthContext, AuthResult as IdentityAuthResult } from '@yakkl/identity';
 import { browser_ext, browserSvelte } from '$lib/common/environment';
 import { log } from '$lib/common/logger-wrapper';
-import type { JWTPayload } from '$lib/utilities/jwt';
+import type { BrowserJWTPayload as JWTPayload } from '@yakkl/security';
 import { getYakklSettings } from '$lib/common/stores';
 import { get } from 'svelte/store';
 

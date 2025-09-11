@@ -9,7 +9,6 @@ export abstract class BaseService {
 
   constructor(serviceName: string) {
     this.serviceName = serviceName;
-    log.info(`[BaseService] ${serviceName} initialized`);
   }
 
   protected async sendMessage<T>(message: any): Promise<ServiceResponse<T>> {
@@ -21,7 +20,6 @@ export abstract class BaseService {
 
     try {
       if (!browserSvelte) {
-        log.warn(`[BaseService.${this.serviceName}] Not in browser environment`);
         return {
           success: false,
           error: { hasError: true, message: 'Not in browser environment' }
@@ -30,7 +28,6 @@ export abstract class BaseService {
 
       // Check if messaging service is initialized
       if (!messagingService.isInitialized()) {
-        log.warn(`[BaseService.${this.serviceName}] Messaging service not initialized`);
         return {
           success: false,
           error: {
@@ -40,8 +37,6 @@ export abstract class BaseService {
           }
         };
       }
-
-      log.debug(`[BaseService.${this.serviceName}] Messaging service is initialized, proceeding with request`);
 
       // Use messaging service instead of safeClientSendMessage
       let response;
@@ -66,7 +61,6 @@ export abstract class BaseService {
           responseKeys: Object.keys(response)
         });
       } catch (error) {
-        log.warn(`[BaseService.${this.serviceName}] Messaging service error:`, false, error);
         return {
           success: false,
           error: {
@@ -77,16 +71,8 @@ export abstract class BaseService {
         };
       }
 
-      log.debug(`[BaseService.${this.serviceName}] Received response:`, false, {
-        response,
-        hasResponse: !!response,
-        responseType: typeof response,
-        responseKeys: response ? Object.keys(response) : []
-      });
-
       // Handle error response
       if (response.error || !response.success) {
-        log.warn(`[BaseService.${this.serviceName}] Error response:`, false, JSON.stringify(response, null, 2));
         return {
           success: false,
           error: {

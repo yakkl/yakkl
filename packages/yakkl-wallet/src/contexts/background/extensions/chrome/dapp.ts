@@ -221,8 +221,12 @@ async function handleDefaultMessage(event: any, port: Runtime.Port, portId: stri
 		// Add a small delay to ensure the port is idle
 		await new Promise((resolve) => {
 			const timerManager = UnifiedTimerManager.getInstance();
-			timerManager.addTimeout('port-delay', () => resolve(undefined), 100);
-			timerManager.startTimeout('port-delay');
+			const timerId = `port-delay-${event.id || Date.now()}`;
+			timerManager.addTimeout(timerId, () => {
+				resolve(undefined);
+				timerManager.removeTimeout(timerId);
+			}, 100);
+			timerManager.startTimeout(timerId);
 		});
 	} catch (error) {
 		log.error('Error handling default message:', false, error);

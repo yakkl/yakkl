@@ -1,0 +1,59 @@
+{
+  "name": "@yakkl/security-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Security integration bridge for YAKKL Smart Wallet",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./bridges/*": {
+      "types": "./dist/bridges/*.d.ts",
+      "import": "./dist/bridges/*.mjs",
+      "require": "./dist/bridges/*.js"
+    },
+    "./interfaces/*": {
+      "types": "./dist/interfaces/*.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.*",
+    "!dist/**/*.spec.*"
+  ],
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build && tsc --emitDeclarationOnly",
+    "test": "vitest",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist node_modules .turbo"
+  },
+  "dependencies": {
+    "@yakkl/auth": "workspace:*",
+    "@yakkl/reactive": "workspace:*",
+    "@yakkl/security": "workspace:*",
+    "@yakkl/security-ui": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "eslint": "^8.57.0",
+    "typescript": "^5.7.3",
+    "vite": "^7.0.0",
+    "vitest": "^2.1.8"
+  },
+  "keywords": [
+    "yakkl",
+    "security",
+    "bridge",
+    "integration"
+  ],
+  "author": "YAKKL Team",
+  "license": "PROPRIETARY"
+}

@@ -5,7 +5,15 @@ import { getObjectFromLocalStorage, setObjectInLocalStorage } from './storage';
 import { yakklCurrentlySelectedStore, yakklSettingsStore } from './stores';
 import { log } from '$lib/managers/Logger';
 import { PlanType } from './types';
-import { invalidateJWT } from '$lib/utilities/jwt-background';
+import { browserJWT } from '@yakkl/security';
+
+// Create a local invalidateJWT function that uses the security package
+async function invalidateJWT(token?: string) {
+  await browserJWT.clearToken();
+  if (token) {
+    await browserJWT.revoke(token);
+  }
+}
 
 // Will keep this for now but may want to deprecate it and use the new background script to handle locks
 // locked: true = lock, false = unlock

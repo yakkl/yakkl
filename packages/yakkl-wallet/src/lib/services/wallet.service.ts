@@ -42,12 +42,6 @@ export class WalletService extends BaseService {
       const accounts = await getYakklAccounts();
       const settings = await getYakklSettings();
 
-      log.info('[WalletService.getAccounts] Loaded accounts:', false, {
-        count: accounts?.length || 0,
-        hasAccounts: !!accounts,
-        firstAccount: accounts?.[0]?.address
-      });
-
       if (accounts && accounts.length > 0) {
         // Transform to AccountDisplay format
         const displayAccounts: AccountDisplay[] = accounts.map((acc: YakklAccount) => ({
@@ -165,10 +159,6 @@ export class WalletService extends BaseService {
 
   async getBalance(address: string): Promise<ServiceResponse<string>> {
     try {
-      console.log('[WalletService] Getting balance for address:', address);
-
-      // Use statically imported functions
-
       // Get provider instance
       const instances = await getInstances();
       if (!instances || !instances[1]) {
@@ -191,7 +181,7 @@ export class WalletService extends BaseService {
 
       return { success: true, data: balanceFormatted };
     } catch (error) {
-      console.error('[WalletService] Failed to get balance:', error);
+      log.warn('[WalletService] Failed to get balance:', false, error);
       return {
         success: false,
         error: this.handleError(error)
@@ -258,7 +248,7 @@ export class WalletService extends BaseService {
       // Background sync will be implemented when the handler is ready
       return { success: true, data: true };
     } catch (error) {
-      log.warn('WalletService: switchChain error:', false,error);
+      log.warn('WalletService: switchChain error:', false, error);
       return {
         success: false,
         error: this.handleError(error)
@@ -389,7 +379,7 @@ export class WalletService extends BaseService {
 
       return { success: true, data: displayAccount };
     } catch (error) {
-      console.error('WalletService: importPrivateKey error:', error);
+      log.error('WalletService: importPrivateKey error:', false, error);
       return {
         success: false,
         error: this.handleError(error)
