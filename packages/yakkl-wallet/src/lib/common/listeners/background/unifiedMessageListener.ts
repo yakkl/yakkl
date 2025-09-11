@@ -6,7 +6,7 @@ import type { YakklResponse } from '$lib/common/interfaces';
 import { getSafeUUID } from '$lib/common/uuid';
 import { requestManager } from '$contexts/background/extensions/chrome/requestManager';
 import { getSigningManager } from '$contexts/background/extensions/chrome/signingManager';
-import { getYakklCurrentlySelected } from '$lib/common/stores';
+import { getYakklCurrentlySelected } from '$lib/common/currentlySelected';
 import { showEIP6963Popup } from '$contexts/background/extensions/chrome/eip-6963';
 import type { BackgroundPendingRequest } from '$contexts/background/extensions/chrome/background';
 import { decryptData } from '$lib/common/encryption';
@@ -188,6 +188,15 @@ export async function onUnifiedMessageListener(
   message: any,
   sender: Runtime.MessageSender
 ): Promise<any> {
+  // CRITICAL DEBUG: Log ALL incoming messages
+  // console.error('[onUnifiedMessageListener] MESSAGE RECEIVED:', {
+  //   type: message?.type,
+  //   method: message?.method,
+  //   hasPayload: !!message?.payload,
+  //   sender: sender?.tab?.id || sender?.id || 'unknown',
+  //   fullMessage: message
+  // });
+
   try {
     // Special logging for STORE_SESSION_HASH
     if (message?.type === 'STORE_SESSION_HASH') {
@@ -198,10 +207,6 @@ export async function onUnifiedMessageListener(
         payloadType: typeof message.payload
       });
     }
-
-    const { id: requestId, method, type } = message;
-
-    log.debug('Received message', false, { message, sender });
 
     // Popout messages
     if (message.type === 'popout') {
@@ -646,9 +651,14 @@ async function handleRuntimeMessage(
       }
 
       case 'popout': {
-        log.debug('popout:', false, message);
-        showPopup('', '0');
-        return { success: true };
+        try {
+          // Call showPopup with 'internal' source since this is from our sidepanel
+          await showPopup('', '0', 'internal');
+          return { success: true, message: 'Popup opened' };
+        } catch (error) {
+          log.error('[unifiedMessageListener] Failed to open popup', false, error);
+          return { success: false, error: 'Failed to open popup' };
+        }
       }
 
       case 'ping': {

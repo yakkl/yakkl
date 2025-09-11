@@ -11,6 +11,7 @@ import { BigNumber } from '../../core/bignumber';
 export class AlchemyProvider extends ManagedProvider {
   private alchemyNetwork: string;
   private supportedFeatures: Set<string>;
+  private directApiKey?: string; // For direct API key usage
 
   constructor(
     chainId: number,
@@ -77,6 +78,7 @@ export class AlchemyProvider extends ManagedProvider {
    * Initialize the Alchemy provider
    */
   protected async initializeProvider(apiKey: string): Promise<void> {
+    console.log(`[AlchemyProvider] Initializing with network: ${this.alchemyNetwork}`);
     // Store the raw provider (could be ethers.js provider, web3, etc.)
     this._rawProvider = {
       type: 'alchemy',
@@ -84,6 +86,7 @@ export class AlchemyProvider extends ManagedProvider {
       network: this.alchemyNetwork,
       features: Array.from(this.supportedFeatures)
     };
+    console.log(`[AlchemyProvider] Provider initialized with endpoint: ${this._endpoint.substring(0, 50)}...`);
   }
 
   /**

@@ -14,7 +14,7 @@ export class MigrationUtils {
     return {
       address: yakklAccount.address,
       ens: yakklAccount.alias || null,
-      username: yakklAccount.name,
+      name: yakklAccount.name,
       avatar: yakklAccount.avatar || null,
       isActive: true,
       balance: yakklAccount.quantity?.toString() || '0',

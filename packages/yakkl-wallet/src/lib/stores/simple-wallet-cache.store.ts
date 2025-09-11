@@ -1,5 +1,5 @@
 import { writable, derived, get } from 'svelte/store';
-import { getYakklCurrentlySelected } from '$lib/common/stores';
+import { getYakklCurrentlySelected } from '$lib/common/currentlySelected';
 import type { TokenDisplay, TransactionDisplay } from '$lib/types';
 import { log } from '$lib/common/logger-wrapper';
 // import { browser_ext } from '$lib/common/environment';
@@ -46,6 +46,9 @@ function createSimpleWalletCache() {
 
   // Load from storage on init
   async function loadFromStorage() {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return; // Skip during SSR
+    }
     try {
       const stored = localStorage.getItem(CACHE_KEY);
       if (stored) {
@@ -66,6 +69,9 @@ function createSimpleWalletCache() {
 
   // Save to storage
   function saveToStorage(cache: SimpleWalletCache) {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return; // Skip during SSR
+    }
     try {
       // Convert bigints to strings for JSON
       const toStore = {
@@ -130,12 +136,28 @@ function createSimpleWalletCache() {
       if (Array.isArray(tokens)) {
         // Simple array of tokens - use current account
         update(cache => {
-          // Ensure tokens have balance data
-          const tokensWithBalance = tokens.map(token => ({
-            ...token,
-            balance: token.balance || token.qty || '0',
-            qty: token.qty || token.balance || '0'
-          }));
+          // Ensure tokens have balance data - CRITICAL FIX
+          const tokensWithBalance = tokens.map(token => {
+            // Preserve all original fields and ensure balance/qty are set
+            const balance = token.balance || token.qty || '0';
+            const qty = token.qty || token.balance || '0';
+            
+            // Calculate value if missing
+            let value = token.value;
+            if (!value && token.price && qty) {
+              // Calculate value = price * qty
+              const qtyNum = typeof qty === 'string' ? parseFloat(qty) : Number(qty);
+              const priceNum = typeof token.price === 'number' ? token.price : parseFloat(token.price || '0');
+              value = BigInt(Math.round(priceNum * qtyNum * 100)); // Store as cents in bigint
+            }
+            
+            return {
+              ...token,
+              balance,
+              qty,
+              value: value || 0n
+            };
+          });
 
           // Calculate total value properly
           const totalValue = tokensWithBalance.reduce((sum, token) => {

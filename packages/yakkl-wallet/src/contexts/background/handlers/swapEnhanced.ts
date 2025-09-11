@@ -1,7 +1,8 @@
 import type { MessageHandlerFunc, MessageResponse } from './MessageHandler';
 import { UniswapSwapManager } from '$lib/managers/UniswapSwapManager';
 import { getInstances } from '$lib/common';
-import { getYakklCurrentlySelected, getMiscStore, getYakklAccounts } from '$lib/common/stores';
+import { getYakklAccounts } from '$lib/common/stores';
+import { getYakklCurrentlySelected } from '$lib/common/currentlySelected';
 import { ethers } from 'ethers-v6';
 import { log } from '$lib/common/logger-wrapper';
 import { Token } from '@uniswap/sdk-core';

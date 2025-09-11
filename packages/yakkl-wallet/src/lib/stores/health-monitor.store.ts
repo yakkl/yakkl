@@ -6,6 +6,7 @@
 import { writable, derived, get } from 'svelte/store';
 import { providerRoutingManager } from '$lib/managers/ProviderRoutingManager';
 import type { ProviderStats } from '$lib/managers/ProviderRoutingManager';
+import { audioAlertService } from '$lib/services/audio-alert.service';
 
 export interface HealthStatus {
   provider: string;
@@ -68,6 +69,8 @@ export const healthIcon = derived(healthData, ($health) => {
 
 class HealthMonitorService {
   private updateTimer: NodeJS.Timeout | null = null;
+  private previousOverallHealth: 'healthy' | 'degraded' | 'critical' | null = null;
+  private previousActiveProvider: string | null = null;
   
   constructor() {
     // Start monitoring
@@ -123,6 +126,9 @@ class HealthMonitorService {
       ? stats.reduce((sum, s) => sum + s.avgResponseTime, 0) / stats.length 
       : 0;
 
+    // Check for status changes and play alerts
+    this.checkForAlerts(overall, currentProvider);
+    
     // Update store
     healthData.set({
       overall,
@@ -132,6 +138,41 @@ class HealthMonitorService {
       totalRequests,
       avgResponseTime
     });
+    
+    // Update previous states
+    this.previousOverallHealth = overall;
+    this.previousActiveProvider = currentProvider;
+  }
+  
+  /**
+   * Check for status changes and trigger audio alerts
+   */
+  private async checkForAlerts(
+    currentHealth: 'healthy' | 'degraded' | 'critical',
+    currentProvider: string | null
+  ): Promise<void> {
+    // Check overall health changes
+    if (this.previousOverallHealth && this.previousOverallHealth !== currentHealth) {
+      if (currentHealth === 'critical') {
+        await audioAlertService.playAlert('critical');
+      } else if (currentHealth === 'degraded' && this.previousOverallHealth === 'healthy') {
+        await audioAlertService.playAlert('degraded');
+      } else if (currentHealth === 'healthy' && this.previousOverallHealth !== 'healthy') {
+        await audioAlertService.playAlert('networkRestored');
+      }
+    }
+    
+    // Check provider changes
+    if (this.previousActiveProvider && 
+        currentProvider && 
+        this.previousActiveProvider !== currentProvider) {
+      await audioAlertService.playAlert('providerSwitch');
+    }
+    
+    // Check for network down (all providers failed)
+    if (!this.previousOverallHealth && currentHealth === 'critical') {
+      await audioAlertService.playAlert('networkDown');
+    }
   }
 
   /**

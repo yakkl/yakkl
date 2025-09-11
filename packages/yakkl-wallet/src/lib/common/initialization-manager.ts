@@ -28,19 +28,16 @@ class InitializationManager {
   async initialize(initFunc: () => Promise<void>): Promise<void> {
     // If already initialized, return immediately
     if (this.initialized) {
-      console.debug('[InitializationManager] Already initialized, skipping');
       return;
     }
 
     // If initialization is in progress, return the existing promise
     if (this.initPromise) {
-      console.debug('[InitializationManager] Initialization already in progress, waiting...');
       return this.initPromise;
     }
 
     // Start new initialization
     this.initStartTime = Date.now();
-    console.info('[InitializationManager] Starting initialization');
 
     this.initPromise = this.performInitialization(initFunc);
 
@@ -48,9 +45,7 @@ class InitializationManager {
       await this.initPromise;
       this.initialized = true;
       const duration = Date.now() - this.initStartTime;
-      console.info(`[InitializationManager] Initialization completed in ${duration}ms`);
     } catch (error) {
-      console.error('[InitializationManager] Initialization failed:', error);
       // Reset so it can be retried
       this.initPromise = null;
       this.initStartTime = null;
@@ -71,10 +66,7 @@ class InitializationManager {
         initFunc(),
         timeoutPromise
       ]);
-
-      console.log('[InitializationManager] performInitialization: Initialization completed');
     } catch (error) {
-      console.error('[InitializationManager] Error during initialization:', error);
       throw error;
     }
   }

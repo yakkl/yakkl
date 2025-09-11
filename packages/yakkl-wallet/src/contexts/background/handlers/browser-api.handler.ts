@@ -35,8 +35,6 @@ export async function handleBrowserAPIMessage(
   const startTime = Date.now();
 
   try {
-    log.debug(`[BrowserAPI] Handling ${message.type}`, false, message.payload);
-
     let result: any;
 
     switch (message.type) {
@@ -163,8 +161,6 @@ export async function handleBrowserAPIMessage(
         throw new Error(`Unknown browser API message type: ${message.type}`);
     }
 
-    log.debug(`[BrowserAPI] Completed ${message.type} in ${Date.now() - startTime}ms`, false);
-
     // Return in the format expected by BaseService
     return {
       success: true,
@@ -172,7 +168,7 @@ export async function handleBrowserAPIMessage(
     };
 
   } catch (error) {
-    log.error(`[BrowserAPI] Error handling ${message.type}`, false, error);
+    log.warn(`[BrowserAPI] Error handling ${message.type}`, false, error);
 
     // Return error in the format expected by BaseService
     return {
@@ -185,7 +181,6 @@ export async function handleBrowserAPIMessage(
 // Storage API implementations
 async function handleStorageGet(payload: StorageGetPayload) {
   if (!payload || !payload.keys) {
-    log.warn('[BrowserAPI] storage.get called with invalid payload', false, payload);
     // Return empty object if no keys specified
     return {};
   }
@@ -194,7 +189,6 @@ async function handleStorageGet(payload: StorageGetPayload) {
 
 async function handleStorageSet(payload: StorageSetPayload) {
   if (!payload || !payload.items) {
-    log.warn('[BrowserAPI] storage.set called with invalid payload', false, payload);
     // Skip if no items to set
     return { success: true };
   }
@@ -204,7 +198,6 @@ async function handleStorageSet(payload: StorageSetPayload) {
 
 async function handleStorageRemove(payload: StorageRemovePayload) {
   if (!payload || !payload.keys) {
-    log.warn('[BrowserAPI] storage.remove called with invalid payload', false, payload);
     // Skip if no keys to remove
     return { success: true };
   }
@@ -219,7 +212,6 @@ async function handleStorageClear() {
 
 async function handleStorageSyncGet(payload: StorageGetPayload) {
   if (!payload || !payload.keys) {
-    log.warn('[BrowserAPI] storage.sync.get called with invalid payload', false, payload);
     // Return empty object if no keys specified
     return {};
   }
@@ -228,7 +220,6 @@ async function handleStorageSyncGet(payload: StorageGetPayload) {
 
 async function handleStorageSyncSet(payload: StorageSetPayload) {
   if (!payload || !payload.items) {
-    log.warn('[BrowserAPI] storage.sync.set called with invalid payload', false, payload);
     // Skip if no items to set
     return { success: true };
   }
@@ -282,8 +273,6 @@ async function handleRuntimeGetPlatformInfo() {
 
 async function handleRuntimeSendMessage(payload: RuntimeSendMessagePayload) {
   const { message, extensionId } = payload;
-  log.info('[BrowserAPI] runtime.sendMessage:', false, { extensionId, messageType: message?.type });
-
   // Send message and wait for response
   const response = await browser.runtime.sendMessage(extensionId, message);
   return response;
@@ -291,8 +280,6 @@ async function handleRuntimeSendMessage(payload: RuntimeSendMessagePayload) {
 
 async function handleRuntimeConnect(payload: RuntimeConnectPayload) {
   const { extensionId, connectInfo } = payload;
-  log.info('[BrowserAPI] runtime.connect:', false, { extensionId, connectInfo });
-
   // Create port connection
   const port = browser.runtime.connect(extensionId, connectInfo);
 
@@ -315,63 +302,51 @@ async function handleRuntimeConnect(payload: RuntimeConnectPayload) {
 }
 
 async function handleRuntimeReload() {
-  log.info('[BrowserAPI] runtime.reload');
   browser.runtime.reload();
   return { success: true };
 }
 
 async function handleRuntimeOpenOptionsPage() {
-  log.info('[BrowserAPI] runtime.openOptionsPage');
   await browser.runtime.openOptionsPage();
   return { success: true };
 }
 
 async function handleRuntimeGetLastError() {
-  log.info('[BrowserAPI] runtime.lastError');
   return browser.runtime.lastError || null;
 }
 
 // Action API implementations
 async function handleActionSetIcon(payload: ActionSetIconPayload) {
   if (!payload || !payload.details) {
-    log.warn('[BrowserAPI] action.setIcon called with invalid payload', false, payload);
     // Skip icon update if no payload
     return { success: true };
   }
-  
+
   const { details } = payload;
-  log.info('[BrowserAPI] action.setIcon', false, details);
   await browser.action.setIcon(details);
   return { success: true };
 }
 
 async function handleActionSetBadgeText(payload: ActionSetBadgeTextPayload) {
   if (!payload || !payload.details) {
-    log.warn('[BrowserAPI] action.setBadgeText called with invalid payload', false, payload);
     // Default to empty text if no payload
     await browser.action.setBadgeText({ text: '' });
     return { success: true };
   }
-  
+
   const { details } = payload;
-  // log.info('[BrowserAPI] action.setBadgeText', false, details);
-
-  console.log('[BrowserAPI] action.setBadgeText', details);
-
   await browser.action.setBadgeText(details);
   return { success: true };
 }
 
 async function handleActionSetBadgeBackgroundColor(payload: ActionSetBadgeBackgroundColorPayload) {
   if (!payload || !payload.details) {
-    log.warn('[BrowserAPI] action.setBadgeBackgroundColor called with invalid payload', false, payload);
     // Default to transparent if no payload
     await browser.action.setBadgeBackgroundColor({ color: [0, 0, 0, 0] } as any);
     return { success: true };
   }
-  
+
   const { details } = payload;
-  log.info('[BrowserAPI] action.setBadgeBackgroundColor', false, details);
   await browser.action.setBadgeBackgroundColor(details.color as any);
   return { success: true };
 }
@@ -381,22 +356,19 @@ async function handleActionGetBadgeText(payload: ActionGetBadgeTextPayload) {
     // Use empty object as default if no payload
     return browser.action.getBadgeText({});
   }
-  
+
   const { details } = payload;
-  log.info('[BrowserAPI] action.getBadgeText', false, details);
   return browser.action.getBadgeText(details || {});
 }
 
 async function handleActionSetTitle(payload: ActionSetTitlePayload) {
   if (!payload || !payload.details) {
-    log.warn('[BrowserAPI] action.setTitle called with invalid payload', false, payload);
     // Default to empty title if no payload
     await browser.action.setTitle({ title: 'YAKKL' });
     return { success: true };
   }
-  
+
   const { details } = payload;
-  log.info('[BrowserAPI] action.setTitle', false, details);
   await browser.action.setTitle(details);
   return { success: true };
 }

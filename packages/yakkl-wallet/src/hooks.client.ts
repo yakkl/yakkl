@@ -14,8 +14,6 @@ import browser from '$lib/common/browser-wrapper';
 import { initializationManager } from '$lib/common/initialization-manager';
 import { initializeBrowserPolyfill } from '$lib/common/browser-polyfill-unified';
 
-console.log('[hooks.client] hooks.client.ts loaded');
-
 // Helper function to check if context needs idle protection
 function contextNeedsIdleProtection(contextType: string): boolean {
 	return protectedContexts.includes(contextType);
@@ -175,12 +173,8 @@ export function getContextType(): string {
 async function performUIInitialization() {
 	if (!isClient) return; // Skip initialization on server
 
-	log.info('[hooks.client] Starting UI initialization');
-	console.log('[hooks.client] Starting UI initialization');
-
 	// Ensure browser polyfill is loaded first
 	await initializeBrowserPolyfill();
-	console.log('[hooks.client] Browser polyfill ready');
 
 	try {
 		await getYakklSettings();
@@ -202,46 +196,31 @@ async function performUIInitialization() {
 	// Get context type for this initialization
 	const contextType = getContextType();
 
-	// Initialize messaging service if browser API is available
-	log.info('Checking browser API availability:', false, { browser: !!browser });
-	console.log('[hooks.client] Checking browser API availability:', { browser: !!browser });
 	if (browser) {
-		log.info('Initializing messaging service with browser API');
-		console.log('[hooks.client] Initializing messaging service with browser API');
 		try {
 			initializeMessaging(browser);
 			await initializeUiContext(browser, contextType);
-
-			log.info('UI context registered successfully with background');
-			console.log('[hooks.client] UI context registered successfully with background');
 		} catch (error) {
-			log.warn('Failed to initialize messaging service:', false, error);
 			console.log('[hooks.client] Failed to initialize messaging service:', error);
 		}
 	} else {
-		log.warn('Browser API not available, messaging service not initialized');
 		console.log('[hooks.client] Browser API not available, messaging service not initialized');
 	}
 
 	// Set up UI listeners through the manager
 	await setupUIListeners();
-	console.log('[hooks.client] UI listeners setup');
 
 	// Mark as initialized
 	window.EXTENSION_INIT_STATE.initialized = true;
-	log.info('[hooks.client] UI initialization completed successfully');
-	console.log('[hooks.client] UI initialization completed successfully');
 }
 
 export async function init() {
 	if (!isClient) return;
 
 	// Use centralized initialization manager to prevent race conditions
-	console.log('[hooks.client] Delegating to InitializationManager');
 	try {
 		await initializationManager.initialize(performUIInitialization);
 	} catch (error: any) {
-		console.error(`[${CONTEXT_ID}] Initialization failed:`, error);
 		handleError(error);
 		// Still mark as initialized to prevent infinite retries
 		if (window.EXTENSION_INIT_STATE) {
@@ -264,14 +243,13 @@ export function handleError(error: Error) {
 
 // Export for SvelteKit hooks
 export const handleClientError = ({ error, event }: any) => {
-	console.error('Client error:', {
+	console.warn('Client error:', {
 		error: error?.message || error,
 		url: event?.url?.href
 	});
 
 	// Check if this is a navigation error
 	if (error?.message?.includes('navigate') || error?.message?.includes('Navigation')) {
-		console.warn('Navigation error in hooks, preventing reload');
 		// Return a safe error that won't trigger a reload
 		return {
 			message: 'Navigation temporarily unavailable',
@@ -332,8 +310,6 @@ async function setupUIListeners() {
 
 // Run init early, but only in browser context
 if (isClient) {
-	// Initialize immediately - InitializationManager will handle coordination
-	console.log('[hooks.client] Starting initialization');
 	init().catch((err) => {
 		console.warn(`[${CONTEXT_ID}] Failed to initialize:`, err);
 	});

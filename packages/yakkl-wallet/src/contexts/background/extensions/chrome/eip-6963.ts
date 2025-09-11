@@ -193,7 +193,11 @@ function setupMessageListener() {
     }
   );
 
-  browser.runtime.onMessage.addListener(safeEIP6963Handler as any);
+  if (browser?.runtime?.onMessage) {
+    browser.runtime.onMessage.addListener(safeEIP6963Handler as any);
+  } else {
+    log.error('browser.runtime.onMessage not available for EIP-6963 handler');
+  }
 }
 
 export function initializeEIP6963() {
@@ -205,18 +209,20 @@ export function initializeEIP6963() {
     // Initialize the permissions system
     initializePermissions();
 
-    log.info('initializeEIP6963 - browser.runtime.onConnect', false);
+    log.info('initializeEIP6963 - checking browser.runtime.onConnect', false);
 
-    browser.runtime.onConnect.addListener((port: RuntimePort) => {
-      if (port.name !== YAKKL_PROVIDER_EIP6963) return;
+    // Check if browser.runtime.onConnect is available before using it
+    if (browser?.runtime?.onConnect) {
+      browser.runtime.onConnect.addListener((port: RuntimePort) => {
+        if (port.name !== YAKKL_PROVIDER_EIP6963) return;
 
-      const portId = `eip6963_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
-      eip6963Ports.set(portId, port);
+        const portId = `eip6963_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+        eip6963Ports.set(portId, port);
 
-      log.warn('EIP-6963 port connected', false, { portId });
+        log.warn('EIP-6963 port connected', false, { portId });
 
-      // Use the exported onEIP6963Listener directly
-      port.onMessage.addListener(async (message: unknown) => {
+        // Use the exported onEIP6963Listener directly
+        port.onMessage.addListener(async (message: unknown) => {
         log.debug('Received message in EIP-6963 port', false, { message, portId });
         await onEIP6963Listener(message, port);
       });
@@ -230,6 +236,10 @@ export function initializeEIP6963() {
         }
       });
     });
+    } else {
+      // This can happen if called too early - not a critical error
+      log.warn('browser.runtime.onConnect not yet available for EIP-6963 - will retry on next initialization');
+    }
 
     // Set up a periodic check for timed-out requests
     // setInterval(() => {

@@ -10,6 +10,7 @@ import type { Runtime } from 'webextension-polyfill';
 import { handleBrowserAPIMessage } from './browser-api.handler';
 import { log } from '$lib/managers/Logger';
 import { safePortPostMessage } from '$lib/common/safePortMessaging';
+import { encryptData, decryptData } from '$lib/common/encryption';
 
 interface PortMessage {
   id: string;
@@ -152,8 +153,6 @@ async function handleDecrypt(payload: any): Promise<any> {
   }
   
   try {
-    // Import your decryption function
-    const { decryptData } = await import('$lib/common/encryption');
     const decrypted = await decryptData(encryptedData, globalThis.__yakklDigest);
     
     log.debug('[BrowserAPIPort] Data decrypted successfully');
@@ -180,8 +179,6 @@ async function handleEncrypt(payload: any): Promise<any> {
   }
   
   try {
-    // Import your encryption function
-    const { encryptData } = await import('$lib/common/encryption');
     const encrypted = await encryptData(data, globalThis.__yakklDigest);
     
     log.debug('[BrowserAPIPort] Data encrypted successfully');

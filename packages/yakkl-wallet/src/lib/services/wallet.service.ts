@@ -7,10 +7,11 @@ import { get } from 'svelte/store';
 import {
   yakklAccountsStore,
   yakklCurrentlySelectedStore,
-  yakklSettingsStore,
-  setYakklAccountsStorage,
-  setYakklCurrentlySelectedStorage
+  setYakklCurrentlySelectedStorage,
+  getYakklAccounts,
+  getYakklSettings
 } from '$lib/common/stores';
+import { getYakklCurrentlySelected } from '$lib/common/currentlySelected';
 import { getSafeUUID } from '$lib/common/uuid';
 import { walletStore } from '$lib/managers/Wallet';
 import { DEFAULT_CHAINS } from '$lib/config/chains';
@@ -19,6 +20,7 @@ import { browser_ext } from '$lib/common/environment';
 import { log } from '$lib/common/logger-wrapper';
 import { getInstances } from '$lib/common/wallet';
 import { ethers } from 'ethers-v6';
+import { setYakklAccountsStorage } from '$lib/common/accounts';
 
 export class WalletService extends BaseService {
   private static instance: WalletService;
@@ -36,16 +38,22 @@ export class WalletService extends BaseService {
 
   async getAccounts(): Promise<ServiceResponse<AccountDisplay[]>> {
     try {
-      // Get from actual YAKKL stores
-      const accounts = get(yakklAccountsStore);
-      const settings = get(yakklSettingsStore);
+      // Get accounts directly from storage to avoid race conditions
+      const accounts = await getYakklAccounts();
+      const settings = await getYakklSettings();
+
+      log.info('[WalletService.getAccounts] Loaded accounts:', false, {
+        count: accounts?.length || 0,
+        hasAccounts: !!accounts,
+        firstAccount: accounts?.[0]?.address
+      });
 
       if (accounts && accounts.length > 0) {
         // Transform to AccountDisplay format
         const displayAccounts: AccountDisplay[] = accounts.map((acc: YakklAccount) => ({
           address: acc.address || '',
           ens: acc.alias || null,
-          username: acc.name || '',
+          name: acc.name || '',
           avatar: acc.avatar || null,
           isActive: acc.isActive || true,
           balance: acc.quantity?.toString() || '0',
@@ -62,7 +70,7 @@ export class WalletService extends BaseService {
         }));
 
         return { success: true, data: displayAccounts };
-        
+
       }
 
       // No accounts found in store
@@ -77,18 +85,24 @@ export class WalletService extends BaseService {
 
   async getCurrentAccount(): Promise<ServiceResponse<AccountDisplay | null>> {
     try {
-      const currentlySelected = get(yakklCurrentlySelectedStore);
-      const settings = get(yakklSettingsStore);
+      const currentlySelected = await getYakklCurrentlySelected();
+      const settings = await getYakklSettings();
 
-      if (currentlySelected?.shortcuts?.address) {
-        const accounts = get(yakklAccountsStore);
-        const account = accounts?.find((acc: YakklAccount) => acc.address === currentlySelected.shortcuts.address);
+      // Check if we have a valid address (not zero address and not empty)
+      const selectedAddress = currentlySelected?.shortcuts?.address;
+      const isValidAddress = selectedAddress &&
+        selectedAddress !== "0x0000000000000000000000000000000000000000" &&
+        selectedAddress.trim().length > 0;
+
+      if (isValidAddress) {
+        const accounts = await getYakklAccounts();
+        const account = accounts?.find((acc: YakklAccount) => acc.address === selectedAddress);
 
         if (account) {
           const displayAccount: AccountDisplay = {
             address: account.address || '',
             ens: account.alias || null,
-            username: account.name || '',
+            name: account.name || '',
             avatar: account.avatar || null,
             isActive: account.isActive || true,
             balance: account.quantity?.toString() || '0',
@@ -105,13 +119,39 @@ export class WalletService extends BaseService {
           };
 
           return { success: true, data: displayAccount };
+        } else {
+          // Address is set but no matching account found - this is unusual
+          log.warn('[WalletService] getCurrentAccount: Selected address not found in accounts', false, selectedAddress);
         }
+      } else {
+        // No valid address selected - this is the typical case for new wallets
+        log.info('[WalletService] getCurrentAccount: No valid address selected, will fallback to first account');
       }
 
-      // Fallback to first account
+      // Fallback to first account AND sync yakklCurrentlySelected
       const accountsResponse = await this.getAccounts();
       if (accountsResponse.success && accountsResponse.data && accountsResponse.data.length > 0) {
-        return { success: true, data: accountsResponse.data[0] };
+        const firstAccount = accountsResponse.data[0];
+
+        // CRITICAL: Sync yakklCurrentlySelected.shortcuts.address with the valid account
+        // This ensures consistency between what's displayed and what's stored
+        if (currentlySelected && firstAccount.address) {
+          log.info('[WalletService] Syncing yakklCurrentlySelected.shortcuts.address to first account:', firstAccount.address);
+
+          // Update the shortcuts with valid data
+          currentlySelected.shortcuts.address = firstAccount.address;
+          currentlySelected.shortcuts.accountName = firstAccount.name || '';
+          // Use the enum value directly instead of type casting
+          currentlySelected.shortcuts.accountType = AccountTypeCategory.PRIMARY;
+
+          // Persist the updated selection
+          await setYakklCurrentlySelectedStorage(currentlySelected);
+
+          // Note: Account store will handle the sync via its own mechanisms
+          // We've updated yakklCurrentlySelected which is the source of truth
+        }
+
+        return { success: true, data: firstAccount };
       }
 
       return { success: true, data: null };
@@ -332,7 +372,7 @@ export class WalletService extends BaseService {
       const displayAccount: AccountDisplay = {
         address: newAccount.address,
         ens: newAccount.alias || null,
-        username: newAccount.name,
+        name: newAccount.name,
         avatar: null,
         isActive: false,
         balance: '0',

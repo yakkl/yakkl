@@ -1,6 +1,6 @@
 /**
  * Browser API Service
- * 
+ *
  * Provides a clean, SSR-safe interface to browser extension APIs
  * by using message passing to the background context.
  */
@@ -32,12 +32,11 @@ import { log } from '$lib/managers/Logger';
 class BrowserAPIService extends BaseService {
   private static instance: BrowserAPIService;
   private requestId = 0;
-  
+
   private constructor() {
     super('BrowserAPIService');
-    console.log('[BrowserAPI] Service initialized');
   }
-  
+
   /**
    * Get singleton instance of BrowserAPIService
    */
@@ -47,14 +46,14 @@ class BrowserAPIService extends BaseService {
     }
     return BrowserAPIService.instance;
   }
-  
+
   /**
    * Generate a unique request ID
    */
   private generateRequestId(): string {
     return `browser-api-${Date.now()}-${++this.requestId}`;
   }
-  
+
   /**
    * Send a browser API request to the background
    */
@@ -68,68 +67,50 @@ class BrowserAPIService extends BaseService {
       payload: payload || {},
       timestamp: Date.now()
     };
-    
-    console.log(`[BrowserAPI] Sending request:`, {
-      type,
-      requestId: request.id,
-      payload,
-      hasPort: !!this.port,
-      portName: this.port?.name
-    });
-    
+
     try {
       const serviceResponse = await this.sendMessage(request);
-      
-      console.log(`[BrowserAPI] Received response:`, {
-        type,
-        success: serviceResponse.success,
-        hasData: !!serviceResponse.data,
-        error: serviceResponse.error
-      });
-      
+
       if (!serviceResponse.success) {
         throw new Error(serviceResponse.error?.message || 'Browser API request failed');
       }
-      
+
       // The background handler returns the data directly in the service response
       return serviceResponse.data as T;
     } catch (error) {
-      console.error(`[BrowserAPI] Request failed:`, {
+      log.warn(`[BrowserAPI] Request failed:`, false, {
         type,
         error: error instanceof Error ? error.message : error,
         stack: error instanceof Error ? error.stack : undefined
       });
-      log.error(`[BrowserAPI] Failed to execute ${type}`, false, error);
       throw error;
     }
   }
-  
+
   // ===============================
   // Storage API Methods
   // ===============================
-  
+
   /**
    * Get items from local storage
    */
   async storageGet(keys?: string | string[] | Record<string, any> | null): Promise<Record<string, any>> {
-    console.log('[BrowserAPI] storageGet called:', { keys });
     return this.sendBrowserAPIRequest(
       BrowserAPIMessageType.BROWSER_API_STORAGE_GET,
       { keys } as StorageGetPayload
     );
   }
-  
+
   /**
    * Set items in local storage
    */
   async storageSet(items: Record<string, any>): Promise<void> {
-    console.log('[BrowserAPI] storageSet called:', { items, keys: Object.keys(items) });
     await this.sendBrowserAPIRequest(
       BrowserAPIMessageType.BROWSER_API_STORAGE_SET,
       { items } as StorageSetPayload
     );
   }
-  
+
   /**
    * Remove items from local storage
    */
@@ -139,7 +120,7 @@ class BrowserAPIService extends BaseService {
       { keys } as StorageRemovePayload
     );
   }
-  
+
   /**
    * Clear all local storage
    */
@@ -148,7 +129,7 @@ class BrowserAPIService extends BaseService {
       BrowserAPIMessageType.BROWSER_API_STORAGE_CLEAR
     );
   }
-  
+
   /**
    * Get items from sync storage
    */
@@ -158,7 +139,7 @@ class BrowserAPIService extends BaseService {
       { keys } as StorageGetPayload
     );
   }
-  
+
   /**
    * Set items in sync storage
    */
@@ -168,11 +149,11 @@ class BrowserAPIService extends BaseService {
       { items } as StorageSetPayload
     );
   }
-  
+
   // ===============================
   // Tabs API Methods
   // ===============================
-  
+
   /**
    * Query tabs
    */
@@ -182,7 +163,7 @@ class BrowserAPIService extends BaseService {
       queryInfo
     );
   }
-  
+
   /**
    * Create a new tab
    */
@@ -192,7 +173,7 @@ class BrowserAPIService extends BaseService {
       createProperties
     );
   }
-  
+
   /**
    * Update a tab
    */
@@ -202,7 +183,7 @@ class BrowserAPIService extends BaseService {
       { tabId, updateProperties } as TabsUpdatePayload
     );
   }
-  
+
   /**
    * Get the current tab
    */
@@ -211,11 +192,11 @@ class BrowserAPIService extends BaseService {
       BrowserAPIMessageType.BROWSER_API_TABS_GET_CURRENT
     );
   }
-  
+
   // ===============================
   // Windows API Methods
   // ===============================
-  
+
   /**
    * Create a new window
    */
@@ -225,7 +206,7 @@ class BrowserAPIService extends BaseService {
       createData
     );
   }
-  
+
   /**
    * Get the current window
    */
@@ -234,7 +215,7 @@ class BrowserAPIService extends BaseService {
       BrowserAPIMessageType.BROWSER_API_WINDOWS_GET_CURRENT
     );
   }
-  
+
   /**
    * Get all windows
    */
@@ -243,11 +224,11 @@ class BrowserAPIService extends BaseService {
       BrowserAPIMessageType.BROWSER_API_WINDOWS_GET_ALL
     );
   }
-  
+
   // ===============================
   // Runtime API Methods
   // ===============================
-  
+
   /**
    * Get the extension manifest
    */
@@ -256,7 +237,7 @@ class BrowserAPIService extends BaseService {
       BrowserAPIMessageType.BROWSER_API_RUNTIME_GET_MANIFEST
     );
   }
-  
+
   /**
    * Get a URL relative to the extension
    */
@@ -266,7 +247,7 @@ class BrowserAPIService extends BaseService {
       { path } as RuntimeGetURLPayload
     );
   }
-  
+
   /**
    * Get platform info
    */
@@ -275,7 +256,7 @@ class BrowserAPIService extends BaseService {
       BrowserAPIMessageType.BROWSER_API_RUNTIME_GET_PLATFORM_INFO
     );
   }
-  
+
   /**
    * Send a message to the extension background or other parts
    * Critical for client-background communication
@@ -286,13 +267,13 @@ class BrowserAPIService extends BaseService {
       { message, extensionId } as RuntimeSendMessagePayload
     );
   }
-  
+
   /**
    * Establish a persistent connection (port)
    * Used for long-lived communication channels
    */
   async runtimeConnect(extensionId?: string, connectInfo?: { name?: string; includeTlsChannelId?: boolean }): Promise<any> {
-    // Note: This will return port details, but the actual port 
+    // Note: This will return port details, but the actual port
     // object can't cross the execution boundary. The background
     // will maintain the port and route messages appropriately.
     return this.sendBrowserAPIRequest(
@@ -300,7 +281,7 @@ class BrowserAPIService extends BaseService {
       { extensionId, connectInfo } as RuntimeConnectPayload
     );
   }
-  
+
   /**
    * Reload the extension
    */
@@ -309,7 +290,7 @@ class BrowserAPIService extends BaseService {
       BrowserAPIMessageType.BROWSER_API_RUNTIME_RELOAD
     );
   }
-  
+
   /**
    * Open the options page
    */
@@ -318,7 +299,7 @@ class BrowserAPIService extends BaseService {
       BrowserAPIMessageType.BROWSER_API_RUNTIME_OPEN_OPTIONS_PAGE
     );
   }
-  
+
   /**
    * Get the last runtime error
    */
@@ -327,16 +308,16 @@ class BrowserAPIService extends BaseService {
       BrowserAPIMessageType.BROWSER_API_RUNTIME_GET_LAST_ERROR
     );
   }
-  
+
   /**
    * Note: Event listeners like runtime.onMessage are handled differently
    * Since we can't directly attach listeners from the client context,
    * messages are routed through the existing BaseService messaging system.
-   * 
+   *
    * To listen for messages in your component:
    * - Use the existing message handling in BaseService
    * - Or create a dedicated listener service that extends BaseService
-   * 
+   *
    * Example:
    * ```typescript
    * class MyMessageListener extends BaseService {
@@ -344,18 +325,18 @@ class BrowserAPIService extends BaseService {
    *     super('MyMessageListener');
    *     // Messages will be automatically routed to handleMessage
    *   }
-   *   
+   *
    *   protected async handleMessage(message: any): Promise<any> {
    *     // Handle incoming messages here
    *   }
    * }
    * ```
    */
-  
+
   // ===============================
   // Action API Methods
   // ===============================
-  
+
   /**
    * Set the extension action icon
    */
@@ -365,7 +346,7 @@ class BrowserAPIService extends BaseService {
       { details } as ActionSetIconPayload
     );
   }
-  
+
   /**
    * Set the badge text on the extension action
    */
@@ -375,7 +356,7 @@ class BrowserAPIService extends BaseService {
       { details } as ActionSetBadgeTextPayload
     );
   }
-  
+
   /**
    * Set the badge background color
    */
@@ -385,7 +366,7 @@ class BrowserAPIService extends BaseService {
       { details } as ActionSetBadgeBackgroundColorPayload
     );
   }
-  
+
   /**
    * Get the badge text
    */
@@ -395,7 +376,7 @@ class BrowserAPIService extends BaseService {
       { details: details || {} } as ActionGetBadgeTextPayload
     );
   }
-  
+
   /**
    * Set the action title (tooltip)
    */
@@ -405,11 +386,11 @@ class BrowserAPIService extends BaseService {
       { details } as ActionSetTitlePayload
     );
   }
-  
+
   // ===============================
   // Notifications API Methods
   // ===============================
-  
+
   /**
    * Create a notification
    */
@@ -422,11 +403,11 @@ class BrowserAPIService extends BaseService {
       { notificationId, options } as NotificationCreatePayload
     );
   }
-  
+
   // ===============================
   // Idle API Methods
   // ===============================
-  
+
   /**
    * Query the idle state
    */
@@ -435,11 +416,11 @@ class BrowserAPIService extends BaseService {
       BrowserAPIMessageType.BROWSER_API_IDLE_QUERY_STATE
     );
   }
-  
+
   // ===============================
   // Convenience Methods
   // ===============================
-  
+
   /**
    * Get a single storage item
    */
@@ -447,21 +428,21 @@ class BrowserAPIService extends BaseService {
     const result = await this.storageGet(key);
     return result[key];
   }
-  
+
   /**
    * Set a single storage item
    */
   async setStorageItem(key: string, value: any): Promise<void> {
     await this.storageSet({ [key]: value });
   }
-  
+
   /**
    * Remove a single storage item
    */
   async removeStorageItem(key: string): Promise<void> {
     await this.storageRemove(key);
   }
-  
+
   /**
    * Check if we're in a popup window
    */
@@ -473,7 +454,7 @@ class BrowserAPIService extends BaseService {
       return false;
     }
   }
-  
+
   /**
    * Open the extension options page
    */

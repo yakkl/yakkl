@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import { currentAccount, accounts } from '$lib/stores/account.store';
   import { visibleChains } from '$lib/stores/chain.store';
-  import { getProfile, getYakklSettings, getYakklPrimaryAccounts } from '$lib/common/stores';
+  import { getYakklSettings, getYakklPrimaryAccounts } from '$lib/common/stores';
+  import { getProfile } from '$lib/common/profile';
   import { VERSION, type Profile, type YakklSettings, type YakklPrimaryAccount } from '$lib/common';
   import { sensitiveOperations } from '$lib/services/sensitiveOperations.service';
   import { notificationService } from '$lib/services/notification.service';

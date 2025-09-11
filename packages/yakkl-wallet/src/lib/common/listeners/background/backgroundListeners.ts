@@ -209,19 +209,35 @@ globalListenerManager.registerContext('background', backgroundListenerManager);
 
 export function addBackgroundListeners() {
 	// These check to see if already added and if so, remove and re-add
-	backgroundListenerManager.add(browser.runtime.onMessage, onUnifiedMessageListener);
+	if (browser?.runtime?.onMessage) {
+		backgroundListenerManager.add(browser.runtime.onMessage, onUnifiedMessageListener);
+	}
 
-	backgroundListenerManager.add(browser.runtime.onMessageExternal, onYakklPageListener);
-	backgroundListenerManager.add(browser.runtime.onMessageExternal, onExternalMessageListener);
+	if (browser?.runtime?.onMessageExternal) {
+		backgroundListenerManager.add(browser.runtime.onMessageExternal, onYakklPageListener);
+		backgroundListenerManager.add(browser.runtime.onMessageExternal, onExternalMessageListener);
+	}
 
-	backgroundListenerManager.add(browser.runtime.onInstalled, onInstalledUpdatedListener);
-	backgroundListenerManager.add(browser.runtime.onConnect, onPortConnectListener);
-	backgroundListenerManager.add(browser.runtime.onConnect, onPortDisconnectListener);
+	if (browser?.runtime?.onInstalled) {
+		backgroundListenerManager.add(browser.runtime.onInstalled, onInstalledUpdatedListener);
+	}
+	if (browser?.runtime?.onConnect) {
+		backgroundListenerManager.add(browser.runtime.onConnect, onPortConnectListener);
+		backgroundListenerManager.add(browser.runtime.onConnect, onPortDisconnectListener);
+	}
 
-	backgroundListenerManager.add(browser.tabs.onActivated, onTabActivatedListener);
-	backgroundListenerManager.add(browser.tabs.onUpdated, onTabUpdatedListener);
-	backgroundListenerManager.add(browser.tabs.onRemoved, onTabRemovedListener);
-	backgroundListenerManager.add(browser.windows.onFocusChanged, onWindowsFocusChangedListener);
+	if (browser?.tabs?.onActivated) {
+		backgroundListenerManager.add(browser.tabs.onActivated, onTabActivatedListener);
+	}
+	if (browser?.tabs?.onUpdated) {
+		backgroundListenerManager.add(browser.tabs.onUpdated, onTabUpdatedListener);
+	}
+	if (browser?.tabs?.onRemoved) {
+		backgroundListenerManager.add(browser.tabs.onRemoved, onTabRemovedListener);
+	}
+	if (browser?.windows?.onFocusChanged) {
+		backgroundListenerManager.add(browser.windows.onFocusChanged, onWindowsFocusChangedListener);
+	}
 }
 
 // Originally used to update the side panel content from the background script triggered by the wallet popup.

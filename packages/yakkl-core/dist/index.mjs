@@ -3477,6 +3477,258 @@ function isValidEmail(email) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 }
+function dateString() {
+  return (/* @__PURE__ */ new Date()).toISOString();
+}
+function getTime() {
+  return (/* @__PURE__ */ new Date()).getTime();
+}
+function formatDate(date) {
+  return date.toLocaleString();
+}
+function formatTimestamp(timestamp, {
+  placeholder = "------",
+  locale = "en-US",
+  options = { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }
+} = {}) {
+  try {
+    if (timestamp === void 0 || typeof timestamp === "number" && Number.isNaN(timestamp)) {
+      return placeholder;
+    }
+    let date;
+    if (typeof timestamp === "string" || typeof timestamp === "number") {
+      date = new Date(timestamp);
+      if (isNaN(date.getTime())) {
+        return placeholder;
+      }
+    } else if (timestamp instanceof Date) {
+      date = timestamp;
+    } else {
+      return placeholder;
+    }
+    return new Intl.DateTimeFormat(locale, options).format(date);
+  } catch (e) {
+    console.error("Error formatting timestamp:", e);
+    return placeholder;
+  }
+}
+function getRelativeTime(date, locale = "en-US") {
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+  const d = typeof date === "object" ? date : new Date(date);
+  const diff = (d.getTime() - Date.now()) / 1e3;
+  const units = [
+    { unit: "year", seconds: 31536e3 },
+    { unit: "month", seconds: 2592e3 },
+    { unit: "week", seconds: 604800 },
+    { unit: "day", seconds: 86400 },
+    { unit: "hour", seconds: 3600 },
+    { unit: "minute", seconds: 60 },
+    { unit: "second", seconds: 1 }
+  ];
+  for (const { unit, seconds } of units) {
+    const interval = Math.floor(Math.abs(diff) / seconds);
+    if (interval >= 1) {
+      return rtf.format(diff < 0 ? -interval : interval, unit);
+    }
+  }
+  return rtf.format(0, "second");
+}
+function isToday(date) {
+  const d = typeof date === "object" ? date : new Date(date);
+  const today = /* @__PURE__ */ new Date();
+  return d.toDateString() === today.toDateString();
+}
+function isYesterday(date) {
+  const d = typeof date === "object" ? date : new Date(date);
+  const yesterday = /* @__PURE__ */ new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  return d.toDateString() === yesterday.toDateString();
+}
+function addDays(date, days) {
+  const d = typeof date === "object" ? new Date(date) : new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+function startOfDay(date) {
+  const d = typeof date === "object" ? new Date(date) : new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+function endOfDay(date) {
+  const d = typeof date === "object" ? new Date(date) : new Date(date);
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+class RateLimiter {
+  constructor(config2) {
+    this.config = config2;
+    this.limits = /* @__PURE__ */ new Map();
+  }
+  /**
+   * Check if an operation is allowed under the rate limit
+   * @param key - Unique identifier for the operation
+   * @returns true if allowed, false if rate limited
+   */
+  isAllowed(key) {
+    const now = Date.now();
+    const entry = this.limits.get(key);
+    if (!entry) {
+      this.limits.set(key, {
+        count: 1,
+        windowStart: now
+      });
+      return true;
+    }
+    if (now - entry.windowStart > this.config.windowMs) {
+      this.limits.set(key, {
+        count: 1,
+        windowStart: now
+      });
+      return true;
+    }
+    if (entry.count >= this.config.maxRequests) {
+      return false;
+    }
+    entry.count++;
+    return true;
+  }
+  /**
+   * Check if an operation is allowed and get detailed info
+   * @param key - Unique identifier for the operation
+   * @returns Result object with allowed status and metadata
+   */
+  check(key) {
+    const now = Date.now();
+    const entry = this.limits.get(key);
+    if (!entry) {
+      this.limits.set(key, {
+        count: 1,
+        windowStart: now
+      });
+      return {
+        allowed: true,
+        remaining: this.config.maxRequests - 1,
+        resetTime: now + this.config.windowMs
+      };
+    }
+    if (now - entry.windowStart > this.config.windowMs) {
+      this.limits.set(key, {
+        count: 1,
+        windowStart: now
+      });
+      return {
+        allowed: true,
+        remaining: this.config.maxRequests - 1,
+        resetTime: now + this.config.windowMs
+      };
+    }
+    const allowed = entry.count < this.config.maxRequests;
+    if (allowed) {
+      entry.count++;
+    }
+    return {
+      allowed,
+      remaining: Math.max(0, this.config.maxRequests - entry.count),
+      resetTime: entry.windowStart + this.config.windowMs
+    };
+  }
+  /**
+   * Get remaining time until rate limit resets
+   * @param key - Unique identifier for the operation
+   * @returns milliseconds until reset, or 0 if not rate limited
+   */
+  getResetTime(key) {
+    const entry = this.limits.get(key);
+    if (!entry) return 0;
+    const now = Date.now();
+    const windowEnd = entry.windowStart + this.config.windowMs;
+    if (now >= windowEnd) return 0;
+    return windowEnd - now;
+  }
+  /**
+   * Get the number of remaining requests for a key
+   * @param key - Unique identifier for the operation
+   * @returns Number of remaining requests in current window
+   */
+  getRemaining(key) {
+    const entry = this.limits.get(key);
+    if (!entry) return this.config.maxRequests;
+    const now = Date.now();
+    if (now - entry.windowStart > this.config.windowMs) {
+      return this.config.maxRequests;
+    }
+    return Math.max(0, this.config.maxRequests - entry.count);
+  }
+  /**
+   * Reset rate limit for a specific key
+   * @param key - Unique identifier for the operation
+   */
+  resetKey(key) {
+    this.limits.delete(key);
+  }
+  /**
+   * Clear all rate limit entries
+   */
+  reset() {
+    this.limits.clear();
+  }
+  /**
+   * Clean up expired entries (call periodically to prevent memory leaks)
+   */
+  cleanup() {
+    const now = Date.now();
+    for (const [key, entry] of this.limits.entries()) {
+      if (now - entry.windowStart > this.config.windowMs) {
+        this.limits.delete(key);
+      }
+    }
+  }
+  /**
+   * Get the current configuration
+   * @returns Current rate limit configuration
+   */
+  getConfig() {
+    return { ...this.config };
+  }
+  /**
+   * Update the configuration
+   * @param config - New configuration
+   */
+  updateConfig(config2) {
+    this.config = { ...this.config, ...config2 };
+  }
+}
+function createRateLimiter(maxRequests, windowMs) {
+  return new RateLimiter({ maxRequests, windowMs });
+}
+const RateLimitPresets = {
+  /** Strict: 1 request per second */
+  STRICT: { maxRequests: 1, windowMs: 1e3 },
+  /** API: 10 requests per second */
+  API: { maxRequests: 10, windowMs: 1e3 },
+  /** Network: 5 requests per minute */
+  NETWORK: { maxRequests: 5, windowMs: 6e4 },
+  /** Search: 30 requests per minute */
+  SEARCH: { maxRequests: 30, windowMs: 6e4 },
+  /** Health Check: 10 requests per minute */
+  HEALTH_CHECK: { maxRequests: 10, windowMs: 6e4 },
+  /** Bulk Operations: 100 requests per minute */
+  BULK: { maxRequests: 100, windowMs: 6e4 }
+};
+function createAutoCleanupRateLimiter(config2, cleanupIntervalMs = 5 * 60 * 1e3) {
+  const limiter = new RateLimiter(config2);
+  let intervalId;
+  if (typeof globalThis !== "undefined" && (typeof window !== "undefined" || typeof globalThis !== "undefined")) {
+    intervalId = setInterval(() => limiter.cleanup(), cleanupIntervalMs);
+  }
+  return Object.assign(limiter, {
+    destroy: () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    }
+  });
+}
 async function createWallet(config2 = {}) {
   const defaultConfig = {
     name: "YAKKL Wallet",
@@ -7991,6 +8243,8 @@ export {
   ProviderError,
   ProviderFactory,
   RPCErrorCode,
+  RateLimitPresets,
+  RateLimiter,
   ReadableState,
   RegisteredType,
   R as RemoteAPI,
@@ -8028,11 +8282,14 @@ export {
   WalletEngine,
   WritableState,
   ZERO_ADDRESS,
+  addDays,
   combineStores,
   convertBasisPointsToDecimal,
+  createAutoCleanupRateLimiter,
   createMessageBus,
   createMessageRouter,
   createRateLimitMiddleware,
+  createRateLimiter,
   createRetryMiddleware,
   createServiceFactory,
   createStateManager,
@@ -8040,12 +8297,18 @@ export {
   createStore,
   createValidationMiddleware,
   createWallet,
+  dateString,
   defaultContainer,
   derived,
+  endOfDay,
   ensureHexFormat,
+  formatDate,
+  formatTimestamp,
   get,
+  getRelativeTime,
   getSafeUUID,
   getStateManager,
+  getTime,
   globalMessageBus,
   globalServiceFactory,
   initializeDefaultChains,
@@ -8054,10 +8317,12 @@ export {
   isHexString,
   isInRange,
   isNotEmpty,
+  isToday,
   isTransactionHash,
   isValidAddress,
   isValidEmail,
   isValidTransactionHash,
+  isYesterday,
   localPersisted,
   loggingMiddleware,
   persisted,
@@ -8066,6 +8331,7 @@ export {
   resetStateManager,
   safeConvertToBigInt,
   sessionPersisted,
+  startOfDay,
   synchronized,
   validateMod,
   validateObject,

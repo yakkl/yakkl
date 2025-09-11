@@ -156,6 +156,9 @@ function createViewStore() {
 	 * Load preferences from localStorage
 	 */
 	function loadPreferences() {
+		if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+			return; // Skip during SSR
+		}
 		try {
 			const stored = localStorage.getItem('yakkl_view_preferences');
 			if (stored) {
@@ -174,6 +177,9 @@ function createViewStore() {
 	 * Save preferences to localStorage
 	 */
 	function savePreferences() {
+		if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+			return; // Skip during SSR
+		}
 		const state = get({ subscribe });
 		try {
 			localStorage.setItem('yakkl_view_preferences', JSON.stringify(state.preferences));

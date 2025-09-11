@@ -3,7 +3,7 @@ import { dateString } from './datetime';
 import type { YakklSettings } from './interfaces';
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from './storage';
 import { isBrowserEnv } from './environment';
-import { stopLockIconTimer } from '$contexts/background/extensions/chrome/iconTimer';
+import { stopLockIconTimer } from './iconTimerWrapper';
 import { yakklCurrentlySelectedStore } from './stores';
 import { get } from 'svelte/store';
 import { log } from '$lib/managers/Logger';
@@ -27,7 +27,7 @@ export async function handleLockDown() {
 				const yakklCurrentlySelected = get(yakklCurrentlySelectedStore);
 				yakklCurrentlySelected.shortcuts.isLocked = true;
 				yakklCurrentlySelectedStore.set(yakklCurrentlySelected);
-				stopLockIconTimer();
+				await stopLockIconTimer();
 			}
 		} else {
 			log.info('handleLockDown: Does not believe to be in a browser environment.');

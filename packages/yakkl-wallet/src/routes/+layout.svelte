@@ -1,11 +1,15 @@
 <script lang="ts">
   import '../app.css';
+  import TORBlocker from '$lib/components/TORBlocker.svelte';
 
   interface Props {
     children?: import('svelte').Snippet;
   }
   let { children }: Props = $props();
 </script>
+
+<!-- TOR Detection and Blocking -->
+<TORBlocker />
 
 <div class="yakkl-body h-screen flex flex-col overflow-hidden">
   <!-- Main Content Area -->

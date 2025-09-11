@@ -1,7 +1,7 @@
 // src/lib/extensions/chrome/handlers/readMethodHandler.ts
 
 import { log } from '$lib/managers/Logger';
-import { getYakklCurrentlySelected } from '$lib/common/stores';
+import { getYakklCurrentlySelected } from '$lib/common/currentlySelected';
 import { sendErrorResponse } from '$contexts/background/extensions/chrome/errorResponseHandler';
 import { extractSecureDomain } from '$lib/common/security';
 import {

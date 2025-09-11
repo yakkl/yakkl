@@ -1,13 +1,12 @@
 // authValidation.ts - Centralized authentication validation
 import { log } from '$lib/common/logger-wrapper';
-import { getMiscStore, resetStores, setMiscStore, yakklMiscStore } from '$lib/common/stores';
+import { getMiscStore, resetStores, setMiscStore } from '$lib/common/stores';
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from '$lib/common/storage';
 import { STORAGE_YAKKL_SETTINGS } from '$lib/common/constants';
 import { sessionManager } from '$lib/managers/SessionManager';
 import { jwtManager } from '$lib/utilities/jwt';
-import { getProfile } from '$lib/common/stores';
+import { getProfile } from '$lib/common/profile';
 import type { Profile, ProfileData, YakklSettings } from '$lib/common/interfaces';
-import { get } from 'svelte/store';
 import { decryptData } from './encryption';
 import { isEncryptedData } from './misc';
 
@@ -28,16 +27,12 @@ export async function validateAuthentication(): Promise<ValidationResult> {
     // Step 1: Check if wallet is initialized
     const settings = await getObjectFromLocalStorage(STORAGE_YAKKL_SETTINGS) as YakklSettings;
     if (!settings || !settings.init) {
-      log.warn('Authentication failed: Wallet not initialized');
       return { isValid: false, reason: 'Wallet not initialized' };
     }
 
     // Step 2: Check if legal terms are accepted
     if (!settings.legal?.termsAgreed) {
-      log.warn('Authentication failed: Legal terms not accepted');
       return { isValid: false, reason: 'Legal terms not accepted' };
-    } else {
-      log.info('Authentication: Legal terms accepted');
     }
 
     // Step 3: Validate digest exists and is non-empty
@@ -46,7 +41,6 @@ export async function validateAuthentication(): Promise<ValidationResult> {
     const digest = getMiscStore();
 
     if (!digest || digest.length === 0) {
-      log.warn('Authentication failed: No valid digest found');
       return { isValid: false, reason: 'No authentication digest' };
     }
 
@@ -60,16 +54,13 @@ export async function validateAuthentication(): Promise<ValidationResult> {
     // Step 5: Retrieve and validate profile
     // Profile should be loaded before validation is called
     const profile = await getProfile();
-
     if (!profile) {
-      log.warn('Authentication failed: No profile found');
       return { isValid: false, reason: 'No user profile' };
     }
 
     // Step 6: Check if profile is locked
     // Profile from getProfile is already decrypted, validate its structure
     if (!profile.data) {
-      log.warn('Authentication failed: No profile data');
       return { isValid: false, reason: 'Profile data missing' };
     }
 
@@ -78,24 +69,19 @@ export async function validateAuthentication(): Promise<ValidationResult> {
     if (isEncryptedData(profile.data)) {
       const profileData = await decryptData(profile.data, digest) as ProfileData;
       if (!profileData) {
-        log.warn('Authentication failed: No profile data available');
         return { isValid: false, reason: 'Profile data missing' };
       }
     }
 
     // Step 8: Check JWT session validity
     let hasValidJWT = false;
-    if (sessionManager.isSessionActive()) {
+    if (sessionManager?.isSessionActive()) {
       const jwtToken = sessionManager.getCurrentJWTToken();
       if (jwtToken) {
         try {
           const isValid = await jwtManager.verifyToken(jwtToken);
           if (isValid) {
             hasValidJWT = true;
-            log.debug('JWT token validated successfully');
-          } else {
-            log.warn('JWT token validation failed');
-            // Don't fail auth entirely if JWT is invalid - the session manager will handle this
           }
         } catch (error) {
           log.warn('JWT token verification error', false, error);
@@ -103,8 +89,6 @@ export async function validateAuthentication(): Promise<ValidationResult> {
       }
     }
 
-    console.log('hasValidJWT===================================>>>>', hasValidJWT);
-    
     // Step 9: Additional security checks
     // Check if profile ID matches expected format
     if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(profile.id)) {
@@ -113,7 +97,6 @@ export async function validateAuthentication(): Promise<ValidationResult> {
     }
 
     // All checks passed
-    log.info('Authentication validated successfully-----------------------');
     return {
       isValid: true,
       profile: profile,
@@ -209,8 +192,6 @@ export async function validateAndRefreshAuth(): Promise<boolean> {
  */
 export async function auditAuthEvent(event: string, details: any = {}): Promise<void> {
   try {
-    log.info(`Auth Event: ${event}`, false, details);
-
     // Store audit event if needed
     const auditEntry = {
       event,
@@ -256,7 +237,6 @@ export function checkAuthRateLimit(identifier: string): boolean {
 
   // Check if exceeded attempts
   if (record.attempts >= MAX_AUTH_ATTEMPTS) {
-    log.warn('Authentication rate limit exceeded', false, { identifier });
     return false;
   }
 

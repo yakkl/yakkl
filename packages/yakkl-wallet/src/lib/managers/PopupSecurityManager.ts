@@ -64,7 +64,7 @@ export class PopupSecurityManager {
       log.error('[PopupSecurity] Failed to handle popup request', false, error);
       // Fallback to basic popup creation
       const windowManager = SingletonWindowManager.getInstance();
-      await windowManager.showPopup(url || 'login.html', pinnedLocation);
+      await windowManager.showPopup(url || '', pinnedLocation);
     }
   }
 
@@ -91,7 +91,7 @@ export class PopupSecurityManager {
     if (!securityState.jwtValid) {
       // Wallet explicitly locked - go to login
       log.info('[PopupSecurity] Invalid JWT - routing to login', false);
-      await windowManager.showPopup('login.html', '0');
+      await windowManager.showPopup('', '0');  // Let app route to login
     } else if (securityState.sessionActive) {
       // Valid session - just focus existing popup (preserve current page)
       log.info('[PopupSecurity] Valid session - focusing existing popup', false);
@@ -100,7 +100,7 @@ export class PopupSecurityManager {
       // Invalid session - lock wallet and require login
       log.info('[PopupSecurity] Invalid session - locking and routing to login', false);
       await this.lockWallet();
-      await windowManager.showPopup('login.html', '0');
+      await windowManager.showPopup('', '0');  // Let app route to login
     }
   }
 
@@ -119,18 +119,19 @@ export class PopupSecurityManager {
     log.debug('[PopupSecurity] Security state', false, securityState);
 
     // Determine target URL based on security state
+    // Use empty string to let the app's routing logic handle navigation
     if (!securityState.isInitialized) {
-      targetUrl = 'register.html';
-      log.info('[PopupSecurity] Not initialized - routing to register', false);
+      targetUrl = '';  // Let the app decide between register/login
+      log.info('[PopupSecurity] Not initialized - letting app handle routing', false);
     } else if (!securityState.termsAccepted) {
-      targetUrl = 'legal.html';
-      log.info('[PopupSecurity] Terms not accepted - routing to legal', false);
+      targetUrl = '';  // Let the app route to legal if needed
+      log.info('[PopupSecurity] Terms not accepted - letting app handle routing', false);
     } else if (!securityState.jwtValid) {
-      targetUrl = 'login.html';
-      log.info('[PopupSecurity] Invalid JWT - routing to login', false);
+      targetUrl = '';  // Let the app route to login
+      log.info('[PopupSecurity] Invalid JWT - letting app handle routing', false);
     } else if (!targetUrl || targetUrl === '') {
-      targetUrl = 'home.html';
-      log.info('[PopupSecurity] Authenticated user - routing to home', false);
+      targetUrl = '';  // Let the app route to appropriate page
+      log.info('[PopupSecurity] Authenticated user - letting app handle routing', false);
     }
 
     log.info('[PopupSecurity] Target URL', false, targetUrl);

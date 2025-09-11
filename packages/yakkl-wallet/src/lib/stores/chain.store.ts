@@ -26,20 +26,17 @@ function createChainStore() {
     subscribe,
 
     async loadChains() {
-      console.log('ChainStore: Loading chains...');
       update(state => ({
         ...state,
         loading: { isLoading: true, message: 'Loading networks...' }
       }));
 
       const response = await walletService.getChains();
-      console.log('ChainStore: getChains response:', response);
 
       if (response.success && response.data) {
         // Get the current chain ID from the store
         const currentlySelected = get(yakklCurrentlySelectedStore);
         const savedChainId = currentlySelected?.shortcuts?.chainId || 1;
-        console.log('ChainStore: savedChainId:', savedChainId, 'chains:', response.data);
 
         update(state => ({
           ...state,
@@ -58,19 +55,16 @@ function createChainStore() {
     },
 
     async switchChain(chainId: number) {
-      console.log('ChainStore: switchChain called with chainId:', chainId);
       update(state => ({
         ...state,
         loading: { isLoading: true, message: 'Switching network...' }
       }));
 
       const response = await walletService.switchChain(chainId);
-      console.log('ChainStore: switchChain response:', response);
 
       if (response.success) {
         update(state => {
           const chain = state.chains.find(c => c.chainId === chainId);
-          console.log('ChainStore: Found chain:', chain);
           return {
             ...state,
             currentChain: chain || null,

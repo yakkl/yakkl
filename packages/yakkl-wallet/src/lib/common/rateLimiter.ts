@@ -1,96 +1,12 @@
 /**
- * Simple rate limiter for client-side operations
- * Prevents abuse of expensive operations like network tests and RPC health checks
+ * Re-export rate limiter utilities from @yakkl/core
+ * This file is maintained for backward compatibility with wallet-specific presets
  */
 
-interface RateLimitConfig {
-  maxRequests: number;
-  windowMs: number;
-}
+import { RateLimiter, RateLimitPresets } from '@yakkl/core';
 
-interface RateLimitEntry {
-  count: number;
-  windowStart: number;
-}
-
-class RateLimiter {
-  private limits: Map<string, RateLimitEntry> = new Map();
-  
-  constructor(private config: RateLimitConfig) {}
-  
-  /**
-   * Check if an operation is allowed under the rate limit
-   * @param key - Unique identifier for the operation
-   * @returns true if allowed, false if rate limited
-   */
-  isAllowed(key: string): boolean {
-    const now = Date.now();
-    const entry = this.limits.get(key);
-    
-    if (!entry) {
-      // First request
-      this.limits.set(key, {
-        count: 1,
-        windowStart: now
-      });
-      return true;
-    }
-    
-    // Check if window has expired
-    if (now - entry.windowStart > this.config.windowMs) {
-      // Reset window
-      this.limits.set(key, {
-        count: 1,
-        windowStart: now
-      });
-      return true;
-    }
-    
-    // Within window - check count
-    if (entry.count >= this.config.maxRequests) {
-      return false;
-    }
-    
-    // Increment count
-    entry.count++;
-    return true;
-  }
-  
-  /**
-   * Get remaining time until rate limit resets
-   * @param key - Unique identifier for the operation
-   * @returns milliseconds until reset, or 0 if not rate limited
-   */
-  getResetTime(key: string): number {
-    const entry = this.limits.get(key);
-    if (!entry) return 0;
-    
-    const now = Date.now();
-    const windowEnd = entry.windowStart + this.config.windowMs;
-    
-    if (now >= windowEnd) return 0;
-    return windowEnd - now;
-  }
-  
-  /**
-   * Clear all rate limit entries
-   */
-  reset(): void {
-    this.limits.clear();
-  }
-  
-  /**
-   * Clean up expired entries (call periodically to prevent memory leaks)
-   */
-  cleanup(): void {
-    const now = Date.now();
-    for (const [key, entry] of this.limits.entries()) {
-      if (now - entry.windowStart > this.config.windowMs) {
-        this.limits.delete(key);
-      }
-    }
-  }
-}
+// Re-export the core RateLimiter class
+export { RateLimiter } from '@yakkl/core';
 
 // Pre-configured rate limiters for different operations
 export const networkTestLimiter = new RateLimiter({

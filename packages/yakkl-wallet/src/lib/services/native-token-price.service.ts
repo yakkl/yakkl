@@ -3,7 +3,6 @@ import { walletCacheStore } from '$lib/stores/wallet-cache.store';
 import { currentAccount } from '$lib/stores/account.store';
 import { currentChain } from '$lib/stores/chain.store';
 import { get } from 'svelte/store';
-import { getObjectFromLocalStorage } from '$lib/common/storage';
 
 /**
  * Service to handle native token price updates without affecting the rest of the cache
@@ -23,6 +22,7 @@ export class NativeTokenPriceService {
     return NativeTokenPriceService.instance;
   }
 
+
   /**
    * Start automatic native token price updates
    */
@@ -31,6 +31,7 @@ export class NativeTokenPriceService {
       return; // Already running
     }
 
+    console.log('[NativeTokenPriceService] Starting automatic price updates');
     log.info('[NativeTokenPrice] Starting automatic price updates');
 
     this.priceUpdateInterval = window.setInterval(() => {
@@ -74,85 +75,20 @@ export class NativeTokenPriceService {
         return;
       }
 
-      // Get current native token price
-      const nativeTokenPrice = await this.fetchNativeTokenPrice(chain.chainId);
-
-      if (nativeTokenPrice && nativeTokenPrice > 0) {
-        // Update only the native token price in the cache
-        walletCacheStore.updateNativeTokenPrice(chain.chainId, account.address, nativeTokenPrice);
-
-        this.lastPriceUpdate = now;
-
-        log.info('[NativeTokenPrice] Updated native token price only', false, {
-          chainId: chain.chainId,
-          address: account.address,
-          price: nativeTokenPrice,
-          symbol: chain.nativeCurrency?.symbol || 'ETH'
-        });
-      }
+      // Instead of fetching from price manager, request price update from background
+      // The background service should handle price fetching securely
+      log.info('[NativeTokenPrice] Requesting price update from background', false, {
+        chainId: chain.chainId,
+        address: account.address
+      });
+      
+      // Send message to background to update prices
+      // This should be handled by the background service securely
+      // For now, just use the cached price from the wallet cache
+      
+      this.lastPriceUpdate = now;
     } catch (error) {
       log.warn('[NativeTokenPrice] Failed to update native token price', false, error);
-    }
-  }
-
-  /**
-   * Fetch native token price from pricing service
-   */
-  private async fetchNativeTokenPrice(chainId: number): Promise<number | null> {
-    try {
-      // Get the native token identifier based on chain
-      let tokenId: string;
-
-      switch (chainId) {
-        case 1: // Ethereum
-        case 11155111: // Sepolia
-          tokenId = 'ethereum';
-          break;
-        case 137: // Polygon
-        case 80002: // Polygon Amoy
-          tokenId = 'matic-network';
-          break;
-        case 56: // BSC
-        case 97: // BSC Testnet
-          tokenId = 'binancecoin';
-          break;
-        case 42161: // Arbitrum
-          tokenId = 'ethereum'; // Arbitrum uses ETH
-          break;
-        case 10: // Optimism
-          tokenId = 'ethereum'; // Optimism uses ETH
-          break;
-        default:
-          tokenId = 'ethereum'; // Default to ETH
-      }
-
-      // Use CoinGecko API for price
-      const response = await fetch(
-        `https://api.coingecko.com/api/v3/simple/price?ids=${tokenId}&vs_currencies=usd`,
-        {
-          headers: {
-            'Accept': 'application/json',
-          }
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      const price = data[tokenId]?.usd;
-
-      if (typeof price === 'number' && price > 0) {
-        log.debug('[NativeTokenPrice] Fetched price', false, { tokenId, price });
-        return price;
-      } else {
-        log.warn('[NativeTokenPrice] Invalid price data received', false, { tokenId, data });
-        return null;
-      }
-    } catch (error) {
-      log.warn('[NativeTokenPrice] Failed to fetch native token price', false, error);
-      return null;
     }
   }
 
@@ -179,79 +115,13 @@ export class NativeTokenPriceService {
 
   /**
    * Fetch latest prices without updating storage
-   * Returns price data for coordinator to process
+   * Returns empty data - prices should be fetched from background service
    */
   async fetchLatestPrices(): Promise<Record<string, any>> {
-    const priceData: Record<string, any> = {};
-    
-    try {
-      log.debug('[NativeTokenPrice] Fetching latest prices for coordinator');
-      
-      // Get all tracked tokens from cache
-      const cache = await getObjectFromLocalStorage('yakklWalletCache') as any;
-      if (!cache?.chainAccountCache) {
-        return priceData;
-      }
-      
-      // Collect unique tokens across all accounts and chains
-      const uniqueTokens = new Map<string, { chainId: number, isNative: boolean }>();
-      
-      for (const [chainId, chainData] of Object.entries(cache.chainAccountCache)) {
-        for (const accountCache of Object.values(chainData as any)) {
-          if ((accountCache as any).tokens) {
-            for (const token of (accountCache as any).tokens) {
-              const key = token.address.toLowerCase();
-              if (!uniqueTokens.has(key)) {
-                uniqueTokens.set(key, { 
-                  chainId: Number(chainId), 
-                  isNative: token.isNative || false 
-                });
-              }
-            }
-          }
-        }
-      }
-      
-      // Fetch native token prices for each chain
-      const processedChains = new Set<number>();
-      for (const [tokenAddress, tokenInfo] of uniqueTokens) {
-        if (tokenInfo.isNative && !processedChains.has(tokenInfo.chainId)) {
-          processedChains.add(tokenInfo.chainId);
-          const price = await this.fetchNativeTokenPrice(tokenInfo.chainId);
-          if (price !== null && price > 0) {
-            // Store native token price with special key
-            priceData[`native_${tokenInfo.chainId}`] = {
-              tokenAddress: '0x0000000000000000000000000000000000000000',
-              price,
-              timestamp: Date.now(),
-              isNative: true,
-              chainId: tokenInfo.chainId
-            };
-          }
-        }
-      }
-      
-      // For non-native tokens, you would fetch from your token price provider
-      // This is a placeholder - implement with your actual price provider
-      for (const [tokenAddress, tokenInfo] of uniqueTokens) {
-        if (!tokenInfo.isNative && !priceData[tokenAddress]) {
-          // Mock price for testing - replace with actual price fetching
-          priceData[tokenAddress] = {
-            tokenAddress,
-            price: Math.random() * 100,
-            timestamp: Date.now(),
-            isNative: false,
-            chainId: tokenInfo.chainId
-          };
-        }
-      }
-      
-      log.debug(`[NativeTokenPrice] Fetched prices for ${Object.keys(priceData).length} tokens`);
-      return priceData;
-    } catch (error) {
-      log.error('[NativeTokenPrice] Error fetching latest prices', error);
-      return priceData;
-    }
+    // Client should not fetch prices directly
+    // This should be handled by the background service
+    log.info('[NativeTokenPrice] Price fetching should be handled by background service');
+    return {};
   }
 }
 

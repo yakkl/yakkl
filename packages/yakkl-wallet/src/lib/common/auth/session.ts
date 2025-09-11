@@ -58,12 +58,6 @@ export async function storeSessionToken(
 }
 
 export async function storeEncryptedHash(encryptedHash: string, profileData?: { userId?: string; username?: string; profileId?: string }): Promise<SessionToken | null> {
-	console.log('[storeEncryptedHash] Called with:', {
-		encryptedHashLength: encryptedHash?.length,
-		profileData,
-    browser: !!browser
-	});
-
   if (!browser) {
     log.error('Browser API not available', false);
     return null;
@@ -84,6 +78,7 @@ export async function storeEncryptedHash(encryptedHash: string, profileData?: { 
             browser.runtime.onMessage.removeListener(listener as any);
             storeSessionToken(message.token, message.expiresAt);
             log.info('Session token stored from broadcast', false, { expiresAt: message.expiresAt });
+            console.log('[storeEncryptedHash] Session token stored from broadcast', { expiresAt: message.expiresAt });
             resolve({ token: message.token, expiresAt: message.expiresAt });
           }
         } catch {
@@ -116,8 +111,6 @@ export async function storeEncryptedHash(encryptedHash: string, profileData?: { 
         setTimeout(() => reject(new Error('Message timeout')), 3000)
       );
 
-      console.log('messagePromise', messagePromise);
-      console.log('timeoutPromise', timeoutPromise);
       const res = await Promise.race([messagePromise, timeoutPromise]);
 
       console.log(`[storeEncryptedHash] Attempt ${attempt} - Background response:`, res, await messagePromise);

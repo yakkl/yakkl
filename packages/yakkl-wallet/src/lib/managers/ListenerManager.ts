@@ -18,6 +18,16 @@ export class ListenerManager {
 		const wrappedHandler = (...args: any[]) => {
 			const [message, sender, sendResponse] = args;
 
+			// // DEBUG: Log all messages coming through ListenerManager
+			// if (message?.type === 'popout') {
+			// 	console.error('[ListenerManager] Popout message received in wrapper:', {
+			// 		context: this.context,
+			// 		targetContext: message?.targetContext,
+			// 		messageType: message?.type,
+			// 		willHandle: !message.targetContext || message.targetContext === this.context
+			// 	});
+			// }
+
 			// Check if message should be handled in this context
 			if (message && message.targetContext && message.targetContext !== this.context) {
 				// Return undefined to indicate we're not handling this message
@@ -35,10 +45,9 @@ export class ListenerManager {
 					}
 					return result;
 				} catch (error) {
-					console.error('[ListenerManager] Error in wrapped handler:', error);
-					const errorResponse = { 
-						success: false, 
-						error: error instanceof Error ? error.message : 'Handler error' 
+					const errorResponse = {
+						success: false,
+						error: error instanceof Error ? error.message : 'Handler error'
 					};
 					if (sendResponse && typeof sendResponse === 'function') {
 						sendResponse(errorResponse);
@@ -61,15 +70,17 @@ export class ListenerManager {
 			return resultPromise;
 		};
 
-		if (event.hasListener(wrappedHandler)) {
+		if (event?.hasListener && event.hasListener(wrappedHandler)) {
 			event.removeListener(wrappedHandler);
 		}
-		event.addListener(wrappedHandler);
-		this.listeners.add({ event, handler: wrappedHandler });
+		if (event?.addListener) {
+			event.addListener(wrappedHandler);
+			this.listeners.add({ event, handler: wrappedHandler });
+		}
 	}
 
 	remove(event: any, handler: Function) {
-		if (event.hasListener(handler)) {
+		if (event?.hasListener && event.hasListener(handler)) {
 			event.removeListener(handler);
 			this.listeners.delete({ event, handler });
 		}

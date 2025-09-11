@@ -11,7 +11,6 @@ import {
 	getYakklAccounts,
 	getYakklPrimaryAccounts,
 	yakklAccountsStore,
-	setYakklAccountsStorage,
 	setYakklPrimaryAccountsStorage,
 	yakklPrimaryAccountsStore,
 	getYakklSettings,
@@ -21,6 +20,7 @@ import { browser_ext } from './environment';
 import { ethers as ethersv6 } from 'ethers-v6';
 import { get } from 'svelte/store';
 import { log } from '$lib/managers/Logger';
+import { setYakklAccountsStorage } from './accounts';
 // import type { Runtime } from 'webextension-polyfill';
 
 // Global flag to track extension context validity
@@ -57,12 +57,12 @@ export interface FeatureAccess {
 export async function getFeatureAccess(): Promise<FeatureAccess> {
 	const settings = await getYakklSettings();
 	const planType = settings?.plan?.type || 'explorer_member';
-	
+
 	// Determine if user is Pro level or higher
 	const isProUser = planType !== 'explorer_member';
 	const isFoundingMember = planType === 'founding_member';
 	const isEarlyAdopter = planType === 'early_adopter';
-	
+
 	return {
 		bookmarks: {
 			enabled: true, // Free for all users!

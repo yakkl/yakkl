@@ -55,9 +55,28 @@ export abstract class RPCProvider extends BaseProvider {
    * Connect to the RPC endpoint
    */
   protected async doConnect(chainId: number): Promise<void> {
-    // Test the connection
+    // Test the connection - bypass validation check during connection
     try {
-      await this.request('eth_chainId');
+      // Make direct HTTP request without validation since we're not connected yet
+      const id = this.requestId++;
+      const payload = {
+        jsonrpc: '2.0',
+        id,
+        method: 'eth_chainId',
+        params: []
+      };
+
+      const response = await this.makeHttpRequest(payload);
+      
+      if (response.error) {
+        throw new Error(`RPC Error ${response.error.code}: ${response.error.message}`);
+      }
+      
+      // Verify the chain ID matches what we expect
+      const returnedChainId = parseInt(response.result, 16);
+      if (returnedChainId !== chainId) {
+        console.warn(`RPC endpoint returned chain ID ${returnedChainId}, expected ${chainId}`);
+      }
     } catch (error) {
       throw new Error(`Failed to connect to ${this._endpoint}: ${error}`);
     }

@@ -1,0 +1,72 @@
+{
+  "name": "@yakkl/math",
+  "version": "1.0.0",
+  "description": "Math utilities and BigNumber operations for YAKKL ecosystem",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./bignumber": {
+      "types": "./dist/bignumber/index.d.ts",
+      "import": "./dist/bignumber/index.js"
+    },
+    "./formatting": {
+      "types": "./dist/formatting/index.d.ts",
+      "import": "./dist/formatting/index.js"
+    },
+    "./gas": {
+      "types": "./dist/gas/index.d.ts",
+      "import": "./dist/gas/index.js"
+    },
+    "./units": {
+      "types": "./dist/units/index.d.ts",
+      "import": "./dist/units/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rimraf dist",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "ethers": "^5.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.9",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.8.0",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.8.3",
+    "vitest": "^2.0.5"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "yakkl",
+    "math",
+    "bignumber",
+    "ethereum",
+    "wei",
+    "gwei",
+    "crypto"
+  ],
+  "author": "YAKKL",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yakkl/yakkl.git",
+    "directory": "packages/yakkl-math"
+  }
+}

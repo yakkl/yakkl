@@ -8,6 +8,7 @@ import type { Runtime } from 'webextension-polyfill';
 // Add modal state management
 import { writable } from 'svelte/store';
 import { browser_ext } from '$lib/common/environment';
+import { SessionManager } from '$lib/managers/SessionManager';
 
 export const jwtValidationModalStore = writable({
   show: false,
@@ -62,15 +63,26 @@ export class UIJWTValidatorService {
       // Track user activity for intelligent validation
       this.setupActivityTracking();
 
+      // Check if we have a valid JWT before starting validation
+      const authState = get(authStore);
+      const sessionManager = SessionManager.getInstance();
+      const sessionState = sessionManager.getSessionState();
+      const hasJWT = !!(authState.jwtToken || sessionState?.jwtToken);
+      
+      // Adjust delay based on JWT status - longer delay if no JWT yet
+      const initialDelay = hasJWT ? 30000 : 120000; // 30s if JWT exists, 120s if not
+      
+      console.log('[UIJWTValidator] Initial delay:', initialDelay, 'ms, hasJWT:', hasJWT);
+
       // Delay all JWT validation operations to prevent login/home page slowdown
-      // Phase 1: Connect to background after 30 seconds
+      // Phase 1: Connect to background after initial delay
       setTimeout(() => {
-        console.log('[UIJWTValidator] Phase 1: Connecting to background (30s delay)');
+        console.log('[UIJWTValidator] Phase 1: Connecting to background after delay');
         this.connectToBackground();
 
-        // Phase 2: Start validation after another 30 seconds (60s total)
+        // Phase 2: Start validation after another 30 seconds
         setTimeout(() => {
-          console.log('[UIJWTValidator] Phase 2: Starting validation (60s total delay)');
+          console.log('[UIJWTValidator] Phase 2: Starting validation');
           
           // Start periodic validation with activity-based frequency
           this.validationInterval = window.setInterval(() => {
@@ -80,7 +92,7 @@ export class UIJWTValidatorService {
           // Perform first validation check
           this.validateJWTToken();
         }, 30000); // Additional 30 seconds
-      }, 30000); // Initial 30 seconds delay
+      }, initialDelay); // Dynamic initial delay based on JWT status
     } catch (error) {
       console.log('[UIJWTValidator] Error starting JWT validation service', false, error);
     }
@@ -256,14 +268,34 @@ export class UIJWTValidatorService {
 
       console.log('[UIJWTValidator] authState', authState);
       
+      // Try to get JWT from SessionManager if not in authStore
+      let jwtToken = authState.jwtToken;
+      if (!jwtToken && authState.isAuthenticated) {
+        try {
+          const sessionManager = SessionManager.getInstance();
+          const sessionState = sessionManager.getSessionState();
+          jwtToken = sessionState?.jwtToken || null;
+          console.log('[UIJWTValidator] Retrieved JWT from SessionManager:', !!jwtToken);
+        } catch (error) {
+          console.log('[UIJWTValidator] Failed to get JWT from SessionManager:', error);
+        }
+      }
+      
       // Basic checks without calling full session validation
-      if (!authState.isAuthenticated || !authState.jwtToken) {
+      if (!authState.isAuthenticated || !jwtToken) {
         console.log('[UIJWTValidator] Not authenticated or no JWT token');
         
-        // Check if we're within grace period after login (first 60 seconds)
+        // Check if we're within grace period after login (first 120 seconds)
+        // Extended grace period to account for JWT generation and propagation
         const timeSinceActivity = Date.now() - authState.lastActivity;
-        if (timeSinceActivity < 60000) {
-          console.log('[UIJWTValidator] Within grace period after login, skipping validation');
+        if (timeSinceActivity < 120000) { // Changed from 60000 to 120000 (2 minutes)
+          console.log('[UIJWTValidator] Within extended grace period after login, skipping validation');
+          return;
+        }
+        
+        // Additional check: if authenticated but no JWT yet, give more time
+        if (authState.isAuthenticated && !jwtToken && timeSinceActivity < 180000) { // 3 minutes grace for JWT generation
+          console.log('[UIJWTValidator] Authenticated but JWT not yet set, extending grace period');
           return;
         }
         
@@ -279,10 +311,11 @@ export class UIJWTValidatorService {
       if (!authState.sessionState || !authState.profile) {
         console.log('[UIJWTValidator] No valid session state or profile');
         
-        // Check if we're within grace period after login (first 60 seconds)
+        // Check if we're within grace period after login (first 120 seconds)
+        // Extended grace period to account for session state propagation
         const timeSinceActivity = Date.now() - authState.lastActivity;
-        if (timeSinceActivity < 60000) {
-          console.log('[UIJWTValidator] Within grace period after login, skipping validation');
+        if (timeSinceActivity < 120000) { // Changed from 60000 to 120000 (2 minutes)
+          console.log('[UIJWTValidator] Within extended grace period after login, skipping validation');
           return;
         }
         

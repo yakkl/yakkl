@@ -2,7 +2,7 @@ import { log } from '$lib/managers/Logger';
 import { KeyManager } from '$lib/managers/KeyManager';
 import WalletManager from '$lib/managers/WalletManager';
 import type { YakklCurrentlySelected, YakklResponse } from '$lib/common/interfaces';
-import { getYakklCurrentlySelected } from '$lib/common/stores';
+import { getYakklCurrentlySelected } from '$lib/common/currentlySelected';
 import { STORAGE_YAKKL_ACCOUNTS } from '$lib/common';
 import type { YakklAccount } from '$lib/common';
 import type { Wallet } from '$lib/managers/Wallet';

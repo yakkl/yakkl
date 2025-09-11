@@ -26,7 +26,7 @@ console.error = (...args) => {
 		// Silently ignore these errors
 		return;
 	}
-	
+
 	// Keep logging but trap it for future sending to monitoring
 	// TBD - Maybe override all console: .log, .warning, .error, .info and push to capture in local storage and then clear the console
 	error(...args);
@@ -38,7 +38,7 @@ console.warn = (...args) => {
 		// Silently ignore these warnings
 		return;
 	}
-	
+
 	// Pass through to original warn
 	originalWarn(...args);
 };
@@ -49,7 +49,7 @@ function error(message, ...args) {
 
 	if (stack) {
 		// Find the caller line in the stack trace
-		const callerInfo = stack.split('\n')[3].trim();
+		const callerInfo = stack.split('\n').length > 3 ? stack.split('\n')[3].trim() : stack.split('\n')[2].trim();
 		console.trace(
 			`%c[ERROR-3RDPARTY] %c${callerInfo} - ${message}`,
 			'color: orange; font-weight: bold;',
