@@ -2,15 +2,12 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { ChevronLeft, Plus, AlertTriangle } from 'lucide-svelte';
-  import { accountStore } from '$lib/stores/account.store';
   import { currentChain } from '$lib/stores/chain.store';
   import {
-    getProfile,
-    getYakklAccounts,
-    setYakklAccountsStorage,
     getYakklPrimaryAccounts,
     yakklMiscStore
   } from '$lib/common/stores';
+  import { getProfile } from '$lib/common/profile';
   import { createPortfolioAccount } from '$lib/managers/networks/ethereum/createPortfolioAccount';
   import { log } from '$lib/common/logger-wrapper';
 

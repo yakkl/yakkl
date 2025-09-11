@@ -3,7 +3,8 @@
   import RegistrationOption from '$lib/components/RegistrationOption.svelte';
   import { goto } from '$app/navigation';
   import { log } from '$lib/common/logger-wrapper';
-  import { getYakklSettings, getProfile } from '$lib/common/stores';
+  import { getYakklSettings } from '$lib/common/stores';
+  import { getProfile } from '$lib/common/profile';
 
   let loading = $state(true);
   let alreadyRegistered = $state(false);

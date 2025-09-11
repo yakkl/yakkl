@@ -6,15 +6,25 @@ import { createSafeMessageHandler } from '$lib/common/messageChannelValidator';
 import browser from 'webextension-polyfill';
 import { log } from '$lib/common/logger-wrapper';
 import { bookmarkContextMenu } from './extensions/chrome/contextMenu';
+import { sessionHandlers } from './handlers/session';
+import { backgroundProviderManager } from './services/provider-manager';
 
 // Initialize background cache services on extension install/startup
 // This ensures cache services run continuously from the moment the extension is installed
 async function initializeCacheServices() {
   try {
     log.info('[Background] Initializing background cache services...');
+    
+    // Pre-initialize provider if we have stored data
+    // This ensures provider is ready BEFORE any client requests
+    log.info('[Background] Pre-initializing provider manager...');
+    await backgroundProviderManager.preInitialize();
+    
+    // Initialize and start background intervals
     const backgroundIntervals = BackgroundIntervalService.getInstance();
     await backgroundIntervals.initialize();
     backgroundIntervals.startAll();
+    
     log.info('[Background] Background cache services initialized and running');
   } catch (error) {
     log.error('[Background] Failed to initialize cache services:', error);
@@ -61,21 +71,40 @@ browser.runtime.onConnect.addListener((port) => {
 // Handle one-off messages with safe channel validation
 const safeMessageHandler = createSafeMessageHandler(
   async (request, sender) => {
-    // Handle special cases first
-    if (request.type === 'accountChanged' || request.type === 'chainChanged') {
-      console.log('Background: Account or chain changed, restarting monitoring...');
+    // CRITICAL FIX: Do NOT skip GET_NATIVE_BALANCE - it needs to be processed
+    // The comment about "dedicated handler above" was incorrect - there is no such handler
+    
+    console.log('Background: safeMessageHandler CALLED with:', {
+      type: request?.type,
+      requestFull: request,
+      timestamp: Date.now()
+    });
+    
+    // Add comprehensive error handling wrapper
+    try {
+      // Log ALL incoming messages for debugging
+      console.log('Background: Message received (top-level):', {
+        type: request?.type,
+        hasData: !!request?.data,
+        requestKeys: request ? Object.keys(request) : [],
+        timestamp: Date.now()
+      });
 
-      try {
-        const txMonitor = TransactionMonitorService.getInstance();
-        // stop() is synchronous, no await needed
-        txMonitor.stop();
-        await txMonitor.start();
-        return { success: true };
-      } catch (error: any) {
-        console.error('Background: Failed to restart monitoring:', error);
-        return { success: false, error: error.message };
+      // Handle special cases first
+      if (request.type === 'accountChanged' || request.type === 'chainChanged') {
+        console.log('Background: Account or chain changed, restarting monitoring...');
+
+        try {
+          const txMonitor = TransactionMonitorService.getInstance();
+          // stop() is synchronous, no await needed
+          txMonitor.stop();
+          await txMonitor.start();
+          return { success: true };
+        } catch (error: any) {
+          console.error('Background: Failed to restart monitoring:', error);
+          return { success: false, error: error.message };
+        }
       }
-    }
 
     // Handle session hash storage directly here to ensure proper response
     // if (request.type === 'STORE_SESSION_HASH') {
@@ -161,8 +190,7 @@ const safeMessageHandler = createSafeMessageHandler(
     // Special handling for closeAllWindows message (for backwards compatibility)
     if (request.type === 'closeAllWindows') {
       console.log('Background: Handling closeAllWindows message');
-      // Import the session handler and call it directly
-      const { sessionHandlers } = await import('./handlers/session');
+      // Use the session handler directly
       const handler = sessionHandlers.get('closeAllWindows');
       if (handler) {
         return handler(request.payload || request);
@@ -172,7 +200,6 @@ const safeMessageHandler = createSafeMessageHandler(
     // Special handling for STORE_SESSION_HASH to ensure immediate response
     if (request.type === 'STORE_SESSION_HASH') {
       console.log('Background: STORE_SESSION_HASH received, routing directly to handler');
-      const { sessionHandlers } = await import('./handlers/session');
       const handler = sessionHandlers.get('STORE_SESSION_HASH');
       if (handler) {
         const response = await handler(request.payload);
@@ -187,8 +214,47 @@ const safeMessageHandler = createSafeMessageHandler(
       hasPayload: !!request.payload,
       fullRequest: request
     });
+    
+    // Special logging for GET_NATIVE_BALANCE
+    if (request.type === 'GET_NATIVE_BALANCE') {
+      console.log('Background: GET_NATIVE_BALANCE message received, forwarding to handleMessage');
+      console.log('Background: GET_NATIVE_BALANCE request data:', request);
+      console.log('Background: About to call handleMessage for GET_NATIVE_BALANCE');
+      console.log('Background: Request structure:', {
+        type: request.type,
+        data: request.data,
+        payload: request.payload,
+        allKeys: Object.keys(request)
+      });
+    }
 
-    return handleMessage(request, sender);
+    console.log('Background: Calling handleMessage with request type:', request?.type);
+    const response = await handleMessage(request, sender);
+    console.log('Background: handleMessage returned:', response);
+    
+    // Log response for GET_NATIVE_BALANCE
+    if (request.type === 'GET_NATIVE_BALANCE') {
+      console.log('Background: GET_NATIVE_BALANCE response from handleMessage:', response);
+      console.log('Background: GET_NATIVE_BALANCE response type:', typeof response);
+      console.log('Background: GET_NATIVE_BALANCE response keys:', response ? Object.keys(response) : 'null');
+    }
+    
+    return response;
+    } catch (error) {
+      // Catch any unhandled errors to ensure we always return a response
+      console.error('Background: Unhandled error in message handler:', {
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+        requestType: request?.type,
+        timestamp: Date.now()
+      });
+      
+      // Always return an error response instead of throwing
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error in background handler'
+      };
+    }
   },
   {
     timeout: 25000,
@@ -196,6 +262,28 @@ const safeMessageHandler = createSafeMessageHandler(
   }
 );
 
+// NOTE: Debug listener commented out due to TypeScript constraints
+// The browser.runtime.onMessage API requires returning true for async handling
+// or undefined for no handling. Our safeMessageHandler below handles all messages.
+
+// Helper function to send Promise-based response
+async function sendPromiseResponse(requestId: string, data: any, error?: string) {
+  try {
+    // Send response back as a new message with the request ID
+    await browser.runtime.sendMessage({
+      __isResponse: true,
+      __requestId: requestId,
+      data,
+      error
+    });
+    console.log('🔵 Promise response sent for request:', requestId);
+  } catch (err) {
+    console.error('🔵 Failed to send Promise response:', err);
+  }
+}
+
+// Handle one-off messages with safe channel validation
+// Cast to any to bypass TypeScript's strict type checking for browser extension APIs
 browser.runtime.onMessage.addListener(safeMessageHandler as any);
 
 // Initialize transaction monitoring in background context
@@ -203,6 +291,9 @@ browser.runtime.onMessage.addListener(safeMessageHandler as any);
 async function initializeBackgroundServices() {
   try {
     console.log('Background: Initializing background services...');
+
+    // Note: Provider pre-initialization is now done in initializeCacheServices()
+    // which runs earlier in the startup sequence
 
     // Initialize context menu for bookmarking
     try {

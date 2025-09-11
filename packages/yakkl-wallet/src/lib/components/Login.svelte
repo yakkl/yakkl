@@ -6,7 +6,7 @@
 	import { log } from '$lib/common/logger-wrapper';
 	import { authStore } from '$lib/stores/auth-store';
 	import AuthError from '$lib/components/AuthError.svelte';
-	import AuthenticationLoader from '$lib/components/AuthenticationLoader.svelte';
+	// import AuthenticationLoader from '$lib/components/AuthenticationLoader.svelte';
 	import { jwtManager } from '$lib/utilities/jwt';
 	import { getNormalizedSettings } from '$lib/common';
 
@@ -342,9 +342,9 @@
 	</form>
 
 	<!-- Loading state -->
-	{#if isLoggingIn}
+	<!-- {#if isLoggingIn}
 		<AuthenticationLoader message="Authenticating..." />
-	{/if}
+	{/if} -->
 
 	<!-- Error handling with retry -->
 	<AuthError

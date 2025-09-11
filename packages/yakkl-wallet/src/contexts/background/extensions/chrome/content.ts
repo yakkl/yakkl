@@ -5,20 +5,20 @@
   if (typeof window !== 'undefined') {
     window.addEventListener('error', function(e) {
       const msg = String(e.error?.message || e.message || '');
-      if (msg.includes('Extension context invalidated') || 
+      if (msg.includes('Extension context invalidated') ||
           msg.includes('Receiving end does not exist') ||
           msg.includes('Cannot access a chrome://')) {
         e.preventDefault();
-        console.warn('[content] Extension error silently handled:', msg);
+        console.log('[content] Extension error silently handled:', msg);
       }
     });
     window.addEventListener('unhandledrejection', function(e) {
       const reason = e.reason instanceof Error ? e.reason.message : String(e.reason || '');
-      if (reason.includes('Extension context invalidated') || 
+      if (reason.includes('Extension context invalidated') ||
           reason.includes('Receiving end does not exist') ||
           reason.includes('Cannot access a chrome://')) {
         e.preventDefault();
-        console.warn('[content] Unhandled rejection silently handled:', reason);
+        console.log('[content] Unhandled rejection silently handled:', reason);
       }
     });
   }
@@ -44,14 +44,6 @@ import {
 	debugOriginInfo,
 	safePostMessage
 } from '$lib/common/origin';
-// import {
-//   isExtensionContextValid,
-//   safeConnect,
-//   safeSendMessage,
-//   initSafeBrowserAPI,
-//   safePostMessage as safePostMessageAPI
-// } from '$lib/common/safe-browser-api';
-
 
 // Type definitions
 type RuntimePort = Runtime.Port;
@@ -264,7 +256,7 @@ class ContentScriptManager {
 					this.port = browser.runtime.connect({ name: YAKKL_DAPP });
 				} catch (connectError) {
 					// Silently handle connection errors
-					if (connectError instanceof Error && 
+					if (connectError instanceof Error &&
 					    (connectError.message.includes('Extension context invalidated') ||
 					     connectError.message.includes('Receiving end does not exist'))) {
 						return;
@@ -354,6 +346,22 @@ class ContentScriptManager {
 	// Handle restoration from bfcache
 	private async handleBfcacheRestore() {
 		try {
+			// Try to restore pending requests from chrome.storage
+			if (browser?.storage?.local) {
+				try {
+					const result = await browser.storage.local.get('yakkl-pending-requests');
+					if (result['yakkl-pending-requests']) {
+						const pendingData = JSON.parse(result['yakkl-pending-requests'] as string);
+						this.pendingRequests = new Map(pendingData);
+						// Clear from storage after restoring
+						await browser.storage.local.remove('yakkl-pending-requests');
+						log.debug('Restored pending requests from storage', false, { count: pendingData.length });
+					}
+				} catch (e) {
+					log.debug('Could not restore pending requests from storage', false, e);
+				}
+			}
+
 			// Test if existing connection is still valid
 			if (this.port && this.isConnected) {
 				const isValid = await this.testConnection();
@@ -386,9 +394,19 @@ class ContentScriptManager {
 		if (this.pendingRequests.size > 0) {
 			const pendingData = Array.from(this.pendingRequests.entries());
 			try {
-				sessionStorage.setItem('yakkl-pending-requests', JSON.stringify(pendingData));
+				// Use chrome.storage instead of sessionStorage in content scripts
+				if (browser?.storage?.local) {
+					browser.storage.local.set({
+						'yakkl-pending-requests': JSON.stringify(pendingData)
+					}).catch(e => {
+						log.debug('Could not save pending requests to chrome storage', false, e);
+					});
+				} else {
+					// Keep in memory as fallback
+					log.debug('Storage not available, keeping pending requests in memory', false);
+				}
 			} catch (e) {
-				log.warn('Could not save pending requests to session storage', false, e);
+				log.debug('Could not save pending requests', false, e);
 			}
 		}
 
@@ -990,11 +1008,34 @@ class ContentScriptManager {
 				return false;
 			}
 
-			// Check for null origin
+			// Check if frame is sandboxed and missing required permissions
+			// Sandboxed iframes without 'allow-same-origin' cannot access storage APIs
+			try {
+				// Try to detect if the frame is sandboxed by checking access to certain properties
+				// This will throw if the frame is sandboxed without 'allow-same-origin'
+				const testOrigin = frame.location.origin;
+				
+				// Additional check: try to access localStorage/indexedDB to see if they're available
+				// This is a safe check that won't throw but will indicate if storage is blocked
+				const hasStorageAccess = frame.localStorage !== undefined && frame.indexedDB !== undefined;
+				
+				if (!hasStorageAccess) {
+					log.debug('Frame lacks storage access, skipping injection', false, {
+						origin: testOrigin === 'null' ? 'null' : 'restricted'
+					});
+					return false;
+				}
+			} catch (accessError) {
+				// If we can't access frame properties, it's likely sandboxed without proper permissions
+				log.debug('Frame appears to be sandboxed without allow-same-origin, skipping injection', false);
+				return false;
+			}
+
+			// Check for null origin (could be sandboxed iframe or data URL)
 			if (frame.location.origin === 'null') {
-				// Allow injection into null origins for certain contexts (data URLs, etc.)
-				log.debug('Frame has null origin, allowing injection based on security level', false);
-				return this.securityLevel !== SecurityLevelEnum.HIGH;
+				// Skip injection for null origins as they likely can't use storage APIs
+				log.debug('Frame has null origin, skipping injection to avoid storage errors', false);
+				return false;
 			}
 
 			// Check security level

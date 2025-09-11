@@ -1,0 +1,49 @@
+{
+  "project": "yakkl-monorepo",
+  "description": "YAKKL Monorepo Root Orchestrator",
+  "version": "1.0.0",
+  "orchestration": {
+    "enabled": true,
+    "mode": "hybrid",
+    "packageDetection": "automatic"
+  },
+  "agents": {
+    "autoLoad": true,
+    "paths": [
+      ".claude/orchestration",
+      ".claude/agents/shared"
+    ]
+  },
+  "commands": {
+    "build": "pnpm run build:all",
+    "test": "pnpm run test:all",
+    "lint": "pnpm run lint:all",
+    "analyze:deps": "pnpm run analyze:dependencies",
+    "check:health": "pnpm run check:monorepo-health"
+  },
+  "packages": {
+    "priority": [
+      "yakkl-core",
+      "yakkl-cache",
+      "yakkl-sdk",
+      "yakkl-wallet",
+      "yakkl-ui"
+    ],
+    "autoSetup": true
+  },
+  "hooks": {
+    "preCommit": ".claude/hooks/shared/pre-commit.sh",
+    "postMerge": ".claude/hooks/shared/post-merge.sh"
+  },
+  "features": {
+    "crossPackageAnalysis": true,
+    "dependencyTracking": true,
+    "impactAnalysis": true,
+    "releaseCoordination": true
+  },
+  "performance": {
+    "parallelExecution": true,
+    "cacheEnabled": true,
+    "incrementalBuilds": true
+  }
+}

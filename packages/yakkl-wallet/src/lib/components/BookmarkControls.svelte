@@ -113,7 +113,7 @@
     background-color: rgba(31, 41, 55, 0.95);
   }
 
-  :global(.group:hover) .bookmark-controls {
+  :global(.bookmark-item:hover) .bookmark-controls {
     opacity: 1;
   }
 </style>

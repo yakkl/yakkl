@@ -5,7 +5,8 @@
 	import Modal from '@yakkl/ui/src/components/Modal.svelte';
 	import Avatar from './Avatar.svelte';
 	import ErrorNoAction from './ErrorNoAction.svelte';
-	import { getProfile, setProfileStorage, yakklMiscStore } from '$lib/common/stores';
+	import { setProfileStorage, yakklMiscStore } from '$lib/common/stores';
+	import { getProfile } from '$lib/common/profile';
 	import { log } from '$lib/common/logger-wrapper';
 	import type { Profile, ProfileData } from '$lib/common/interfaces';
 	import { decryptData, encryptData } from '$lib/common/encryption';
@@ -23,6 +24,7 @@
 		onClose = () => (show = false),
 		onComplete = () => {}
 	}: Props = $props();
+
 
 	let profile: Profile | null = $state(null);
 	let profileData: ProfileData | null = $state(null);
@@ -366,12 +368,12 @@
 	}
 </script>
 
-<Modal bind:show title="Profile" onClose={handleClose} className="max-w-2xl">
+<Modal bind:show={show} title="Profile" onClose={handleClose} className="max-w-2xl">
 	<div class="space-y-6 p-6">
 		{#if isLoading}
 			<div class="flex items-center justify-center py-8">
 				<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-				<span class="ml-2 text-gray-600">Loading profile...</span>
+				<span class="ml-2 text-base-content/70">Loading profile...</span>
 			</div>
 		{:else}
 			<form onsubmit={handleFormSubmit} class="space-y-6">
@@ -387,7 +389,7 @@
 					</div>
 
 					<div class="w-full">
-						<label for="avatarUrl" class="block text-sm font-medium text-gray-700 mb-1">
+						<label for="avatarUrl" class="block text-sm font-medium text-base-content mb-1">
 							Avatar URL (optional)
 						</label>
 						<input
@@ -407,7 +409,7 @@
 				<!-- Basic Information -->
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div>
-						<label for="username" class="block text-sm font-medium text-gray-700 mb-1">
+						<label for="username" class="block text-sm font-medium text-base-content mb-1">
 							Username <span class="text-red-500">*</span>
 						</label>
 						<input
@@ -424,7 +426,7 @@
 					</div>
 
 					<div>
-						<label for="email" class="block text-sm font-medium text-gray-700 mb-1">
+						<label for="email" class="block text-sm font-medium text-base-content mb-1">
 							Email <span class="text-red-500">*</span>
 						</label>
 						<input
@@ -443,7 +445,7 @@
 
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div>
-						<label for="firstName" class="block text-sm font-medium text-gray-700 mb-1">
+						<label for="firstName" class="block text-sm font-medium text-base-content mb-1">
 							First Name <span class="text-red-500">*</span>
 						</label>
 						<input
@@ -460,7 +462,7 @@
 					</div>
 
 					<div>
-						<label for="lastName" class="block text-sm font-medium text-gray-700 mb-1">
+						<label for="lastName" class="block text-sm font-medium text-base-content mb-1">
 							Last Name <span class="text-red-500">*</span>
 						</label>
 						<input
@@ -479,7 +481,7 @@
 
 				<!-- Optional Fields -->
 				<div>
-					<label for="website" class="block text-sm font-medium text-gray-700 mb-1">
+					<label for="website" class="block text-sm font-medium text-base-content mb-1">
 						Website (optional)
 					</label>
 					<input
@@ -496,7 +498,7 @@
 				</div>
 
 				<div>
-					<label for="bio" class="block text-sm font-medium text-gray-700 mb-1">
+					<label for="bio" class="block text-sm font-medium text-base-content mb-1">
 						Bio (optional)
 					</label>
 					<textarea
@@ -510,7 +512,7 @@
 					{#if $errors.bio && $touched.bio}
 						<p class="mt-1 text-sm text-red-600">{$errors.bio}</p>
 					{/if}
-					<p class="mt-1 text-sm text-gray-500">{($form.bio || '').length}/500 characters</p>
+					<p class="mt-1 text-sm text-base-content/50">{($form.bio || '').length}/500 characters</p>
 				</div>
 
 				<!-- Status Messages -->
@@ -531,7 +533,7 @@
 					<button
 						type="button"
 						onclick={resetForm}
-						class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+						class="btn btn-ghost"
 						disabled={!hasChanges || isSaving}
 					>
 						Reset
@@ -541,7 +543,7 @@
 						<button
 							type="button"
 							onclick={handleClose}
-							class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+							class="btn btn-ghost"
 							disabled={isSaving}
 						>
 							Cancel
@@ -566,7 +568,7 @@
 
 				<!-- Last Updated Info -->
 				{#if profile?.updateDate}
-					<div class="text-xs text-gray-500 text-center pt-2 border-t">
+					<div class="text-xs text-base-content/50 text-center pt-2 border-t border-base-300">
 						Last updated: {new Date(profile.updateDate).toLocaleString()}
 					</div>
 				{/if}

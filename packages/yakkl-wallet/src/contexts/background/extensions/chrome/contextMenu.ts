@@ -1,8 +1,8 @@
 import browser from 'webextension-polyfill';
-import type { 
-  EnhancedBookmark, 
+import type {
+  EnhancedBookmark,
   DragDropPayload,
-  ContentType 
+  ContentType
 } from '$lib/types/bookmark.types';
 
 const MENU_ID_PREFIX = 'yakkl_bookmark_';
@@ -16,13 +16,14 @@ interface ContextMenuIds {
   SAVE_LINK: string;
 }
 
-const MENU_IDS: ContextMenuIds = {
+const MENU_IDS: ContextMenuIds & { SEPARATOR: string } = {
   MAIN: `${MENU_ID_PREFIX}main`,
   QUICK_SAVE: `${MENU_ID_PREFIX}quick_save`,
   SAVE_WITH_NOTE: `${MENU_ID_PREFIX}save_with_note`,
   SAVE_SELECTION: `${MENU_ID_PREFIX}save_selection`,
   SAVE_IMAGE: `${MENU_ID_PREFIX}save_image`,
-  SAVE_LINK: `${MENU_ID_PREFIX}save_link`
+  SAVE_LINK: `${MENU_ID_PREFIX}save_link`,
+  SEPARATOR: `${MENU_ID_PREFIX}separator`
 };
 
 export class BookmarkContextMenuService {
@@ -30,7 +31,7 @@ export class BookmarkContextMenuService {
 
   async initialize() {
     if (this.isInitialized) return;
-    
+
     try {
       await this.createContextMenus();
       this.setupListeners();
@@ -44,47 +45,48 @@ export class BookmarkContextMenuService {
   private async createContextMenus() {
     await browser.contextMenus.removeAll();
 
-    await browser.contextMenus.create({
+    browser.contextMenus.create({
       id: MENU_IDS.MAIN,
       title: 'YAKKL Bookmark',
       contexts: ['page', 'selection', 'image', 'link', 'video', 'audio']
     });
 
-    await browser.contextMenus.create({
+    browser.contextMenus.create({
       id: MENU_IDS.QUICK_SAVE,
       parentId: MENU_IDS.MAIN,
       title: 'Quick Save',
       contexts: ['page', 'selection', 'image', 'link', 'video', 'audio']
     });
 
-    await browser.contextMenus.create({
+    browser.contextMenus.create({
       id: MENU_IDS.SAVE_WITH_NOTE,
       parentId: MENU_IDS.MAIN,
       title: 'Save with Note',
       contexts: ['page', 'selection', 'image', 'link', 'video', 'audio']
     });
 
-    await browser.contextMenus.create({
+    browser.contextMenus.create({
+      id: MENU_IDS.SEPARATOR,
       type: 'separator',
       parentId: MENU_IDS.MAIN,
       contexts: ['page', 'selection', 'image', 'link', 'video', 'audio']
     });
 
-    await browser.contextMenus.create({
+    browser.contextMenus.create({
       id: MENU_IDS.SAVE_SELECTION,
       parentId: MENU_IDS.MAIN,
       title: 'Save Selected Text',
       contexts: ['selection']
     });
 
-    await browser.contextMenus.create({
+    browser.contextMenus.create({
       id: MENU_IDS.SAVE_IMAGE,
       parentId: MENU_IDS.MAIN,
       title: 'Save Image',
       contexts: ['image']
     });
 
-    await browser.contextMenus.create({
+    browser.contextMenus.create({
       id: MENU_IDS.SAVE_LINK,
       parentId: MENU_IDS.MAIN,
       title: 'Save Link',
@@ -95,10 +97,10 @@ export class BookmarkContextMenuService {
   private setupListeners() {
     browser.contextMenus.onClicked.addListener(async (info, tab) => {
       if (!tab?.id || !tab.url) return;
-      
+
       try {
         const bookmarkData = await this.extractBookmarkData(info, tab);
-        
+
         switch (info.menuItemId) {
           case MENU_IDS.QUICK_SAVE:
             await this.quickSaveBookmark(bookmarkData);
@@ -116,10 +118,10 @@ export class BookmarkContextMenuService {
             await this.saveLink(bookmarkData, info.linkUrl || '');
             break;
         }
-        
+
         await this.showNotification('Bookmark saved successfully!');
         await this.playSound('save');
-        
+
       } catch (error) {
         console.error('Failed to save bookmark:', error);
         await this.showNotification('Failed to save bookmark', 'error');
@@ -132,7 +134,7 @@ export class BookmarkContextMenuService {
     tab: any
   ): Promise<Partial<EnhancedBookmark>> {
     const contentType = this.detectContentType(tab.url || '', info);
-    
+
     const [pageData] = await browser.tabs.executeScript(tab.id!, {
       code: `
         (() => {
@@ -140,25 +142,25 @@ export class BookmarkContextMenuService {
             const meta = document.querySelector(\`meta[name="\${name}"], meta[property="\${name}"]\`);
             return meta ? meta.content : '';
           };
-          
+
           const getFirstImage = () => {
             const ogImage = getMetaContent('og:image');
             if (ogImage) return ogImage;
-            
+
             const twitterImage = getMetaContent('twitter:image');
             if (twitterImage) return twitterImage;
-            
+
             const firstImg = document.querySelector('img');
             return firstImg ? firstImg.src : '';
           };
-          
+
           return {
             title: document.title || '',
             description: getMetaContent('description') || getMetaContent('og:description') || '',
             keywords: getMetaContent('keywords').split(',').map(k => k.trim()).filter(Boolean),
             author: getMetaContent('author') || '',
             imageUrl: getFirstImage(),
-            faviconUrl: document.querySelector('link[rel="icon"]')?.href || 
+            faviconUrl: document.querySelector('link[rel="icon"]')?.href ||
                        document.querySelector('link[rel="shortcut icon"]')?.href || '',
             selectedText: window.getSelection().toString()
           };
@@ -184,14 +186,14 @@ export class BookmarkContextMenuService {
     if (info?.mediaType === 'image') return 'image';
     if (info?.mediaType === 'video') return 'video';
     if (info?.mediaType === 'audio') return 'podcast';
-    
+
     const urlLower = url.toLowerCase();
     if (urlLower.endsWith('.pdf')) return 'pdf';
     if (urlLower.match(/\.(mp4|webm|ogg|mov)/)) return 'video';
     if (urlLower.match(/\.(mp3|wav|m4a|aac)/)) return 'audio';
     if (urlLower.match(/\.(jpg|jpeg|png|gif|webp|svg)/)) return 'image';
     if (urlLower.includes('youtube.com') || urlLower.includes('vimeo.com')) return 'video';
-    
+
     return 'webpage';
   }
 
@@ -210,7 +212,7 @@ export class BookmarkContextMenuService {
   }
 
   private async saveSelectedText(
-    bookmarkData: Partial<EnhancedBookmark>, 
+    bookmarkData: Partial<EnhancedBookmark>,
     selectedText: string
   ) {
     await this.sendToSidePanel({
@@ -230,7 +232,7 @@ export class BookmarkContextMenuService {
   }
 
   private async saveImage(
-    bookmarkData: Partial<EnhancedBookmark>, 
+    bookmarkData: Partial<EnhancedBookmark>,
     imageUrl: string
   ) {
     await this.sendToSidePanel({
@@ -245,11 +247,11 @@ export class BookmarkContextMenuService {
   }
 
   private async saveLink(
-    bookmarkData: Partial<EnhancedBookmark>, 
+    bookmarkData: Partial<EnhancedBookmark>,
     linkUrl: string
   ) {
     const linkContentType = this.detectContentType(linkUrl);
-    
+
     await this.sendToSidePanel({
       type: 'ADD_BOOKMARK',
       data: {
@@ -262,10 +264,10 @@ export class BookmarkContextMenuService {
 
   private async sendToSidePanel(message: any) {
     try {
-      const [sidePanelWindow] = await browser.windows.getAll({ 
-        windowTypes: ['popup', 'normal'] 
+      const [sidePanelWindow] = await browser.windows.getAll({
+        windowTypes: ['popup', 'normal']
       });
-      
+
       if (sidePanelWindow) {
         await browser.runtime.sendMessage({
           target: 'sidepanel',
@@ -276,7 +278,7 @@ export class BookmarkContextMenuService {
         if (typeof chrome !== 'undefined' && (chrome as any).sidePanel) {
           await (chrome as any).sidePanel.open({ windowId: (chrome as any).windows?.WINDOW_ID_CURRENT });
         }
-        
+
         setTimeout(async () => {
           await browser.runtime.sendMessage({
             target: 'sidepanel',
@@ -291,10 +293,10 @@ export class BookmarkContextMenuService {
   }
 
   private async showNotification(message: string, type: 'success' | 'error' = 'success') {
-    const iconUrl = type === 'success' 
-      ? '/images/logoBullLock48x48.png' 
+    const iconUrl = type === 'success'
+      ? '/images/logoBullLock48x48.png'
       : '/images/logoBullLock48x48.png';
-    
+
     await browser.notifications.create({
       type: 'basic',
       iconUrl,
@@ -302,7 +304,7 @@ export class BookmarkContextMenuService {
       message,
       priority: 1
     });
-    
+
     setTimeout(() => {
       browser.notifications.clear('bookmark-notification');
     }, 3000);

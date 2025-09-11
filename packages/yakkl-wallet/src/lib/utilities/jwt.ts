@@ -65,19 +65,54 @@ export class JWTManager {
 			// 	planLevel,
 			// 	provider: 'local'
 			// });
-			const result = { success: false, jwt: null }; // Temporary until identity is fixed
+			// Create a simple JWT token until identity system is ready
+			// This is a temporary implementation that creates a basic JWT structure
+			
+			const header: JWTHeader = {
+				alg: this.algorithm,
+				typ: 'JWT'
+			};
+			
+			const now = Math.floor(Date.now() / 1000);
+			const expirationTime = now + (expirationMinutes * 60);
+			
+			const payload: JWTPayload = {
+				sub: userId,
+				iat: now,
+				exp: expirationTime,
+				iss: this.issuer,
+				aud: this.audience,
+				profileId,
+				username,
+				planLevel,
+				sessionId: crypto.randomUUID(),
+				secureHash
+			};
+			
+			// Create a simple base64 encoded token (not cryptographically signed)
+			// This is temporary - in production, use proper JWT signing
+			const headerBase64 = btoa(JSON.stringify(header));
+			const payloadBase64 = btoa(JSON.stringify(payload));
+			
+			// Create a simple signature using Web Crypto API
+			const encoder = new TextEncoder();
+			const data = encoder.encode(`${headerBase64}.${payloadBase64}`);
+			
+			// Use a simple hash as signature (temporary solution)
+			const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+			const hashArray = Array.from(new Uint8Array(hashBuffer));
+			const signatureBase64 = btoa(String.fromCharCode(...hashArray));
+			
+			const jwt = `${headerBase64}.${payloadBase64}.${signatureBase64}`;
 
-			if (!result.success || !result.jwt) {
-				throw new Error('Failed to generate JWT through identity system');
-			}
-
-			log.debug('JWT token generated via identity system', false, {
+			log.debug('JWT token generated (temporary implementation)', false, {
 				userId,
 				username,
-				expirationMinutes
+				expirationMinutes,
+				exp: expirationTime
 			});
 
-			return result.jwt;
+			return jwt;
 		} catch (error) {
 			log.error('Failed to generate JWT token:', false, error);
 			throw new Error('Token generation failed');

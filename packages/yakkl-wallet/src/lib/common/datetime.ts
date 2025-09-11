@@ -1,57 +1,22 @@
-import { log } from '$lib/managers/Logger';
+/**
+ * Re-export datetime utilities from @yakkl/core
+ * This file is maintained for backward compatibility
+ */
 
-export type Timestamp = string | number | Date | undefined;
-
-export interface FormatTimestampOptions {
-	placeholder?: string;
-	locale?: string;
-	options?: Intl.DateTimeFormatOptions;
-}
-
-export function dateString() {
-	return new Date().toISOString();
-}
-
-export function getTime(): number {
-	return new Date().getTime();
-}
-
-export function formatDate(date: Date): string {
-	return date.toLocaleString();
-}
-
-export function formatTimestamp(
-	timestamp: Timestamp,
-	{
-		placeholder = '------',
-		locale = 'en-US',
-		options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }
-	}: FormatTimestampOptions = {}
-): string {
-	try {
-		if (timestamp === undefined || (typeof timestamp === 'number' && Number.isNaN(timestamp))) {
-			return placeholder;
-		}
-
-		let date: Date;
-
-		if (typeof timestamp === 'string' || typeof timestamp === 'number') {
-			date = new Date(timestamp);
-			if (isNaN(date.getTime())) {
-				return placeholder;
-			}
-		} else if (timestamp instanceof Date) {
-			date = timestamp;
-		} else {
-			return placeholder;
-		}
-
-		return new Intl.DateTimeFormat(locale, options).format(date);
-	} catch (e) {
-		log.error(e);
-		return placeholder;
-	}
-}
+export {
+  dateString,
+  getTime,
+  formatDate,
+  formatTimestamp,
+  getRelativeTime,
+  isToday,
+  isYesterday,
+  addDays,
+  startOfDay,
+  endOfDay,
+  type DateTimestamp as Timestamp,
+  type FormatTimestampOptions
+} from '@yakkl/core';
 
 // Example usage
 // console.log(formatTimestamp('2023-07-12T14:30:00Z')); // Default formatting

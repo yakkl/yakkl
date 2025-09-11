@@ -2,7 +2,7 @@ import { writable, derived, get } from 'svelte/store';
 import { browser } from '$app/environment';
 import { encryptData, decryptData } from '$lib/common/encryption';
 import { getObjectFromLocalStorage, setObjectInLocalStorage, removeObjectFromLocalStorage } from '$lib/common/storage';
-import { getProfile } from '$lib/common/stores';
+import { getProfile } from '$lib/common/profile';
 import { log } from '$lib/managers/Logger';
 import type { EncryptedData } from '$lib/common/interfaces';
 

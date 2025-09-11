@@ -1,6 +1,7 @@
 import { log } from './Logger';
 import { dateString } from '$lib/common/datetime';
-import { getProfile, setProfileStorage, getYakklSettings, setYakklSettingsStorage } from '$lib/common/stores';
+import { setProfileStorage, getYakklSettings, setYakklSettingsStorage } from '$lib/common/stores';
+import { getProfile } from '$lib/common/profile';
 import { encryptData, decryptData } from '$lib/common/encryption';
 import { AccessSourceType, PlanType, PromoClassificationType } from '$lib/common/types';
 import { isEncryptedData } from '$lib/common/misc';

@@ -7,4 +7,6 @@ export * from './BigNumberishUtils';
 export * from './uuid';
 export * from './math';
 export * from './validators';
+export * from './datetime';
+export * from './rate-limiter';
 //# sourceMappingURL=index.d.ts.map

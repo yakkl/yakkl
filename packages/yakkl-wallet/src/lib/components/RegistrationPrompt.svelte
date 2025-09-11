@@ -22,13 +22,19 @@
 		onCancel
 	}: Props = $props();
 
-	function handleConfirm() {
+	async function handleConfirm() {
 		if (onConfirm) {
 			onConfirm();
 		} else if (context === 'sidepanel' && openWallet) {
 			openWallet();
 		} else if (context === 'sidepanel') {
-			browser_ext.runtime.sendMessage({ type: 'popout' });
+			try {
+				console.log('[RegistrationPrompt] Sending popout message...');
+				const response = await browser_ext.runtime.sendMessage({ type: 'popout' });
+				console.log('[RegistrationPrompt] Popout response:', response);
+			} catch (error) {
+				console.error('[RegistrationPrompt] Failed to send popout message:', error);
+			}
 		}
 		show = false;
 	}
@@ -39,7 +45,7 @@
 	}
 </script>
 
-<Modal bind:show {title} className="z-[700]">
+<Modal bind:open={show} {title} className="z-[700]">
 	<div class="p-6 space-y-4">
 		<p class="text-base">{message}</p>
 		<p class="text-sm text-gray-600">

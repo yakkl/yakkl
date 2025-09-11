@@ -5,7 +5,7 @@
   import { currentChain } from '$lib/stores/chain.store';
   import { Plus, Search, Trash2, Copy, ExternalLink, User, Pencil } from 'lucide-svelte';
   import type { YakklContact, YakklCurrentlySelected } from '$lib/common/interfaces';
-  import { getYakklCurrentlySelected } from '$lib/common/stores';
+  import { getYakklCurrentlySelected } from '$lib/common/currentlySelected';
 
   // State
   let contacts = $state<YakklContact[]>([]);

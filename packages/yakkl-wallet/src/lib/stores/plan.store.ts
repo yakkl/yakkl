@@ -2,7 +2,8 @@ import { writable, derived } from 'svelte/store';
 import type { UserPlan } from '../types';
 import { PlanType } from '../common';
 import { hasFeature, getFeaturesForPlan, isTrialUser } from '../config/features';
-import { getMiscStore, getProfile, getYakklSettings, setProfileStorage, setYakklSettingsStorage } from '$lib/common/stores';
+import { getMiscStore, setProfileStorage } from '$lib/common/stores';
+import { getProfile } from '$lib/common/profile';
 import { setUserPlan } from '../utils/features';
 import { decryptData, encryptData, isEncryptedData, type ProfileData } from '$lib/common';
 import { log } from '$lib/common/logger-wrapper';
@@ -38,6 +39,9 @@ function createPlanStore() {
           if (isEncryptedData(profile.data)) {
             // Decrypt profile data to get plan type
             const miscStore = getMiscStore();
+            if (!miscStore) {
+              throw new Error('No data found in misc store');
+            }
             const profileData = await decryptData(profile.data, miscStore) as ProfileData;
             if (profileData) {
               planType = profileData.planType || PlanType.EXPLORER_MEMBER;
@@ -77,7 +81,6 @@ function createPlanStore() {
           loading: false
         });
       } catch (error) {
-        log.error('[PlanStore] Error loading plan:', error);
         // Default to basic plan on error
         set({
           plan: {
@@ -275,7 +278,14 @@ export const currentPlan = derived(
 
 export const isProUser = derived(
   planStore,
-  $store => $store?.plan?.type === (PlanType.YAKKL_PRO || $store.plan.type === PlanType.YAKKL_PRO_PLUS || $store.plan.type === PlanType.ENTERPRISE || $store.plan.type === PlanType.EARLY_ADOPTER || $store.plan.type === PlanType.FOUNDING_MEMBER)
+  $store => {
+    const planType = $store?.plan?.type;
+    return planType === PlanType.YAKKL_PRO ||
+           planType === PlanType.YAKKL_PRO_PLUS ||
+           planType === PlanType.ENTERPRISE ||
+           planType === PlanType.EARLY_ADOPTER ||
+           planType === PlanType.FOUNDING_MEMBER;
+  }
 );
 
 export const isOnTrial = derived(

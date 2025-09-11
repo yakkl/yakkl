@@ -13,6 +13,8 @@ import {
 
 import { log } from '$lib/managers/Logger';
 
+// NOTE: This also contains storage related functions for background contexts such as getYakklAccounts, etc. which are stores in client contexts.
+
 // Re-export functions with the same names for backward compatibility
 export const clearObjectsFromLocalStorage = async (useBrowserAPI = false): Promise<void> => {
   try {
@@ -29,9 +31,7 @@ export const getObjectFromLocalStorage = async <T>(
   timeoutMs = 1000
 ): Promise<T | null> => {
   try {
-    console.log('[getObjectFromLocalStorage] Getting key:', key, 'useBrowserAPI:', useBrowserAPI);
     const result = await getStorage<T>(key, useBrowserAPI, timeoutMs);
-    console.log('[getObjectFromLocalStorage] Result for', key, ':', result);
     return result;
   } catch (error) {
     log.warn('Error getting object from local storage', false, error);
@@ -71,3 +71,4 @@ export const getObjectFromLocalStorageDirect = async <T>(key: string): Promise<T
     return null;
   }
 };
+

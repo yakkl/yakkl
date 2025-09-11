@@ -1,9 +1,30 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Background actions for the extension...
+
+// Import the index to register all handlers properly
+// This ensures STORE_SESSION_HASH and other handlers work correctly
+import '../../index';
+
 import { initializeEIP6963, handleRequestAccounts, showEIP6963Popup } from './eip-6963';
 
-import { addBackgroundListeners } from '$lib/common/listeners/background/backgroundListeners';
+import { 
+  addBackgroundListeners,
+  backgroundListenerManager,
+  onInstalledUpdatedListener,
+  onYakklPageListener,
+  onExternalMessageListener
+} from '$lib/common/listeners/background/backgroundListeners';
+import { 
+  onPortConnectListener, 
+  onPortDisconnectListener 
+} from '$lib/common/listeners/background/portListeners';
+import {
+  onTabActivatedListener,
+  onTabRemovedListener,
+  onTabUpdatedListener,
+  onWindowsFocusChangedListener
+} from '$lib/common/listeners/background/tabListeners';
 import { globalListenerManager } from '$lib/managers/GlobalListenerManager';
 import { log } from '$lib/managers/Logger';
 import { onAlarmListener } from '$lib/common/listeners/background/alarmListeners';
@@ -31,12 +52,21 @@ import { BackgroundIntervalService } from '$lib/services/background-interval.ser
 import { BackgroundPriceService } from '$lib/services/background-price.service';
 import { BackgroundTransactionService } from '$lib/services/background-transaction.service';
 import { IdleManager } from '$lib/managers/IdleManager';
+import { backgroundManager } from '$lib/managers/BackgroundManager';
 import { getYakklSettings } from '$lib/common/stores';
 
 type RuntimeSender = Runtime.MessageSender;
 type RuntimePort = Runtime.Port;
 
 // NOTE: This can only be used in the background context
+
+// CRITICAL: Register a basic message listener IMMEDIATELY to ensure messages can be received
+// This runs synchronously at module load time - EXACTLY like the test that worked
+// Use chrome directly since that's what worked in the test
+// REMOVED: This listener was causing duplicate popups
+// The 'popout' message is already handled by unifiedMessageListener.ts
+// Having two handlers for the same message type was causing two popup windows
+// All message handling should go through the unified message handling system
 
 // NOTE: This is a workaround for how Chrome handles alarms, listeners, and state changes in the background
 //  It appears that if the extension is suspended, the idle listener may not be triggered
@@ -147,10 +177,11 @@ interface DappRequest {
 }
 
 // Handle port connections
-browser.runtime.onConnect.addListener((port: RuntimePort) => {
-  const portId = port.name || `port-${Date.now()}`;
+if (browser?.runtime?.onConnect) {
+  browser.runtime.onConnect.addListener((port: RuntimePort) => {
+    const portId = port.name || `port-${Date.now()}`;
 
-  log.debug('Background: Port connected:', false, {
+    log.debug('Background: Port connected:', false, {
     portId,
     portName: port.name,
     sender: port.sender,
@@ -267,17 +298,12 @@ browser.runtime.onConnect.addListener((port: RuntimePort) => {
     }
   });
 });
+}
 
 // Add port cleanup function
 function cleanupPort(portId: string) {
   const portState = activePorts.get(portId);
   if (!portState) return;
-
-  log.debug('Port cleanup executing', false, {
-    portId,
-    pendingMessages: portState.pendingMessages,
-    timestamp: new Date().toISOString()
-  });
 
   // Clean up any pending requests for this port
   for (const [id, request] of pendingRequests.entries()) {
@@ -698,7 +724,7 @@ function broadcastEvent(eventName: string, data: any, type: string = 'YAKKL_EVEN
 
 // Set up event listeners for provider events
 function setupProviderEvents() {
-  const provider = getAlchemyProvider(); // Add other providers here
+  const provider = getAlchemyProvider(); // TODO: Add other providers here
 
   // Listen for account changes
   provider.on('accountsChanged', (accounts: string[]) => {
@@ -759,9 +785,11 @@ initialize();
 // Initialize on startup
 async function initializeOnStartup() {
   try {
-    // Add extension listeners
-    addBackgroundListeners();
-    browser.alarms.onAlarm.addListener(onAlarmListener);
+    // Listeners will be added in main initialization after all APIs are ready
+    // Don't add them here as browser APIs may not be fully available yet
+    if (browser?.alarms?.onAlarm) {
+      browser.alarms.onAlarm.addListener(onAlarmListener);
+    }
 
     // Initialize default storage values first
     initializeStorageDefaults();
@@ -772,14 +800,11 @@ async function initializeOnStartup() {
     // Initialize permissions system
     initializePermissions();
 
-    // Initialize EIP-6963 handler
-    initializeEIP6963();
+    // EIP-6963 will be initialized in the async startup block when all APIs are ready
 
     // Initialize BackgroundManager for port communication
     try {
-      const { backgroundManager } = await import('$lib/managers/BackgroundManager');
       await backgroundManager.initialize();
-      log.info('[Background] BackgroundManager initialized');
     } catch (error) {
       log.error('[Background] Failed to initialize BackgroundManager:', false, error);
     }
@@ -788,7 +813,6 @@ async function initializeOnStartup() {
     try {
       const intervalService = BackgroundIntervalService.getInstance();
       await intervalService.initialize();
-      log.info('[Background] Background interval service initialized');
     } catch (error) {
       log.error('[Background] Failed to initialize interval service:', false, error);
     }
@@ -797,7 +821,6 @@ async function initializeOnStartup() {
     try {
       const priceService = BackgroundPriceService.getInstance();
       await priceService.start();
-      log.info('[Background] Background price service started');
     } catch (error) {
       log.error('[Background] Failed to start price service:', false, error);
     }
@@ -806,7 +829,6 @@ async function initializeOnStartup() {
     try {
       const transactionService = BackgroundTransactionService.getInstance();
       await transactionService.start();
-      log.info('[Background] Background transaction service started');
     } catch (error) {
       log.error('[Background] Failed to start transaction service:', false, error);
     }
@@ -823,7 +845,6 @@ async function initializeOnStartup() {
             lockDelay: (settings?.idleSettings?.graceMinutes || 1) * 60 * 1000,
             checkInterval: 15000
           });
-          log.info('[Background] IdleManager initialized with system-wide monitoring');
         }
       } catch (error) {
         log.error('[Background] Failed to initialize IdleManager (non-blocking):', false, error);
@@ -852,8 +873,11 @@ async function initializeOnStartup() {
   }
 }
 
+// Browser APIs are guaranteed to be available immediately with static imports
+// No need for waitForBrowserAPIs function - webextension-polyfill is loaded synchronously
+
 // Handle extension action button clicks
-if (browser.action && browser.action.onClicked) {
+if (browser?.action?.onClicked) {
   browser.action.onClicked.addListener(async () => {
     log.info('[Background] Extension action button clicked');
     try {
@@ -864,58 +888,53 @@ if (browser.action && browser.action.onClicked) {
   });
 }
 
-// Ensure browser APIs are ready before initializing
-if (typeof browser !== 'undefined' && browser.runtime) {
-  await initializeOnStartup(); // Initial setup on load or reload. Alarm and State need to be set up quickly so they are here
-} else {
-  log.error('Browser APIs not ready at startup - deferring initialization');
-  // For service workers, we might need to wait for the first event
-  setTimeout(async () => {
-    if (typeof browser !== 'undefined' && browser.runtime) {
-      await initializeOnStartup();
+// Initialization is handled at the end of the file
+// Removed duplicate initialization block
+
+// Function to set active tab - will be called after initialization
+async function setActiveTabOnStartup() {
+  try {
+    if (browser?.tabs?.query) {
+      // Set the active tab on startup
+      const tabs = await browser.tabs.query({ active: true }); //, currentWindow: true });
+      if (tabs.length > 0) {
+        const realTab = tabs.find(t => !t.url?.startsWith('chrome-extension://'));
+        if (realTab && browser?.windows?.get) {
+          const win = await browser.windows.get(realTab.windowId);
+          let activeTab: ActiveTab | null = {
+            tabId: realTab.id,
+            windowId: realTab.windowId,
+            windowType: win.type,
+            url: realTab.url,
+            title: realTab.title,
+            favIconUrl: realTab.favIconUrl,
+            dateTime: new Date().toISOString()
+          };
+
+          if (activeTab.tabId === 0) activeTab = null;
+          if (activeTab?.windowType === 'normal') {
+            activeTabBackgroundStore.set(activeTab);
+            activeTabUIStore.set(activeTab);
+            if (browser?.storage?.local) {
+              await browser.storage.local.set({['activeTabBackground']: activeTab});
+            }
+          }
+        }
+
+        try {
+          const backgroundUIConnected = get(backgroundUIConnectedStore);
+        } catch (error) {
+          // silent
+          log.error('Error setting active tab 1:', false, error);
+        }
+      }
     } else {
-      log.error('Browser APIs still not ready after delay');
+      activeTabBackgroundStore.set(null);
+      activeTabUIStore.set(null);
     }
-  }, 100);
-}
-
-try {
-  if (browser) {
-    // Set the active tab on startup
-    const tabs = await browser.tabs.query({ active: true }); //, currentWindow: true });
-    if (tabs.length > 0) {
-      const realTab = tabs.find(t => !t.url?.startsWith('chrome-extension://'));
-      const win = await browser.windows.get(realTab.windowId);
-      let activeTab: ActiveTab | null = {
-        tabId: realTab.id,
-        windowId: realTab.windowId,
-        windowType: win.type,
-        url: realTab.url,
-        title: realTab.title,
-        favIconUrl: realTab.favIconUrl,
-        dateTime: new Date().toISOString()
-      };
-
-      if (activeTab.tabId === 0) activeTab = null;
-      if (activeTab?.windowType === 'normal') {
-        activeTabBackgroundStore.set(activeTab);
-        activeTabUIStore.set(activeTab);
-        await browser.storage.local.set({['activeTabBackground']: activeTab});
-      }
-
-      try {
-        const backgroundUIConnected = get(backgroundUIConnectedStore);
-      } catch (error) {
-        // silent
-        log.error('Error setting active tab 1:', false, error);
-      }
-    }
-  } else {
-    activeTabBackgroundStore.set(null);
-    activeTabUIStore.set(null);
+  } catch (error) {
+    log.error('Error setting active tab 2:', false, error);
   }
-} catch (error) {
-  log.error('Error setting active tab 2:', false, error);
 }
 
 // Moved here for now
@@ -958,11 +977,7 @@ export async function onRuntimeMessageBackgroundListener(
         }
       }
 
-      case 'popout': {
-        log.debug('popout:', false, message);
-        showPopup('');
-        return { success: true };
-      }
+      // Removed duplicate popout handler - handled in unifiedMessageListener
 
       default: {
         // Not handled by this listener
@@ -1035,13 +1050,13 @@ async function initializeKeyManager(): Promise<void> {
     const keyManager = await KeyManager.getInstance();
 
     // Log environment details for debugging
-    log.info('Environment details:', false, {
-      NODE_ENV: process.env.NODE_ENV,
-      isDev: isDevelopmentEnvironment(),
-      availableEnvKeys: process.env ? Object.keys(process.env).filter(key =>
-        key.includes('API_KEY') || key.includes('ALCHEMY') || key.includes('INFURA') || key.includes('BLOCKNATIVE')
-      ) : []
-    });
+    // log.info('Environment details:', false, {
+    //   NODE_ENV: process.env.NODE_ENV,
+    //   isDev: isDevelopmentEnvironment(),
+    //   availableEnvKeys: process.env ? Object.keys(process.env).filter(key =>
+    //     key.includes('API_KEY') || key.includes('ALCHEMY') || key.includes('INFURA') || key.includes('BLOCKNATIVE')
+    //   ) : []
+    // });
 
     // Skip direct key setup - it's better to allow empty keys than to use incorrect values
     // KeyManager.getKey will now return empty strings instead of undefined for missing keys
@@ -1052,7 +1067,6 @@ async function initializeKeyManager(): Promise<void> {
     // Explicitly log full key details (development only)
     if (isDevelopmentEnvironment()) {
       try {
-        log.info('Logging detailed key information...');
         keyManager.debugLogKeys();
       } catch (error) {
         log.error('Failed to log key details', false, error);
@@ -1153,3 +1167,74 @@ async function handleDappRequest(msg: DappRequest, port: RuntimePort) {
 
 // Export types that are needed by other modules
 export type { RuntimePort };
+
+
+// Initialize the background script
+(async () => {
+  try {
+    // Browser APIs are guaranteed to be available with static imports of webextension-polyfill
+    // No need to wait or check - they're available immediately
+    // Initialize core services first
+    await initializeOnStartup();
+
+    // Initialize background listeners
+    // IMPORTANT: We need some background listeners BUT we must avoid duplicate message handling
+    // The safeMessageHandler in index.ts already handles browser.runtime.onMessage
+    // So we'll add the other listeners manually without the duplicate onMessage handler
+    
+    // Add only the non-conflicting listeners from backgroundListeners
+    // DO NOT add browser.runtime.onMessage listener (already handled by index.ts)
+    if (browser?.runtime?.onMessageExternal) {
+      backgroundListenerManager.add(browser.runtime.onMessageExternal, onYakklPageListener);
+      backgroundListenerManager.add(browser.runtime.onMessageExternal, onExternalMessageListener);
+    }
+    
+    if (browser?.runtime?.onInstalled) {
+      backgroundListenerManager.add(browser.runtime.onInstalled, onInstalledUpdatedListener);
+    }
+    
+    if (browser?.runtime?.onConnect) {
+      backgroundListenerManager.add(browser.runtime.onConnect, onPortConnectListener);
+      backgroundListenerManager.add(browser.runtime.onConnect, onPortDisconnectListener);
+    }
+    
+    if (browser?.tabs?.onActivated) {
+      backgroundListenerManager.add(browser.tabs.onActivated, onTabActivatedListener);
+    }
+    
+    if (browser?.tabs?.onUpdated) {
+      backgroundListenerManager.add(browser.tabs.onUpdated, onTabUpdatedListener);
+    }
+    
+    if (browser?.tabs?.onRemoved) {
+      backgroundListenerManager.add(browser.tabs.onRemoved, onTabRemovedListener);
+    }
+    
+    if (browser?.windows?.onFocusChanged) {
+      backgroundListenerManager.add(browser.windows.onFocusChanged, onWindowsFocusChangedListener);
+    }
+
+    // Initialize other services
+    await initializeStorageDefaults();
+    initializePermissions();
+    await watchLockedState(30000); // Check every 30 seconds
+    await initializeKeyManager();
+
+    // Initialize EIP-6963 support (safe to call - will check for API availability)
+    try {
+      initializeEIP6963();
+    } catch (error) {
+      log.warn('[Background] EIP-6963 initialization deferred:', false, error);
+    }
+
+    // Set up alarm listener
+    if (browser?.alarms?.onAlarm) {
+      browser.alarms.onAlarm.addListener(onAlarmListener);
+    }
+
+    // Set the active tab after initialization
+    await setActiveTabOnStartup();
+  } catch (error) {
+    log.error('[Background] Initialization failed:', false, error);
+  }
+})();

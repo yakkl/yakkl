@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getProfile, yakklMiscStore } from '$lib/common/stores';
+	import { yakklMiscStore } from '$lib/common/stores';
+	import { getProfile } from '$lib/common/profile';
 	import { decryptData, digestMessage, isEncryptedData, isProfileData } from '$lib/common';
 	import type { EncryptedData, ProfileData, Profile } from '$lib/common';
 	import Modal from '@yakkl/ui/src/components/Modal.svelte';
@@ -46,7 +47,7 @@
 		try {
 			// Combine all digits into pincode
 			pincode = pincodeDigits.join('');
-			
+
 			if (pincode.length < 8) {
 				alert('Please enter a valid pincode');
 				return;
@@ -118,15 +119,15 @@
 	function handleInput(index: number, event: Event) {
 		const input = event.target as HTMLInputElement;
 		const value = input.value;
-		
+
 		// Only allow single digit
 		if (value.length > 1) {
 			input.value = value.slice(-1);
 		}
-		
+
 		// Update the digit
 		pincodeDigits[index] = input.value;
-		
+
 		// Auto-advance to next input
 		if (input.value && index < 7) {
 			inputRefs[index + 1]?.focus();
@@ -139,7 +140,7 @@
 			event.preventDefault();
 			inputRefs[index - 1]?.focus();
 		}
-		
+
 		// Handle arrow keys
 		if (event.key === 'ArrowLeft' && index > 0) {
 			event.preventDefault();
@@ -149,7 +150,7 @@
 			event.preventDefault();
 			inputRefs[index + 1]?.focus();
 		}
-		
+
 		// Handle Enter to submit
 		if (event.key === 'Enter' && pincodeDigits.every(d => d)) {
 			handleVerify();
@@ -192,7 +193,7 @@
 					/>
 				{/each}
 			</div>
-			
+
 			<!-- Eye toggle button -->
 			<div class="flex justify-center">
 				<button

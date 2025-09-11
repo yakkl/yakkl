@@ -7,6 +7,78 @@ YAKKL is a core product line the emcompasses a number of other projects. The fla
 **Structure**: 11+ projects using pnpm workspaces
 **Focus**: Browser extension ecosystem plus security, backend, MCP servers, agents and smart contracts
 
+## Claude Code Organization
+
+### Architecture Overview
+This monorepo uses a **hybrid orchestration model** for Claude Code:
+
+1. **Root Orchestrator** (`.claude/`) - Central coordination and shared components
+2. **Package Instances** (`packages/*/.claude/`) - Package-specific configurations with symlinks to shared components
+
+### Root Claude Structure
+```
+.claude/
+├── orchestration/          # Cross-package coordination agents
+│   ├── monorepo-coordinator.md
+│   ├── dependency-analyzer.md
+│   ├── impact-analyzer.md
+│   └── release-manager.md
+├── agents/shared/          # Shared agents for all packages
+│   ├── architecture-enforcer.md
+│   ├── security-auditor.md
+│   ├── performance-optimizer.md
+│   ├── test-runner.md
+│   └── documentation-updater.md
+├── commands/shared/        # Shared commands
+├── hooks/shared/          # Shared hooks
+└── scripts/               # Setup and maintenance scripts
+```
+
+### Package Claude Structure
+Each package has its own `.claude/` directory with:
+- Package-specific agents
+- Symlinks to root shared components
+- Local settings and configurations
+
+### Working with Claude Code
+
+#### At Root Level
+Use when:
+- Making cross-package changes
+- Analyzing dependencies
+- Coordinating releases
+- Running monorepo-wide operations
+
+```bash
+# From /yakkl directory
+claude "Refactor shared utilities from wallet to core"
+```
+
+#### At Package Level
+Use when:
+- Working on package-specific features
+- Making isolated changes
+- Testing package functionality
+
+```bash
+# From /yakkl/packages/yakkl-wallet directory
+claude "Add new wallet connection method"
+```
+
+### Claude Code Coordination Flow
+1. **Simple Package Changes**: Use package-level Claude
+2. **Cross-Package Changes**: Start at root level
+3. **Complex Features**: Root orchestrates, packages execute
+4. **Dependency Updates**: Root analyzes, then coordinates
+
+### Setup New Package with Claude
+Run from root directory:
+```bash
+./scripts/setup-claude-package.sh <package-name>
+```
+
+This creates the Claude structure with proper symlinks.
+
 ## Projects
 - **yakkl-wallet**: Main browser extension (primary work) - super app
 - **yakkl-wallet-private**: Parts of the super app that is private
@@ -37,6 +109,25 @@ YAKKL is a core product line the emcompasses a number of other projects. The fla
 - Test affected packages
 - Requires permission for any cross-project changes
   
+## Critical Rules - APPLY TO ALL PACKAGES
+
+### 🚨 RULE #1: NO DYNAMIC IMPORTS IN SERVICE WORKERS
+**This rule caused CRITICAL production failures - treat violations as P0 bugs**
+
+- Dynamic imports (`await import(...)`) **COMPLETELY BREAK** browser extension service workers
+- Service workers CANNOT load code at runtime - ALL code must be statically available at build time
+- **THE ONLY VALID EXCEPTION**: When Svelte SSR tries to access browser-only APIs and fails during build
+  - Example: `webextension-polyfill` in client context when SSR attempts to process it
+  - In this case, wrap in environment check: `if (!import.meta.env.SSR) { await import(...) }`
+- **ALL OTHER USES ARE FORBIDDEN** - No exceptions for:
+  - Lazy loading (breaks service workers)
+  - Code splitting (breaks service workers)
+  - Conditional loading (use static imports with conditional execution instead)
+  - Provider abstraction (use static imports of all providers)
+  - **Messaging modules** (NEVER use `await import('$lib/messaging/client-messaging')` - use static imports)
+- If you think you need a dynamic import, you're wrong - find another solution
+- **RECENT INCIDENT (2025-09-06)**: Dynamic imports in cache-sync.service.ts caused complete messaging failure between client and background contexts in yakkl-wallet, breaking all blockchain data loading
+
 ## All changes
 - All changes, regardless of project, must have a plan created and approved before any code changes take place
 - ALL plans require the best effort for identifying the files that may be impacted or changed in the plan

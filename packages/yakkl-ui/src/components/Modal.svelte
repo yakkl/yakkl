@@ -2,25 +2,25 @@
   import { twMerge } from 'tailwind-merge';
 
   interface ModalProps {
-    open?: boolean;
+    show?: boolean;
     title?: string;
     size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
     closeOnBackdrop?: boolean;
     className?: string;
     children?: any;
     actions?: any;
-    onclose?: () => void;
+    onClose?: () => void;
   }
 
-  const {
-    open = false,
+  let {
+    show = $bindable(false),
     title,
     size = 'md',
     closeOnBackdrop = true,
     className = '',
     children,
     actions,
-    onclose
+    onClose
   }: ModalProps = $props();
 
   const sizeClasses = {
@@ -32,34 +32,40 @@
   };
 
   function handleBackdropClick() {
-    if (closeOnBackdrop && onclose) {
-      onclose();
+    if (closeOnBackdrop) {
+      show = false;
+      if (onClose) {
+        onClose();
+      }
     }
   }
 
   function handleCloseClick() {
-    if (onclose) {
-      onclose();
+    show = false;
+    if (onClose) {
+      onClose();
     }
   }
 
   const modalClasses = $derived(twMerge(
     'modal',
-    open && 'modal-open',
+    show && 'modal-open',
     className
   ));
 
   const boxClasses = $derived(sizeClasses[size]);
 </script>
 
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- svelte-ignore a11y_click_events_have_key_events -->
 <div class={modalClasses} onclick={handleBackdropClick}>
   <div class={boxClasses} onclick={(e) => e.stopPropagation()}>
-    {#if title || onclose}
+    {#if title || onClose}
       <div class="flex items-center justify-between mb-4">
         {#if title}
           <h3 class="font-bold text-lg">{title}</h3>
         {/if}
-        {#if onclose}
+        {#if onClose}
           <button
             class="btn btn-sm btn-circle btn-ghost"
             onclick={handleCloseClick}
@@ -70,11 +76,11 @@
         {/if}
       </div>
     {/if}
-    
+
     <div class="modal-content">
       {@render children?.()}
     </div>
-    
+
     {#if actions}
       <div class="modal-action">
         {@render actions()}

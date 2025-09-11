@@ -4,19 +4,49 @@
   import NetworkSimulator from './troubleshooting/NetworkSimulator.svelte';
   import CacheCleaner from './troubleshooting/CacheCleaner.svelte';
   import PerformanceProfiler from './troubleshooting/PerformanceProfiler.svelte';
-  import { isProUser } from '$lib/stores/plan.store';
+  import { isProUser, planStore } from '$lib/stores/plan.store';
+  import { PlanType } from '$lib/common/types';
   import Upgrade from './Upgrade.svelte';
   import Modal from '@yakkl/ui/src/components/Modal.svelte';
-	import { canUseFeature } from '$lib/utils/features';
 
   let { show = $bindable(false) } = $props();
 
   let showUpgradeModal = $state(false);
   let activeTab = $state('connection');
+  let planLoaded = $state(false);
 
-  const hasProAccess = canUseFeature('network_diagnostics');
+  // Ensure plan store is loaded when modal opens
+  $effect(() => {
+    if (show && !planLoaded) {
+      planStore.loadPlan().then(() => {
+        planLoaded = true;
+        console.log('Plan loaded successfully:', $planStore?.plan?.type);
+      }).catch(error => {
+        console.error('Failed to load plan:', error);
+        planLoaded = true; // Mark as loaded even on error to prevent infinite retries
+      });
+    }
+  });
 
-  console.log('hasProAccess>>>>>>>>>>>>>>>>>>>>>>', hasProAccess, $isProUser);
+  // Check if user has Pro access (including Founding Member and Early Adopter)
+  let hasProAccess = $derived((() => {
+    // Wait for plan to be loaded before checking access
+    if (!planLoaded) return false;
+    
+    const planType = $planStore?.plan?.type;
+    const isProLevel = planType === PlanType.YAKKL_PRO || 
+                      planType === PlanType.FOUNDING_MEMBER || 
+                      planType === PlanType.EARLY_ADOPTER ||
+                      planType === PlanType.YAKKL_PRO_PLUS ||
+                      planType === PlanType.ENTERPRISE;
+    return isProLevel || $isProUser;
+  })());
+
+  $effect(() => {
+    if (planLoaded) {
+      console.log('hasProAccess>>>>>>>>>>>>>>>>>>>>>>', hasProAccess, $isProUser, $planStore?.plan?.type);
+    }
+  });
 
   const tabs = [
     { id: 'connection', label: 'Connection Status', icon: '🔌' },
@@ -68,7 +98,15 @@
     <!-- Scrollable Content -->
     <div class="flex-1 overflow-y-auto min-h-0 px-1">
       <div class="pb-20"><!-- Added extra padding for footer -->
-        {#if $isProUser}
+        {#if !planLoaded}
+          <!-- Loading state while plan is being loaded -->
+          <div class="flex flex-col items-center justify-center h-full py-12">
+            <div class="text-center space-y-4">
+              <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+              <p class="text-base-content/70">Loading plan information...</p>
+            </div>
+          </div>
+        {:else if hasProAccess}
           {#if activeTab === 'connection'}
             <ConnectionDashboard />
           {:else if activeTab === 'rpc'}

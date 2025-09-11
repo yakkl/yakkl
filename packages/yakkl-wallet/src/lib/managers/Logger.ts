@@ -1,7 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // import { LoggerError } from './Errors';
-import { openDB } from 'idb'; // IndexedDB support
-import Dexie from 'dexie'; // Dexie.js for IndexedDB
+import { isContentScriptContext, canUseIndexedDB } from '$lib/common/context-detection';
+
+// Static imports to prevent webpack chunking
+// These will be tree-shaken if not used
+import { openDB as idbOpenDB } from 'idb';
+import DexieDefault from 'dexie';
+
+// Conditional usage - only use if we can use IndexedDB
+const openDB = canUseIndexedDB() ? idbOpenDB : undefined;
+const Dexie = canUseIndexedDB() ? DexieDefault : undefined;
+
 // import { browser_ext } from "$lib/common/environment";
 // import { initSQLite, saveToSQLite } from "./LoggerSQLite"; // SQLite integration
 
@@ -66,7 +75,7 @@ class Logger {
 	private logRegEx: RegExp = /^(DEBUG|DEBUG_TRACE|INFO|INFO_TRACE|WARN|ERROR|ERROR_TRACE|TRACE)$/;
 	private logFilterEnabled: boolean = false;
 	private stackIndex = 4;
-	private backend: string = 'localStorage'; // Default logging backend. 'console' should always display and the other values will only get used if persist is true
+	private backend: string = isContentScriptContext() ? 'console' : 'localStorage'; // Default logging backend. 'console' should always display and the other values will only get used if persist is true
 	private minLogLevel: LogLevel = LogLevel.ERROR;
 
 	constructor(
@@ -181,6 +190,12 @@ class Logger {
 
 	private persistLog(entry: LogEntry): void {
 		try {
+			// In content scripts, skip persistence entirely or use chrome.storage
+			if (isContentScriptContext()) {
+				// Could use chrome.storage.local here if needed
+				return;
+			}
+			
 			switch (this.backend) {
 				case 'indexedDB':
 					this.persistLogIndexedDB(entry);
@@ -238,6 +253,11 @@ class Logger {
 	}
 
 	private persistLogIndexedDB(log: LogEntry): void {
+		// Skip IndexedDB in content scripts
+		if (isContentScriptContext() || !openDB) {
+			return;
+		}
+		
 		const dbPromise = openDB(STORAGE_KEY, 1, {
 			upgrade(db) {
 				if (!db.objectStoreNames.contains('logs')) {
@@ -277,6 +297,11 @@ class Logger {
 	}
 
 	private persistLogDexie(log: LogEntry): void {
+		// Skip Dexie in content scripts
+		if (isContentScriptContext() || !Dexie) {
+			return;
+		}
+		
 		const dexieDB = new Dexie(STORAGE_KEY);
 		dexieDB.version(1).stores({
 			logs: '++id, timestamp, label, message, args'

@@ -9,11 +9,10 @@ import {
 	getYakklPrimaryAccounts,
 	setYakklPrimaryAccountsStorage,
 	getYakklAccounts,
-	setYakklAccountsStorage,
 	getMiscStore,
-	getYakklCurrentlySelected,
-	getProfile
 } from '$lib/common/stores';
+import { getYakklCurrentlySelected } from '$lib/common/currentlySelected';
+import { getProfile } from '$lib/common/profile';
 import { encryptData, decryptData, isEncryptedData } from '$lib/common';
 import { DEFAULT_DERIVED_PATH_ETH, VERSION } from '$lib/common/constants';
 import { deepCopy, getSymbol } from '$lib/utilities';
@@ -34,6 +33,7 @@ import { AccountTypeCategory, NetworkType } from '$lib/common/types';
 import { dateString } from '$lib/common/datetime';
 import { log } from '$lib/managers/Logger';
 import { addressExist } from '$lib/common/utils';
+import { setYakklAccountsStorage } from '$lib/common/accounts';
 
 // TODO: May want to have all of the .data encrypted in the catch block or final block to ensure that the data is encrypted before returning it. This requires moving the variables to here instead of the try block.
 

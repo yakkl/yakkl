@@ -21,7 +21,7 @@ import { safeUpdateToken, fixZeroValues, isValidTokenData, safeMergeTokens } fro
 
 export class BackgroundPriceService {
   private static instance: BackgroundPriceService | null = null;
-  private priceManager: PriceManager;
+  private priceManager: PriceManager | null = null;
   private updateInterval: NodeJS.Timeout | null = null;
   private isUpdating = false;
 
@@ -69,8 +69,8 @@ export class BackgroundPriceService {
   };
 
   private constructor() {
-    this.priceManager = new PriceManager();
-    // Note: PriceManager needs async initialization, done in start()
+    // Defer PriceManager instantiation to avoid initialization errors
+    // PriceManager will be created in start() method
     log.info('[BackgroundPriceService] Service constructor called');
   }
 
@@ -87,10 +87,13 @@ export class BackgroundPriceService {
   async start(): Promise<void> {
     log.info('[BackgroundPriceService] Starting price update service');
 
-    // Initialize PriceManager with providers
+    // Create and initialize PriceManager with providers
     try {
-      await this.priceManager.initialize();
-      log.info('[BackgroundPriceService] PriceManager initialized with providers');
+      if (!this.priceManager) {
+        this.priceManager = new PriceManager();
+        await this.priceManager.initialize();
+        log.info('[BackgroundPriceService] PriceManager created and initialized with providers');
+      }
     } catch (error) {
       log.error('[BackgroundPriceService] Failed to initialize PriceManager:', error);
       throw error;
@@ -386,6 +389,12 @@ export class BackgroundPriceService {
    */
   private async fetchTokenPrice(token: any): Promise<number | null> {
     try {
+      // Ensure PriceManager is available
+      if (!this.priceManager) {
+        log.warn('[BackgroundPriceService] PriceManager not initialized in fetchTokenPrice');
+        return null;
+      }
+
       // Check if token is native or has special handling
       if (token.isNative && token.symbol === 'ETH') {
         // For native ETH, always use ETH-USD
@@ -428,7 +437,8 @@ export class BackgroundPriceService {
     log.info('[BackgroundPriceService] Force update requested');
     
     // Ensure PriceManager is initialized
-    if (!this.priceManager || this.priceManager.getAvailableProviders().length === 0) {
+    if (!this.priceManager) {
+      this.priceManager = new PriceManager();
       try {
         await this.priceManager.initialize();
         log.info('[BackgroundPriceService] PriceManager initialized on force update');

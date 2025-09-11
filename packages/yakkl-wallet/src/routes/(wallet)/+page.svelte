@@ -1,12 +1,15 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+	import { validateAuthentication } from '$lib/common/authValidation';
 
   onMount(async () => {
-    // Authentication is already validated by +layout.ts
-    // Just redirect to home page
-    console.log('Redirecting to home page>>>>>>>>>>>>>>>>>>');
-   await goto('/home', { replaceState: true });
+    const validation = await validateAuthentication();
+    if (validation.isValid) {
+      await goto('/home', { replaceState: true });
+    } else {
+      await goto('/login', { replaceState: true });
+    }
   });
 </script>
 

@@ -4,7 +4,6 @@
 	import {
 		getYakklAccounts,
 		setYakklConnectedDomainsStorage,
-		setYakklAccountsStorage,
 		yakklDappConnectRequestStore,
 		getYakklCurrentlySelected,
 		getYakklConnectedDomains,
@@ -39,6 +38,7 @@
 		verifyDomainConnected
 	} from '$lib/extensions/chrome/verifyDomainConnected';
 		import type { Runtime } from 'webextension-polyfill';
+	import { setYakklAccountsStorage } from '$lib/common/accounts';
 
 	type RuntimePort = Runtime.Port | undefined;
 

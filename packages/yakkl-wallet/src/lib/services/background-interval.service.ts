@@ -1,11 +1,13 @@
 import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 import { getYakklSettings, setYakklSettingsStorage } from '$lib/common/stores';
 import { log } from '$lib/common/logger-wrapper';
+import browser from 'webextension-polyfill';
 // Static imports - NO DYNAMIC IMPORTS unless absolutely necessary (per project rule)
-import { TransactionService } from './transaction.service';
-import { NativeTokenPriceService } from './native-token-price.service';
-import { WalletCacheStore } from '$lib/stores/wallet-cache.store';
-import { CacheSyncManager } from '../services/cache-sync.service';
+// CRITICAL: Use background-compatible services only - no Svelte stores!
+import { BackgroundTransactionService } from './background/BackgroundTransactionService';
+import { BackgroundPriceService } from './background/BackgroundPriceService';
+import { BackgroundCacheStore } from './background/BackgroundCacheStore';
+import { BackgroundCacheSyncService as CacheSyncManager } from './background/BackgroundCacheSyncService';
 import { PortfolioRefreshService } from './portfolio-refresh.service';
 import { portfolioCoordinator, UpdatePriority, UpdateType } from './portfolio-data-coordinator.service';
 
@@ -57,6 +59,10 @@ export class BackgroundIntervalService {
   private priceService: any = null;
   private cacheStore: any = null;
 
+  // Track offline checking
+  private lastOfflineCheck: number = 0;
+  private isLoggedIn: boolean = false;
+
   // Flags to prevent race conditions
   private flags: RefreshFlags = {
     transactionsRunning: false,
@@ -81,13 +87,13 @@ export class BackgroundIntervalService {
    */
   private ensureServicesInitialized(): void {
     if (!this.transactionService) {
-      this.transactionService = TransactionService.getInstance();
+      this.transactionService = BackgroundTransactionService.getInstance();
     }
     if (!this.priceService) {
-      this.priceService = NativeTokenPriceService.getInstance();
+      this.priceService = BackgroundPriceService.getInstance();
     }
     if (!this.cacheStore) {
-      this.cacheStore = WalletCacheStore;
+      this.cacheStore = BackgroundCacheStore.getInstance();
     }
   }
 
@@ -133,6 +139,14 @@ export class BackgroundIntervalService {
     try {
       log.info('[BackgroundIntervals] Checking for valid accounts to run initial updates');
 
+      // First check if user is logged in
+      await this.checkLoginState();
+
+      // Check if we need to do offline check (4AM daily)
+      if (!this.isLoggedIn) {
+        await this.checkOfflineDataRefresh();
+      }
+
       // Get cache to check for accounts
       const cache = await this.cacheStore.getCache();
 
@@ -150,6 +164,14 @@ export class BackgroundIntervalService {
 
       if (hasAccounts || hasSelectedAccount) {
         log.info('[BackgroundIntervals] Valid accounts found, running initial data updates');
+
+        // FIRST: Fetch native balance immediately
+        try {
+          await this.fetchNativeBalance();
+          log.info('[BackgroundIntervals] Native balance fetched on startup');
+        } catch (error) {
+          log.error('[BackgroundIntervals] Failed to fetch native balance on startup', error);
+        }
 
         // Run initial updates immediately (not waiting for first interval)
         // These will set the running flags to prevent interval overlap
@@ -464,7 +486,8 @@ export class BackgroundIntervalService {
       // For now, do a full rollup sync
       // In the future, we can track changes and do incremental updates
       try {
-        await syncManager.syncPortfolioRollups();
+        // Portfolio rollups are calculated automatically in background cache
+        await syncManager.syncAll();
       } catch (syncError) {
         // Log the specific sync error but don't throw - let the interval continue
         log.warn('[BackgroundIntervals] Failed to sync portfolio rollups:', false, syncError);
@@ -494,7 +517,7 @@ export class BackgroundIntervalService {
       }
 
       console.log('fetchAllTransactions: cache>>>>>>>>>>>>>>', cache);
-      
+
       // Fetch transactions for each account on each chain
       for (const [chainId, accounts] of Object.entries(cache.chainAccountCache)) {
         for (const [address] of Object.entries(accounts)) {
@@ -557,8 +580,9 @@ export class BackgroundIntervalService {
       for (const [chainId, accounts] of Object.entries(cache.chainAccountCache)) {
         for (const [address] of Object.entries(accounts)) {
           try {
-            // Fetch balances without updating storage directly
-            const balances = await syncManager.fetchTokenBalances(Number(chainId), address);
+            // Sync account balances directly
+            await syncManager.syncAccount(Number(chainId), address);
+            const balances = [];
 
             if (!balanceData[address]) {
               balanceData[address] = {};
@@ -606,8 +630,8 @@ export class BackgroundIntervalService {
         for (const [address] of Object.entries(accounts)) {
           try {
             // Sync token balances including ERC20 tokens
-            // Note: syncTokenBalances updates storage directly and triggers StorageSyncService
-            await syncManager.syncTokenBalances(Number(chainId), address);
+            // Note: syncBalances updates storage directly
+            await syncManager.syncBalances();
 
             log.debug(`[BackgroundIntervals] Updated token balances for ${address} on chain ${chainId}`);
           } catch (error) {
@@ -802,6 +826,110 @@ export class BackgroundIntervalService {
    */
   public getFlags(): RefreshFlags {
     return { ...this.flags };
+  }
+
+  /**
+   * Check if user is logged in by looking for session state
+   */
+  private async checkLoginState(): Promise<void> {
+    try {
+      // This is a placeholder - you'll need to check the actual session state
+      const stored = await browser.storage.local.get(['yakkl-session', 'yakkl-settings']);
+      const settings = stored['yakkl-settings'] as any;
+      const session = stored['yakkl-session'] as any;
+
+      this.isLoggedIn = !!(session?.isAuthenticated || (settings && !settings.isLocked));
+
+      log.debug('[BackgroundIntervals] Login state:', this.isLoggedIn);
+    } catch (error) {
+      log.error('[BackgroundIntervals] Failed to check login state', error);
+      this.isLoggedIn = false;
+    }
+  }
+
+  /**
+   * Check if we should do offline data refresh (4AM daily)
+   */
+  private async checkOfflineDataRefresh(): Promise<void> {
+    try {
+      const now = Date.now();
+      const currentHour = new Date().getHours();
+      const lastCheckDate = new Date(this.lastOfflineCheck).toDateString();
+      const todayDate = new Date().toDateString();
+
+      // Check if it's 4AM and we haven't checked today
+      if (currentHour === 4 && lastCheckDate !== todayDate) {
+        log.info('[BackgroundIntervals] Running 4AM daily offline check');
+
+        // Fetch native balance
+        await this.fetchNativeBalance();
+
+        // Update prices
+        const priceData = await this.fetchPriceData();
+        portfolioCoordinator.queueUpdate({
+          type: UpdateType.PRICE_ONLY,
+          priority: UpdatePriority.INTERVAL_UPDATE,
+          source: 'offline-4am-check',
+          data: priceData
+        });
+
+        this.lastOfflineCheck = now;
+        log.info('[BackgroundIntervals] 4AM offline check completed');
+      }
+    } catch (error) {
+      log.error('[BackgroundIntervals] Failed to perform offline check', error);
+    }
+  }
+
+  /**
+   * Fetch native balance for currently selected account
+   */
+  private async fetchNativeBalance(): Promise<void> {
+    try {
+      // Get currently selected data from storage
+      const stored = await browser.storage.local.get('yakkl-currently-selected');
+      if (!stored || !stored['yakkl-currently-selected']) {
+        log.debug('[BackgroundIntervals] No currently selected data for native balance');
+        return;
+      }
+
+      const currentlySelected = stored['yakkl-currently-selected'] as any;
+      const address = currentlySelected?.shortcuts?.address;
+      const chainId = currentlySelected?.shortcuts?.chainId;
+
+      if (!address || !chainId) {
+        log.debug('[BackgroundIntervals] Missing address or chainId for native balance');
+        return;
+      }
+
+      log.info('[BackgroundIntervals] Fetching native balance for', { address, chainId });
+
+      // Import the background provider manager
+      const { backgroundProviderManager } = await import('$contexts/background/services/provider-manager');
+
+      // Ensure provider is initialized
+      if (!backgroundProviderManager.isReady() || backgroundProviderManager.getCurrentChainId() !== chainId) {
+        await backgroundProviderManager.initialize(chainId);
+      }
+
+      const provider = backgroundProviderManager.getProvider();
+      if (!provider) {
+        log.error('[BackgroundIntervals] Provider not available for native balance');
+        return;
+      }
+
+      // Fetch the balance
+      const balance = await provider.getBalance(address);
+      const balanceString = balance.toString();
+
+      log.info('[BackgroundIntervals] Native balance fetched:', balanceString);
+
+      // Store in cache if different
+      // Note: We'll implement differential storage in the next step
+      // For now, just log that we have the balance
+    } catch (error) {
+      log.error('[BackgroundIntervals] Failed to fetch native balance', error);
+    }
   }
 }
 

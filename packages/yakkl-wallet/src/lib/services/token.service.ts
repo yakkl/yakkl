@@ -290,8 +290,8 @@ export class TokenService extends BaseService {
 
 			for (const chainId of targetChains) {
 				const response = await this.sendMessage<any[]>({
-					method: 'yakkl_getTokensForChain',
-					params: [address, chainId]
+					type: 'yakkl_getTokensForChain',
+					payload: { address, chainId }
 				});
 
 				if (response.success && response.data) {
@@ -394,8 +394,8 @@ export class TokenService extends BaseService {
 			// CRITICAL: Client must NEVER make direct blockchain calls
 			// Always route through background service
 			const response = await this.sendMessage<string>({
-				method: 'yakkl_getTokenBalance',
-				params: {
+				type: 'yakkl_getTokenBalance',
+				payload: {
 					tokenAddress,
 					walletAddress,
 					chainId: get(currentChain)?.chainId || 1
@@ -419,8 +419,8 @@ export class TokenService extends BaseService {
 			console.log('[TokenService] Requesting price refresh from background service');
 
 			const response = await this.sendMessage<boolean>({
-				method: 'yakkl_refreshTokenPrices',
-				params: {}
+				type: 'yakkl_refreshTokenPrices',
+				payload: {}
 			});
 
 			if (response.success) {

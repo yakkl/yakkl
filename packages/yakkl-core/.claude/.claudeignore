@@ -1,0 +1,8 @@
+# Claude ignore patterns for yakkl-core
+node_modules/
+dist/
+build/
+coverage/
+*.log
+.env
+.env.local

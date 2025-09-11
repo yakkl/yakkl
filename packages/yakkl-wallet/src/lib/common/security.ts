@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { decryptData, digestMessage, encryptData } from '$lib/common/encryption';
+import { digestMessage } from '@yakkl/security';
+import { decryptData, encryptData } from '$lib/common/encryption';
 import type {
 	AccountData,
 	CurrentlySelectedData,
@@ -9,18 +10,18 @@ import type {
 } from '$lib/common/interfaces';
 import { isEncryptedData } from '$lib/common/misc';
 import {
-	getProfile,
 	setMiscStore,
-	getYakklCurrentlySelected,
 	getMiscStore,
   setYakklSettings,
   setYakklSettingsStorage,
 } from '$lib/common/stores';
+import { getYakklCurrentlySelected } from '$lib/common/currentlySelected';
 import { log } from '$lib/common/logger-wrapper';
 import { storeEncryptedHash, storeSessionToken } from './auth/session';
 import { getNormalizedSettings } from './utils';
 import { planStore } from '$lib/stores';
 import { setUserPlan } from '$lib/utils/features';
+import { getProfile } from './profile';
 
 export interface AccountKey {
 	address: string;

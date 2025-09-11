@@ -59,15 +59,22 @@
   }
 
   // Helper functions for safe type conversion
-  function getNumericPrice(price?: number | BigNumberish): number {
+  function getNumericPrice(price?: number | BigNumberish | any): number {
     if (!price) return 0;
     
     try {
+      // Handle direct number
       if (typeof price === 'number') {
         return price;
-      } else {
-        return BigNumberishUtils.toNumber(price);
       }
+      
+      // Handle MarketPriceData or object with price property
+      if (typeof price === 'object' && 'price' in price) {
+        return typeof price.price === 'number' ? price.price : BigNumberishUtils.toNumber(price.price);
+      }
+      
+      // Handle BigNumberish
+      return BigNumberishUtils.toNumber(price);
     } catch (error) {
       console.warn('Failed to convert price:', price, error);
       return 0;

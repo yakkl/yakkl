@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { browser } from '$app/environment';
   import { currentPortfolioValue } from '$lib/stores/wallet-cache.store';
   import { currentAccount } from '$lib/stores/account.store';
   import { currentChain } from '$lib/stores/chain.store';
@@ -31,30 +32,39 @@
   const plan = $derived($currentPlan || PlanType.EXPLORER_MEMBER);
 
   $effect(() => {
-    console.log('PortfolioOverviewSimple - plan:', plan);
+    if (browser) {
+      console.log('PortfolioOverviewSimple - plan:', plan);
+    }
   });
 
   // Format value for display
   const formattedValue = $derived(() => {
-    // Handle undefined, null, or invalid portfolio values
-    if (portfolioValue === undefined || portfolioValue === null || portfolioValue === '') {
+    // During SSR, return default value
+    if (!browser) {
       return formatCurrency(0, 'USD');
     }
-    
+
+    // Handle undefined, null, or invalid portfolio values
+    if (portfolioValue === undefined || portfolioValue === null) {
+      return formatCurrency(0, 'USD');
+    }
+
     try {
-      // Check if it's a BigNumber object from ethers.js
+      // Handle BigNumber objects from ethers.js
       let valueToConvert = portfolioValue;
       if (portfolioValue && typeof portfolioValue === 'object' && '_hex' in portfolioValue) {
         // It's a BigNumber object, convert to hex string
         valueToConvert = portfolioValue._hex || '0x00';
       }
-      
+
       const value = BigNumberishUtils.toBigInt(valueToConvert);
       // Convert from cents to dollars
       const dollars = Number(value) / 100;
       return formatCurrency(dollars, 'USD');
     } catch (error) {
-      console.warn('PortfolioOverviewSimple - Invalid portfolio value:', portfolioValue, error);
+      if (browser) {
+        console.warn('PortfolioOverviewSimple - Invalid portfolio value:', portfolioValue, error);
+      }
       return formatCurrency(0, 'USD');
     }
   });
@@ -62,15 +72,20 @@
   // Get responsive font size based on value
   function getResponsiveFontSize(value: any): string {
     try {
+      // During SSR, return default size
+      if (!browser) {
+        return 'text-4xl';
+      }
+
       if (!value) return 'text-4xl';
-      
+
       // Check if it's a BigNumber object from ethers.js
       let valueToConvert = value;
       if (value && typeof value === 'object' && '_hex' in value) {
         // It's a BigNumber object, convert to hex string
         valueToConvert = value._hex || '0x00';
       }
-      
+
       // Safely convert to bigint and handle invalid values
       const bigintValue = BigNumberishUtils.toBigInt(valueToConvert);
       const numValue = Number(bigintValue) / 100; // Convert cents to dollars

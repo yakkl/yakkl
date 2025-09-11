@@ -7,6 +7,7 @@ import { EnhancedKeyManager } from './security/EnhancedKeyManager';
 import { AlchemyProvider } from './providers/managed/AlchemyProvider';
 import { AlchemyExplorer } from './providers/explorer/AlchemyExplorer';
 import { GenericRPCProvider } from './providers/rpc/GenericRPCProvider';
+import { DirectAlchemyProvider } from './providers/direct/DirectAlchemyProvider';
 import { explorerRoutingManager } from './routing/ExplorerRoutingManager';
 import { AlchemyPriceProvider } from './providers/price/AlchemyPriceProvider';
 import { CoinbasePriceProvider } from './providers/price/CoinbasePriceProvider';
@@ -46,7 +47,9 @@ export class BlockchainServiceManager {
     autoSetupProviders?: boolean;
     enabledFeatures?: string[];
   } = {}): Promise<void> {
+    console.log('[BlockchainServiceManager] initialize() called with options:', options);
     if (this.initialized) {
+      console.log('[BlockchainServiceManager] Already initialized, returning');
       return;
     }
 
@@ -56,17 +59,23 @@ export class BlockchainServiceManager {
       enabledFeatures = ['providers', 'explorers', 'prices']
     } = options;
 
+    console.log('[BlockchainServiceManager] Initializing key manager...');
     // Initialize key manager first
     await this.keyManager.initialize();
+    console.log('[BlockchainServiceManager] Key manager initialized');
 
     this.currentChainId = defaultChainId;
+    console.log('[BlockchainServiceManager] Set currentChainId to:', defaultChainId);
 
     // Auto-setup providers if enabled
     if (autoSetupProviders) {
+      console.log('[BlockchainServiceManager] Setting up default providers...');
       await this.setupDefaultProviders(enabledFeatures);
+      console.log('[BlockchainServiceManager] Default providers setup complete');
     }
 
     this.initialized = true;
+    console.log('[BlockchainServiceManager] Initialization complete. Current provider:', !!this.currentProvider);
   }
 
   /**
@@ -74,11 +83,20 @@ export class BlockchainServiceManager {
    */
   private async setupDefaultProviders(enabledFeatures: string[]): Promise<void> {
     const availableProviders = await this.keyManager.getProviders();
+    console.log('[BlockchainServiceManager] Available providers:', availableProviders);
 
     // Setup blockchain providers
     if (enabledFeatures.includes('providers')) {
+      // First try to setup managed providers with API keys
       for (const providerName of availableProviders) {
         await this.setupProvider(providerName, this.currentChainId);
+      }
+      
+      // If no provider was set up (no API keys), setup a minimal public RPC
+      if (!this.currentProvider) {
+        console.log('[BlockchainServiceManager] No managed providers configured, setting up default public RPC');
+        await this.setupDefaultPublicRPC(this.currentChainId);
+        console.log('[BlockchainServiceManager] After setupDefaultPublicRPC, currentProvider is:', !!this.currentProvider);
       }
     }
 
@@ -96,8 +114,8 @@ export class BlockchainServiceManager {
       }
     }
 
-    // Setup RPC fallbacks - DISABLED for now until providers are properly configured
-    // LlamaRPC and BlockPI need proper implementation before enabling
+    // Setup RPC fallbacks - DISABLED until production-ready RPC endpoints are configured
+    // Uncomment when you have reliable RPC endpoints
     // await this.setupRPCFallbacks(this.currentChainId);
   }
 
@@ -215,51 +233,108 @@ export class BlockchainServiceManager {
   }
 
   /**
-   * Setup RPC fallback providers
+   * Setup a single default public RPC provider
+   * NOTE: Currently disabled as public RPC endpoints are not production-ready
    */
-  private async setupRPCFallbacks(chainId: number): Promise<void> {
-    const rpcConfigs = this.getRPCFallbackConfigs(chainId);
+  private async setupDefaultPublicRPC(chainId: number): Promise<void> {
+    // Public RPC endpoints (llamarpc, blockpi, cloudflare, publicnode) are future features
+    // and should not be used in production at this time
+    console.warn('[BlockchainServiceManager] Public RPC fallback is disabled - no production-ready endpoints configured');
     
-    for (const config of rpcConfigs) {
-      try {
-        const provider = GenericRPCProvider.createCustomProvider(
-          config.endpoint,
-          chainId,
-          this.getBlockchainForChainId(chainId),
-          { name: config.name }
-        );
-        
-        const providerKey = `rpc-${config.name}-${chainId}`;
-        this.providers.set(providerKey, provider);
-        await provider.connect(chainId);
-      } catch (error) {
-        console.warn(`Failed to setup RPC fallback ${config.name}:`, error);
+    // Instead of using public RPC, we'll try to use whatever Alchemy keys are available
+    // even if they're not perfectly configured
+    await this.setupAlchemyFallback(chainId);
+  }
+
+  /**
+   * Setup Alchemy provider as fallback using any available keys
+   */
+  private async setupAlchemyFallback(chainId: number): Promise<void> {
+    try {
+      console.log('[BlockchainServiceManager] Attempting Alchemy fallback setup for chain:', chainId);
+      
+      // Try to get any Alchemy key available
+      const apiKey = await this.getAnyAlchemyKey();
+      if (!apiKey) {
+        console.error('[BlockchainServiceManager] No Alchemy API keys found in environment');
+        console.error('[BlockchainServiceManager] Expected keys: VITE_ALCHEMY_API_KEY_PROD_1, VITE_ALCHEMY_API_KEY_PROD_2, or VITE_ALCHEMY_API_KEY_ETHEREUM');
+        return;
       }
+
+      console.log('[BlockchainServiceManager] Found Alchemy API key, creating DirectAlchemyProvider...');
+      
+      // Use DirectAlchemyProvider which bypasses the KeyManager complexity
+      const provider = new DirectAlchemyProvider(chainId, apiKey, {
+        blockchain: this.getBlockchainForChainId(chainId),
+        supportedChainIds: [chainId]
+      });
+      
+      const providerKey = `direct-alchemy-${chainId}`;
+      this.providers.set(providerKey, provider);
+      
+      // Connect the provider
+      console.log('[BlockchainServiceManager] Connecting DirectAlchemyProvider...');
+      await provider.connect(chainId);
+      
+      this.currentProvider = provider;
+      console.log('[BlockchainServiceManager] Successfully set up DirectAlchemyProvider as fallback');
+    } catch (error) {
+      console.error('[BlockchainServiceManager] Failed to setup Alchemy fallback:', error);
     }
   }
 
   /**
+   * Try to get any available Alchemy API key directly from environment
+   */
+  private async getAnyAlchemyKey(): Promise<string | null> {
+    // Check for various Alchemy key formats in the environment
+    const possibleKeys = [
+      'VITE_ALCHEMY_API_KEY_ETHEREUM',
+      'VITE_ALCHEMY_API_KEY_PROD_1', 
+      'VITE_ALCHEMY_API_KEY_PROD_2',
+      'VITE_ALCHEMY_API_KEY_POLYGON',
+      'VITE_ALCHEMY_API_KEY_SOLANA',
+      'VITE_ALCHEMY_API_KEY_ARBITRUM'
+    ];
+
+    for (const key of possibleKeys) {
+      if (import.meta.env && import.meta.env[key]) {
+        console.log(`[BlockchainServiceManager] Found API key: ${key}`);
+        return import.meta.env[key];
+      }
+    }
+
+    // Also check without VITE_ prefix as fallback
+    const nonViteKeys = possibleKeys.map(k => k.replace('VITE_', ''));
+    for (const key of nonViteKeys) {
+      if (import.meta.env && import.meta.env[key]) {
+        console.log(`[BlockchainServiceManager] Found API key: ${key}`);
+        return import.meta.env[key];
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Setup RPC fallback providers
+   * NOTE: Currently disabled as public RPC endpoints are not production-ready
+   */
+  private async setupRPCFallbacks(chainId: number): Promise<void> {
+    // Public RPC endpoints (llamarpc, blockpi, cloudflare, publicnode) are future features
+    // and should not be used in production at this time
+    console.log('[BlockchainServiceManager] RPC fallbacks are disabled - not production-ready');
+    return;
+  }
+
+  /**
    * Get RPC fallback configurations for a chain
-   * NOTE: Currently DISABLED - LlamaRPC and BlockPI need proper implementation
-   * These are placeholder configurations for future use
+   * NOTE: These endpoints are not production-ready and should not be used
    */
   private getRPCFallbackConfigs(chainId: number): Array<{ name: string; endpoint: string }> {
-    const configs: Record<number, Array<{ name: string; endpoint: string }>> = {
-      1: [
-        { name: 'llamarpc', endpoint: 'https://eth.llamarpc.com' },
-        { name: 'blockpi', endpoint: 'https://ethereum.blockpi.network/v1/rpc/public' }
-      ],
-      137: [
-        { name: 'llamarpc', endpoint: 'https://polygon.llamarpc.com' },
-        { name: 'blockpi', endpoint: 'https://polygon.blockpi.network/v1/rpc/public' }
-      ],
-      8453: [
-        { name: 'llamarpc', endpoint: 'https://base.llamarpc.com' },
-        { name: 'blockpi', endpoint: 'https://base.blockpi.network/v1/rpc/public' }
-      ]
-    };
-
-    return configs[chainId] || [];
+    // Public RPC endpoints are disabled until they are production-ready
+    // llamarpc, blockpi, cloudflare, publicnode are future features
+    return [];
   }
 
   /**

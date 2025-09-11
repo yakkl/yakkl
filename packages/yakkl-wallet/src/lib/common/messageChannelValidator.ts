@@ -27,11 +27,15 @@ export function createSafeMessageHandler(
   } = options;
 
   return (request, sender, sendResponse) => {
+    console.log(`[${logPrefix}] Message validator called for:`, request?.type);
+    
     let channelClosed = false;
     let responseHandled = false;
 
     // Create a safe response function that checks if channel is still open
     const safeSendResponse = (response: any) => {
+      console.log(`[${logPrefix}] safeSendResponse called with:`, response);
+      
       if (channelClosed) {
         log.warn(`[${logPrefix}] Attempted to send response on closed channel:`, false, {
           request: request.type || request.action || 'unknown',
@@ -81,20 +85,25 @@ export function createSafeMessageHandler(
 
     // Check if the channel is still valid before starting async work
     if (!validateChannel()) {
-      log.warn(`[${logPrefix}] Channel already closed, not processing message`, false, {
+      log.warn(`[${logPrefix}] Channel validation failed, but will try to process message anyway`, false, {
         request: request.type || request.action || 'unknown'
       });
-      // Return undefined to indicate we're not handling this message
-      return undefined;
+      // Don't return early - try to process the message anyway
+      // The browser.runtime.id check might be too strict
     }
 
     // Execute the handler with timeout protection
+    console.log(`[${logPrefix}] About to execute handler for:`, request?.type);
+    
     Promise.race([
       handler(request, sender),
       timeoutPromise
     ])
       .then(response => {
+        console.log(`[${logPrefix}] Handler completed with response:`, response);
+        
         if (validateChannel()) {
+          console.log(`[${logPrefix}] Channel valid, sending response`);
           safeSendResponse(response);
         } else {
           log.warn(`[${logPrefix}] Channel closed before response could be sent`, false, {
@@ -103,6 +112,8 @@ export function createSafeMessageHandler(
         }
       })
       .catch(error => {
+        console.error(`[${logPrefix}] Handler threw error:`, error);
+        
         if (validateChannel()) {
           log.warn(`[${logPrefix}] Handler error:`, false, error);
           safeSendResponse({

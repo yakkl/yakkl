@@ -33,5 +33,13 @@ export default defineConfig({
     alias: {
       '@': resolve(__dirname, 'src')
     }
+  },
+  define: {
+    // Replace Node.js globals with browser-compatible alternatives
+    'global': 'globalThis',
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production')
+  },
+  optimizeDeps: {
+    exclude: ['vite-plugin-node-polyfills']
   }
 });

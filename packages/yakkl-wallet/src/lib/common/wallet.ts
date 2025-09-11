@@ -3,7 +3,8 @@ import type { Provider } from '$lib/managers/Provider';
 import type { Wallet } from '$lib/managers/Wallet';
 import { blockchainServiceManager } from '$lib/sdk/BlockchainServiceManager';
 import { getYakklCurrentlySelectedAccountKey } from './security';
-import { getMiscStore, getYakklCurrentlySelected } from './stores';
+import { getMiscStore } from './stores';
+import { getYakklCurrentlySelected } from './currentlySelected';
 import type { Ethereum } from '$lib/managers/blockchains/evm/ethereum/Ethereum';
 import { TokenService } from '$lib/managers/blockchains/evm/TokenService';
 import { log } from '$lib/managers/Logger';
@@ -21,18 +22,36 @@ export async function getInstances(): Promise<
 		const currentlySelected = await getYakklCurrentlySelected();
 		const chainId = currentlySelected.shortcuts?.chainId ?? 1;
 
-		// Initialize blockchain service manager
-		await blockchainServiceManager.initialize({
-			defaultChainId: chainId,
-			autoSetupProviders: true
-		});
+		console.log('[getInstances] About to initialize BlockchainServiceManager with chainId:', chainId);
+		console.log('[getInstances] blockchainServiceManager exists:', !!blockchainServiceManager);
+		
+		try {
+			// Initialize blockchain service manager
+			await blockchainServiceManager.initialize({
+				defaultChainId: chainId,
+				autoSetupProviders: true
+			});
+			console.log('[getInstances] BlockchainServiceManager initialized successfully');
+		} catch (initError) {
+			console.error('[getInstances] Failed to initialize BlockchainServiceManager:', initError);
+			throw initError;
+		}
 
 		// Get provider from SDK
 		const sdkProvider = blockchainServiceManager.getProvider();
+		console.log('[getInstances] Got provider from blockchainServiceManager:', !!sdkProvider);
 		if (!sdkProvider) {
 			log.warn('[getInstances] No provider available from blockchainServiceManager');
+			console.warn('[getInstances] Provider is null - check if RPC endpoints are configured');
 			return [null, null, null, null];
 		}
+		
+		log.debug('[getInstances] Got provider from SDK');
+		console.log('[getInstances] Provider details:', {
+			hasProvider: !!sdkProvider,
+			providerType: sdkProvider?.constructor?.name,
+			chainId: sdkProvider?.chainId
+		});
 
 		// Create a compatibility wrapper for the SDK provider
 		// CacheSync expects instances[1].getProvider() to return the actual provider
@@ -48,8 +67,20 @@ export async function getInstances(): Promise<
 				};
 			},
 			// Ensure getBalance exists and works
-			getBalance: (address: string) => sdkProvider.getBalance(address),
-			getBlockNumber: () => sdkProvider.getBlockNumber(),
+			getBalance: async (address: string) => {
+				if (typeof sdkProvider.getBalance === 'function') {
+					return await sdkProvider.getBalance(address);
+				}
+				// If getBalance doesn't exist, throw error (provider should have this)
+				throw new Error('Provider does not support getBalance');
+			},
+			getBlockNumber: async () => {
+				if (typeof sdkProvider.getBlockNumber === 'function') {
+					return await sdkProvider.getBlockNumber();
+				}
+				// If getBlockNumber doesn't exist, return a default
+				return BigInt(0);
+			},
 			// Add call method for contract interactions (ethers.js compatibility)
 			call: async (transaction: any) => {
 				// Format transaction for SDK provider if needed
@@ -82,12 +113,22 @@ export async function getInstances(): Promise<
 		const providerWrapper = {
 			getProvider: () => providerWithMethods,
 			// Also expose methods directly on the wrapper for compatibility
-			getBalance: (address: string) => sdkProvider.getBalance(address),
+			getBalance: async (address: string) => {
+				if (typeof sdkProvider.getBalance === 'function') {
+					return await sdkProvider.getBalance(address);
+				}
+				throw new Error('Provider does not support getBalance');
+			},
 			getNetwork: async () => ({
-				chainId: BigInt(sdkProvider.chainId),
-				name: sdkProvider.blockchain || 'unknown'
+				chainId: BigInt(sdkProvider.chainId || 1),
+				name: sdkProvider.blockchain || 'ethereum'
 			}),
-			getBlockNumber: () => sdkProvider.getBlockNumber(),
+			getBlockNumber: async () => {
+				if (typeof sdkProvider.getBlockNumber === 'function') {
+					return await sdkProvider.getBlockNumber();
+				}
+				return BigInt(0);
+			},
 		};
 
 		// TODO: Migrate wallet and blockchain instances to SDK

@@ -460,17 +460,12 @@ export const tokenStore = createTokenStore();
 export const tokens = derived(
   [tokenStore, currentAccountTokens],
   ([$store, $tokens]) => {
-    // CRITICAL DEBUG: Log what we receive from currentAccountTokens
-    console.log('[TokenStore] tokens derived - input from currentAccountTokens:', {
-      tokenCount: $tokens?.length || 0,
-      tokensData: $tokens?.map(t => ({
-        symbol: t.symbol,
-        balance: t.balance,
-        balanceType: typeof t.balance,
-        value: t.value,
-        valueType: typeof t.value
-      }))
-    });
+    // Debug logging (only in development and when there's data)
+    if (process.env.NODE_ENV === 'development' && $tokens?.length > 0) {
+      log.debug('[TokenStore] Processing tokens from currentAccountTokens:', false, {
+        count: $tokens.length
+      });
+    }
 
     // Map TokenCache to TokenDisplay format
     const result = $tokens.map((token, index) => {
@@ -520,10 +515,13 @@ export const tokens = derived(
       return mappedToken;
     });
 
-    console.log('[TokenStore] tokens derived - output:', {
-      resultCount: result.length,
-      hasBalances: result.some(t => t.balance && t.balance !== '0')
-    });
+    // Log only if we have results in development
+    if (process.env.NODE_ENV === 'development' && result.length > 0) {
+      log.debug('[TokenStore] Tokens processed:', false, {
+        count: result.length,
+        hasBalances: result.some(t => t.balance && t.balance !== '0')
+      });
+    }
 
     return result;
   }
@@ -565,22 +563,16 @@ export const displayTokens = derived(
     // Always ensure we return an array, even if empty
     const result = Array.isArray(tokenList) ? tokenList : [];
 
-    // CRITICAL DEBUG: Enhanced logging for displayTokens
-    console.log('[TokenStore] displayTokens CRITICAL:', {
-      isMultiChainView: $store.isMultiChainView,
-      singleTokensCount: $singleTokens?.length || 0,
-      multiTokensCount: $multiTokens?.length || 0,
-      resultCount: result.length,
-      firstThreeTokens: result.slice(0, 3).map(t => ({
-        symbol: t?.symbol,
-        balance: t?.balance,
-        balanceType: typeof t?.balance,
-        qty: t?.qty?.toString(),
-        value: t?.value,
-        valueType: typeof t?.value,
-        hasBalance: !!t?.balance && t?.balance !== '0'
-      }))
-    });
+    console.error('[TokenStore] displayTokens', {$store, $singleTokens, $multiTokens, tokenList, result});
+
+    // Only log if there's an unexpected state (debug logging can be re-enabled if needed)
+    if (process.env.NODE_ENV === 'development' && result.length > 0) {
+      // Minimal logging when tokens are present
+      log.debug('[TokenStore] displayTokens:', false, {
+        view: $store.isMultiChainView ? 'multi-chain' : 'single-chain',
+        count: result.length
+      });
+    }
 
     return result;
   }
@@ -615,6 +607,8 @@ export const networkTotalValue = derived(
       });
     }
 
+    console.error('[TokenStore] networkTotalValue', {$cache, $chain, totalValue});
+
     return totalValue;
   }
 );
@@ -647,6 +641,7 @@ export const grandTotalPortfolioValue = derived(
       console.error('Error calculating grand total portfolio value:', error);
     }
 
+    console.error('[TokenStore] grandTotalPortfolioValue', {$cache, totalValue});
     return totalValue;
   }
 );

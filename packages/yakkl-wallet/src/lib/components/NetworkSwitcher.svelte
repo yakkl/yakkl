@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { currentChain, visibleChains } from '../stores/chain.store';
-  import { getProfile } from '$lib/common/stores';
+  import { getProfile } from '$lib/common/profile';
 
   let {
     chains = [],
