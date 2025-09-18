@@ -8,20 +8,69 @@ const TsconfigPathsPlugin = require('tsconfig-paths-webpack-plugin');
 const { config } = require('dotenv');
 const fs = require('fs');
 
-config();
+// Load .env file with explicit path
+const result = config({ path: path.resolve(__dirname, '.env') });
+
+// Debug: Log if .env was loaded successfully
+if (result.error) {
+	console.error('[webpack.config] Error loading .env file:', result.error);
+} else {
+	console.log('[webpack.config] Successfully loaded .env file');
+	// Log a few keys to verify they're loaded (without exposing full values)
+	const keysToCheck = ['VITE_ALCHEMY_API_KEY_PROD_1', 'ALCHEMY_API_KEY_PROD_1'];
+	keysToCheck.forEach(key => {
+		if (process.env[key]) {
+			console.log(`[webpack.config] ✓ Found ${key}: ${process.env[key].substring(0, 8)}...`);
+		} else {
+			console.log(`[webpack.config] ✗ Missing ${key}`);
+		}
+	});
+}
 
 function getEnvKeys() {
 	const env = process.env;
 	const stringifiedEnv = {};
+	const viteEnv = {};
 
+	// Critical API keys that must be available
+	const criticalKeys = [
+		'VITE_ALCHEMY_API_KEY_ETHEREUM',
+		'VITE_ALCHEMY_API_KEY_PROD_1',
+		'VITE_ALCHEMY_API_KEY_PROD_2',
+		'ALCHEMY_API_KEY_PROD_1',
+		'ALCHEMY_API_KEY_PROD_2',
+		'ALCHEMY_API_KEY_DEV',
+		'VITE_INFURA_API_KEY_PROD',
+		'INFURA_API_KEY_PROD',
+		'INFURA_API_KEY_DEV'
+	];
+
+	// First, add all critical keys specifically
+	criticalKeys.forEach(key => {
+		if (env[key]) {
+			stringifiedEnv[`process.env.${key}`] = JSON.stringify(env[key]);
+			viteEnv[`import.meta.env.${key}`] = JSON.stringify(env[key]);
+		}
+	});
+
+	// Then add all other env variables
 	for (const key of Object.keys(env)) {
 		// Ensure only non-null and non-undefined values are processed
-		if (env[key] !== undefined) {
+		if (env[key] !== undefined && env[key] !== null && env[key] !== '') {
 			stringifiedEnv[`process.env.${key}`] = JSON.stringify(env[key]);
+
+			// Also expose VITE_ prefixed variables in import.meta.env format
+			if (key.startsWith('VITE_')) {
+				viteEnv[`import.meta.env.${key}`] = JSON.stringify(env[key]);
+			}
 		}
 	}
 
-	return stringifiedEnv;
+	// Debug: Log how many env vars we're injecting
+	console.log(`[webpack.config] Injecting ${Object.keys(stringifiedEnv).length} process.env vars`);
+	console.log(`[webpack.config] Injecting ${Object.keys(viteEnv).length} import.meta.env vars`);
+
+	return { ...stringifiedEnv, ...viteEnv };
 }
 
 module.exports = {
@@ -182,7 +231,15 @@ module.exports = {
 			'import.meta.env.DEV': JSON.stringify(process.env.NODE_ENV !== 'production'),
 			'import.meta.env.PROD': JSON.stringify(process.env.NODE_ENV === 'production'),
 			'import.meta.env.MODE': JSON.stringify(process.env.NODE_ENV || 'development'),
-			'import.meta.env.VITE_LOG_LEVEL': JSON.stringify(process.env.VITE_LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'warn' : 'debug'))
+			'import.meta.env.VITE_LOG_LEVEL': JSON.stringify(process.env.VITE_LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'warn' : 'debug')),
+			// Also expose non-VITE prefixed API keys in import.meta.env format for KeyManager compatibility
+			'import.meta.env.ALCHEMY_API_KEY_PROD_1': JSON.stringify(process.env.ALCHEMY_API_KEY_PROD_1),
+			'import.meta.env.ALCHEMY_API_KEY_PROD_2': JSON.stringify(process.env.ALCHEMY_API_KEY_PROD_2),
+			'import.meta.env.ALCHEMY_API_KEY_DEV': JSON.stringify(process.env.ALCHEMY_API_KEY_DEV),
+			'import.meta.env.BLOCKNATIVE_API_KEY': JSON.stringify(process.env.BLOCKNATIVE_API_KEY),
+			'import.meta.env.INFURA_API_KEY': JSON.stringify(process.env.INFURA_API_KEY),
+			'import.meta.env.OPENAI_API_KEY': JSON.stringify(process.env.OPENAI_API_KEY),
+			'import.meta.env.ANTHROPIC_API_KEY': JSON.stringify(process.env.ANTHROPIC_API_KEY)
 		}),
 		new webpack.ProvidePlugin({
 			process: 'process/browser',

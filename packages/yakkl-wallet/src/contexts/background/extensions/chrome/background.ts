@@ -49,11 +49,12 @@ import { getAddressesForDomain, verifyDomainConnected } from './verifyDomainConn
 import { onDappListener } from './dapp';
 import { getCurrentlySelectedData } from '$lib/common/shortcuts';
 import { BackgroundIntervalService } from '$lib/services/background-interval.service';
-import { BackgroundPriceService } from '$lib/services/background-price.service';
+import { BackgroundPriceService } from '$lib/services/background/BackgroundPriceService';
 import { BackgroundTransactionService } from '$lib/services/background-transaction.service';
 import { IdleManager } from '$lib/managers/IdleManager';
 import { backgroundManager } from '$lib/managers/BackgroundManager';
 import { getYakklSettings } from '$lib/common/stores';
+import { AuthHandler } from '../../handlers/auth.handler';
 
 type RuntimeSender = Runtime.MessageSender;
 type RuntimePort = Runtime.Port;
@@ -416,7 +417,7 @@ async function handlePortMessage(message: YakklMessage, port: RuntimePort) {
 
       try {
         const priceService = BackgroundPriceService.getInstance();
-        await priceService.forceUpdate();
+        await priceService.updatePricesAndValues();
 
         // Send success response
         safePortPostMessage(port, {
@@ -800,6 +801,14 @@ async function initializeOnStartup() {
     // Initialize permissions system
     initializePermissions();
 
+    // Initialize AuthHandler for JWT management
+    try {
+      AuthHandler.initialize();
+      log.info('[Background] AuthHandler initialized');
+    } catch (error) {
+      log.error('[Background] Failed to initialize AuthHandler:', false, error);
+    }
+
     // EIP-6963 will be initialized in the async startup block when all APIs are ready
 
     // Initialize BackgroundManager for port communication
@@ -817,13 +826,8 @@ async function initializeOnStartup() {
       log.error('[Background] Failed to initialize interval service:', false, error);
     }
 
-    // Initialize background price service for token pricing
-    try {
-      const priceService = BackgroundPriceService.getInstance();
-      await priceService.start();
-    } catch (error) {
-      log.error('[Background] Failed to start price service:', false, error);
-    }
+    // BackgroundPriceService is initialized by BackgroundIntervalService
+    // No separate initialization needed - it's coordinated through the interval service
 
     // Initialize background transaction service for fetching transaction history
     try {

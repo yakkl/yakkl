@@ -1,6 +1,6 @@
 /**
  * BackgroundTransactionService - Background context compatible transaction service
- * 
+ *
  * NO Svelte stores - uses direct browser.storage API
  * Compatible with service worker environment
  * Fetches transactions from blockchain providers
@@ -73,14 +73,13 @@ export class BackgroundTransactionService {
       }
 
       if (!rpcUrl) {
-        log.error('[BackgroundTransactionService] No RPC URL for chain', false, { chainId });
         return null;
       }
 
       // Create provider
       const provider = new providers.JsonRpcProvider(rpcUrl);
       this.providers.set(chainId, provider);
-      
+
       return provider;
     } catch (error) {
       log.error('[BackgroundTransactionService] Failed to get provider', false, error);
@@ -95,16 +94,18 @@ export class BackgroundTransactionService {
     switch (chainId) {
       case 1: // Ethereum Mainnet
         return 'https://eth.llamarpc.com';
-      case 137: // Polygon
-        return 'https://polygon-rpc.com';
-      case 56: // BSC
-        return 'https://bsc-dataseed.binance.org';
-      case 43114: // Avalanche
-        return 'https://api.avax.network/ext/bc/C/rpc';
-      case 42161: // Arbitrum
-        return 'https://arb1.arbitrum.io/rpc';
-      case 10: // Optimism
-        return 'https://mainnet.optimism.io';
+
+      // TODO: Add back in when we have RPC URLs for these chains
+      // case 137: // Polygon
+      //   return 'https://polygon-rpc.com';
+      // case 56: // BSC
+      //   return 'https://bsc-dataseed.binance.org';
+      // case 43114: // Avalanche
+      //   return 'https://api.avax.network/ext/bc/C/rpc';
+      // case 42161: // Arbitrum
+      //   return 'https://arb1.arbitrum.io/rpc';
+      // case 10: // Optimism
+      //   return 'https://mainnet.optimism.io';
       case 11155111: // Sepolia
         return 'https://sepolia.infura.io/v3/public';
       default:
@@ -121,12 +122,6 @@ export class BackgroundTransactionService {
     limit: number = 50
   ): Promise<TransactionData[]> {
     try {
-      log.debug('[BackgroundTransactionService] Fetching transactions', false, {
-        chainId,
-        address,
-        limit
-      });
-
       const provider = await this.getProvider(chainId);
       if (!provider) {
         log.error('[BackgroundTransactionService] No provider available', false, { chainId });
@@ -135,36 +130,36 @@ export class BackgroundTransactionService {
 
       // Get latest block number
       const latestBlock = await provider.getBlockNumber();
-      
+
       // For now, we'll fetch recent transactions using a simple approach
       // In production, you'd want to use an indexer service like Etherscan API
       const transactions: TransactionData[] = [];
-      
+
       // Get last N blocks (simplified approach)
       const blocksToCheck = Math.min(limit, 10); // Check last 10 blocks max
-      
+
       for (let i = 0; i < blocksToCheck; i++) {
         try {
           const blockNumber = latestBlock - i;
           const block = await provider.getBlock(blockNumber);
-          
+
           if (block && block.transactions) {
             for (const tx of block.transactions) {
               // Check if transaction involves our address
               if (typeof tx === 'string') {
                 // If tx is just hash, fetch full transaction
                 const fullTx = await provider.getTransaction(tx);
-                if (fullTx && 
-                    (fullTx.from?.toLowerCase() === address.toLowerCase() || 
+                if (fullTx &&
+                    (fullTx.from?.toLowerCase() === address.toLowerCase() ||
                      fullTx.to?.toLowerCase() === address.toLowerCase())) {
                   transactions.push(this.formatTransaction(fullTx, address, chainId));
                 }
               } else if (tx && typeof tx === 'object') {
                 const txObj = tx as any;
-                if (txObj.from?.toLowerCase() === address.toLowerCase() || 
+                if (txObj.from?.toLowerCase() === address.toLowerCase() ||
                     txObj.to?.toLowerCase() === address.toLowerCase()) {
                   transactions.push(this.formatTransaction(txObj, address, chainId));
-                  
+
                   if (transactions.length >= limit) {
                     break;
                   }
@@ -172,7 +167,6 @@ export class BackgroundTransactionService {
               }
             }
           }
-          
           if (transactions.length >= limit) {
             break;
           }
@@ -181,13 +175,6 @@ export class BackgroundTransactionService {
           log.debug('[BackgroundTransactionService] Failed to fetch block', false, error);
         }
       }
-
-      log.info('[BackgroundTransactionService] Fetched transactions', false, {
-        chainId,
-        address,
-        count: transactions.length
-      });
-
       return transactions;
     } catch (error) {
       log.error('[BackgroundTransactionService] Failed to fetch transactions', false, error);
@@ -200,7 +187,7 @@ export class BackgroundTransactionService {
    */
   private formatTransaction(tx: any, userAddress: string, chainId: number): TransactionData {
     const isOutgoing = tx.from?.toLowerCase() === userAddress.toLowerCase();
-    
+
     return {
       hash: tx.hash,
       from: tx.from || '',
@@ -225,11 +212,8 @@ export class BackgroundTransactionService {
    */
   public async fetchAllTransactions(): Promise<void> {
     try {
-      log.info('[BackgroundTransactionService] Starting transaction fetch for all accounts');
-      
       const cache = await this.cacheStore.getCache();
       if (!cache?.chainAccountCache) {
-        log.debug('[BackgroundTransactionService] No accounts in cache');
         return;
       }
 
@@ -252,7 +236,7 @@ export class BackgroundTransactionService {
                 address,
                 transactions
               );
-              
+
               totalFetched += transactions.length;
             }
           } catch (error) {
@@ -264,10 +248,6 @@ export class BackgroundTransactionService {
           }
         }
       }
-
-      log.info('[BackgroundTransactionService] Transaction fetch complete', false, {
-        totalFetched
-      });
     } catch (error) {
       log.error('[BackgroundTransactionService] Failed to fetch all transactions', false, error);
     }
@@ -279,7 +259,7 @@ export class BackgroundTransactionService {
   public async fetchActiveAccountTransactions(): Promise<TransactionData[]> {
     try {
       const activeAccount = await this.cacheStore.getActiveAccount();
-      
+
       if (!activeAccount) {
         log.debug('[BackgroundTransactionService] No active account');
         return [];
@@ -321,15 +301,10 @@ export class BackgroundTransactionService {
           if (!provider) continue;
 
           const receipt = await provider.getTransactionReceipt(txHash);
-          
+
           if (receipt) {
             // Transaction is confirmed, remove from pending
             delete pendingTxs[txHash];
-            
-            log.info('[BackgroundTransactionService] Transaction confirmed', false, {
-              hash: txHash,
-              status: receipt.status
-            });
           }
         } catch (error) {
           // Transaction might still be pending
@@ -349,7 +324,6 @@ export class BackgroundTransactionService {
    */
   public clearProviderCache(): void {
     this.providers.clear();
-    log.debug('[BackgroundTransactionService] Provider cache cleared');
   }
 }
 

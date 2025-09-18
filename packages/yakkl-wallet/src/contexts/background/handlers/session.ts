@@ -4,8 +4,11 @@ import { log } from '$lib/common/logger-wrapper';
 import { lockWalletBackground } from '../utils/lockWalletBackground';
 import type { SessionToken } from '$lib/common/interfaces';
 import { IdleManager } from '$lib/managers/IdleManager';
-import { BackgroundJWTValidatorService } from '$lib/services/background-jwt-validator.service';
+import { backgroundJWTValidator } from '@yakkl/security';
 import { setMiscStore } from '../security/secure-hash-store';
+import { BackgroundIntervalService } from '$lib/services/background-interval.service';
+import { backgroundProviderManager } from '../services/provider-manager';
+import { stopLockIconTimer } from '$contexts/background/extensions/chrome/iconTimer';
 
 // Session token management
 let bgMemoryHash: string | null = null; // Used in STORE_SESSION_HASH and REFRESH_SESSION handlers
@@ -283,8 +286,7 @@ export const sessionHandlers = new Map<string, MessageHandlerFunc>([
         setTimeout(() => {
           if (jwtToken) {
             try {
-              const validator = BackgroundJWTValidatorService.getInstance();
-              validator.notifyLoginSuccess(jwtToken, loginTime);
+              backgroundJWTValidator.notifyLoginSuccess(jwtToken, loginTime);
               log.info('[SessionHandler] Background JWT validator notified after grace period');
             } catch (error) {
               log.warn('[SessionHandler] Failed to notify JWT validator:', false, error);
@@ -306,15 +308,13 @@ export const sessionHandlers = new Map<string, MessageHandlerFunc>([
         try {
           log.info('[SessionHandler] Triggering full data refresh after login');
 
-          // Import background interval service
-          const { BackgroundIntervalService } = await import('$lib/services/background-interval.service');
+          // Use statically imported BackgroundIntervalService (NO DYNAMIC IMPORTS IN SERVICE WORKERS!)
           const intervalService = BackgroundIntervalService.getInstance();
 
           // Trigger manual refresh of all data
           await intervalService.manualRefresh();
 
           // Also ensure provider is initialized and native balance is fetched
-          const { backgroundProviderManager } = await import('../services/provider-manager');
 
           // Get currently selected data
           const stored = await browser.storage.local.get('yakkl-currently-selected');
@@ -607,6 +607,20 @@ export const sessionHandlers = new Map<string, MessageHandlerFunc>([
       }
     } catch (error) {
       log.error('[SessionHandler] Error handling SESSION_SESSION_EXTENDED:', false, error);
+      return {
+        success: false,
+        error: (error as Error).message
+      };
+    }
+  }],
+
+  ['stopLockIconTimer', async (): Promise<MessageResponse> => {
+    try {
+      log.info('[SessionHandler] Stopping lock icon timer');
+      await stopLockIconTimer();
+      return { success: true };
+    } catch (error) {
+      log.error('[SessionHandler] Error stopping lock icon timer:', false, error);
       return {
         success: false,
         error: (error as Error).message

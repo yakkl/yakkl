@@ -266,13 +266,16 @@ export function safeConvertToBigInt(value: BigNumberish | null | undefined): big
 		if (typeof value === 'bigint') return value;
 
 		// Handle BigNumber type
-		if (value instanceof BigNumber) {
-			return BigInt(value.toString());
+		if ((value as any) instanceof BigNumber) {
+			return BigInt((value as unknown as BigNumber).toString());
 		}
 
 		// Handle object with _hex property (ethers BigNumber-like)
-		if (typeof value === 'object' && value !== null && '_hex' in value) {
-			return BigInt((value as { _hex: string })._hex);
+		if (typeof value === 'object' && value !== null) {
+			const obj = value as any;
+			if ('_hex' in obj && obj._hex) {
+				return BigInt(obj._hex);
+			}
 		}
 
 		// Try to convert using existing toBigInt

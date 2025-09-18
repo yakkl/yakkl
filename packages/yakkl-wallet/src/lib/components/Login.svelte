@@ -7,7 +7,7 @@
 	import { authStore } from '$lib/stores/auth-store';
 	import AuthError from '$lib/components/AuthError.svelte';
 	// import AuthenticationLoader from '$lib/components/AuthenticationLoader.svelte';
-	import { jwtManager } from '$lib/utilities/jwt';
+	import { browserJWT as jwtManager } from '@yakkl/security';
 	import { getNormalizedSettings } from '$lib/common';
 
 	// Props using runes syntax
@@ -114,11 +114,16 @@
         const planLevel = settings?.plan?.type || 'explorer_member';
 
         // Generate JWT token
+        const sessionId = crypto.randomUUID();
+        const secureHash = crypto.randomUUID();
         jwtToken = await jwtManager.generateToken(
           profile.id || profile.username,
           profile.username,
           profile.id || profile.username,
-          planLevel
+          planLevel,
+          sessionId,
+          60, // 60 minutes
+          secureHash
         );
         console.log('jwtToken===================================>>>>', jwtToken);
 			}

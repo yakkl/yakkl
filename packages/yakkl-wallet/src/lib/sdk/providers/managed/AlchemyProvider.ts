@@ -1,8 +1,9 @@
 import { ManagedProvider } from '../base/ManagedProvider';
 import type { IKeyManager } from '../../interfaces/IKeyManager';
-import type { BigNumberish, BlockTag, TransactionRequest, TransactionResponse, FeeData, Log, Filter, Block, BlockWithTransactions, TransactionReceipt } from '../base/BaseProvider';
+import type { BigNumberish, BlockTag, TransactionRequest, TransactionResponse, FeeData, Log, Filter, Block, BlockWithTransactions } from '../base/BaseProvider';
 import type { Log as EVMLog } from '$lib/common/evm';
-import { BigNumber } from '../../core/bignumber';
+import { BigNumber } from '@yakkl/core';
+import type { TransactionReceipt as CoreTransactionReceipt } from '@yakkl/core';
 
 /**
  * Alchemy provider implementation using the ManagedProvider base
@@ -134,10 +135,10 @@ export class AlchemyProvider extends ManagedProvider {
   /**
    * Get enhanced transaction receipts with additional data
    */
-  async getTransactionReceipt(transactionHash: string): Promise<TransactionReceipt> {
+  async getTransactionReceipt(transactionHash: string): Promise<CoreTransactionReceipt> {
     if (this.supportedFeatures.has('enhanced')) {
       try {
-        return await this.makeProviderRequest<TransactionReceipt>(
+        return await this.makeProviderRequest<CoreTransactionReceipt>(
           'alchemy_getTransactionReceipt',
           [transactionHash]
         );
@@ -146,7 +147,7 @@ export class AlchemyProvider extends ManagedProvider {
       }
     }
     
-    return await super.request<TransactionReceipt>('eth_getTransactionReceipt', [transactionHash]);
+    return await super.request<CoreTransactionReceipt>({ method: 'eth_getTransactionReceipt', params: [transactionHash] });
   }
 
   /**
@@ -282,17 +283,17 @@ export class AlchemyProvider extends ManagedProvider {
   // Standard provider methods (inherited from ManagedProvider)
 
   async getBlockNumber(): Promise<number> {
-    const result = await this.request<string>('eth_blockNumber');
+    const result = await this.request<string>({ method: 'eth_blockNumber' });
     return parseInt(result, 16);
   }
 
   async getBalance(address: string, blockTag: BlockTag = 'latest'): Promise<bigint> {
-    const result = await this.request<string>('eth_getBalance', [address, blockTag]);
+    const result = await this.request<string>({ method: 'eth_getBalance', params: [address, blockTag] });
     return BigInt(result);
   }
 
   async getCode(address: string, blockTag: BlockTag = 'latest'): Promise<string> {
-    return await this.request<string>('eth_getCode', [address, blockTag]);
+    return await this.request<string>({ method: 'eth_getCode', params: [address, blockTag] });
   }
 
   async getStorageAt(address: string, position: BigNumberish, blockTag: BlockTag = 'latest'): Promise<string> {
@@ -307,11 +308,11 @@ export class AlchemyProvider extends ManagedProvider {
       // For BigNumber or other objects that have toString method
       positionHex = `0x${(position as any).toString(16)}`;
     }
-    return await this.request<string>('eth_getStorageAt', [address, positionHex, blockTag]);
+    return await this.request<string>({ method: 'eth_getStorageAt', params: [address, positionHex, blockTag] });
   }
 
   async getGasPrice(): Promise<bigint> {
-    const result = await this.request<string>('eth_gasPrice');
+    const result = await this.request<string>({ method: 'eth_gasPrice' });
     return BigInt(result);
   }
 
@@ -350,38 +351,38 @@ export class AlchemyProvider extends ManagedProvider {
   }
 
   async sendRawTransaction(signedTransaction: string): Promise<TransactionResponse> {
-    const hash = await this.request<string>('eth_sendRawTransaction', [signedTransaction]);
+    const hash = await this.request<string>({ method: 'eth_sendRawTransaction', params: [signedTransaction] });
     return { hash } as TransactionResponse;
   }
 
   async call(transaction: TransactionRequest, blockTag: BlockTag = 'latest'): Promise<string> {
-    return await this.request<string>('eth_call', [transaction, blockTag]);
+    return await this.request<string>({ method: 'eth_call', params: [transaction, blockTag] });
   }
 
   async estimateGas(transaction: TransactionRequest): Promise<bigint> {
-    const result = await this.request<string>('eth_estimateGas', [transaction]);
+    const result = await this.request<string>({ method: 'eth_estimateGas', params: [transaction] });
     return BigInt(result);
   }
 
   async getTransactionCount(address: string, blockTag: BlockTag = 'latest'): Promise<number> {
-    const result = await this.request<string>('eth_getTransactionCount', [address, blockTag]);
+    const result = await this.request<string>({ method: 'eth_getTransactionCount', params: [address, blockTag] });
     return parseInt(result, 16);
   }
 
   async getBlock(blockHashOrTag: BlockTag | string): Promise<Block> {
-    return await this.request<Block>('eth_getBlockByNumber', [blockHashOrTag, false]);
+    return await this.request<Block>({ method: 'eth_getBlockByNumber', params: [blockHashOrTag, false] });
   }
 
   async getBlockWithTransactions(blockHashOrTag: BlockTag | string): Promise<BlockWithTransactions> {
-    return await this.request<BlockWithTransactions>('eth_getBlockByNumber', [blockHashOrTag, true]);
+    return await this.request<BlockWithTransactions>({ method: 'eth_getBlockByNumber', params: [blockHashOrTag, true] });
   }
 
   async getTransaction(transactionHash: string): Promise<TransactionResponse> {
-    return await this.request<TransactionResponse>('eth_getTransactionByHash', [transactionHash]);
+    return await this.request<TransactionResponse>({ method: 'eth_getTransactionByHash', params: [transactionHash] });
   }
 
   async getLogs(filter: Filter): Promise<EVMLog[]> {
-    const logs = await this.request<Log[]>('eth_getLogs', [filter]);
+    const logs = await this.request<Log[]>({ method: 'eth_getLogs', params: [filter] });
     return logs.map(log => ({
       ...log,
       blockNumber: log.blockNumber || 0,
@@ -395,12 +396,12 @@ export class AlchemyProvider extends ManagedProvider {
 
   // ENS support (Ethereum mainnet only)
   async resolveName(name: string): Promise<string | null> {
-    if (this._chainId !== 1) {
+    if (this.chainId !== 1) {
       return null;
     }
 
     try {
-      const result = await this.request<string>('ens_resolve', [name]);
+      const result = await this.request<string>({ method: 'ens_resolve', params: [name] });
       return result;
     } catch (error) {
       return null;
@@ -408,12 +409,12 @@ export class AlchemyProvider extends ManagedProvider {
   }
 
   async lookupAddress(address: string): Promise<string | null> {
-    if (this._chainId !== 1) {
+    if (this.chainId !== 1) {
       return null;
     }
 
     try {
-      const result = await this.request<string>('ens_reverse', [address]);
+      const result = await this.request<string>({ method: 'ens_reverse', params: [address] });
       return result;
     } catch (error) {
       return null;

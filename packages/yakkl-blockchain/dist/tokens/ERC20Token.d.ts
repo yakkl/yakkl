@@ -3,9 +3,9 @@
  */
 import { BaseToken } from './BaseToken';
 import type { TokenInfo, TokenMetadata } from './types';
-import type { BigNumberish, IProvider } from '../providers/types';
+import type { BigNumberish, ProviderInterface } from '../providers/types';
 export declare class ERC20Token extends BaseToken {
-    constructor(info: TokenInfo, metadata?: TokenMetadata, provider?: IProvider);
+    constructor(info: TokenInfo, metadata?: TokenMetadata, provider?: ProviderInterface);
     /**
      * Get token name from contract (IERC20 method)
      */
@@ -59,5 +59,5 @@ export declare class ERC20Token extends BaseToken {
     /**
      * Create an ERC20 token instance from an address
      */
-    static fromAddress(address: string, chainId: number, provider: IProvider): Promise<ERC20Token>;
+    static fromAddress(address: string, chainId: number, provider: ProviderInterface): Promise<ERC20Token>;
 }

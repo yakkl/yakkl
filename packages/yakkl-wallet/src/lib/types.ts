@@ -183,6 +183,11 @@ export interface AccountCache {
   tokens: TokenCache[];
   transactions: TransactionCache[];
   updateDate: string;
+  portfolio?: {
+    totalValue: bigint;
+    lastCalculated: string;
+    tokenCount: number;
+  };
 }
 
 export interface WalletCacheController {

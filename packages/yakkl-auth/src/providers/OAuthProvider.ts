@@ -19,7 +19,7 @@ export interface OAuthConfig {
 export class OAuthProvider implements AuthProvider {
   name = 'oauth';
   type = 'oauth' as const;
-  private config: OAuthConfig;
+  protected config: OAuthConfig;
   private providers: Record<string, any>;
 
   constructor(config: OAuthConfig) {
@@ -287,7 +287,7 @@ export class OAuthProvider implements AuthProvider {
 
   // Private helper methods
   
-  private mapUserInfo(userInfo: any): any {
+  protected mapUserInfo(userInfo: any): any {
     // Map provider-specific user info to standard format
     switch (this.config.provider) {
       case 'google':

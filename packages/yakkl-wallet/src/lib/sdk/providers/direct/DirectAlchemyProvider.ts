@@ -1,5 +1,16 @@
 import { BaseProvider } from '../base/BaseProvider';
-import type { BigNumberish, BlockTag, TransactionRequest, TransactionResponse, FeeData, Filter, Block, BlockWithTransactions, TransactionReceipt } from '../base/BaseProvider';
+import type { BigNumberish } from '../base/BaseProvider';
+import type {
+  BlockTag as CoreBlockTag,
+  TransactionRequest as CoreTransactionRequest,
+  TransactionResponse as CoreTransactionResponse,
+  FeeData as CoreFeeData,
+  Filter as CoreFilter,
+  Block as CoreBlock,
+  BlockWithTransactions as CoreBlockWithTransactions,
+  TransactionReceipt as CoreTransactionReceipt,
+  Log as CoreLog
+} from '@yakkl/core';
 import type { Log as EVMLog } from '$lib/common/evm';
 
 /**
@@ -70,8 +81,13 @@ export class DirectAlchemyProvider extends BaseProvider {
    * Connect to the Alchemy provider
    */
   protected async doConnect(chainId: number): Promise<void> {
-    console.log(`[DirectAlchemyProvider] Connecting to ${this.alchemyNetwork}...`);
-    
+    console.log(`[DirectAlchemyProvider] Connecting to ${this.alchemyNetwork} for chain ${chainId}...`);
+
+    // Validate that the chain ID matches what we expect
+    if (chainId !== this.chainId) {
+      throw new Error(`Chain ID mismatch: expected ${this.chainId}, got ${chainId}`);
+    }
+
     // Test the connection with a simple request
     try {
       const payload = {
@@ -81,76 +97,64 @@ export class DirectAlchemyProvider extends BaseProvider {
         params: []
       };
 
+      console.log(`[DirectAlchemyProvider] Testing connection to endpoint: ${this._endpoint.substring(0, 50)}...`);
+
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
       const response = await fetch(this._endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      }).finally(() => clearTimeout(timeoutId));
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const errorText = await response.text().catch(() => 'Unknown error');
+        throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
       }
 
       const data = await response.json();
       if (data.error) {
-        throw new Error(data.error.message || 'Provider error');
+        throw new Error(`Provider RPC error: ${data.error.message || data.error.code || 'Unknown provider error'}`);
       }
 
-      console.log(`[DirectAlchemyProvider] Successfully connected to ${this.alchemyNetwork}`);
-      this._isConnected = true;
+      // Verify the chain ID matches
+      const returnedChainId = parseInt(data.result, 16);
+      if (returnedChainId !== chainId) {
+        throw new Error(`Chain ID verification failed: expected ${chainId}, provider returned ${returnedChainId}`);
+      }
+
+      console.log(`[DirectAlchemyProvider] Successfully connected to ${this.alchemyNetwork} (chain ${chainId})`);
+      // The BaseProvider.connect() will set _isConnected to true after this method returns successfully
     } catch (error) {
-      console.error(`[DirectAlchemyProvider] Failed to connect:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Make a JSON-RPC request
-   */
-  async request<T = unknown>(method: string, params?: unknown[]): Promise<T> {
-    this.validateConnection();
-
-    const payload = {
-      jsonrpc: '2.0',
-      id: Date.now(),
-      method,
-      params: params || []
-    };
-
-    try {
-      const response = await fetch(this._endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+      const errorMsg = error instanceof Error ? error.message : 'Unknown connection error';
+      console.error(`[DirectAlchemyProvider] Connection failed for ${this.alchemyNetwork} (chain ${chainId}):`, {
+        error: errorMsg,
+        endpoint: this._endpoint.substring(0, 50) + '...',
+        chainId,
+        network: this.alchemyNetwork
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      if (data.error) {
-        throw new Error(data.error.message || 'Provider error');
-      }
-
-      return data.result as T;
-    } catch (error) {
-      console.error(`[DirectAlchemyProvider] Request failed for ${method}:`, error);
-      throw error;
+      throw new Error(`Failed to connect to Alchemy provider for chain ${chainId}: ${errorMsg}`);
     }
   }
+
 
   // Implement required abstract methods from BaseProvider
-  async getBalance(address: string, blockTag?: BlockTag): Promise<bigint> {
-    const result = await this.request<string>('eth_getBalance', [
+  async getBalance(address: string, blockTag?: CoreBlockTag): Promise<bigint> {
+    const result = await this.makeRequest<string>('eth_getBalance', [
       address.toLowerCase(),
       blockTag || 'latest'
     ]);
     return BigInt(result);
   }
 
-  async getTransactionCount(address: string, blockTag?: BlockTag): Promise<number> {
-    const result = await this.request<string>('eth_getTransactionCount', [
+  async getTransactionCount(address: string, blockTag?: CoreBlockTag): Promise<number> {
+    const result = await this.makeRequest<string>('eth_getTransactionCount', [
       address.toLowerCase(),
       blockTag || 'latest'
     ]);
@@ -158,76 +162,49 @@ export class DirectAlchemyProvider extends BaseProvider {
   }
 
   async getGasPrice(): Promise<bigint> {
-    const result = await this.request<string>('eth_gasPrice');
+    const result = await this.makeRequest<string>('eth_gasPrice');
     return BigInt(result);
   }
 
-  async estimateGas(transaction: TransactionRequest): Promise<bigint> {
-    const result = await this.request<string>('eth_estimateGas', [transaction]);
-    return BigInt(result);
+
+  async getTransaction(hash: string): Promise<CoreTransactionResponse | null> {
+    return await this.makeRequest<CoreTransactionResponse | null>('eth_getTransactionByHash', [hash]);
   }
 
-  async sendRawTransaction(signedTransaction: string): Promise<TransactionResponse> {
-    const hash = await this.request<string>('eth_sendRawTransaction', [signedTransaction]);
-    // For now, return a minimal TransactionResponse
-    // In a real implementation, you'd fetch the full transaction details
-    return {
-      hash,
-      from: '',
-      to: null,
-      nonce: 0,
-      gasLimit: BigInt(0),
-      gasPrice: BigInt(0),
-      data: '',
-      value: BigInt(0),
-      chainId: this.chainId,
-      wait: async () => null
-    } as TransactionResponse;
+  async getTransactionReceipt(hash: string): Promise<CoreTransactionReceipt | null> {
+    return await this.makeRequest<CoreTransactionReceipt | null>('eth_getTransactionReceipt', [hash]);
   }
 
-  async sendTransaction(signedTransaction: string): Promise<string> {
-    const response = await this.sendRawTransaction(signedTransaction);
-    return response.hash;
-  }
-
-  async getTransaction(hash: string): Promise<TransactionResponse | null> {
-    return await this.request<TransactionResponse | null>('eth_getTransactionByHash', [hash]);
-  }
-
-  async getTransactionReceipt(hash: string): Promise<TransactionReceipt | null> {
-    return await this.request<TransactionReceipt | null>('eth_getTransactionReceipt', [hash]);
-  }
-
-  async getBlock(blockHashOrNumber: BlockTag): Promise<Block | null> {
+  async getBlock(blockHashOrNumber: CoreBlockTag | string): Promise<CoreBlock | null> {
     const method = typeof blockHashOrNumber === 'string' && blockHashOrNumber.startsWith('0x')
       ? 'eth_getBlockByHash'
       : 'eth_getBlockByNumber';
     
-    return await this.request<Block | null>(method, [blockHashOrNumber, false]);
+    return await this.makeRequest<CoreBlock | null>(method, [blockHashOrNumber, false]);
   }
 
-  async getBlockWithTransactions(blockHashOrNumber: BlockTag): Promise<BlockWithTransactions | null> {
+  async getBlockWithTransactions(blockHashOrNumber: CoreBlockTag | string): Promise<CoreBlockWithTransactions | null> {
     const method = typeof blockHashOrNumber === 'string' && blockHashOrNumber.startsWith('0x')
       ? 'eth_getBlockByHash'
       : 'eth_getBlockByNumber';
     
-    return await this.request<BlockWithTransactions | null>(method, [blockHashOrNumber, true]);
+    return await this.makeRequest<CoreBlockWithTransactions | null>(method, [blockHashOrNumber, true]);
   }
 
   async getBlockNumber(): Promise<number> {
-    const result = await this.request<string>('eth_blockNumber');
+    const result = await this.makeRequest<string>('eth_blockNumber');
     return parseInt(result, 16);
   }
 
-  async getCode(address: string, blockTag?: BlockTag): Promise<string> {
-    return await this.request<string>('eth_getCode', [
+  async getCode(address: string, blockTag?: CoreBlockTag): Promise<string> {
+    return await this.makeRequest<string>('eth_getCode', [
       address.toLowerCase(),
       blockTag || 'latest'
     ]);
   }
 
-  async getLogs(filter: Filter): Promise<EVMLog[]> {
-    const logs = await this.request<any[]>('eth_getLogs', [filter]);
+  async getLogs(filter: CoreFilter): Promise<CoreLog[]> {
+    const logs = await this.makeRequest<any[]>('eth_getLogs', [filter]);
     // Convert to EVMLog format with required 'removed' field
     return logs.map(log => ({
       ...log,
@@ -235,14 +212,19 @@ export class DirectAlchemyProvider extends BaseProvider {
     }));
   }
 
-  async call(transaction: TransactionRequest, blockTag?: BlockTag): Promise<string> {
-    return await this.request<string>('eth_call', [
+  async call(transaction: CoreTransactionRequest, blockTag?: CoreBlockTag): Promise<string> {
+    return await this.makeRequest<string>('eth_call', [
       transaction,
       blockTag || 'latest'
     ]);
   }
 
-  async getFeeData(): Promise<FeeData> {
+  async estimateGas(transaction: CoreTransactionRequest): Promise<bigint> {
+    const result = await this.makeRequest<string>('eth_estimateGas', [transaction]);
+    return BigInt(result);
+  }
+
+  async getFeeData(): Promise<CoreFeeData> {
     const [gasPrice, block] = await Promise.all([
       this.getGasPrice(),
       this.getBlock('latest')
@@ -257,7 +239,7 @@ export class DirectAlchemyProvider extends BaseProvider {
         maxFeePerGas = BigInt(block.baseFeePerGas) * 2n;
       } else {
         // Handle BigNumber or other types
-        maxFeePerGas = BigInt(block.baseFeePerGas.toString()) * 2n;
+        maxFeePerGas = BigInt((block.baseFeePerGas as any).toString()) * 2n;
       }
     }
 
@@ -268,7 +250,7 @@ export class DirectAlchemyProvider extends BaseProvider {
     };
   }
 
-  async getStorageAt(address: string, position: BigNumberish, blockTag?: BlockTag): Promise<string> {
+  async getStorageAt(address: string, position: BigNumberish, blockTag?: CoreBlockTag): Promise<string> {
     // Convert BigNumberish to hex string
     let positionHex: string;
     if (typeof position === 'string') {
@@ -277,14 +259,66 @@ export class DirectAlchemyProvider extends BaseProvider {
       positionHex = `0x${BigInt(position).toString(16)}`;
     } else {
       // Handle BigNumber or other types
-      positionHex = `0x${BigInt(position.toString()).toString(16)}`;
+      positionHex = `0x${BigInt((position as any).toString()).toString(16)}`;
     }
     
-    return await this.request<string>('eth_getStorageAt', [
+    return await this.makeRequest<string>('eth_getStorageAt', [
       address.toLowerCase(),
       positionHex,
       blockTag || 'latest'
     ]);
+  }
+
+  /**
+   * Implement abstract doRequest method
+   */
+  protected async doRequest<T = unknown>(method: string, params?: unknown[]): Promise<T> {
+    this.validateConnection();
+
+    const payload = {
+      jsonrpc: '2.0',
+      id: Date.now(),
+      method,
+      params: params || []
+    };
+
+    try {
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      const response = await fetch(this._endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      }).finally(() => clearTimeout(timeoutId));
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(`RPC error for ${method}: ${data.error.message || data.error.code || 'Unknown provider error'}`);
+      }
+
+      return data.result as T;
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`[DirectAlchemyProvider] Request failed for ${method}:`, {
+        error: errorMsg,
+        method,
+        params,
+        endpoint: this._endpoint.substring(0, 50) + '...',
+        isConnected: this.isConnected
+      });
+      throw error;
+    }
   }
 
   /**

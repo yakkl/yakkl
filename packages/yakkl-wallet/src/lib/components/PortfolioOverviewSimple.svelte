@@ -1,13 +1,11 @@
 <script lang="ts">
   import { browser } from '$app/environment';
-  import { currentPortfolioValue } from '$lib/stores/wallet-cache.store';
+  import { yakklCache, portfolioPlaceholder, isUpdating, formatPortfolioTotal } from '$lib/stores/yakklCache.store';
   import { currentAccount } from '$lib/stores/account.store';
   import { currentChain } from '$lib/stores/chain.store';
   import { currentPlan } from '$lib/stores/plan.store';
   import ProtectedValue from './ProtectedValue.svelte';
   import { visibilityStore } from '$lib/common/stores/visibilityStore';
-  import { formatCurrency } from '$lib/config/currencies';
-  import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
   import { getPlanBadgeText, getPlanBadgeColor } from '$lib/utils/features';
   import { PlanType } from '$lib/common';
 
@@ -24,12 +22,13 @@
     lastUpdate?: Date | null;
   }>();
 
-  // Simple reactive values - no complex view modes
-  const portfolioValue = $derived($currentPortfolioValue);
+  // Simple reactive values using yakklCache
+  const displayValue = $derived($portfolioPlaceholder);
   const isVisible = $derived($visibilityStore);
   const account = $derived($currentAccount);
   const chain = $derived($currentChain);
   const plan = $derived($currentPlan || PlanType.EXPLORER_MEMBER);
+  const updating = $derived($isUpdating);
 
   $effect(() => {
     if (browser) {
@@ -38,39 +37,22 @@
   });
 
   // Format value for display
-  const formattedValue = $derived(() => {
-    // During SSR, return default value
+  const formattedValue = $derived.by(() => {
+    // During SSR, return placeholder
     if (!browser) {
-      return formatCurrency(0, 'USD');
+      return '$--...';
     }
 
-    // Handle undefined, null, or invalid portfolio values
-    if (portfolioValue === undefined || portfolioValue === null) {
-      return formatCurrency(0, 'USD');
+    // Use cached value or placeholder
+    if (displayValue.value) {
+      return formatPortfolioTotal(displayValue.value);
     }
 
-    try {
-      // Handle BigNumber objects from ethers.js
-      let valueToConvert = portfolioValue;
-      if (portfolioValue && typeof portfolioValue === 'object' && '_hex' in portfolioValue) {
-        // It's a BigNumber object, convert to hex string
-        valueToConvert = portfolioValue._hex || '0x00';
-      }
-
-      const value = BigNumberishUtils.toBigInt(valueToConvert);
-      // Convert from cents to dollars
-      const dollars = Number(value) / 100;
-      return formatCurrency(dollars, 'USD');
-    } catch (error) {
-      if (browser) {
-        console.warn('PortfolioOverviewSimple - Invalid portfolio value:', portfolioValue, error);
-      }
-      return formatCurrency(0, 'USD');
-    }
+    return displayValue.placeholder || '$--...';
   });
 
   // Get responsive font size based on value
-  function getResponsiveFontSize(value: any): string {
+  function getResponsiveFontSize(value: string | null): string {
     try {
       // During SSR, return default size
       if (!browser) {
@@ -79,19 +61,14 @@
 
       if (!value) return 'text-4xl';
 
-      // Check if it's a BigNumber object from ethers.js
-      let valueToConvert = value;
-      if (value && typeof value === 'object' && '_hex' in value) {
-        // It's a BigNumber object, convert to hex string
-        valueToConvert = value._hex || '0x00';
-      }
+      // Parse value in cents and convert to dollars
+      const cents = parseInt(value, 10);
+      if (isNaN(cents)) return 'text-4xl';
 
-      // Safely convert to bigint and handle invalid values
-      const bigintValue = BigNumberishUtils.toBigInt(valueToConvert);
-      const numValue = Number(bigintValue) / 100; // Convert cents to dollars
-      if (numValue >= 1000000) return 'text-2xl';
-      if (numValue >= 100000) return 'text-3xl';
-      if (numValue >= 10000) return 'text-4xl';
+      const dollars = cents / 100;
+      if (dollars >= 1000000) return 'text-2xl';
+      if (dollars >= 100000) return 'text-3xl';
+      if (dollars >= 10000) return 'text-4xl';
       return 'text-4xl';
     } catch {
       return 'text-4xl'; // Default size on error
@@ -113,7 +90,7 @@
 
   // Get view description for current account/network
   function getViewDescription(): string {
-    const accountName = account?.username || account?.ens || 'Current Account';
+    const accountName = account?.name || account?.ens || 'Current Account';
     const chainName = chain?.name || 'Current Network';
     return `${accountName} on ${chainName}`;
   }
@@ -162,16 +139,19 @@
       </button>
     </div>
 
-    <!-- Portfolio Value Display -->
+    <!-- Portfolio Value Display with shimmer effect -->
     <div class="flex items-center justify-between">
       <div class="flex-1">
-        {#if loading && !portfolioValue}
-          <div class="animate-pulse h-10 w-48 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
-        {:else}
-          <div class="{getResponsiveFontSize(portfolioValue)} font-bold text-gray-900 dark:text-white">
-            <ProtectedValue value={formattedValue()} placeholder="*******" />
+        <div class="{getResponsiveFontSize(displayValue.value)} font-bold text-gray-900 dark:text-white relative">
+          <div class="{displayValue.shimmer ? 'shimmer-effect' : ''}">
+            <ProtectedValue value={formattedValue} placeholder="*******" />
           </div>
-        {/if}
+          {#if displayValue.shimmer}
+            <span class="text-xs text-gray-500 dark:text-gray-400 ml-2 absolute -bottom-5 left-0">
+              Updating totals...
+            </span>
+          {/if}
+        </div>
       </div>
     </div>
 
@@ -202,5 +182,37 @@
 </div>
 
 <style>
-  /* Add any additional custom styles here if needed */
+  .shimmer-effect {
+    background: linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0) 0%,
+      rgba(0, 0, 0, 0.05) 20%,
+      rgba(0, 0, 0, 0.1) 50%,
+      rgba(0, 0, 0, 0.05) 80%,
+      rgba(0, 0, 0, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  :global(.dark) .shimmer-effect {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.05) 20%,
+      rgba(255, 255, 255, 0.1) 50%,
+      rgba(255, 255, 255, 0.05) 80%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    background-size: 200% 100%;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
 </style>

@@ -2,25 +2,26 @@
  * Base blockchain provider implementation
  */
 import { EventEmitter } from 'eventemitter3';
-import type { IBlockchainProvider, ChainInfo, ProviderConfig, TransactionStatusInfo, Block, ProviderEvents } from '../interfaces/provider.interface';
+import type { ProviderInterface, ChainInfo, ProviderConfig, ProviderMetadata, ProviderCostMetrics, ProviderHealthMetrics, Block, BlockTag, BlockWithTransactions, TransactionRequest, TransactionResponse, TransactionReceipt, FeeData, Log, Filter, ProviderEvents } from '../interfaces/provider.interface';
 import type { Address } from '../types';
 import type { TransactionSignRequest } from '../interfaces/wallet.interface';
 import type { SignatureRequest, SignatureResult } from '../interfaces/crypto.interface';
 /**
  * Abstract base provider class
  */
-export declare abstract class BaseProvider extends EventEmitter<ProviderEvents> implements IBlockchainProvider {
+export declare abstract class BaseProvider extends EventEmitter<ProviderEvents> implements ProviderInterface {
     protected _chainInfo: ChainInfo;
     protected _isConnected: boolean;
     protected config: ProviderConfig;
     protected rpcUrl: string;
+    readonly metadata: ProviderMetadata;
     constructor(chainInfo: ChainInfo, config?: ProviderConfig);
     get chainInfo(): ChainInfo;
     get isConnected(): boolean;
     /**
      * Connect to the blockchain
      */
-    connect(): Promise<void>;
+    connect(chainId?: number): Promise<void>;
     /**
      * Disconnect from the blockchain
      */
@@ -39,18 +40,38 @@ export declare abstract class BaseProvider extends EventEmitter<ProviderEvents> 
     abstract switchChain(chainId: string | number): Promise<void>;
     abstract getAccounts(): Promise<Address[]>;
     abstract requestAccounts(): Promise<Address[]>;
-    abstract getBalance(address: Address, tokenAddress?: Address): Promise<string>;
-    abstract sendTransaction(tx: TransactionSignRequest): Promise<string>;
-    abstract signTransaction(tx: TransactionSignRequest): Promise<string>;
-    abstract getTransaction(hash: string): Promise<TransactionStatusInfo>;
-    abstract estimateGas(tx: TransactionSignRequest): Promise<string>;
-    abstract getGasPrice(): Promise<string>;
     abstract signMessage(request: SignatureRequest): Promise<SignatureResult>;
     abstract signTypedData(request: SignatureRequest): Promise<SignatureResult>;
+    abstract signTransaction(tx: TransactionSignRequest): Promise<string>;
+    abstract getNetwork(): Promise<{
+        name: string;
+        chainId: number;
+    }>;
+    abstract getChainId(): Promise<number>;
     abstract getBlockNumber(): Promise<number>;
-    abstract getBlock(blockHashOrNumber: string | number): Promise<Block>;
-    abstract getTransactionCount(address: Address): Promise<number>;
-    abstract call(tx: TransactionSignRequest): Promise<string>;
+    abstract getBlock(blockHashOrTag: BlockTag | string): Promise<Block | null>;
+    abstract getBlockWithTransactions(blockHashOrTag: BlockTag | string): Promise<BlockWithTransactions | null>;
+    abstract getBalance(address: string, blockTag?: BlockTag): Promise<bigint>;
+    abstract getTransactionCount(address: string, blockTag?: BlockTag): Promise<number>;
+    abstract getCode(address: string, blockTag?: BlockTag): Promise<string>;
+    abstract call(transaction: TransactionRequest, blockTag?: BlockTag): Promise<string>;
+    abstract estimateGas(transaction: TransactionRequest): Promise<bigint>;
+    abstract sendTransaction(transaction: TransactionRequest): Promise<TransactionResponse>;
+    abstract getTransaction(transactionHash: string): Promise<TransactionResponse | null>;
+    abstract getTransactionReceipt(transactionHash: string): Promise<TransactionReceipt | null>;
+    abstract waitForTransaction(transactionHash: string, confirmations?: number, timeout?: number): Promise<TransactionReceipt>;
+    abstract getGasPrice(): Promise<bigint>;
+    abstract getFeeData(): Promise<FeeData>;
+    abstract getLogs(filter: Filter): Promise<Log[]>;
+    abstract request<T = any>(args: {
+        method: string;
+        params?: any[];
+    }): Promise<T>;
+    abstract getRawProvider(): any;
+    abstract getEndpoint(): string;
+    abstract getCostMetrics(): Promise<ProviderCostMetrics>;
+    abstract getHealthMetrics(): Promise<ProviderHealthMetrics>;
+    abstract healthCheck(): Promise<ProviderHealthMetrics>;
 }
 /**
  * Provider error class

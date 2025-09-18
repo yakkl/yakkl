@@ -1,5 +1,23 @@
-import type { IProvider } from '../../interfaces/IProvider';
-import type { BigNumberish } from '../../core/bignumber';
+import type {
+  ProviderInterface,
+  ProviderMetadata,
+  ChainInfo,
+  ProviderHealthMetrics,
+  ProviderCostMetrics
+} from '@yakkl/core';
+import { ChainType } from '@yakkl/core';
+import type {
+  BigNumberish,
+  BlockTag as CoreBlockTag,
+  TransactionRequest as CoreTransactionRequest,
+  TransactionResponse as CoreTransactionResponse,
+  TransactionReceipt as CoreTransactionReceipt,
+  FeeData as CoreFeeData,
+  Filter as CoreFilter,
+  Log as CoreLog,
+  Block as CoreBlock,
+  BlockWithTransactions as CoreBlockWithTransactions
+} from '@yakkl/core';
 import { TypeAdapterUtils, type CompatibleBlockTag, type EnhancedTransactionReceipt, type EnhancedTransactionResponse, type UnifiedBigNumberish, type UnifiedFeeData } from '../../types/adapters';
 
 // Re-export commonly used types
@@ -121,11 +139,9 @@ export interface TransactionReceipt {
  * Abstract base provider implementing the IProvider interface
  * This class provides common functionality for all blockchain providers
  */
-export abstract class BaseProvider implements IProvider {
-  protected _name: string;
-  protected _chainId: number;
-  protected _blockchain: string;
-  protected _supportedChainIds: number[];
+export abstract class BaseProvider implements ProviderInterface {
+  protected _metadata: ProviderMetadata;
+  protected _chainInfo: ChainInfo;
   protected _isConnected: boolean = false;
   protected _endpoint: string;
   protected _rawProvider: unknown;
@@ -137,45 +153,83 @@ export abstract class BaseProvider implements IProvider {
     supportedChainIds: number[],
     endpoint: string
   ) {
-    this._name = name;
-    this._chainId = chainId;
-    this._blockchain = blockchain;
-    this._supportedChainIds = supportedChainIds;
+    this._metadata = {
+      name,
+      priority: 1,
+      supportedMethods: ['eth_call', 'eth_getBalance', 'eth_sendRawTransaction'], // Basic methods
+      supportedChainIds,
+      costStructure: 'request' as const
+    };
+    this._chainInfo = {
+      chainId,
+      name: blockchain,
+      type: ChainType.EVM,
+      nativeCurrency: {
+        name: 'Ether',
+        symbol: 'ETH',
+        decimals: 18
+      },
+      rpcUrls: [endpoint]
+    };
     this._endpoint = endpoint;
   }
 
-  // Getters
-  get name(): string {
-    return this._name;
+  // ProviderInterface implementation
+  get metadata(): ProviderMetadata {
+    return this._metadata;
   }
 
-  get chainId(): number {
-    return this._chainId;
-  }
-
-  get blockchain(): string {
-    return this._blockchain;
-  }
-
-  get supportedChainIds(): number[] {
-    return [...this._supportedChainIds];
+  get chainInfo(): ChainInfo {
+    return this._chainInfo;
   }
 
   get isConnected(): boolean {
     return this._isConnected;
   }
 
+  // Legacy getters for backward compatibility
+  get name(): string {
+    return this._metadata.name;
+  }
+
+  get chainId(): number {
+    return this._chainInfo.chainId as number;
+  }
+
+  get blockchain(): string {
+    return this._chainInfo.name;
+  }
+
+  get supportedChainIds(): number[] {
+    return [...this._metadata.supportedChainIds];
+  }
+
   /**
    * Connect to the specified chain
    */
-  async connect(chainId: number): Promise<void> {
-    if (!this._supportedChainIds.includes(chainId)) {
-      throw new Error(`Chain ID ${chainId} is not supported by ${this._name}`);
+  async connect(chainId?: number): Promise<void> {
+    const targetChainId = chainId || (this._chainInfo.chainId as number);
+
+    if (!this._metadata.supportedChainIds.includes(targetChainId)) {
+      throw new Error(`Chain ID ${targetChainId} is not supported by ${this._metadata.name}. Supported chains: ${this._metadata.supportedChainIds.join(', ')}`);
     }
-    
-    this._chainId = chainId;
-    await this.doConnect(chainId);
-    this._isConnected = true;
+
+    console.log(`[BaseProvider] ${this._metadata.name}: Attempting to connect to chain ${targetChainId}...`);
+
+    // Reset connection state before attempting connection
+    this._isConnected = false;
+    this._chainInfo = { ...this._chainInfo, chainId: targetChainId };
+
+    try {
+      await this.doConnect(targetChainId);
+      this._isConnected = true;
+      console.log(`[BaseProvider] ${this._metadata.name}: Successfully connected to chain ${targetChainId}`);
+    } catch (error) {
+      this._isConnected = false;
+      const errorMsg = error instanceof Error ? error.message : 'Unknown connection error';
+      console.error(`[BaseProvider] ${this._metadata.name}: Failed to connect to chain ${targetChainId}:`, errorMsg);
+      throw new Error(`${this._metadata.name} connection failed: ${errorMsg}`);
+    }
   }
 
   /**
@@ -203,50 +257,58 @@ export abstract class BaseProvider implements IProvider {
   /**
    * Health check implementation
    */
-  async healthCheck(): Promise<{ healthy: boolean; latency?: number; error?: string }> {
+  async healthCheck(): Promise<ProviderHealthMetrics> {
     const startTime = Date.now();
-    
+
     try {
       // Try to get the latest block number as a health check
       await this.getBlockNumber();
       const latency = Date.now() - startTime;
-      
+
       return {
         healthy: true,
-        latency
+        latency,
+        successRate: 1.0,
+        uptime: 100
       };
     } catch (error) {
       return {
         healthy: false,
         latency: Date.now() - startTime,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        successRate: 0.0,
+        uptime: 0,
+        lastError: {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          timestamp: new Date()
+        }
       };
     }
   }
 
   /**
    * Make a JSON-RPC request with error handling and retries
+   * This is a wrapper around the abstract doRequest method
    */
   protected async makeRequest<T = unknown>(
-    method: string, 
+    method: string,
     params: unknown[] = [],
     retries: number = 1
   ): Promise<T> {
     let lastError: Error;
-    
+
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        return await this.request<T>(method, params);
+        return await this.doRequest<T>(method, params);
       } catch (error) {
         lastError = error instanceof Error ? error : new Error('Unknown error');
-        
+
         // If it's not the last attempt, wait before retrying
         if (attempt < retries) {
           await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
         }
       }
     }
-    
+
     throw lastError!;
   }
 
@@ -255,31 +317,164 @@ export abstract class BaseProvider implements IProvider {
    */
   protected validateConnection(): void {
     if (!this._isConnected) {
-      throw new Error(`Provider ${this._name} is not connected`);
+      throw new Error(`Provider ${this._metadata.name} is not connected to chain ${this._chainInfo.chainId}. Please call connect() first.`);
     }
+  }
+
+  // ======== ProviderInterface Required Methods ========
+
+  /**
+   * Switch to a different chain
+   */
+  async switchChain(chainId: number): Promise<void> {
+    await this.connect(chainId);
+  }
+
+  /**
+   * EIP-1193 request format
+   */
+  async request<T = any>(args: { method: string; params?: any[] }): Promise<T> {
+    return this.makeRequest<T>(args.method, args.params);
+  }
+
+  /**
+   * Get network information
+   */
+  async getNetwork(): Promise<{ name: string; chainId: number }> {
+    return {
+      name: this.chainInfo.name,
+      chainId: this.chainInfo.chainId as number
+    };
+  }
+
+  /**
+   * Get chain ID
+   */
+  async getChainId(): Promise<number> {
+    return this.chainInfo.chainId as number;
+  }
+
+  /**
+   * Send transaction (not just raw)
+   */
+  async sendTransaction(transaction: CoreTransactionRequest): Promise<CoreTransactionResponse> {
+    throw new Error('sendTransaction not implemented - use sendRawTransaction for signed transactions');
+  }
+
+  /**
+   * Wait for transaction confirmation
+   */
+  async waitForTransaction(transactionHash: string, confirmations?: number, timeout?: number): Promise<CoreTransactionReceipt> {
+    const maxAttempts = timeout ? Math.floor(timeout / 1000) : 60; // Default 60 seconds
+    const targetConfirmations = confirmations || 1;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const receipt = await this.getTransactionReceipt(transactionHash);
+      if (receipt && receipt.blockNumber) {
+        const currentBlock = await this.getBlockNumber();
+        const confirmationCount = currentBlock - receipt.blockNumber + 1;
+        if (confirmationCount >= targetConfirmations) {
+          return receipt as CoreTransactionReceipt;
+        }
+      }
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    throw new Error(`Transaction ${transactionHash} not confirmed within timeout`);
+  }
+
+  /**
+   * Event handling (basic implementation)
+   */
+  private eventHandlers = new Map<string, Set<(...args: any[]) => void>>();
+
+  on(event: string, handler: (...args: any[]) => void): void {
+    if (!this.eventHandlers.has(event)) {
+      this.eventHandlers.set(event, new Set());
+    }
+    this.eventHandlers.get(event)!.add(handler);
+  }
+
+  off(event: string, handler: (...args: any[]) => void): void {
+    const handlers = this.eventHandlers.get(event);
+    if (handlers) {
+      handlers.delete(handler);
+    }
+  }
+
+  once(event: string, handler: (...args: any[]) => void): void {
+    const onceHandler = (...args: any[]) => {
+      handler(...args);
+      this.off(event, onceHandler);
+    };
+    this.on(event, onceHandler);
+  }
+
+  removeAllListeners(event?: string): void {
+    if (event) {
+      this.eventHandlers.delete(event);
+    } else {
+      this.eventHandlers.clear();
+    }
+  }
+
+  /**
+   * Get cost metrics (default implementation)
+   */
+  async getCostMetrics(): Promise<ProviderCostMetrics> {
+    return {
+      requestsUsed: 0,
+      requestsLimit: 1000,
+      methodCosts: {}
+    };
+  }
+
+  /**
+   * Get health metrics (default implementation)
+   */
+  async getHealthMetrics(): Promise<ProviderHealthMetrics> {
+    const healthCheck = await this.healthCheck();
+    return {
+      healthy: healthCheck.healthy,
+      latency: healthCheck.latency || 0,
+      successRate: 1.0,
+      uptime: 100
+    };
   }
 
   // Abstract methods that must be implemented by concrete providers
   protected abstract doConnect(chainId: number): Promise<void>;
   protected abstract doDisconnect(): Promise<void>;
 
-  // Core blockchain operations - abstract methods with compatible signatures
-  abstract request<T = unknown>(method: string, params?: unknown[]): Promise<T>;
+  // Core blockchain operations - abstract methods matching ProviderInterface
+  protected abstract doRequest<T = unknown>(method: string, params?: unknown[]): Promise<T>;
+
+  // Block information
   abstract getBlockNumber(): Promise<number>;
-  abstract getBalance(address: string, blockTag?: CompatibleBlockTag): Promise<bigint>;
-  abstract getCode(address: string, blockTag?: CompatibleBlockTag): Promise<string>;
-  abstract getStorageAt(address: string, position: UnifiedBigNumberish, blockTag?: CompatibleBlockTag): Promise<string>;
+  abstract getBlock(blockHashOrTag: CoreBlockTag | string): Promise<CoreBlock | null>;
+  abstract getBlockWithTransactions(blockHashOrTag: CoreBlockTag | string): Promise<CoreBlockWithTransactions | null>;
+
+  // Account information
+  abstract getBalance(address: string, blockTag?: CoreBlockTag): Promise<bigint>;
+  abstract getTransactionCount(address: string, blockTag?: CoreBlockTag): Promise<number>;
+  abstract getCode(address: string, blockTag?: CoreBlockTag): Promise<string>;
+
+  // Transaction operations
+  abstract call(transaction: CoreTransactionRequest, blockTag?: CoreBlockTag): Promise<string>;
+  abstract estimateGas(transaction: CoreTransactionRequest): Promise<bigint>;
+  abstract getTransaction(transactionHash: string): Promise<CoreTransactionResponse | null>;
+  abstract getTransactionReceipt(transactionHash: string): Promise<CoreTransactionReceipt | null>;
+
+  // Gas and fees
   abstract getGasPrice(): Promise<bigint>;
-  abstract getFeeData(): Promise<UnifiedFeeData>;
-  abstract sendRawTransaction(signedTransaction: string): Promise<TransactionResponse>;
-  abstract call(transaction: TransactionRequest, blockTag?: CompatibleBlockTag): Promise<string>;
-  abstract estimateGas(transaction: TransactionRequest): Promise<bigint>;
-  abstract getTransactionCount(address: string, blockTag?: CompatibleBlockTag): Promise<number>;
-  abstract getBlock(blockHashOrTag: CompatibleBlockTag | string): Promise<Block>;
-  abstract getBlockWithTransactions(blockHashOrTag: CompatibleBlockTag | string): Promise<BlockWithTransactions>;
-  abstract getTransaction(transactionHash: string): Promise<TransactionResponse>;
-  abstract getTransactionReceipt(transactionHash: string): Promise<TransactionReceipt>;
-  abstract getLogs(filter: Filter): Promise<import('$lib/common/evm').Log[]>;
+  abstract getFeeData(): Promise<CoreFeeData>;
+
+  // Logs and events
+  abstract getLogs(filter: CoreFilter): Promise<CoreLog[]>;
+
+  // Optional methods (with fallback implementations)
+  async getStorageAt?(address: string, position: BigNumberish, blockTag?: CoreBlockTag): Promise<string> {
+    throw new Error('getStorageAt not implemented by this provider');
+  }
   
   // Optional methods with default implementations
   async resolveName?(name: string): Promise<string | null> {

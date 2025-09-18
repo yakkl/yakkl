@@ -1,4 +1,4 @@
-import type { IProvider } from './interfaces/IProvider';
+import type { ProviderInterface } from '@yakkl/core';
 import type { ITransactionFetcher } from './interfaces/ITransactionFetcher';
 import type { IPriceProvider } from './interfaces/IPriceProvider';
 import type { IKeyManager } from './interfaces/IKeyManager';
@@ -22,11 +22,11 @@ export class BlockchainServiceManager {
   private static instance: BlockchainServiceManager | null = null;
   private initialized = false;
   private keyManager: IKeyManager;
-  private providers = new Map<string, IProvider>();
+  private providers = new Map<string, ProviderInterface>();
   private explorers = new Map<string, ITransactionFetcher>();
   private priceProviders = new Map<string, IPriceProvider>();
   private currentChainId = 1;
-  private currentProvider: IProvider | null = null;
+  private currentProvider: ProviderInterface | null = null;
 
   private constructor() {
     this.keyManager = EnhancedKeyManager.getInstance();
@@ -130,7 +130,7 @@ export class BlockchainServiceManager {
         return;
       }
 
-      let provider: IProvider | null = null;
+      let provider: ProviderInterface | null = null;
 
       switch (providerName.toLowerCase()) {
         case 'alchemy':
@@ -381,7 +381,7 @@ export class BlockchainServiceManager {
     
     // Try to find an existing provider for this chain
     for (const [key, provider] of this.providers) {
-      if (key.endsWith(`-${chainId}`) && provider.supportedChainIds.includes(chainId)) {
+      if (key.endsWith(`-${chainId}`) && provider.metadata.supportedChainIds.includes(chainId)) {
         await provider.connect(chainId);
         this.currentProvider = provider;
         explorerRoutingManager.setChainId(chainId);
@@ -396,14 +396,14 @@ export class BlockchainServiceManager {
   /**
    * Get the current provider
    */
-  getProvider(): IProvider | null {
+  getProvider(): ProviderInterface | null {
     return this.currentProvider;
   }
 
   /**
    * Get a specific provider by name and chain
    */
-  getProviderByName(providerName: string, chainId?: number): IProvider | null {
+  getProviderByName(providerName: string, chainId?: number): ProviderInterface | null {
     const targetChainId = chainId || this.currentChainId;
     const key = `${providerName}-${targetChainId}`;
     return this.providers.get(key) || null;
@@ -412,8 +412,8 @@ export class BlockchainServiceManager {
   /**
    * Get all available providers
    */
-  getAllProviders(): Array<{ name: string; provider: IProvider }> {
-    const result: Array<{ name: string; provider: IProvider }> = [];
+  getAllProviders(): Array<{ name: string; provider: ProviderInterface }> {
+    const result: Array<{ name: string; provider: ProviderInterface }> = [];
     for (const [key, provider] of this.providers) {
       result.push({ name: key, provider });
     }

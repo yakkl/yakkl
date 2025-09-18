@@ -77,17 +77,15 @@ export class EthersConverter {
 			from: receipt.from as `0x${string}`,
 			contractAddress: receipt.contractAddress ?? undefined,
 			transactionIndex: receipt.index,
-			root: receipt.root ?? undefined,
+			// root: receipt.root ?? undefined, // Not supported in core TransactionReceipt
 			gasUsed: receipt.gasUsed.toString(),
 			logsBloom: receipt.logsBloom as `0x${string}`,
 			blockHash: receipt.blockHash as `0x${string}`,
 			transactionHash: receipt.hash as `0x${string}`,
 			logs: receipt.logs.map(this.ethersLogToLog),
 			blockNumber: receipt.blockNumber,
-			confirmations: await receipt.confirmations(),
 			cumulativeGasUsed: receipt.cumulativeGasUsed.toString(),
 			effectiveGasPrice: receipt.gasPrice?.toString() ?? undefined,
-			byzantium: true,
 			type: receipt.type,
 			status: receipt.status !== null ? (receipt.status as 0 | 1) : undefined
 		};

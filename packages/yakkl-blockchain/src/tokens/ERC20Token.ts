@@ -4,7 +4,7 @@
 
 import { BaseToken } from './BaseToken';
 import type { TokenInfo, TokenMetadata } from './types';
-import type { BigNumberish, IProvider } from '../providers/types';
+import type { BigNumberish, ProviderInterface } from '../providers/types';
 
 // ERC20 ABI for the methods we need
 const ERC20_ABI = [
@@ -20,7 +20,7 @@ const ERC20_ABI = [
 ];
 
 export class ERC20Token extends BaseToken {
-  constructor(info: TokenInfo, metadata?: TokenMetadata, provider?: IProvider) {
+  constructor(info: TokenInfo, metadata?: TokenMetadata, provider?: ProviderInterface) {
     super(info, metadata, provider);
   }
 
@@ -265,7 +265,7 @@ export class ERC20Token extends BaseToken {
   static async fromAddress(
     address: string,
     chainId: number,
-    provider: IProvider
+    provider: ProviderInterface
   ): Promise<ERC20Token> {
     // Create a temporary instance to fetch metadata
     const temp = new ERC20Token(

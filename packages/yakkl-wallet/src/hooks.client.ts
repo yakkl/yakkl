@@ -8,7 +8,6 @@ import { globalListenerManager } from '$lib/managers/GlobalListenerManager';
 import { uiListenerManager } from '$lib/common/listeners/ui/uiListeners';
 import { protectedContexts } from '$lib/common/globals';
 import { initializeGlobalErrorHandlers } from '$lib/common/globalErrorHandler';
-// import { browser_ext } from '$lib/common/environment';
 import { initializeMessaging, initializeUiContext } from '$lib/common/messaging';
 import browser from '$lib/common/browser-wrapper';
 import { initializationManager } from '$lib/common/initialization-manager';
@@ -88,9 +87,6 @@ if (isClient) {
 			log.debug('Extension messaging not ready:', false, error);
 			return;
 		}
-
-		// Let other errors propagate normally
-		log.error('Unhandled promise rejection:', false, error);
 	});
 
 	// Also intercept console.error to suppress these specific errors
@@ -150,7 +146,7 @@ export function getContextType(): string {
 		setContextTypeStore('options');
 		return 'options';
 	} else {
-		console.warn(
+		log.warn(
 			`[Context Detection] Unknown context type for pathname: ${pathname}, href: ${href}`
 		);
 		setContextTypeStore('popup-wallet'); // Default to popup-wallet for main extension
@@ -179,7 +175,7 @@ async function performUIInitialization() {
 	try {
 		await getYakklSettings();
 	} catch (error) {
-		console.info(`[${CONTEXT_ID}] Failed to get settings in hooks - passing on:`, error);
+		log.info(`[${CONTEXT_ID}] Failed to get settings in hooks - passing on:`, false, error);
 	}
 
 	// Initialize global error handlers early
@@ -201,10 +197,8 @@ async function performUIInitialization() {
 			initializeMessaging(browser);
 			await initializeUiContext(browser, contextType);
 		} catch (error) {
-			console.log('[hooks.client] Failed to initialize messaging service:', error);
+			log.debug('[hooks.client] Failed to initialize messaging service:', false, error);
 		}
-	} else {
-		console.log('[hooks.client] Browser API not available, messaging service not initialized');
 	}
 
 	// Set up UI listeners through the manager
@@ -230,11 +224,11 @@ export async function init() {
 }
 
 export function handleError(error: Error) {
-	console.warn(`[${CONTEXT_ID}] Error:`, error);
+	log.warn(`[${CONTEXT_ID}] Error:`, false, error);
 
 	// Prevent navigation errors from causing reloads
 	if (error?.message?.includes('navigate') || error?.message?.includes('Navigation')) {
-		console.warn('Navigation error detected, preventing reload');
+		log.warn('Navigation error detected, preventing reload');
 		return;
 	}
 
@@ -243,7 +237,7 @@ export function handleError(error: Error) {
 
 // Export for SvelteKit hooks
 export const handleClientError = ({ error, event }: any) => {
-	console.warn('Client error:', {
+	log.warn('Client error:', false, {
 		error: error?.message || error,
 		url: event?.url?.href
 	});
@@ -282,7 +276,7 @@ async function setupUIListeners() {
 
 				removeUIListeners();
 			} catch (error) {
-				console.warn(`[${CONTEXT_ID}] Cleanup error:`, error);
+				log.warn(`[${CONTEXT_ID}] Cleanup error:`, false, error);
 			}
 		};
 
@@ -295,23 +289,20 @@ async function setupUIListeners() {
 			}
 		} catch (e: any) {
 			if (e.message.includes('fenced frames')) {
-				console.warn('Skipping unload in fenced frame context');
 				return;
-			} else {
-				console.warn(`[${CONTEXT_ID}] Failed to add unload handler:`, e);
 			}
 		}
 
 		return cleanup;
 	} catch (error) {
-		console.warn(`[${CONTEXT_ID}] Setup UI listeners error:`, error);
+		log.warn(`[${CONTEXT_ID}] Setup UI listeners error:`, false, error);
 	}
 }
 
 // Run init early, but only in browser context
 if (isClient) {
 	init().catch((err) => {
-		console.warn(`[${CONTEXT_ID}] Failed to initialize:`, err);
+		log.warn(`[${CONTEXT_ID}] Failed to initialize:`, false, err);
 	});
 }
 

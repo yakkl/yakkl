@@ -1,6 +1,6 @@
 import { BaseService } from './base.service';
 import type { ServiceResponse } from '../types';
-import { browser } from '$app/environment';
+const browser = typeof window !== 'undefined';
 
 interface IdleStatusResponse {
   verified: boolean;

@@ -170,7 +170,7 @@ function createSimpleWalletCache() {
                 value = BigInt(token.value || 0);
               } else if (token.value && typeof token.value === 'object' && 'toString' in token.value) {
                 // Handle BigNumber objects
-                value = BigInt(token.value.toString());
+                value = BigInt((token.value as any).toString());
               } else {
                 value = 0n;
               }
@@ -228,7 +228,7 @@ function createSimpleWalletCache() {
                 value = BigInt(token.value || 0);
               } else if (token.value && typeof token.value === 'object' && 'toString' in token.value) {
                 // Handle BigNumber objects
-                value = BigInt(token.value.toString());
+                value = BigInt((token.value as any).toString());
               } else {
                 value = 0n;
               }

@@ -14,7 +14,7 @@ export type { Runtime, Storage, Tabs, Windows } from 'webextension-polyfill';
  */
 export declare function getBrowserAPI(): any;
 /**
- * Check if running in extension context
+ * Check if running in extension context - simple version
  */
 export declare function isExtensionContext(): boolean;
 /**
@@ -25,3 +25,23 @@ export declare function getExtensionId(): string | null;
  * Get extension version
  */
 export declare function getExtensionVersion(): string | null;
+/**
+ * Execution context detection
+ */
+export type ExecutionContext = 'background' | 'content' | 'extension-page' | 'web' | 'ssr';
+export interface ContextInfo {
+    isExtension: boolean;
+    context: ExecutionContext;
+    hasDOM: boolean;
+    canUseSvelteStores: boolean;
+}
+export declare function getContextInfo(): ContextInfo;
+export declare let cachedInfo: ContextInfo | null;
+export declare function getContext(): ContextInfo;
+export declare function isExtension(): boolean;
+export declare function canUseSvelteStores(): boolean;
+export declare function isBackground(): boolean;
+export declare function isContentScript(): boolean;
+export declare function isExtensionPage(): boolean;
+export declare function isWeb(): boolean;
+export declare function isSSR(): boolean;

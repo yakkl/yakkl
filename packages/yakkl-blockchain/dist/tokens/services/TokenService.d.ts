@@ -2,18 +2,18 @@
  * Token service for managing tokens and balances
  */
 import type { TokenInfo, TokenBalance, TokenPortfolioItem, TokenList, TokenFilterOptions, TokenSortOptions, TokenServiceConfig, IToken } from '../types';
-import type { IProvider } from '../../providers/types';
+import type { ProviderInterface } from '../../providers/types';
 export declare class TokenService {
     private provider?;
     private config;
     private tokenCache;
     private priceCache;
     private tokenLists;
-    constructor(config?: TokenServiceConfig, provider?: IProvider);
+    constructor(config?: TokenServiceConfig, provider?: ProviderInterface);
     /**
      * Set the provider for blockchain interactions
      */
-    setProvider(provider: IProvider): void;
+    setProvider(provider: ProviderInterface): void;
     /**
      * Load a token list from URL
      */

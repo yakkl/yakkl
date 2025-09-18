@@ -13,6 +13,13 @@ export declare class AlchemyProvider extends BaseProvider {
     constructor(config: AlchemyConfig);
     private updateBaseUrl;
     private makeRpcCall;
+    /**
+     * EIP-1193 request method implementation
+     */
+    request<T = any>(args: {
+        method: string;
+        params?: any[];
+    }): Promise<T>;
     getNetwork(): Promise<{
         name: string;
         chainId: number;

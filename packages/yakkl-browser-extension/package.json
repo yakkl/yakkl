@@ -36,6 +36,7 @@
   },
   "dependencies": {
     "@yakkl/core": "workspace:*",
+    "@yakkl/auth": "workspace:*",
     "webextension-polyfill": "^0.10.0"
   },
   "devDependencies": {

@@ -89,19 +89,12 @@ export class TransactionMonitorService extends BaseService {
    */
   async start(pollingInterval?: number): Promise<void> {
     if (this.state.isRunning) {
-      log.debug('TransactionMonitor: Already running', false);
       return;
     }
 
     if (pollingInterval) {
       this.config.pollingInterval = pollingInterval;
     }
-
-    log.info('TransactionMonitor: Starting with interval', false, {
-      interval: this.config.pollingInterval,
-      address: this.state.currentAddress,
-      chainId: this.state.currentChainId
-    });
 
     this.state.isRunning = true;
 
@@ -125,11 +118,7 @@ export class TransactionMonitorService extends BaseService {
     if (!this.state.isRunning) {
       return;
     }
-
-    log.info('TransactionMonitor: Stopping', false);
-
     this.state.isRunning = false;
-
     if (this.state.intervalId !== null && browser) {
       window.clearInterval(this.state.intervalId);
       this.state.intervalId = null;
@@ -161,13 +150,10 @@ export class TransactionMonitorService extends BaseService {
    */
   private async pollTransactions(): Promise<ServiceResponse<TransactionDisplay[]>> {
     if (!this.state.currentAddress || !this.state.currentChainId) {
-      log.debug('TransactionMonitor: No address or chain to monitor', false);
       return { success: false, error: { hasError: true, message: 'No address or chain selected' } };
     }
 
     try {
-      log.debug('TransactionMonitor: Polling for transactions', false);
-
       // Fetch latest transactions from blockchain
       const transactions = await this.explorer.getTransactionHistory(
         this.state.currentAddress,
@@ -187,11 +173,6 @@ export class TransactionMonitorService extends BaseService {
       const newTransactions = this.detectNewTransactions(transactions);
 
       if (newTransactions.length > 0) {
-        log.info('TransactionMonitor: New transactions detected', false, {
-          count: newTransactions.length,
-          hashes: newTransactions.map(tx => tx.hash)
-        });
-
         // Show notifications for new transactions
         if (this.config.notificationEnabled) {
           for (const tx of newTransactions) {
@@ -284,16 +265,6 @@ export class TransactionMonitorService extends BaseService {
         type: 'info',
         duration: 10000 // 10 seconds
       });
-
-      log.info('TransactionMonitor: Notification shown for external transaction', false, {
-        hash: transaction.hash,
-        direction,
-        amount
-      });
-    } else {
-      log.debug('TransactionMonitor: Skipping notification for YAKKL-initiated transaction', false, {
-        hash: transaction.hash
-      });
     }
   }
 
@@ -319,14 +290,8 @@ export class TransactionMonitorService extends BaseService {
    * Handle account change
    */
   private handleAccountChange(): void {
-    log.debug('TransactionMonitor: Account changed', false, {
-      oldAddress: this.state.currentAddress,
-      newAddress: get(currentAccount)?.address
-    });
-
     // Clear known transactions for new account
     this.state.lastKnownTransactions.clear();
-
     // Restart monitoring if running
     if (this.state.isRunning) {
       this.stop();
@@ -338,14 +303,8 @@ export class TransactionMonitorService extends BaseService {
    * Handle chain change
    */
   private handleChainChange(): void {
-    log.debug('TransactionMonitor: Chain changed', false, {
-      oldChainId: this.state.currentChainId,
-      newChainId: get(currentChain)?.chainId
-    });
-
     // Clear known transactions for new chain
     this.state.lastKnownTransactions.clear();
-
     // Restart monitoring if running
     if (this.state.isRunning) {
       this.stop();

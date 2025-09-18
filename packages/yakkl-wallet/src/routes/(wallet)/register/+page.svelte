@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import RegistrationOption from '$lib/components/RegistrationOption.svelte';
   import { goto } from '$app/navigation';
   import { log } from '$lib/common/logger-wrapper';
   import { getYakklSettings } from '$lib/common/stores';
   import { getProfile } from '$lib/common/profile';
+  import { OnboardingFlow } from '@yakkl/security-ui';
 
   let loading = $state(true);
   let alreadyRegistered = $state(false);
@@ -27,22 +27,35 @@
     loading = false;
   });
 
-  function handleCreate() {
+  // Handle different registration paths
+  function handleCreatePassword() {
     if (alreadyRegistered) return;
-    log.info('Creating new account');
+    log.info('Creating new account with password');
     goto('/register/create');
   }
 
-  function handleImport() {
+  function handleSocialAuth(provider: 'google' | 'x') {
     if (alreadyRegistered) return;
-    log.info('Importing existing account');
+    log.info(`Creating new account with ${provider}`);
+    goto(`/register/social?provider=${provider}`);
+  }
+
+  function handleImportSeed() {
+    if (alreadyRegistered) return;
+    log.info('Importing seed phrase');
     goto('/register/import');
   }
 
-  function handleRestore() {
+  function handleImportEmergency() {
     if (alreadyRegistered) return;
     log.info('Restoring from emergency kit');
     goto('/register/restore');
+  }
+
+  function handleImportAccount() {
+    if (alreadyRegistered) return;
+    log.info('Importing account');
+    goto('/register/import-account');
   }
 </script>
 
@@ -69,27 +82,14 @@
         </p>
       </div>
     {:else}
-      <div class="text-center mb-6">
-        <img src="/images/logoBullFav128x128.png" alt="YAKKL" class="w-20 h-20 mx-auto mb-4" />
-        <h1 class="text-3xl font-bold text-zinc-900 dark:text-white">Welcome to YAKKL</h1>
-        <p class="text-zinc-600 dark:text-zinc-400 mt-2">Let's get your wallet set up</p>
-      </div>
-
-      <RegistrationOption
-        title="Choose Setup Method"
-        onCreate={handleCreate}
-        onImport={handleImport}
-        onRestore={handleRestore}
+      <!-- Use the new OnboardingFlow component for progressive registration -->
+      <OnboardingFlow
+        onCreatePassword={handleCreatePassword}
+        onSocialAuth={handleSocialAuth}
+        onImportSeed={handleImportSeed}
+        onImportEmergency={handleImportEmergency}
+        onImportAccount={handleImportAccount}
       />
-
-      <div class="mt-6 text-center">
-        <a
-          href="/login"
-          class="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 transition-colors"
-        >
-          Already have an account? Sign in
-        </a>
-      </div>
     {/if}
   </div>
 </div>

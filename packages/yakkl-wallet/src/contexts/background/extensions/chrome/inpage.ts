@@ -31,7 +31,7 @@ import {
 	type EIP6963ProviderInfo,
 	EIP1193_ERRORS
 } from '$lib/managers/providers/network/ethereum_provider/eip-types';
-import type { RequestArguments } from '$lib/common';
+import type { RequestArguments } from '$lib/common/content-safe';
 import { EventEmitter } from 'events';
 import {
 	isValidOrigin,
@@ -1219,7 +1219,7 @@ export { provider };
 //   type EIP6963ProviderInfo,
 //   EIP1193_ERRORS
 // } from '$lib/managers/providers/network/ethereum_provider/eip-types';
-// import type { RequestArguments } from '$lib/common';
+// import type { RequestArguments } from '$lib/common/content-safe';
 // import { EventEmitter } from 'events';
 // import { isValidOrigin } from '$lib/common/origin';
 // import { generateEipId } from '$lib/common/id-generator';

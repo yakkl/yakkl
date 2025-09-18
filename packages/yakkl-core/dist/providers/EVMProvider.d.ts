@@ -2,14 +2,14 @@
  * EVM Provider implementation for Ethereum and EVM-compatible chains
  */
 import { BaseProvider } from './BaseProvider';
-import type { IEVMProvider, ChainInfo, ProviderConfig, TransactionStatusInfo, Block } from '../interfaces/provider.interface';
+import type { EVMProviderInterface, ChainInfo, ProviderConfig, Block, BlockTag, BlockWithTransactions, TransactionRequest, TransactionResponse, TransactionReceipt, FeeData, Log, Filter, ProviderCostMetrics, ProviderHealthMetrics } from '../interfaces/provider.interface';
 import type { Address } from '../types';
 import type { TransactionSignRequest } from '../interfaces/wallet.interface';
 import type { SignatureRequest, SignatureResult } from '../interfaces/crypto.interface';
 /**
  * EVM Provider implementation
  */
-export declare class EVMProvider extends BaseProvider implements IEVMProvider {
+export declare class EVMProvider extends BaseProvider implements EVMProviderInterface {
     private accounts;
     constructor(chainInfo: ChainInfo, config?: ProviderConfig);
     /**
@@ -27,11 +27,15 @@ export declare class EVMProvider extends BaseProvider implements IEVMProvider {
     /**
      * Get balance
      */
-    getBalance(address: Address, tokenAddress?: Address): Promise<string>;
+    getBalance(address: string, blockTag?: BlockTag): Promise<bigint>;
+    /**
+     * Get token balance (EVM-specific)
+     */
+    getTokenBalance(address: Address, tokenAddress: Address): Promise<string>;
     /**
      * Send transaction
      */
-    sendTransaction(tx: TransactionSignRequest): Promise<string>;
+    sendTransaction(transaction: TransactionRequest): Promise<TransactionResponse>;
     /**
      * Sign transaction
      */
@@ -39,15 +43,15 @@ export declare class EVMProvider extends BaseProvider implements IEVMProvider {
     /**
      * Get transaction
      */
-    getTransaction(hash: string): Promise<TransactionStatusInfo>;
+    getTransaction(hash: string): Promise<TransactionResponse | null>;
     /**
      * Estimate gas
      */
-    estimateGas(tx: TransactionSignRequest): Promise<string>;
+    estimateGas(transaction: TransactionRequest): Promise<bigint>;
     /**
      * Get gas price
      */
-    getGasPrice(): Promise<string>;
+    getGasPrice(): Promise<bigint>;
     /**
      * Sign message
      */
@@ -71,11 +75,11 @@ export declare class EVMProvider extends BaseProvider implements IEVMProvider {
     /**
      * Call contract method
      */
-    call(tx: TransactionSignRequest): Promise<string>;
+    call(transaction: TransactionRequest, blockTag?: BlockTag): Promise<string>;
     /**
      * Get max priority fee per gas
      */
-    getMaxPriorityFeePerGas(): Promise<string>;
+    getMaxPriorityFeePerGas(): Promise<bigint>;
     /**
      * Get fee history
      */
@@ -97,15 +101,6 @@ export declare class EVMProvider extends BaseProvider implements IEVMProvider {
      */
     getStorageAt(address: Address, position: string): Promise<string>;
     /**
-     * Get logs
-     */
-    getLogs(filter: {
-        fromBlock?: string | number;
-        toBlock?: string | number;
-        address?: Address | Address[];
-        topics?: string[];
-    }): Promise<any[]>;
-    /**
      * EIP-1193 request method
      */
     request(args: {
@@ -116,5 +111,26 @@ export declare class EVMProvider extends BaseProvider implements IEVMProvider {
     private encodeERC20Call;
     private decodeUint256;
     private encodeENSResolve;
+    private formatBlockTag;
+    /**
+     * Additional required methods
+     */
+    getNetwork(): Promise<{
+        name: string;
+        chainId: number;
+    }>;
+    getChainId(): Promise<number>;
+    getBlockWithTransactions(blockHashOrTag: BlockTag | string): Promise<BlockWithTransactions | null>;
+    getTransactionReceipt(hash: string): Promise<TransactionReceipt | null>;
+    waitForTransaction(hash: string, confirmations?: number, timeout?: number): Promise<TransactionReceipt>;
+    getFeeData(): Promise<FeeData>;
+    getLogs(filter: Filter): Promise<Log[]>;
+    getRawProvider(): any;
+    getEndpoint(): string;
+    getCostMetrics(): Promise<ProviderCostMetrics>;
+    getHealthMetrics(): Promise<ProviderHealthMetrics>;
+    healthCheck(): Promise<ProviderHealthMetrics>;
+    private formatTransactionResponse;
+    private formatTransactionRequest;
 }
 //# sourceMappingURL=EVMProvider.d.ts.map

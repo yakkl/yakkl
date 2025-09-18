@@ -37,6 +37,10 @@
       "svelte": "./src/components/TokenBalance.svelte",
       "default": "./src/components/TokenBalance.svelte"
     },
+    "./src/components/ErrorDialog.svelte": {
+      "svelte": "./src/components/ErrorDialog.svelte",
+      "default": "./src/components/ErrorDialog.svelte"
+    },
     "./src/components/Loading.svelte": {
       "svelte": "./src/components/Loading.svelte",
       "default": "./src/components/Loading.svelte"

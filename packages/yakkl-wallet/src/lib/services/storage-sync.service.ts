@@ -18,12 +18,12 @@ import {
   STORAGE_YAKKL_PROFILE,
   STORAGE_YAKKL_CURRENTLY_SELECTED
 } from '$lib/common/constants';
-import { walletCacheStore } from '$lib/stores/wallet-cache.store';
+import { walletCacheStore } from '$lib/stores/wallet-cache-v2.store';
 import { tokenStore } from '$lib/stores/token.store';
 import { syncStorageToStore } from '$lib/common/stores';
 import { getObjectFromLocalStorage } from '$lib/common/storage';
 import type { TokenCacheEntry, AddressTokenCache } from '$lib/common/interfaces';
-import type { WalletCacheController } from '$lib/stores/wallet-cache.store';
+import type { WalletCacheController } from '$lib/types';
 import { compareWalletCacheData, hasChanged } from '$lib/utils/deepCompare';
 import { portfolioCoordinator, UpdatePriority, UpdateType } from './portfolio-data-coordinator.service';
 
@@ -203,11 +203,10 @@ export class StorageSyncService {
         return;
       }
 
-      log.debug('[StorageSyncService] Wallet cache data changed, queueing update through coordinator');
+      log.debug('[StorageSyncService] Wallet cache data changed, updating store');
 
-      // TEMPORARY: Update directly to bypass coordinator issues
-      // TODO: Re-enable coordinator after debugging
-      await walletCacheStore.updateFromStorage(newValue);
+      // Update the wallet cache store with data from background
+      walletCacheStore.updateFromBackground(newValue);
 
       // Also queue through coordinator for future processing
       // portfolioCoordinator.queueUpdate({

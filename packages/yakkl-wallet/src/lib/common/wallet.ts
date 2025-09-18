@@ -50,7 +50,7 @@ export async function getInstances(): Promise<
 		console.log('[getInstances] Provider details:', {
 			hasProvider: !!sdkProvider,
 			providerType: sdkProvider?.constructor?.name,
-			chainId: sdkProvider?.chainId
+			chainId: sdkProvider?.chainInfo?.chainId
 		});
 
 		// Create a compatibility wrapper for the SDK provider
@@ -62,8 +62,8 @@ export async function getInstances(): Promise<
 			getNetwork: async () => {
 				// Return ethers-compatible network object
 				return {
-					chainId: BigInt(sdkProvider.chainId),
-					name: sdkProvider.blockchain || 'unknown'
+					chainId: BigInt(sdkProvider.chainInfo.chainId as number),
+					name: sdkProvider.chainInfo.name || 'unknown'
 				};
 			},
 			// Ensure getBalance exists and works
@@ -120,8 +120,8 @@ export async function getInstances(): Promise<
 				throw new Error('Provider does not support getBalance');
 			},
 			getNetwork: async () => ({
-				chainId: BigInt(sdkProvider.chainId || 1),
-				name: sdkProvider.blockchain || 'ethereum'
+				chainId: BigInt((sdkProvider.chainInfo.chainId as number) || 1),
+				name: sdkProvider.chainInfo.name || 'ethereum'
 			}),
 			getBlockNumber: async () => {
 				if (typeof sdkProvider.getBlockNumber === 'function') {
