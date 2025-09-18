@@ -8,6 +8,7 @@
 import { writable, derived, get } from 'svelte/store';
 import browser from '$lib/common/browser-wrapper';
 import { log } from '$lib/common/logger-wrapper';
+import { getObjectFromLocalStorage, removeObjectFromLocalStorage, setObjectInLocalStorage } from '@yakkl/browser-extension';
 
 // Define the cache structure
 export interface YakklCache {
@@ -51,7 +52,7 @@ export const portfolioPlaceholder = derived(
 export function getPlaceholder(): string {
   // Simple placeholder for now
   // Can enhance later to check container width or pass size as parameter
-  return '$--...';
+  return '$----';
 }
 
 /**
@@ -75,7 +76,7 @@ export async function updateYakklCache(data: Partial<YakklCache>): Promise<void>
 
     // Update persistent storage immediately (single line - overwrites)
     if (typeof window !== 'undefined') {
-      await browser.storage.local.set({ yakklCache: updated });
+      await setObjectInLocalStorage('yakklCache', updated);
       log.debug('[YakklCache] Updated cache:', false, updated);
     }
   } catch (error) {
@@ -89,14 +90,13 @@ export async function updateYakklCache(data: Partial<YakklCache>): Promise<void>
  */
 export async function loadYakklCache(): Promise<void> {
   try {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return; // For client context only
 
-    const stored = await browser.storage.local.get('yakklCache');
-    const cachedData = stored?.yakklCache as YakklCache | undefined;
+    const cachedData = await getObjectFromLocalStorage('yakklCache') as YakklCache | undefined;
     if (cachedData?.id) {
       // Only set if it's a valid YakklCache object
       yakklCache.set(cachedData);
-      log.debug('[YakklCache] Loaded from storage:', false, stored.yakklCache);
+      log.debug('[YakklCache] Loaded from storage:', false, cachedData);
     } else {
       log.debug('[YakklCache] No cached data found');
     }
@@ -112,7 +112,7 @@ export async function clearYakklCache(): Promise<void> {
   try {
     yakklCache.set(null);
     if (typeof window !== 'undefined') {
-      await browser.storage.local.remove('yakklCache');
+      await removeObjectFromLocalStorage('yakklCache');
       log.debug('[YakklCache] Cache cleared');
     }
   } catch (error) {

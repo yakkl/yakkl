@@ -8,7 +8,7 @@ import browser from 'webextension-polyfill';
 import { ProviderRoutingManager } from '$lib/managers/ProviderRoutingManager';
 import { BackgroundIntervalService } from '$lib/services/background-interval.service';
 import { backgroundProviderManager } from '../services/provider-manager';
-import { providerCache } from '../services/provider-cache.service';
+import { simpleProvider } from '../services/simple-provider.service';
 import { ethers } from 'ethers'; // Keep for Contract functionality only
 import { BigNumberishUtils, type ProviderInterface } from '@yakkl/core'; // Use for formatUnits replacement
 
@@ -283,14 +283,30 @@ export const blockchainHandlers = new Map<string, MessageHandlerFunc>([
         };
       }
 
-      // Get provider from cache service (handles initialization and caching)
+      // Get provider from simple provider service
       let provider: ProviderInterface | null = null;
       try {
-        // Use statically imported provider cache service
-        provider = await providerCache.getProvider(chainId); // check below for error handling
+        // Use simple provider for balance fetching
+        const balance = await simpleProvider.getBalance(address, chainId);
+
+        // Store in cache
+        nativeBalanceCache.set(cacheKey, {
+          balance,
+          timestamp: Date.now()
+        });
+
+        return {
+          success: true,
+          data: {
+            balance,
+            address,
+            chainId,
+            cached: false
+          }
+        };
       } catch (initError) {
-        console.error('GET_NATIVE_BALANCE: Failed to get provider from cache', initError);
-        // Fallback to direct initialization
+        console.error('GET_NATIVE_BALANCE: Failed to get balance', initError);
+        // Fallback to provider manager
         try {
           await backgroundProviderManager.initialize(chainId);
           provider = backgroundProviderManager.getProvider();
@@ -559,6 +575,57 @@ export const blockchainHandlers = new Map<string, MessageHandlerFunc>([
       return {
         success: false,
         error: (error as Error).message || 'Failed to update token balances'
+      };
+    }
+  }],
+
+  ['GET_BALANCE', async (payload): Promise<MessageResponse> => {
+    try {
+      const { address, chainId = 1 } = payload || {};
+
+      if (!address) {
+        return { success: false, error: 'Address is required' };
+      }
+
+      log.info('[Blockchain] Getting balance', false, { address, chainId });
+
+      // Use simple provider to get balance
+      const balance = await simpleProvider.getBalance(address, chainId);
+
+      log.info('[Blockchain] Got balance', false, { address, chainId, balance });
+
+      return { success: true, data: { balance, address, chainId } };
+    } catch (error) {
+      log.error('[Blockchain] Failed to get balance:', false, error);
+      return {
+        success: false,
+        error: (error as Error).message || 'Failed to get balance'
+      };
+    }
+  }],
+
+  // Also handle GET_NATIVE_BALANCE (used by home page)
+  ['GET_NATIVE_BALANCE', async (payload): Promise<MessageResponse> => {
+    try {
+      const { address, chainId = 1 } = payload || {};
+
+      if (!address) {
+        return { success: false, error: 'Address is required' };
+      }
+
+      log.info('[Blockchain] Getting native balance', false, { address, chainId });
+
+      // Use simple provider to get balance
+      const balance = await simpleProvider.getBalance(address, chainId);
+
+      log.info('[Blockchain] Got native balance', false, { address, chainId, balance });
+
+      return { success: true, data: { balance, address, chainId } };
+    } catch (error) {
+      log.error('[Blockchain] Failed to get native balance:', false, error);
+      return {
+        success: false,
+        error: (error as Error).message || 'Failed to get balance'
       };
     }
   }]

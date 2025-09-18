@@ -143,12 +143,12 @@ function createWalletCacheStore() {
     updateTokens(chainId: number, address: string, tokens: TokenCache[]) {
       update((cache: any) => {
         // Use lowercase for consistent key matching
-        const key = `${chainId}_${address.toLowerCase()}`;
+        const key = `${chainId}_${address?.toLowerCase() || ''}`;
         if (!cache.accounts) cache.accounts = {};
 
         if (!cache.accounts[key]) {
           cache.accounts[key] = {
-            address: address.toLowerCase(),
+            address: address?.toLowerCase() || '',
             chainId,
             tokens: [],
             transactions: [],
@@ -165,7 +165,7 @@ function createWalletCacheStore() {
         // CRITICAL: Background price service expects this structure
         if (!cache.chainAccountCache) cache.chainAccountCache = {};
         if (!cache.chainAccountCache[chainId]) cache.chainAccountCache[chainId] = {};
-        cache.chainAccountCache[chainId][address.toLowerCase()] = {
+        cache.chainAccountCache[chainId][address?.toLowerCase() || ''] = {
           account: { address }, // Background service needs this
           portfolio: { totalValue: tokens.reduce((sum, t) => sum + (t.price || 0) * parseFloat(t.balance || '0'), 0) },
           tokens,
@@ -212,11 +212,11 @@ function createWalletCacheStore() {
         if (backgroundCache.chainAccountCache) {
           for (const [chainId, chainData] of Object.entries(backgroundCache.chainAccountCache)) {
             for (const [address, accountData] of Object.entries(chainData as any)) {
-              const key = `${chainId}_${address.toLowerCase()}`;
+              const key = `${chainId}_${address?.toLowerCase() || ''}`;
               const tokens = (accountData as any).tokens || [];
 
               cache.accounts[key] = {
-                address: address.toLowerCase(),
+                address: address?.toLowerCase() || '',
                 chainId: Number(chainId),
                 tokens: tokens,
                 transactions: (accountData as any).transactions?.transactions || [],
@@ -289,7 +289,7 @@ function createWalletCacheStore() {
           const account = cache.accounts[key];
           if (account.chainId === chainId) {
             account.tokens.forEach((token) => {
-              const price = priceMap.get(token.address.toLowerCase());
+              const price = priceMap.get(token.address?.toLowerCase() || '');
               if (price !== undefined) {
                 token.price = price;
                 // CRITICAL: Recalculate value when price changes - MUST use decimals!
@@ -325,7 +325,7 @@ function createWalletCacheStore() {
 
         if (account) {
           account.tokens.forEach((token) => {
-            const newBalance = newBalances.get(token.address.toLowerCase());
+            const newBalance = newBalances.get(token.address?.toLowerCase() || '');
             if (newBalance !== undefined) {
               token.balance = BigNumber.from(newBalance).toString();
               // CRITICAL: Recalculate value when balance changes - MUST use decimals!
@@ -461,8 +461,8 @@ function createWalletCacheStore() {
         // Also initialize chainAccountCache for background service
         if (!cache.chainAccountCache) cache.chainAccountCache = {};
         if (!cache.chainAccountCache[chainId]) cache.chainAccountCache[chainId] = {};
-        if (!cache.chainAccountCache[chainId][account.address.toLowerCase()]) {
-          cache.chainAccountCache[chainId][account.address.toLowerCase()] = {
+        if (!cache.chainAccountCache[chainId][account.address?.toLowerCase() || '']) {
+          cache.chainAccountCache[chainId][account.address?.toLowerCase() || ''] = {
             account: { address: account.address },
             portfolio: { totalValue: 0 },
             tokens: [],
@@ -501,7 +501,7 @@ function createWalletCacheStore() {
     },
 
     // Compatibility methods for old cache-sync service
-    forcePortfolioRecalculation(chainId: number, address: string) {
+    forcePortfolioRecalculation(_chainId: number, _address: string) {
       // In v2, portfolio is calculated automatically via derived stores
       // This is a no-op for compatibility
       // console.log('[Cache] Portfolio recalculation requested (auto-handled in v2)');
@@ -515,7 +515,7 @@ function createWalletCacheStore() {
     },
 
     // Additional compatibility methods for portfolio-data-coordinator
-    async updateFromCoordinator(data: any) {
+    async updateFromCoordinator(_data: any) {
       // Transform coordinator data to cache format
       // console.log('[Cache] Update from coordinator (compatibility shim)');
       return Promise.resolve();
@@ -534,17 +534,17 @@ function createWalletCacheStore() {
     },
 
     // Additional compatibility methods for cache-sync service
-    updateAccountRollup(chainId: number, address: string, rollup: any) {
+    updateAccountRollup(_chainId: number, _address: string, _rollup: any) {
       // console.log('[Cache] Update account rollup (compatibility shim)');
       // No-op - handled automatically by derived stores
     },
 
-    updateChainRollup(chainId: number, rollup: any) {
+    updateChainRollup(_chainId: number, _rollup: any) {
       // console.log('[Cache] Update chain rollup (compatibility shim)');
       // No-op - handled automatically by derived stores
     },
 
-    updateTransactionFromCoordinator(transaction: any) {
+    updateTransactionFromCoordinator(_transaction: any) {
       // console.log('[Cache] Update transaction from coordinator (compatibility shim)');
       // No-op for now
     },
@@ -573,7 +573,7 @@ export const currentAccountTokens = derived(walletCacheStore, ($cache) => {
   // Try both original case and lowercase for the address
   const address = $cache.currentAccount.address;
   const key = `${$cache.currentNetwork}_${address}`;
-  const keyLowercase = `${$cache.currentNetwork}_${address.toLowerCase()}`;
+  const keyLowercase = `${$cache.currentNetwork}_${address?.toLowerCase() || ''}`;
 
   // Try to find account with either key format
   let account = $cache.accounts[key] || $cache.accounts[keyLowercase];
@@ -581,7 +581,7 @@ export const currentAccountTokens = derived(walletCacheStore, ($cache) => {
   // If still not found, search through all accounts for a match
   if (!account) {
     for (const [k, acc] of Object.entries($cache.accounts)) {
-      if (acc.address.toLowerCase() === address.toLowerCase() &&
+      if (acc.address?.toLowerCase() === address?.toLowerCase() &&
           acc.chainId === $cache.currentNetwork) {
         account = acc;
         console.log(`[Derived] Found account with different key format: ${k}`);

@@ -267,7 +267,7 @@ export class ExtensionRSSFeedService {
 			// Some sites return HTML on certain RSS endpoints
 			log.warn('RSS endpoint returned HTML instead of XML');
 		}
-		
+
 		// Remove all preload link tags that cause browser warnings
 		// These patterns catch various preload formats
 		text = text.replace(/<link[^>]*rel=["']?preload["']?[^>]*>/gi, '');
@@ -275,22 +275,44 @@ export class ExtensionRSSFeedService {
 		text = text.replace(/<link[^>]*rel=["']?dns-prefetch["']?[^>]*>/gi, '');
 		text = text.replace(/<link[^>]*rel=["']?preconnect["']?[^>]*>/gi, '');
 		text = text.replace(/<link[^>]*rel=["']?modulepreload["']?[^>]*>/gi, '');
-		
-		// Remove Next.js specific preload patterns
+
+		// Remove Next.js specific preload patterns (CoinDesk uses Next.js)
 		text = text.replace(/<link[^>]*\/_next\/static[^>]*>/gi, '');
-		
+
+		// Remove any CSS link tags that might be embedded in content
+		text = text.replace(/<link[^>]*\.css[^>]*>/gi, '');
+
 		// Remove any link tags with .woff, .woff2, .ttf, .otf extensions
 		text = text.replace(/<link[^>]*\.(woff2?|ttf|otf)[^>]*>/gi, '');
-		
+
 		// Remove inline preload scripts
 		text = text.replace(/<script[^>]*>.*?\.preload.*?<\/script>/gis, '');
-		
+
 		// Remove preload from any remaining link tags
 		text = text.replace(/(\<link[^>]*?)rel=["']?preload["']?([^>]*?>)/gi, '$1$2');
-		
+
 		// Clean up any font-face declarations that might trigger loads
 		text = text.replace(/<style[^>]*>.*?@font-face.*?<\/style>/gis, '');
-		
+
+		// Remove CDATA sections that might contain problematic content
+		text = text.replace(/<!\[CDATA\[.*?(?:link|preload|\.css|_next).*?\]\]>/gis, '<![CDATA[]]>');
+
+		// Clean description and content:encoded fields specifically
+		// These often contain HTML with preload links
+		text = text.replace(/(<description[^>]*>)(.*?)(<\/description>)/gis, (match, open, content, close) => {
+			const cleaned = content
+				.replace(/<link[^>]*>/gi, '')
+				.replace(/<style[^>]*>.*?<\/style>/gis, '');
+			return open + cleaned + close;
+		});
+
+		text = text.replace(/(<content:encoded[^>]*>)(.*?)(<\/content:encoded>)/gis, (match, open, content, close) => {
+			const cleaned = content
+				.replace(/<link[^>]*>/gi, '')
+				.replace(/<style[^>]*>.*?<\/style>/gis, '');
+			return open + cleaned + close;
+		});
+
 		return text;
 	}
 

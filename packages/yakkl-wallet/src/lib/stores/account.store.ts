@@ -44,7 +44,7 @@ function createAccountStore() {
         // Normalize addresses to lowercase for consistency with cache keys
         const normalizedAccounts = response.data.map(acc => ({
           ...acc,
-          address: acc.address.toLowerCase()
+          address: acc.address?.toLowerCase() || ''
         }));
 
         // Update accounts but don't fetch balances here - let token store handle that
@@ -86,7 +86,7 @@ function createAccountStore() {
           // Normalize the current account address to lowercase
           const normalizedCurrentAccount = {
             ...currentResponse.data!,
-            address: currentResponse.data!.address.toLowerCase()
+            address: currentResponse.data!.address?.toLowerCase() || ''
           };
 
           update(state => ({
@@ -140,14 +140,16 @@ function createAccountStore() {
           loading: { isLoading: true, message: 'Switching account...' }
         }));
 
-        // Normalize address to lowercase for consistency
+        // Call wallet service to switch account (handles persistence with both address and accountName)
         const response = await walletService.switchAccount(address.toLowerCase());
 
         if (response.success) {
-          // Find the account first (using normalized lowercase address)
+          // Find the account first (using normalized lowercase address for comparison)
           const currentState = get({ subscribe });
           const normalizedAddress = address.toLowerCase();
-          const account = currentState.accounts.find(acc => acc.address === normalizedAddress);
+          const account = currentState.accounts.find(acc =>
+            acc.address?.toLowerCase() === normalizedAddress
+          );
 
         if (account) {
           // Fetch fresh balance for the new account
@@ -179,23 +181,9 @@ function createAccountStore() {
           currentAccount: account || null
         }));
 
-        // Persist the selection - walletService.switchAccount already does this
-        // but let's ensure it's done correctly
-        try {
-          // Get current selection data
-          const currentlySelected = await getYakklCurrentlySelected();
-          if (currentlySelected) {
-            // Update the account address in shortcuts (the correct path)
-            if (currentlySelected.shortcuts) {
-              currentlySelected.shortcuts.address = address;
-              await setYakklCurrentlySelectedStorage(currentlySelected);
-            } else {
-              log.warn('[AccountStore] No shortcuts object in currentlySelected, cannot persist account switch');
-            }
-          }
-        } catch (error) {
-          log.warn('[AccountStore] Failed to persist account switch:', false, error);
-        }
+        // Persistence is now handled correctly by walletService.switchAccount
+        // which sets both address and accountName as required by validation
+        log.info('[AccountStore] Account switch completed successfully - persistence handled by wallet service');
 
         // CRITICAL: Await wallet cache switch to ensure data is loaded
         // This now handles all data initialization for the new account

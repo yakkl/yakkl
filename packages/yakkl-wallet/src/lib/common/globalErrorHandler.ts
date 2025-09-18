@@ -19,8 +19,8 @@ const GRACEFUL_ERROR_PATTERNS = [
  */
 function isGracefulError(error: Error | any): boolean {
   const errorMessage = error?.message || error?.toString() || '';
-  
-  return GRACEFUL_ERROR_PATTERNS.some(pattern => 
+
+  return GRACEFUL_ERROR_PATTERNS.some(pattern =>
     errorMessage.includes(pattern)
   );
 }
@@ -30,7 +30,7 @@ function isGracefulError(error: Error | any): boolean {
  */
 function handleUnhandledRejection(event: PromiseRejectionEvent): void {
   const error = event.reason;
-  
+
   if (isGracefulError(error)) {
     // These are expected errors when extension context is invalid
     log.debug('Gracefully handled promise rejection:', false, error);
@@ -47,11 +47,26 @@ function handleUnhandledRejection(event: PromiseRejectionEvent): void {
  */
 function handleUncaughtError(event: ErrorEvent): void {
   const error = event.error;
-  
+
+  console.trace('Global Error Caught:', {
+    message: event.message,
+    source: event.filename,
+    lineno: event.lineno,
+    colno: event.colno,
+    error: error
+  });
+
   if (isGracefulError(error)) {
     log.debug('Gracefully handled error:', false, error);
     event.preventDefault(); // Prevent the error from being logged to console
   } else {
+    // Log full error details for debugging
+    console.error('[GlobalErrorHandler] Uncaught error details:', {
+      message: error?.message,
+      stack: error?.stack,
+      name: error?.name,
+      error: error
+    });
     log.error('Uncaught error:', false, error);
     // Let it bubble up to default error handling
   }
@@ -67,10 +82,10 @@ export function initializeGlobalErrorHandlers(): void {
 
   // Handle unhandled promise rejections
   window.addEventListener('unhandledrejection', handleUnhandledRejection);
-  
+
   // Handle uncaught errors
   window.addEventListener('error', handleUncaughtError);
-  
+
   log.debug('Global error handlers initialized', false);
 }
 
@@ -84,7 +99,7 @@ export function cleanupGlobalErrorHandlers(): void {
 
   window.removeEventListener('unhandledrejection', handleUnhandledRejection);
   window.removeEventListener('error', handleUncaughtError);
-  
+
   log.debug('Global error handlers cleaned up', false);
 }
 
@@ -105,14 +120,14 @@ export function withErrorHandling<T extends (...args: any[]) => Promise<any>>(
     } catch (error) {
       if (isGracefulError(error) && !options?.critical) {
         log.debug(options?.errorMessage || 'Gracefully handled error:', false, error);
-        
+
         if (options?.fallback) {
           return options.fallback(...args);
         }
-        
+
         return null as any;
       }
-      
+
       // Re-throw critical errors
       throw error;
     }

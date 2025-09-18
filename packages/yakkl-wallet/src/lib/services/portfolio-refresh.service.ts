@@ -4,7 +4,8 @@
  */
 
 import { BackgroundIntervalService } from './background-interval.service';
-import { CacheSyncManager } from './cache-sync.service';
+// REMOVED: CacheSyncManager dependency to fix timeout issues
+// import { CacheSyncManager } from './cache-sync.service';
 import { log } from '$lib/common/logger-wrapper';
 import type { ViewType } from '$lib/types/rollup.types';
 import { browser_ext } from '$lib/common/environment';
@@ -12,7 +13,8 @@ import { browser_ext } from '$lib/common/environment';
 export class PortfolioRefreshService {
   private static instance: PortfolioRefreshService;
   private backgroundService: BackgroundIntervalService | null = null;
-  private cacheSyncManager: CacheSyncManager | null = null;
+  // REMOVED: CacheSyncManager reference
+  // private cacheSyncManager: CacheSyncManager | null = null;
 
   // Synchronization flags to prevent concurrent executions
   private refreshInProgress = false;
@@ -38,9 +40,10 @@ export class PortfolioRefreshService {
     if (!this.backgroundService) {
       this.backgroundService = BackgroundIntervalService.getInstance();
     }
-    if (!this.cacheSyncManager) {
-      this.cacheSyncManager = CacheSyncManager.getInstance();
-    }
+    // REMOVED: CacheSyncManager initialization
+    // if (!this.cacheSyncManager) {
+    //   this.cacheSyncManager = CacheSyncManager.getInstance();
+    // }
   }
 
   /**
@@ -167,8 +170,9 @@ export class PortfolioRefreshService {
           }
       }
 
-      // After data refresh, trigger rollup recalculation
-      await this.cacheSyncManager!.syncPortfolioRollups();
+      // SIMPLIFIED: Skip cache sync rollup recalculation
+      // await this.cacheSyncManager!.syncPortfolioRollups();
+      log.info('[PortfolioRefresh] Skipping cache sync rollup recalculation');
 
     } catch (error) {
       log.error('[PortfolioRefresh] Error during refresh:', false, error);
@@ -185,16 +189,12 @@ export class PortfolioRefreshService {
   private async refreshAccountData(address: string, chainId: number): Promise<void> {
     log.debug('[PortfolioRefresh] Refreshing account data', false, { address, chainId });
 
-    // Trigger balance and price updates (these preserve transaction data)
-    await this.cacheSyncManager!.syncTokenBalances(chainId, address);
-    await this.cacheSyncManager!.syncTokenPrices(chainId);
-
-    // CRITICAL: Preserve transaction data during refresh
-    // Only sync new transactions, don't clear existing ones
-    await this.cacheSyncManager!.syncTransactions(chainId, address);
-
-    // Update rollups for this account
-    await this.cacheSyncManager!.syncAccountRollups(address);
+    // SIMPLIFIED: Skip cache sync operations
+    // await this.cacheSyncManager!.syncTokenBalances(chainId, address);
+    // await this.cacheSyncManager!.syncTokenPrices(chainId);
+    // await this.cacheSyncManager!.syncTransactions(chainId, address);
+    // await this.cacheSyncManager!.syncAccountRollups(address);
+    log.debug('[PortfolioRefresh] Skipping cache sync operations for account data');
   }
 
   /**
@@ -203,11 +203,10 @@ export class PortfolioRefreshService {
   private async refreshChainData(chainId: number): Promise<void> {
     log.debug('[PortfolioRefresh] Refreshing chain data', false, { chainId });
 
-    // CRITICAL: Sync all accounts on this chain but preserve transaction data
-    await this.cacheSyncManager!.syncAllAccountsOnChain(chainId);
-
-    // Update rollups for this chain
-    await this.cacheSyncManager!.syncChainRollups(chainId);
+    // SIMPLIFIED: Skip cache sync operations for chain data
+    // await this.cacheSyncManager!.syncAllAccountsOnChain(chainId);
+    // await this.cacheSyncManager!.syncChainRollups(chainId);
+    log.debug('[PortfolioRefresh] Skipping cache sync operations for chain data');
   }
 
   /**
@@ -216,16 +215,14 @@ export class PortfolioRefreshService {
   private async refreshAllData(): Promise<void> {
     log.debug('[PortfolioRefresh] Refreshing all data', false);
 
-    // CRITICAL: Trigger full refresh but preserve transaction data
-    // Use smart sync to avoid clearing transactions
-    await this.cacheSyncManager!.smartSync({
-      tokensUpdated: true,
-      pricesUpdated: true,
-      transactionsUpdated: false // Don't clear transactions
-    });
-
-    // Recalculate all rollups
-    await this.cacheSyncManager!.syncPortfolioRollups();
+    // SIMPLIFIED: Skip cache sync operations for all data
+    // await this.cacheSyncManager!.smartSync({
+    //   tokensUpdated: true,
+    //   pricesUpdated: true,
+    //   transactionsUpdated: false
+    // });
+    // await this.cacheSyncManager!.syncPortfolioRollups();
+    log.debug('[PortfolioRefresh] Skipping cache sync operations for all data');
   }
 
   /**
@@ -234,9 +231,9 @@ export class PortfolioRefreshService {
   private async refreshWatchListData(): Promise<void> {
     log.debug('[PortfolioRefresh] Refreshing watch list data', false);
 
-    // Get watch list accounts and refresh their data
-    // This would need to be implemented based on how watch list is stored
-    await this.cacheSyncManager!.syncWatchListRollups();
+    // SIMPLIFIED: Skip cache sync operations for watch list
+    // await this.cacheSyncManager!.syncWatchListRollups();
+    log.debug('[PortfolioRefresh] Skipping cache sync operations for watch list');
   }
 
   /**
@@ -245,9 +242,10 @@ export class PortfolioRefreshService {
   private async refreshHierarchyData(primaryAddress: string): Promise<void> {
     log.debug('[PortfolioRefresh] Refreshing hierarchy data', false, { primaryAddress });
 
-    // Refresh primary and derived accounts
-    await this.cacheSyncManager!.syncAccountRollups(primaryAddress);
-    await this.cacheSyncManager!.syncPrimaryAccountHierarchy();
+    // SIMPLIFIED: Skip cache sync operations for hierarchy
+    // await this.cacheSyncManager!.syncAccountRollups(primaryAddress);
+    // await this.cacheSyncManager!.syncPrimaryAccountHierarchy();
+    log.debug('[PortfolioRefresh] Skipping cache sync operations for hierarchy');
   }
 
   /**

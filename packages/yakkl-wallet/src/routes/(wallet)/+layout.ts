@@ -22,7 +22,7 @@ export const load = async ({ url }: any) => {
   // CRITICAL SECURITY: Explicitly protect home and dashboard routes
   const protectedRoutes = ['/', '/home', '/dashboard'];
   if (protectedRoutes.includes(currentPath)) {
-    log.error('[(wallet)/+layout.ts] Protected route accessed, enforcing authentication:', false,currentPath);
+    log.warn('[(wallet)/+layout.ts] Protected route accessed, enforcing authentication:', false,currentPath);
   }
 
   try {

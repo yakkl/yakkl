@@ -59,7 +59,6 @@ export class BlockchainServiceManager {
       enabledFeatures = ['providers', 'explorers', 'prices']
     } = options;
 
-    console.log('[BlockchainServiceManager] Initializing key manager...');
     // Initialize key manager first
     await this.keyManager.initialize();
     console.log('[BlockchainServiceManager] Key manager initialized');
@@ -69,7 +68,6 @@ export class BlockchainServiceManager {
 
     // Auto-setup providers if enabled
     if (autoSetupProviders) {
-      console.log('[BlockchainServiceManager] Setting up default providers...');
       await this.setupDefaultProviders(enabledFeatures);
       console.log('[BlockchainServiceManager] Default providers setup complete');
     }
@@ -91,10 +89,9 @@ export class BlockchainServiceManager {
       for (const providerName of availableProviders) {
         await this.setupProvider(providerName, this.currentChainId);
       }
-      
+
       // If no provider was set up (no API keys), setup a minimal public RPC
       if (!this.currentProvider) {
-        console.log('[BlockchainServiceManager] No managed providers configured, setting up default public RPC');
         await this.setupDefaultPublicRPC(this.currentChainId);
         console.log('[BlockchainServiceManager] After setupDefaultPublicRPC, currentProvider is:', !!this.currentProvider);
       }
@@ -188,7 +185,7 @@ export class BlockchainServiceManager {
       if (explorer) {
         const explorerKey = `${providerName}-${chainId}`;
         this.explorers.set(explorerKey, explorer);
-        
+
         // Register with the routing manager
         explorerRoutingManager.registerExplorer(providerName, explorer);
       }
@@ -240,7 +237,7 @@ export class BlockchainServiceManager {
     // Public RPC endpoints (llamarpc, blockpi, cloudflare, publicnode) are future features
     // and should not be used in production at this time
     console.warn('[BlockchainServiceManager] Public RPC fallback is disabled - no production-ready endpoints configured');
-    
+
     // Instead of using public RPC, we'll try to use whatever Alchemy keys are available
     // even if they're not perfectly configured
     await this.setupAlchemyFallback(chainId);
@@ -252,7 +249,7 @@ export class BlockchainServiceManager {
   private async setupAlchemyFallback(chainId: number): Promise<void> {
     try {
       console.log('[BlockchainServiceManager] Attempting Alchemy fallback setup for chain:', chainId);
-      
+
       // Try to get any Alchemy key available
       const apiKey = await this.getAnyAlchemyKey();
       if (!apiKey) {
@@ -262,20 +259,20 @@ export class BlockchainServiceManager {
       }
 
       console.log('[BlockchainServiceManager] Found Alchemy API key, creating DirectAlchemyProvider...');
-      
+
       // Use DirectAlchemyProvider which bypasses the KeyManager complexity
       const provider = new DirectAlchemyProvider(chainId, apiKey, {
         blockchain: this.getBlockchainForChainId(chainId),
         supportedChainIds: [chainId]
       });
-      
+
       const providerKey = `direct-alchemy-${chainId}`;
       this.providers.set(providerKey, provider);
-      
+
       // Connect the provider
       console.log('[BlockchainServiceManager] Connecting DirectAlchemyProvider...');
       await provider.connect(chainId);
-      
+
       this.currentProvider = provider;
       console.log('[BlockchainServiceManager] Successfully set up DirectAlchemyProvider as fallback');
     } catch (error) {
@@ -290,7 +287,7 @@ export class BlockchainServiceManager {
     // Check for various Alchemy key formats in the environment
     const possibleKeys = [
       'VITE_ALCHEMY_API_KEY_ETHEREUM',
-      'VITE_ALCHEMY_API_KEY_PROD_1', 
+      'VITE_ALCHEMY_API_KEY_PROD_1',
       'VITE_ALCHEMY_API_KEY_PROD_2',
       'VITE_ALCHEMY_API_KEY_POLYGON',
       'VITE_ALCHEMY_API_KEY_SOLANA',
@@ -378,7 +375,7 @@ export class BlockchainServiceManager {
    */
   async switchChain(chainId: number): Promise<void> {
     this.currentChainId = chainId;
-    
+
     // Try to find an existing provider for this chain
     for (const [key, provider] of this.providers) {
       if (key.endsWith(`-${chainId}`) && provider.metadata.supportedChainIds.includes(chainId)) {
@@ -497,7 +494,7 @@ export class BlockchainServiceManager {
       try {
         // Use batch API for efficiency
         const batchResult = await provider.getBatchPrices(symbols);
-        
+
         // Add successful results
         Object.entries(batchResult.prices).forEach(([pair, priceData]) => {
           result.set(pair, priceData);
@@ -568,14 +565,14 @@ export class BlockchainServiceManager {
     priceProviders: { total: number; healthy: number };
     keyManager: { healthy: boolean; error?: string };
   }> {
-    const providerHealthPromises = Array.from(this.providers.values()).map(p => 
+    const providerHealthPromises = Array.from(this.providers.values()).map(p =>
       p.healthCheck().catch(() => ({ healthy: false }))
     );
-    
-    const priceProviderHealthPromises = Array.from(this.priceProviders.values()).map(p => 
+
+    const priceProviderHealthPromises = Array.from(this.priceProviders.values()).map(p =>
       p.healthCheck().catch(() => ({ healthy: false }))
     );
-    
+
     const [providerResults, priceProviderResults, explorerHealth, keyManagerHealth] = await Promise.all([
       Promise.all(providerHealthPromises),
       Promise.all(priceProviderHealthPromises),
@@ -628,17 +625,17 @@ export class BlockchainServiceManager {
    */
   async cleanup(): Promise<void> {
     // Disconnect all providers
-    const disconnectPromises = Array.from(this.providers.values()).map(provider => 
+    const disconnectPromises = Array.from(this.providers.values()).map(provider =>
       provider.disconnect().catch(() => {})
     );
-    
+
     await Promise.all(disconnectPromises);
-    
+
     // Clear all maps
     this.providers.clear();
     this.explorers.clear();
     this.priceProviders.clear();
-    
+
     this.currentProvider = null;
     this.initialized = false;
   }

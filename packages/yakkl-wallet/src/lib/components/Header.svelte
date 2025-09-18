@@ -6,7 +6,7 @@
 
   let {
     logo = '/images/logoBullFav32x32.png',
-    link = '/',
+    link = '/home',
     account = { username: '', address: '', ens: null, avatar: null },
     selectedChain = null,
     chains = [],
