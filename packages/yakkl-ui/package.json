@@ -61,10 +61,6 @@
       "svelte": "./src/components/FailureDialog.svelte",
       "default": "./src/components/FailureDialog.svelte"
     },
-    "./src/components/ErrorDialog.svelte": {
-      "svelte": "./src/components/ErrorDialog.svelte",
-      "default": "./src/components/ErrorDialog.svelte"
-    },
     "./src/components/Tooltip.svelte": {
       "svelte": "./src/components/Tooltip.svelte",
       "default": "./src/components/Tooltip.svelte"

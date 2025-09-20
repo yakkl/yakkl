@@ -1,5 +1,6 @@
 import type { MessageHandlerFunc, MessageResponse } from './MessageHandler';
 import { BlockchainExplorer } from '$lib/managers/providers/explorer/BlockchainExplorer';
+import { TransactionManager, TransactionProvider } from '$lib/managers/TransactionManager';
 // AlchemyTransactionFetcher import removed - using SDK explorer routing manager
 import { getYakklCurrentlySelected } from '$lib/common/currentlySelected';
 import { log } from '$lib/common/logger-wrapper';
@@ -97,17 +98,39 @@ export const blockchainHandlers = new Map<string, MessageHandlerFunc>([
       });
 
       try {
-        // Use Etherscan directly in background context
-        const explorer = BlockchainExplorer.getInstance();
-        transactions = await explorer.getTransactionHistory(address, chainId, limit, true);
-        log.info('Successfully fetched transactions from Etherscan', false, { count: transactions.length });
-      } catch (etherscanError) {
-        log.error('Etherscan transaction fetch failed', false, {
-          error: etherscanError instanceof Error ? etherscanError.message : etherscanError,
+        // Use TransactionManager for unified transaction fetching
+        const transactionManager = TransactionManager.getInstance();
+        transactions = await transactionManager.getTransactions(
+          address,
+          chainId,
+          {
+            limit,
+            includeInternal: false,
+            includeTokenTransfers: false,
+            preferredProvider: TransactionProvider.ETHERSCAN // Use Etherscan in background by default
+          }
+        );
+        log.info('Successfully fetched transactions via TransactionManager', false, { count: transactions.length });
+      } catch (error) {
+        log.error('TransactionManager fetch failed, trying legacy BlockchainExplorer', false, {
+          error: error instanceof Error ? error.message : error,
           chainId,
           address
         });
-        transactions = [];
+
+        // Fallback to legacy BlockchainExplorer
+        try {
+          const explorer = BlockchainExplorer.getInstance();
+          transactions = await explorer.getTransactionHistory(address, chainId, limit, true);
+          log.info('Successfully fetched transactions from legacy BlockchainExplorer', false, { count: transactions.length });
+        } catch (etherscanError) {
+          log.error('Legacy BlockchainExplorer also failed', false, {
+            error: etherscanError instanceof Error ? etherscanError.message : etherscanError,
+            chainId,
+            address
+          });
+          transactions = [];
+        }
       }
 
       log.info('Blockchain handler: Retrieved transactions from explorer', false, {

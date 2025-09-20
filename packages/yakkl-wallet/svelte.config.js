@@ -1,5 +1,6 @@
 import adapter from 'sveltekit-adapter-chrome-extension';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+import path from 'path';
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
@@ -23,7 +24,16 @@ const config = {
 		}),
 
 		alias: {
-			'@yakkl/uniswap-alpha-router-service': '../uniswap-alpha-router-service/src'
+			// Workspace alias
+			'@yakkl/uniswap-alpha-router-service': '../uniswap-alpha-router-service/src',
+			// Project aliases (moved from tsconfig paths)
+			$base: path.resolve('./src'),
+			$static: path.resolve('./src/static'),
+			$lib: path.resolve('./src/lib'),
+			$components: path.resolve('./src/lib/components'),
+			$routes: path.resolve('./src/routes'),
+			$managers: path.resolve('./src/lib/managers'),
+			$contexts: path.resolve('./src/contexts')
 		},
 
 		serviceWorker: {

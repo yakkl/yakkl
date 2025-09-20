@@ -21,13 +21,23 @@
     showAll?: boolean;
     onRefresh?: () => void;
     onTransactionClick?: (transaction: TransactionDisplay) => void;
+    transactions?: TransactionDisplay[];  // Accept transactions directly
+    loading?: boolean;  // Accept loading state directly
   }
 
-  let { className = '', maxRows = 10, showAll = false, onRefresh, onTransactionClick }: Props = $props();
+  let {
+    className = '',
+    maxRows = 10,
+    showAll = false,
+    onRefresh,
+    onTransactionClick,
+    transactions: propTransactions,
+    loading: propLoading
+  }: Props = $props();
 
-  // Reactive values from stores
-  let transactions = $derived(showAll ? $allRecentTransactions : $recentTransactions);
-  let loading = $derived($isLoadingTx);
+  // Use prop transactions if provided, otherwise fall back to stores
+  let transactions = $derived(propTransactions ?? (showAll ? $allRecentTransactions : $recentTransactions));
+  let loading = $derived(propLoading ?? $isLoadingTx);
 
   // Debug transaction loading
   $effect(() => {
@@ -88,27 +98,21 @@
     const ethToken = tokenList.find(t => t.symbol === 'ETH' || t.symbol === chain?.nativeCurrency?.symbol);
     // Handle the price safely - it might be undefined, null, an object, or already a number
     let price = ethToken?.price;
-    
-    // If price is an object (like from storage), extract the actual price value
-    if (price && typeof price === 'object') {
-      // Try different possible property names
-      price = price.price || price.value || price.usd || price.USD || 0;
-    }
-    
+
     if (price === undefined || price === null) {
       return 0;
     }
-    
+
     // If it's already a number, return it directly
     if (typeof price === 'number') {
       return price;
     }
-    
+
     // If it's a string that looks like a number, parse it
     if (typeof price === 'string' && !isNaN(parseFloat(price))) {
       return parseFloat(price);
     }
-    
+
     // Otherwise try to convert it with BigNumberishUtils as last resort
     try {
       return BigNumberishUtils.toNumber(price);
@@ -191,7 +195,7 @@
     try {
       // Use transaction store refresh method which handles background communication
       await transactionStore.refresh(true);
-      
+
       // The store will handle background service communication and updates
       console.log('RecentActivity: Triggered transaction refresh via store');
     } catch (error) {

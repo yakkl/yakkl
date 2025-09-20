@@ -196,8 +196,21 @@ function createAuthStore() {
 							isAuthenticated: true // JWT means we're authenticated
 						}));
 
-						// Don't remove from sessionStorage yet - let background process handle it
-						// This ensures it's available for background service to pick up
+						// Update session manager with the JWT if not already there
+						if (!sessionManager.getCurrentJWTToken()) {
+							const sessionState = sessionManager.getSessionState();
+							if (sessionState) {
+								sessionState.jwtToken = storedJWT;
+							}
+						}
+
+						// Remove from sessionStorage after 30 seconds to clean up
+						// This gives enough time for all contexts to pick it up
+						setTimeout(() => {
+							sessionStorage.removeItem('wallet-jwt-token');
+							log.debug('Cleaned up JWT from sessionStorage after pickup');
+						}, 30000);
+
 						log.debug('Found JWT in sessionStorage during initialization', false);
 					}
 				}
@@ -284,49 +297,48 @@ function createAuthStore() {
 					}
 				}
 
-				// IMMEDIATELY mark user as authenticated for instant login experience
+				// Generate JWT immediately for proper authentication flow
+				// This prevents validation errors during the login process
+				let jwtToken: string | null = null;
+				let sessionState: SessionState | null = null;
+
+				try {
+					// Generate JWT synchronously to have it ready immediately
+					jwtToken = await sessionManager.startSession(
+						profile.id || profile.username,
+						profile.username,
+						profile.id || profile.username,
+						planLevel
+					);
+
+					sessionState = sessionManager.getSessionState();
+
+					// Store JWT in sessionStorage immediately for UI validator to find
+					// This ensures JWT is available before any validation checks
+					if (jwtToken && typeof sessionStorage !== 'undefined') {
+						sessionStorage.setItem('wallet-jwt-token', jwtToken);
+						log.debug('JWT stored in sessionStorage for immediate availability');
+					}
+
+					log.info('JWT generated successfully during login', false, {
+						hasJwtToken: !!jwtToken,
+						hasSessionState: !!sessionState
+					});
+				} catch (error) {
+					log.error('Failed to generate JWT during login:', false, error);
+					// Continue with login even if JWT generation fails
+					// User can still use digest-based authentication
+				}
+
+				// NOW mark user as authenticated with JWT already available
 				update((state) => ({
 					...state,
 					isAuthenticated: true,
 					profile,
 					lastActivity: Date.now(),
-					sessionState: null, // Will be updated after JWT generation
-					jwtToken: null // Will be generated after successful login
+					sessionState,
+					jwtToken
 				}));
-
-				// Generate JWT AFTER successful login
-				// This is the correct flow - user must be logged in before getting JWT
-				setTimeout(async () => {
-					try {
-						const jwtToken = await sessionManager.startSession(
-							profile.id || profile.username,
-							profile.username,
-							profile.id || profile.username,
-							planLevel
-						);
-
-						const sessionState = sessionManager.getSessionState();
-
-						// Update store with JWT and session state
-						update((state) => ({
-							...state,
-							sessionState,
-							jwtToken
-						}));
-
-						log.info('JWT generated after successful login', false, {
-							hasJwtToken: !!jwtToken,
-							hasSessionState: !!sessionState
-						});
-
-						// SessionManager.startSession already sends USER_LOGIN_SUCCESS
-						// No need to send it again here to avoid duplicates
-						log.debug('JWT generated successfully, background already notified via SessionManager');
-					} catch (error) {
-						log.error('Failed to generate JWT after login:', false, error);
-						// User is still logged in, just without JWT
-					}
-				}, 100); // Small delay to ensure UI updates first
 
 				log.info('User logged in successfully (JWT generation pending)', false, {
 					isAuthenticated: true,

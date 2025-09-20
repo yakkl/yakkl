@@ -25,5 +25,18 @@ export { createWhiteLabelWallet, createBrandingManager, createQuickWhiteLabelWal
 export { YakklProvider, createYakklProvider } from './integration/YakklProvider';
 export { WalletConnector, createWalletConnector } from './integration/WalletConnector';
 export { EventBridge, SecureChannel, createEventBridge } from './integration/EventBridge';
+export { ProviderManager } from './providers/ProviderManager';
+export { AlchemyProvider } from './providers/plugins/AlchemyProvider';
+export type { ProviderConfig, BaseProvider } from './providers/ProviderInterface';
+export { HistoricalPriceService } from './historical-price/HistoricalPriceService';
+export { CoinGeckoHistoricalProvider } from './historical-price/providers/CoinGeckoHistoricalProvider';
+export { OnChainDEXProvider } from './historical-price/providers/OnChainDEXProvider';
+export type { PricePoint, PriceRange, ProviderCapabilities } from './historical-price/HistoricalPriceService';
+export { AbstractTransactionProvider } from './providers/abstract/AbstractTransactionProvider';
+export { AlchemyTransactionProvider } from './providers/alchemy/AlchemyTransactionProvider';
+export { EtherscanTransactionProvider } from './providers/etherscan/EtherscanTransactionProvider';
+export { InfuraTransactionProvider } from './providers/infura/InfuraTransactionProvider';
+export { QuickNodeTransactionProvider } from './providers/quicknode/QuickNodeTransactionProvider';
+export type { TransactionData, TransactionProviderConfig, TransactionFetchOptions } from './providers/abstract/AbstractTransactionProvider';
 export type { EmbeddedWalletConfig, ModConfig, WhiteLabelConfig, BrandingConfig, IntegrationConfig, WalletInfo, YakklProviderConfig, EthereumRequest, BridgeMessage } from './types';
 export type { WalletEngine, Account, Transaction, Network, Mod, ModManifest } from '@yakkl/core';

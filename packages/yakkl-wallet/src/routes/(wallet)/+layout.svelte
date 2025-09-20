@@ -107,31 +107,36 @@
           log.warn('[(wallet)/+layout.svelte] Token store refresh failed:', false, err));
 
         // Setup session and user preferences
-        const profile = await getProfile();
-        const miscStore = getMiscStore();
-        if (profile && profile.data && miscStore) {
-          if (isEncryptedData(profile.data)) {
-            const profileData = await decryptData(profile.data, miscStore) as ProfileData;
-            const jwtToken = await sessionManager.startSession(
-              profile.id,
-              profile.username || 'user',
-              profile.id,
-              profileData.planType || 'explorer_member'
-            );
+        try {
+          const profile = await getProfile();
+          const miscStore = getMiscStore();
+          if (profile && profile.data && miscStore) {
+            if (isEncryptedData(profile.data)) {
+              const profileData = await decryptData(profile.data, miscStore) as ProfileData;
+              const jwtToken = await sessionManager.startSession(
+                profile.id,
+                profile.username || 'user',
+                profile.id,
+                profileData.planType || 'explorer_member'
+              );
 
-            // Get the session state after starting session
-            const sessionState = sessionManager.getSessionState();
+              // Get the session state after starting session
+              const sessionState = sessionManager.getSessionState();
 
-            // Update auth store with session state using the new method
-            if (sessionState) {
-              authStore.updateSessionState(sessionState, sessionState.jwtToken || jwtToken);
-            }
+              // Update auth store with session state using the new method
+              if (sessionState) {
+                authStore.updateSessionState(sessionState, sessionState.jwtToken || jwtToken);
+              }
 
-            if (profile.preferences?.showTestNetworks) {
-              showTestnets = true;
-              chainStore.setShowTestnets(true);
+              if (profile.preferences?.showTestNetworks) {
+                showTestnets = true;
+                chainStore.setShowTestnets(true);
+              }
             }
           }
+        } catch (profileError) {
+          log.warn('[(wallet)/+layout.svelte] Failed to load profile, continuing without session:', false, profileError);
+          // Continue initialization without profile - UI will still work
         }
       } catch (error) {
         // Show error state to user

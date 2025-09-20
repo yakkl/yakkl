@@ -23,8 +23,9 @@ export default defineConfig(({ mode }) => {
 	const isDev = mode === 'development';
 	const isProd = mode === 'production';
 
-	return {
-		plugins: [
+    return {
+        logLevel: 'error',
+        plugins: [
 			replace({
 				___HTML_SNIPPET_TOS___: htmlTosContent,
 				___HTML_SNIPPET_PRIVACY___: htmlPrivacyContent,
@@ -151,6 +152,20 @@ export default defineConfig(({ mode }) => {
 				include: [/node_modules/]
 			},
 			rollupOptions: {
+				onwarn(warning, defaultHandler) {
+					const msg = String((warning as any).message || '');
+					// Suppress noisy warnings that don't affect extension runtime
+					if (msg.includes('is dynamically imported by') && msg.includes('but also statically imported by')) {
+						return; // Mixed dynamic/static import — intentional in this codebase
+					}
+					if (msg.includes('A comment') && msg.includes('@__PURE__')) {
+						return; // Rollup annotation position notice — safe to ignore
+					}
+					if (msg.includes('Error when using sourcemap for reporting an error:')) {
+						return; // Sourcemap reporting noise
+					}
+					defaultHandler(warning);
+				},
 				output: {
 					// CRITICAL: Disable code splitting - browser extensions can't use dynamic imports
 					inlineDynamicImports: true,

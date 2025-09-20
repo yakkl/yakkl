@@ -1,5 +1,5 @@
 import { BaseService } from './base.service';
-import type { AccountDisplay, ChainDisplay, ServiceResponse } from '../types';
+import type { AccountDisplay, ChainDisplay, ServiceResponse, TransactionDisplay } from '../types';
 import { PlanType } from '$lib/common/types';
 import type { YakklAccount, YakklCurrentlySelected } from '$lib/common/interfaces';
 import { AccountTypeCategory } from '$lib/common/types';
@@ -21,6 +21,7 @@ import { log } from '$lib/common/logger-wrapper';
 import { getInstances } from '$lib/common/wallet';
 import { formatEther } from '$lib/utils/blockchain-bridge';
 import { setYakklAccountsStorage } from '$lib/common/accounts';
+import { TransactionManager, TransactionProvider } from '$lib/managers/TransactionManager';
 
 export class WalletService extends BaseService {
   private static instance: WalletService;
@@ -37,6 +38,465 @@ export class WalletService extends BaseService {
   }
 
   /**
+   * Get ERC-20 token balance directly from blockchain
+   * @param tokenAddress The ERC-20 token contract address
+   * @param walletAddress The wallet address to check
+   * @param chainId The chain ID (default: 1 for Ethereum mainnet)
+   * @returns Token balance as a string in token units (not wei)
+   */
+  async getERC20BalanceDirect(tokenAddress: string, walletAddress: string, chainId: number = 1, decimals: number = 18): Promise<string> {
+    try {
+      log.info('[WalletService] Getting ERC-20 balance', { tokenAddress, walletAddress, chainId });
+
+      if (!import.meta.env.VITE_ALCHEMY_API_KEY_PROD_1 && !process.env.ALCHEMY_API_KEY_PROD_1) {
+        log.error('[WalletService] No Alchemy API key found');
+        return '0';
+      }
+
+      // Map chainId to Alchemy network URL
+      const networkUrls: Record<number, string> = {
+        1: `https://eth-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY_PROD_1}`,
+        11155111: `https://eth-sepolia.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY_PROD_1}`,
+        137: `https://polygon-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY_PROD_1}`,
+        42161: `https://arb-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY_PROD_1}`,
+        10: `https://opt-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY_PROD_1}`,
+      };
+
+      const rpcUrl = networkUrls[chainId] || networkUrls[1];
+
+      // ERC-20 balanceOf method signature
+      const balanceOfSignature = '0x70a08231';
+      // Pad the wallet address to 32 bytes (remove 0x prefix, pad to 64 chars)
+      const paddedAddress = walletAddress.slice(2).padStart(64, '0');
+      const data = balanceOfSignature + paddedAddress;
+
+      // Make RPC call to get token balance
+      const response = await fetch(rpcUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'eth_call',
+          params: [
+            {
+              to: tokenAddress,
+              data: data
+            },
+            'latest'
+          ]
+        })
+      });
+
+      const result = await response.json();
+      if (result.error) {
+        log.error('[WalletService] RPC error:', false, result.error);
+        return '0';
+      }
+
+      // Convert hex balance to decimal
+      const balanceHex = result.result;
+      const balanceWei = BigInt(balanceHex);
+
+      // Convert to token units based on decimals
+      const divisor = BigInt(10) ** BigInt(decimals);
+      const tokenWhole = balanceWei / divisor;
+      const tokenRemainder = balanceWei % divisor;
+
+      // Format with appropriate decimals
+      const tokenDecimal = tokenRemainder.toString().padStart(decimals, '0');
+      // Keep at least 6 decimal places for display
+      const trimmedDecimal = tokenDecimal.replace(/0+$/, '').padEnd(6, '0').slice(0, 6);
+      const balanceInTokens = `${tokenWhole}.${trimmedDecimal}`;
+
+      log.info('[WalletService] ERC-20 balance:', { token: tokenAddress, balance: balanceInTokens });
+      return balanceInTokens;
+
+    } catch (error) {
+      log.error('[WalletService] Failed to get ERC-20 balance:', false, error);
+      return '0';
+    }
+  }
+
+  /**
+   * Get transaction history directly from Alchemy
+   * @param address The wallet address
+   * @param chainId The chain ID (default: 1 for Ethereum mainnet)
+   * @returns Array of transaction data
+   */
+  // Get standard Ethereum transactions using Alchemy's API
+  async getStandardTransactions(address: string, chainId: number = 1): Promise<any[]> {
+    try {
+      log.info('[WalletService] Getting standard transactions', { address, chainId });
+
+      if (!import.meta.env.VITE_ALCHEMY_API_KEY_PROD_1 && !process.env.ALCHEMY_API_KEY_PROD_1) {
+        log.error('[WalletService] No Alchemy API key found');
+        return [];
+      }
+
+      // Map chainId to Alchemy network URL
+      const networkUrls: Record<number, string> = {
+        1: `https://eth-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY_PROD_1}`,
+        11155111: `https://eth-sepolia.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY_PROD_1}`,
+        137: `https://polygon-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY_PROD_1}`,
+        42161: `https://arb-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY_PROD_1}`,
+        10: `https://opt-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY_PROD_1}`,
+      };
+
+      const rpcUrl = networkUrls[chainId] || networkUrls[1];
+
+      // Get the current block number for calculating confirmations
+      const blockNumberResponse = await fetch(rpcUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'eth_blockNumber',
+          params: []
+        })
+      });
+      const blockNumberData = await blockNumberResponse.json();
+      const currentBlockNumber = parseInt(blockNumberData.result, 16);
+
+      // Helper function to fetch all pages of transfers with pagination
+      const fetchAllTransfers = async (
+        params: any,
+        transfers: any[] = [],
+        pageCount: number = 0
+      ): Promise<any[]> => {
+        // Safety limit: max 10 pages (10,000 transactions) to prevent infinite loops
+        const MAX_PAGES = 10;
+        if (pageCount >= MAX_PAGES) {
+          log.warn('[WalletService] Reached maximum page limit, stopping pagination');
+          return transfers;
+        }
+
+        const response = await fetch(rpcUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'alchemy_getAssetTransfers',
+            params: [params]
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+          log.error('[WalletService] Alchemy API error:', false, data.error);
+          return transfers;
+        }
+
+        const pageTransfers = data.result?.transfers || [];
+        const allTransfers = [...transfers, ...pageTransfers];
+
+        log.info(`[WalletService] Page ${pageCount + 1}: fetched ${pageTransfers.length} transfers, total: ${allTransfers.length}`);
+
+        // Check if there's a pageKey for more results
+        if (data.result?.pageKey && pageTransfers.length > 0) {
+          log.info('[WalletService] More results available, fetching next page...');
+          // Recursively fetch next page
+          return fetchAllTransfers(
+            { ...params, pageKey: data.result.pageKey },
+            allTransfers,
+            pageCount + 1
+          );
+        }
+
+        return allTransfers;
+      };
+
+      // Fetch all outgoing transactions (with pagination)
+      log.info('[WalletService] Fetching outgoing transactions for:', address);
+      const transfers = await fetchAllTransfers({
+        fromAddress: address,
+        category: ['external'], // Only external transactions for standard format
+        withMetadata: false,
+        maxCount: '0x3e8', // 1000 per page
+        order: 'desc'
+      });
+
+      log.info('[WalletService] Found outgoing transactions:', transfers.length);
+
+      // Fetch all incoming transactions (with pagination)
+      log.info('[WalletService] Fetching incoming transactions for:', address);
+      const incomingTransfers = await fetchAllTransfers({
+        toAddress: address,
+        category: ['external'],
+        withMetadata: false,
+        maxCount: '0x3e8', // 1000 per page
+        order: 'desc'
+      });
+
+      log.info('[WalletService] Found incoming transactions:', incomingTransfers.length);
+
+      // Combine and deduplicate by hash
+      const allTransfers = [...transfers, ...incomingTransfers];
+      const uniqueTransfers = Array.from(
+        new Map(allTransfers.map(t => [t.hash, t])).values()
+      );
+
+      log.info(`[WalletService] Total unique transactions after deduplication: ${uniqueTransfers.length} (from ${allTransfers.length} total)`);
+
+      // Sort by block number descending
+      uniqueTransfers.sort((a, b) => {
+        const blockA = parseInt(a.blockNum, 16);
+        const blockB = parseInt(b.blockNum, 16);
+        return blockB - blockA;
+      });
+
+      // For each transfer, get the full transaction details
+      const transactions = [];
+      log.info('[WalletService] Fetching full details for transactions...');
+      // Get full details for all transactions (no arbitrary limit)
+      for (const transfer of uniqueTransfers) {
+        try {
+          const txResponse = await fetch(rpcUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: 1,
+              method: 'eth_getTransactionByHash',
+              params: [transfer.hash]
+            })
+          });
+
+          const txData = await txResponse.json();
+          if (txData.result) {
+            // Get transaction receipt for status
+            const receiptResponse = await fetch(rpcUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'eth_getTransactionReceipt',
+                params: [transfer.hash]
+              })
+            });
+
+            const receiptData = await receiptResponse.json();
+            const transaction = txData.result;
+            const receipt = receiptData.result;
+
+            // Get block details for timestamp
+            let blockTimestamp = null;
+            if (transaction.blockNumber) {
+              try {
+                const blockResponse = await fetch(rpcUrl, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    jsonrpc: '2.0',
+                    id: 1,
+                    method: 'eth_getBlockByNumber',
+                    params: [transaction.blockNumber, false]
+                  })
+                });
+                const blockData = await blockResponse.json();
+                if (blockData.result && blockData.result.timestamp) {
+                  blockTimestamp = parseInt(blockData.result.timestamp, 16);
+                }
+              } catch (blockErr) {
+                log.warn('[WalletService] Failed to get block timestamp:', blockErr);
+              }
+            }
+
+            // Calculate confirmations
+            const blockNum = transaction.blockNumber ? parseInt(transaction.blockNumber, 16) : 0;
+            const confirmations = blockNum ? currentBlockNumber - blockNum : 0;
+
+            // Combine transaction and receipt data into standard format
+            const standardTx = {
+              ...transaction,
+              // Add receipt data
+              status: receipt?.status === '0x1' ? 'confirmed' : 'failed',
+              gasUsed: receipt?.gasUsed,
+              effectiveGasPrice: receipt?.effectiveGasPrice,
+              cumulativeGasUsed: receipt?.cumulativeGasUsed,
+              logs: receipt?.logs || [],
+              // Add calculated fields
+              timestamp: blockTimestamp,
+              confirmations: confirmations,
+              // Add chainId for multi-chain support
+              chainId: chainId
+            };
+
+            transactions.push(standardTx);
+          }
+        } catch (err) {
+          log.warn('[WalletService] Failed to get transaction details for:', transfer.hash, err);
+        }
+      }
+
+      log.info('[WalletService] Found standard transactions:', transactions.length);
+      return transactions;
+
+    } catch (error: any) {
+      log.error('[WalletService] Failed to get standard transactions:', false, error);
+      return [];
+    }
+  }
+
+  // Main method to get transactions - now uses TransactionManager
+  async getTransactionsDirect(address: string, chainId: number = 1): Promise<TransactionDisplay[]> {
+    try {
+      const transactionManager = TransactionManager.getInstance();
+
+      // Use SDK-backed TransactionManager with Etherscan as preferred provider
+      // Fetch normal transactions only to match Etherscan "Transactions" tab
+      const transactions = await transactionManager.getTransactions(
+        address,
+        chainId,
+        {
+          limit: 200,
+          includeInternal: false,
+          includeTokenTransfers: false,
+          preferredProvider: TransactionProvider.ETHERSCAN
+        }
+      );
+
+      log.info('[WalletService] Retrieved transactions via Etherscan (normal-only):', transactions.length);
+      return transactions;
+    } catch (error) {
+      log.error('[WalletService] Failed to get transactions:', false, error);
+      // Fallback to legacy method if TransactionManager fails
+      return this.getStandardTransactions(address, chainId);
+    }
+  }
+
+  // Keep the Alchemy enhanced version but rename it for future use
+  async getTransactionsAlchemyEnhanced(address: string, chainId: number = 1): Promise<any[]> {
+    try {
+      log.info('[WalletService] Getting transactions from Alchemy', { address, chainId });
+
+      if (!import.meta.env.VITE_ALCHEMY_API_KEY_PROD_1 && !process.env.ALCHEMY_API_KEY_PROD_1) {
+        log.error('[WalletService] No Alchemy API key found');
+        return [];
+      }
+
+      // Map chainId to Alchemy network URL
+      const networkUrls: Record<number, string> = {
+        1: `https://eth-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY_PROD_1}`,
+        11155111: `https://eth-sepolia.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY_PROD_1}`,
+        137: `https://polygon-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY_PROD_1}`,
+        42161: `https://arb-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY_PROD_1}`,
+        10: `https://opt-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY_PROD_1}`,
+      };
+
+      const rpcUrl = networkUrls[chainId] || networkUrls[1];
+
+      // Use Alchemy's enhanced API for getting transaction history
+      const response = await fetch(rpcUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'alchemy_getAssetTransfers',
+          params: [
+            {
+              fromAddress: address,
+              category: ['external', 'internal', 'erc20', 'erc721', 'erc1155'],
+              withMetadata: true,
+              maxCount: '0x3e8', // 1000 transactions - get full history // 100 transactions
+              order: 'desc'
+            }
+          ]
+        })
+      });
+
+      const sentData = await response.json();
+
+      if (sentData.error) {
+        log.error('[WalletService] Alchemy API error (sent):', false, sentData.error);
+        throw new Error(`Alchemy API error: ${sentData.error.message || JSON.stringify(sentData.error)}`);
+      }
+
+      log.info('[WalletService] Sent transactions response:', {
+        hasResult: !!sentData.result,
+        transferCount: sentData.result?.transfers?.length || 0
+      });
+
+      // Also get received transactions
+      const receivedResponse = await fetch(rpcUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'alchemy_getAssetTransfers',
+          params: [
+            {
+              toAddress: address,
+              category: ['external', 'internal', 'erc20', 'erc721', 'erc1155'],
+              withMetadata: true,
+              maxCount: '0x3e8', // 1000 transactions - get full history
+              order: 'desc'
+            }
+          ]
+        })
+      });
+
+      const receivedData = await receivedResponse.json();
+
+      console.log('[WalletService] Sent transactions response:', sentData);
+      console.log('[WalletService] Received transactions response:', receivedData);
+
+      if (receivedData.error) {
+        log.error('[WalletService] Alchemy API error (received):', false, receivedData.error);
+        throw new Error(`Alchemy API error: ${receivedData.error.message || JSON.stringify(receivedData.error)}`);
+      }
+
+      log.info('[WalletService] Received transactions response:', {
+        hasResult: !!receivedData.result,
+        transferCount: receivedData.result?.transfers?.length || 0
+      });
+
+      // Combine and deduplicate transactions
+      const allTransfers = [
+        ...(sentData.result?.transfers || []),
+        ...(receivedData.result?.transfers || [])
+      ];
+
+      console.log('[WalletService] All transfers:', allTransfers);
+
+      // Remove duplicates by hash
+      const uniqueTransfers = allTransfers.reduce((acc: any[], transfer: any) => {
+        if (!acc.find((t: any) => t.hash === transfer.hash)) {
+          acc.push(transfer);
+        }
+        return acc;
+      }, []);
+
+      console.log('[WalletService] Unique transfers:', uniqueTransfers);
+
+      // Sort by blockNum descending (most recent first)
+      uniqueTransfers.sort((a: any, b: any) => {
+        const blockA = parseInt(a.blockNum, 16);
+        const blockB = parseInt(b.blockNum, 16);
+        return blockB - blockA;
+      });
+
+      console.log('[WalletService] Sorted transfers:', uniqueTransfers);
+      log.info('[WalletService] Found transactions:', uniqueTransfers.length);
+      return uniqueTransfers;
+
+    } catch (error: any) {
+      log.error('[WalletService] Failed to get transactions:', false, {
+        message: error?.message || 'Unknown error',
+        stack: error?.stack,
+        error: error
+      });
+      throw error; // Re-throw to see the error in the calling function
+    }
+  }
+
+  /**
    * Get balance directly from blockchain - no caching, no messaging
    * This is a direct client-side call to the blockchain using Alchemy
    */
@@ -45,7 +505,7 @@ export class WalletService extends BaseService {
       log.info('[WalletService] Getting balance directly from blockchain', { address, chainId });
 
       // Get API key directly from environment
-      if (!import.meta.env.VITE_ALCHEMY_API_KEY_PROD_1) {
+      if (!import.meta.env.VITE_ALCHEMY_API_KEY_PROD_1 && !process.env.ALCHEMY_API_KEY_PROD_1) {
 				log.error('[WalletService] No Alchemy API key found');
 				return '0';
 			}
@@ -80,8 +540,19 @@ export class WalletService extends BaseService {
 
       // Convert hex balance to decimal string
       const balanceHex = data.result;
-      const balanceWei = BigInt(balanceHex).toString();
-      const balanceInEth = formatEther(balanceWei);
+      const balanceWei = BigInt(balanceHex);
+
+      // Convert wei to ETH with full precision
+      // Divide wei by 10^18 to get ETH, maintaining precision as a string
+      const ethDivisor = BigInt(10) ** BigInt(18);
+      const ethWhole = balanceWei / ethDivisor;
+      const ethRemainder = balanceWei % ethDivisor;
+
+      // Format with 18 decimal places for full precision
+      const ethDecimal = ethRemainder.toString().padStart(18, '0');
+      // Remove trailing zeros but keep at least 6 decimal places for display
+      const trimmedDecimal = ethDecimal.replace(/0+$/, '').padEnd(6, '0');
+      const balanceInEth = `${ethWhole}.${trimmedDecimal}`;
 
       log.info('[WalletService] Balance response:', { success: true, data: balanceInEth });
       return balanceInEth;
