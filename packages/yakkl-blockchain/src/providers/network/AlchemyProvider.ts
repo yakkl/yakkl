@@ -84,6 +84,13 @@ export class AlchemyProvider extends BaseProvider {
     return data.result;
   }
 
+  /**
+   * EIP-1193 request method implementation
+   */
+  async request<T = any>(args: { method: string; params?: any[] }): Promise<T> {
+    return this.makeRpcCall(args.method, args.params || []);
+  }
+
   async getNetwork(): Promise<{ name: string; chainId: number }> {
     const chainId = await this.getChainId();
     const name = this.getNetworkName(chainId);
@@ -202,9 +209,9 @@ export class AlchemyProvider extends BaseProvider {
       this.getBlock('latest')
     ]);
 
-    let maxFeePerGas = null;
-    let maxPriorityFeePerGas = null;
-    let lastBaseFeePerGas = null;
+    let maxFeePerGas: bigint | undefined;
+    let maxPriorityFeePerGas: bigint | undefined;
+    let lastBaseFeePerGas: bigint | undefined;
 
     if (block && block.baseFeePerGas) {
       lastBaseFeePerGas = BigInt(block.baseFeePerGas.toString());

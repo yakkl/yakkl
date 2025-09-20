@@ -668,10 +668,11 @@ export class PortfolioDataCoordinator {
    * Process queue immediately (for high priority updates)
    */
   private processQueueImmediately(): void {
-    // Process immediately, bypassing timer
-    setImmediate(() => {
+    // Process immediately using setTimeout(0) instead of setImmediate
+    // setImmediate is not available in browser/service worker contexts
+    setTimeout(() => {
       this.processQueue();
-    });
+    }, 0);
   }
 
   /**

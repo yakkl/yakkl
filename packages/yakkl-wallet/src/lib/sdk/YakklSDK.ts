@@ -1,7 +1,7 @@
 import { BlockchainServiceManager } from './BlockchainServiceManager';
 import { EnhancedKeyManager } from './security/EnhancedKeyManager';
 import { GenericRPCProvider } from './providers/rpc/GenericRPCProvider';
-import type { IProvider } from './interfaces/IProvider';
+import type { IProvider } from './interfaces';
 import type { IKeyManager } from './interfaces/IKeyManager';
 import type { PriceData, TokenPriceData } from './interfaces/IPriceProvider';
 
@@ -371,12 +371,12 @@ export { CoingeckoPriceProvider } from './providers/price/CoingeckoPriceProvider
 export { LegacyPriceProviderAdapter } from './adapters/LegacyAdapter';
 
 // Export all interfaces
-export type { IProvider } from './interfaces/IProvider';
+export type { IProvider } from './interfaces';
 export type { ITransactionFetcher } from './interfaces/ITransactionFetcher';
 export type { IPriceProvider, PriceData, TokenPriceData, BatchPriceData, HistoricalPriceData } from './interfaces/IPriceProvider';
 export type { IKeyManager } from './interfaces/IKeyManager';
 
-// Export core utilities
-export { BigNumber, EthereumBigNumber } from './core/bignumber';
+// Export core utilities from @yakkl/core
+export { BigNumber } from '@yakkl/core';
 export { detectAndResolveChain } from './core/chain';
-export { BigNumberishMath } from './core/math';
+export { BigNumberishMath } from '@yakkl/core';

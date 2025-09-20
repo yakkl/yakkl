@@ -9,6 +9,8 @@ import { getSigningManager } from '$contexts/background/extensions/chrome/signin
 import { getYakklCurrentlySelected } from '$lib/common/currentlySelected';
 import { showEIP6963Popup } from '$contexts/background/extensions/chrome/eip-6963';
 import type { BackgroundPendingRequest } from '$contexts/background/extensions/chrome/background';
+// MIGRATION: Move to @yakkl/security
+// import { decryptData } from '@yakkl/security/wallet/encryption-utils';
 import { decryptData } from '$lib/common/encryption';
 import { isEncryptedData } from '$lib/common/misc';
 import { showPopup } from '$contexts/background/extensions/chrome/ui';

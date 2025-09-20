@@ -3,7 +3,7 @@
  */
 
 import type { IToken, TokenInfo, TokenMetadata } from './types';
-import type { BigNumberish, IProvider } from '../providers/types';
+import type { BigNumberish, ProviderInterface } from '../providers/types';
 
 export abstract class BaseToken implements IToken {
   // TokenInfo properties
@@ -27,9 +27,9 @@ export abstract class BaseToken implements IToken {
   readonly coinmarketcapId?: string;
 
   // Protected provider for blockchain interactions
-  protected provider?: IProvider;
+  protected provider?: ProviderInterface;
 
-  constructor(info: TokenInfo, metadata?: TokenMetadata, provider?: IProvider) {
+  constructor(info: TokenInfo, metadata?: TokenMetadata, provider?: ProviderInterface) {
     this.address = info.address;
     this.name = info.name;
     this.symbol = info.symbol;
@@ -61,11 +61,11 @@ export abstract class BaseToken implements IToken {
   abstract totalSupply(): Promise<BigNumberish>;
 
   // Utility methods
-  setProvider(provider: IProvider): void {
+  setProvider(provider: ProviderInterface): void {
     this.provider = provider;
   }
 
-  getProvider(): IProvider | undefined {
+  getProvider(): ProviderInterface | undefined {
     return this.provider;
   }
 

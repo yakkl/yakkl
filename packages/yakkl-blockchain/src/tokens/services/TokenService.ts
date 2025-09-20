@@ -13,17 +13,17 @@ import type {
   TokenServiceConfig,
   IToken
 } from '../types';
-import type { IProvider } from '../../providers/types';
+import type { ProviderInterface } from '../../providers/types';
 import { ERC20Token } from '../ERC20Token';
 
 export class TokenService {
-  private provider?: IProvider;
+  private provider?: ProviderInterface;
   private config: TokenServiceConfig;
   private tokenCache: Map<string, IToken> = new Map();
   private priceCache: Map<string, TokenPrice> = new Map();
   private tokenLists: Map<string, TokenList> = new Map();
 
-  constructor(config: TokenServiceConfig = {}, provider?: IProvider) {
+  constructor(config: TokenServiceConfig = {}, provider?: ProviderInterface) {
     this.config = {
       autoUpdatePrices: false,
       priceUpdateInterval: 60000, // 1 minute
@@ -41,7 +41,7 @@ export class TokenService {
   /**
    * Set the provider for blockchain interactions
    */
-  setProvider(provider: IProvider): void {
+  setProvider(provider: ProviderInterface): void {
     this.provider = provider;
   }
 

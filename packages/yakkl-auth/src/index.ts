@@ -10,5 +10,11 @@ export * from './providers';
 export * from './strategies';
 export * from './utils';
 
+// Session management
+export * from './session/SessionManagerBase';
+
+// Validation utilities
+export * from './validation/auth-validation';
+
 // Main authentication manager
 export { AuthManager as default } from './AuthManager';

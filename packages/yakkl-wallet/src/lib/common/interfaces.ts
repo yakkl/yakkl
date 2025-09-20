@@ -1,18 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { Runtime } from 'webextension-polyfill';
 import type { AccessList, Log, Transaction } from '$lib/common/evm';
-import type {
-	AccessSourceType,
-	AccountTypeCategory,
-	BytesLike,
-	NetworkType,
-	PlanType,
-	PromoClassificationType,
-	RegisteredType,
-	SystemTheme,
-	URL,
-	TransactionReceipt,
-	TransactionRequest
+import {
+	type AccessSourceType,
+	type AccountTypeCategory,
+	type BytesLike,
+	type NetworkType,
+	type PlanType,
+	type PromoClassificationType,
+	type RegisteredType,
+	type SystemTheme,
+	type URL,
+	type TransactionReceipt,
+	type TransactionRequest
 } from '$lib/common/types';
 import type { BigNumberish } from '$lib/common/bignumber';
 import type { Token } from '$lib/managers/Token';
@@ -849,6 +849,11 @@ export interface ProfileData {
 	name: Name;
   username?: string;
   planType?: PlanType;
+  planLevel?: string; // User's subscription level (explorer_member, pro, etc.)
+  provider?: string; // OAuth provider (google, github, etc.)
+  socialId?: string; // Social provider user ID
+  displayName?: string; // Display name from social provider
+  photoURL?: string; // Photo URL from social provider
 	email: string;
 	bio?: string;
 	website?: string;

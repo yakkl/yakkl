@@ -4,6 +4,7 @@ import type {
   DragDropPayload,
   ContentType
 } from '$lib/types/bookmark.types';
+import { log } from '$lib/common/logger-wrapper';
 
 const MENU_ID_PREFIX = 'yakkl_bookmark_';
 
@@ -36,9 +37,8 @@ export class BookmarkContextMenuService {
       await this.createContextMenus();
       this.setupListeners();
       this.isInitialized = true;
-      console.log('Bookmark context menu service initialized');
     } catch (error) {
-      console.error('Failed to initialize context menu service:', error);
+      log.error('Failed to initialize context menu service:', false, error);
     }
   }
 
@@ -123,7 +123,7 @@ export class BookmarkContextMenuService {
         await this.playSound('save');
 
       } catch (error) {
-        console.error('Failed to save bookmark:', error);
+        log.error('Failed to save bookmark:', false, error);
         await this.showNotification('Failed to save bookmark', 'error');
       }
     });
@@ -287,7 +287,7 @@ export class BookmarkContextMenuService {
         }, 500);
       }
     } catch (error) {
-      console.error('Failed to send message to side panel:', error);
+      log.error('Failed to send message to side panel:', false, error);
       throw error;
     }
   }
@@ -317,7 +317,7 @@ export class BookmarkContextMenuService {
         sound: type
       });
     } catch (error) {
-      console.log('Sound playback not available');
+      log.error('Sound playback not available', false, error);
     }
   }
 

@@ -6,7 +6,7 @@
 
 import { browserSvelte, browser_ext } from '$lib/common/environment';
 import { log } from '$lib/common/logger-wrapper';
-import { jwtManager, type JWTPayload } from '$lib/utilities/jwt';
+import { browserJWT as jwtManager, type BrowserJWTPayload as JWTPayload } from '@yakkl/security';
 
 export interface SessionState {
 	isActive: boolean;
@@ -73,17 +73,22 @@ export class SessionManager {
 		try {
       if (!browser_ext) return '';
 
-			// Generate JWT token
+			const now = Date.now();
+			const sessionId = this.generateSessionId();
+
+			// Generate secure hash for additional security
+			const secureHash = crypto.randomUUID();
+
+			// Generate JWT token with session ID
 			const jwtToken = await jwtManager.generateToken(
 				userId,
 				username,
 				profileId,
 				planLevel,
-				this.config.jwtExpirationMinutes
+				sessionId,
+				this.config.jwtExpirationMinutes,
+				secureHash
 			);
-
-			const now = Date.now();
-			const sessionId = this.generateSessionId();
 
 			this.sessionState = {
 				isActive: true,
@@ -121,13 +126,15 @@ export class SessionManager {
 			if (typeof window !== 'undefined' && browser_ext.runtime) {
 				browser_ext.runtime.sendMessage({
 					type: 'USER_LOGIN_SUCCESS',
-					sessionId,
-					hasJWT: !!jwtToken,
-					jwtToken: jwtToken, // Include the actual JWT token
-					userId,
-					username,
-					profileId,
-					planLevel
+					payload: {
+						jwtToken: jwtToken,
+						userId,
+						username,
+						profileId,
+						planLevel,
+						sessionId,
+						hasJWT: !!jwtToken
+					}
 				}).then(() => {
 					log.debug('SessionManager: Background notified about login success with JWT');
 				}).catch((error) => {
@@ -245,7 +252,24 @@ export class SessionManager {
 	 * Get current JWT token
 	 */
 	getCurrentJWTToken(): string | null {
-		return this.sessionState?.jwtToken || null;
+		// First check current session state
+		if (this.sessionState?.jwtToken) {
+			return this.sessionState.jwtToken;
+		}
+
+		// Fallback to sessionStorage for social login JWT
+		if (typeof sessionStorage !== 'undefined') {
+			const storedJWT = sessionStorage.getItem('wallet-jwt-token');
+			if (storedJWT) {
+				// Update session state with the found token
+				if (this.sessionState) {
+					this.sessionState.jwtToken = storedJWT;
+				}
+				return storedJWT;
+			}
+		}
+
+		return null;
 	}
 
 	/**

@@ -38,13 +38,19 @@ function createAccountStore() {
 
       const response = await walletService.getAccounts();
 
-      log.error('[AccountStore] Load accounts response:', false, response);
+      log.debug('[AccountStore] Load accounts response:', false, response);
 
       if (response.success && response.data) {
+        // Normalize addresses to lowercase for consistency with cache keys
+        const normalizedAccounts = response.data.map(acc => ({
+          ...acc,
+          address: acc.address?.toLowerCase() || ''
+        }));
+
         // Update accounts but don't fetch balances here - let token store handle that
         update(state => ({
           ...state,
-          accounts: response.data!,
+          accounts: normalizedAccounts,
           loading: { isLoading: false },
           error: { hasError: false }
         }));
@@ -56,9 +62,10 @@ function createAccountStore() {
         const currentResponse = await walletService.getCurrentAccount();
         if (currentResponse.success && currentResponse.data) {
           // Fetch real balance for current account
-          log.info('[AccountStore] Fetching balance for:', false, currentResponse.data.address);
           const balanceResponse = await walletService.getBalance(currentResponse.data.address);
+
           log.info('[AccountStore] Balance response:', false, balanceResponse);
+
           if (balanceResponse.success && balanceResponse.data) {
             // Balance might already be in ETH format (decimal string) or Wei (bigint/string)
             let balanceInEth: string;
@@ -76,20 +83,21 @@ function createAccountStore() {
             log.info('[AccountStore] Set balance:', false, balanceInEth, 'ETH for', currentResponse.data.address);
           }
 
+          // Normalize the current account address to lowercase
+          const normalizedCurrentAccount = {
+            ...currentResponse.data!,
+            address: currentResponse.data!.address?.toLowerCase() || ''
+          };
+
           update(state => ({
             ...state,
-            currentAccount: currentResponse.data!
+            currentAccount: normalizedCurrentAccount
           }));
         } else {
-          // CRITICAL FIX: If no current account is set and we have accounts available,
-          // automatically set the first account as current
-          log.warn('[AccountStore] No current account found, attempting to set first available account');
-
           // Get current state to access loaded accounts
           const currentState = get({ subscribe });
           if (currentState.accounts && currentState.accounts.length > 0) {
             const firstAccount = currentState.accounts[0];
-            log.info('[AccountStore] Setting first account as current:', false, firstAccount.address);
 
             // Switch to the first account (this will also persist the selection)
             const switchResult = await accountStore.switchAccount(firstAccount.address);
@@ -98,8 +106,6 @@ function createAccountStore() {
             } else {
               log.error('[AccountStore] Failed to set first account as current');
             }
-          } else {
-            log.warn('[AccountStore] No accounts available to set as current');
           }
         }
       } else {
@@ -134,17 +140,20 @@ function createAccountStore() {
           loading: { isLoading: true, message: 'Switching account...' }
         }));
 
-        const response = await walletService.switchAccount(address);
+        // Call wallet service to switch account (handles persistence with both address and accountName)
+        const response = await walletService.switchAccount(address.toLowerCase());
 
         if (response.success) {
-          // Find the account first
+          // Find the account first (using normalized lowercase address for comparison)
           const currentState = get({ subscribe });
-          const account = currentState.accounts.find(acc => acc.address === address);
+          const normalizedAddress = address.toLowerCase();
+          const account = currentState.accounts.find(acc =>
+            acc.address?.toLowerCase() === normalizedAddress
+          );
 
         if (account) {
           // Fetch fresh balance for the new account
-          log.info('[AccountStore] Switching account - fetching balance for:', false, address);
-          const balanceResponse = await walletService.getBalance(address);
+          const balanceResponse = await walletService.getBalance(normalizedAddress);
           log.info('[AccountStore] Switch account balance response:', false, balanceResponse);
           if (balanceResponse.success && balanceResponse.data) {
             // Balance might already be in ETH format (decimal string) or Wei (bigint/string)
@@ -172,24 +181,9 @@ function createAccountStore() {
           currentAccount: account || null
         }));
 
-        // Persist the selection - walletService.switchAccount already does this
-        // but let's ensure it's done correctly
-        try {
-          // Get current selection data
-          const currentlySelected = await getYakklCurrentlySelected();
-          if (currentlySelected) {
-            // Update the account address in shortcuts (the correct path)
-            if (currentlySelected.shortcuts) {
-              currentlySelected.shortcuts.address = address;
-              await setYakklCurrentlySelectedStorage(currentlySelected);
-              log.info('[AccountStore] Persisted account switch to:', address);
-            } else {
-              log.warn('[AccountStore] No shortcuts object in currentlySelected, cannot persist account switch');
-            }
-          }
-        } catch (error) {
-          log.warn('[AccountStore] Failed to persist account switch:', false, error);
-        }
+        // Persistence is now handled correctly by walletService.switchAccount
+        // which sets both address and accountName as required by validation
+        log.info('[AccountStore] Account switch completed successfully - persistence handled by wallet service');
 
         // CRITICAL: Await wallet cache switch to ensure data is loaded
         // This now handles all data initialization for the new account
@@ -203,8 +197,6 @@ function createAccountStore() {
           ...state,
           loading: { isLoading: false }
         }));
-
-        log.info('[AccountStore] Account switch complete, cache initialized');
 
         return true;
       } else {

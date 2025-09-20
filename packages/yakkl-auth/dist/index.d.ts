@@ -8,4 +8,6 @@ export * from './AuthManager';
 export * from './providers';
 export * from './strategies';
 export * from './utils';
+export * from './session/SessionManagerBase';
+export * from './validation/auth-validation';
 export { AuthManager as default } from './AuthManager';

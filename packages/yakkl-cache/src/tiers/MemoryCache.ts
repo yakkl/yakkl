@@ -31,7 +31,8 @@ export class MemoryCache implements CacheProvider {
       ttl: this.defaultTTL,
       updateAgeOnGet: options.updateAgeOnGet ?? true,
       updateAgeOnHas: options.updateAgeOnHas ?? false,
-      maxEntrySize: 1000,
+      // Removed maxEntrySize as it requires sizeCalculation function
+      // If size limiting is needed, add sizeCalculation: (entry) => entry.data.length
       dispose: () => {
         this.stats.evictions++;
       }

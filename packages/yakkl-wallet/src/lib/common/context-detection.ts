@@ -55,8 +55,36 @@ export function canUseIndexedDB(): boolean {
       return false;
     }
 
-    // Check if IndexedDB is available
-    return typeof indexedDB !== 'undefined';
+    // Check if we're in a sandboxed iframe (LinkedIn, etc.)
+    if (typeof window !== 'undefined') {
+      // Try to detect sandboxed context
+      try {
+        // Sandboxed iframes without 'allow-same-origin' can't access localStorage
+        const test = '__test__';
+        window.localStorage.setItem(test, test);
+        window.localStorage.removeItem(test);
+      } catch (e) {
+        // If localStorage fails, we're likely sandboxed
+        return false;
+      }
+    }
+
+    // Check if IndexedDB is available and accessible
+    if (typeof indexedDB !== 'undefined') {
+      // Try to actually open a database to verify access
+      try {
+        const testRequest = indexedDB.open('__test__', 1);
+        testRequest.onsuccess = () => {
+          // Clean up test database
+          indexedDB.deleteDatabase('__test__');
+        };
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    
+    return false;
   } catch {
     return false;
   }

@@ -47,13 +47,6 @@ var LogLevel = /* @__PURE__ */ ((LogLevel2) => {
   LogLevel2[LogLevel2["SILENT"] = 6] = "SILENT";
   return LogLevel2;
 })(LogLevel || {});
-var AccountType = /* @__PURE__ */ ((AccountType2) => {
-  AccountType2["IMPORTED"] = "imported";
-  AccountType2["HD_WALLET"] = "hd_wallet";
-  AccountType2["HARDWARE"] = "hardware";
-  AccountType2["WATCH_ONLY"] = "watch_only";
-  return AccountType2;
-})(AccountType || {});
 var ChainType = /* @__PURE__ */ ((ChainType2) => {
   ChainType2["EVM"] = "evm";
   ChainType2["BITCOIN"] = "bitcoin";
@@ -64,27 +57,6 @@ var ChainType = /* @__PURE__ */ ((ChainType2) => {
   ChainType2["TRON"] = "tron";
   return ChainType2;
 })(ChainType || {});
-var TransactionCategory = /* @__PURE__ */ ((TransactionCategory2) => {
-  TransactionCategory2["SEND"] = "send";
-  TransactionCategory2["RECEIVE"] = "receive";
-  TransactionCategory2["SWAP"] = "swap";
-  TransactionCategory2["BRIDGE"] = "bridge";
-  TransactionCategory2["CONTRACT_CALL"] = "contract_call";
-  TransactionCategory2["TOKEN_TRANSFER"] = "token_transfer";
-  TransactionCategory2["NFT_TRANSFER"] = "nft_transfer";
-  TransactionCategory2["STAKE"] = "stake";
-  TransactionCategory2["UNSTAKE"] = "unstake";
-  TransactionCategory2["APPROVAL"] = "approval";
-  return TransactionCategory2;
-})(TransactionCategory || {});
-var CacheEvictionPolicy = /* @__PURE__ */ ((CacheEvictionPolicy2) => {
-  CacheEvictionPolicy2["LRU"] = "lru";
-  CacheEvictionPolicy2["LFU"] = "lfu";
-  CacheEvictionPolicy2["FIFO"] = "fifo";
-  CacheEvictionPolicy2["TTL"] = "ttl";
-  CacheEvictionPolicy2["SIZE"] = "size";
-  return CacheEvictionPolicy2;
-})(CacheEvictionPolicy || {});
 var SystemTheme = /* @__PURE__ */ ((SystemTheme2) => {
   SystemTheme2["DARK"] = "dark";
   SystemTheme2["LIGHT"] = "light";
@@ -2754,7 +2726,7 @@ function clone(obj) {
   Decimal2.floor = floor;
   Decimal2.hypot = hypot;
   Decimal2.ln = ln;
-  Decimal2.log = log;
+  Decimal2.log = log$1;
   Decimal2.log10 = log10;
   Decimal2.log2 = log2;
   Decimal2.max = max;
@@ -2816,7 +2788,7 @@ function isDecimalInstance(obj) {
 function ln(x) {
   return new this(x).ln();
 }
-function log(x, y) {
+function log$1(x, y) {
   return new this(x).log(y);
 }
 function log2(x) {
@@ -3730,6 +3702,227 @@ function createAutoCleanupRateLimiter(config2, cleanupIntervalMs = 5 * 60 * 1e3)
     }
   });
 }
+function calculateBackoff(attempt, initialDelay, maxDelay) {
+  const exponentialDelay = Math.min(Math.pow(2, attempt) * initialDelay, maxDelay);
+  const jitter = exponentialDelay * 0.25 * Math.random();
+  return Math.floor(exponentialDelay + jitter);
+}
+function log(level, message, data) {
+  const timestamp = (/* @__PURE__ */ new Date()).toISOString();
+  const prefix = `[FetchUtils] [${timestamp}]`;
+  switch (level) {
+    case "error":
+      console.error(prefix, message, data || "");
+      break;
+    case "warn":
+      console.warn(prefix, message, data || "");
+      break;
+    case "info":
+      console.info(prefix, message, data || "");
+      break;
+    case "debug":
+      console.log(prefix, message, data || "");
+      break;
+  }
+}
+function createTimeoutController(timeout) {
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), timeout);
+  return controller;
+}
+async function fetchWithRetry(url, options = {}) {
+  const {
+    maxRetries = 3,
+    initialDelay = 1e3,
+    maxDelay = 3e4,
+    timeout = 3e4,
+    retryOn = [408, 429, 500, 502, 503, 504],
+    parseJson = true,
+    logLevel = "warn",
+    onRetry,
+    ...fetchOptions
+  } = options;
+  let lastError;
+  let attempts = 0;
+  const headers = new Headers(fetchOptions.headers || {});
+  if (parseJson && !headers.has("Accept")) {
+    headers.set("Accept", "application/json");
+  }
+  if (parseJson && !headers.has("Content-Type") && fetchOptions.method !== "GET") {
+    headers.set("Content-Type", "application/json");
+  }
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    attempts = attempt + 1;
+    try {
+      if (attempt > 0) {
+        const delay = calculateBackoff(attempt - 1, initialDelay, maxDelay);
+        if (logLevel === "debug" || logLevel === "info") {
+          log("info", `Retry attempt ${attempt}/${maxRetries} after ${delay}ms`, { url });
+        }
+        if (onRetry) {
+          onRetry(attempt, lastError);
+        }
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+      if (logLevel === "debug") {
+        log("debug", `Fetching URL`, {
+          url,
+          method: fetchOptions.method || "GET",
+          attempt: attempts
+        });
+      }
+      const controller = timeout ? createTimeoutController(timeout) : null;
+      const response = await fetch(url, {
+        ...fetchOptions,
+        headers,
+        signal: controller?.signal || fetchOptions.signal
+      });
+      if (logLevel === "debug") {
+        log("debug", `Response received`, {
+          url,
+          status: response.status,
+          attempt: attempts
+        });
+      }
+      if (!response.ok && retryOn.includes(response.status) && attempt < maxRetries) {
+        lastError = new Error(`HTTP ${response.status}: ${response.statusText}`);
+        if (logLevel !== "none") {
+          log("warn", `Retryable error occurred`, {
+            url,
+            status: response.status,
+            attempt: attempts
+          });
+        }
+        continue;
+      }
+      let data;
+      if (parseJson) {
+        try {
+          const text = await response.text();
+          if (text) {
+            data = JSON.parse(text);
+          }
+        } catch (parseError) {
+          if (response.ok) {
+            throw new Error(`Failed to parse JSON response: ${parseError}`);
+          }
+        }
+      } else {
+        data = await response.text();
+      }
+      if (response.ok) {
+        if (logLevel === "debug" || logLevel === "info") {
+          log("info", `Request successful`, { url, attempts });
+        }
+        return {
+          data,
+          status: response.status,
+          headers: response.headers,
+          attempts
+        };
+      } else {
+        const error = `HTTP ${response.status}: ${response.statusText}`;
+        if (logLevel !== "none") {
+          log("error", `Request failed`, {
+            url,
+            status: response.status,
+            error,
+            attempts
+          });
+        }
+        return {
+          error,
+          status: response.status,
+          headers: response.headers,
+          attempts,
+          data
+          // Include any error response data
+        };
+      }
+    } catch (error) {
+      lastError = error;
+      if (error.name === "AbortError") {
+        lastError = new Error(`Request timeout after ${timeout}ms`);
+      }
+      if (logLevel !== "none" && logLevel !== "error") {
+        log("warn", `Request error`, {
+          url,
+          error: lastError.message,
+          attempt: attempts
+        });
+      }
+      if (attempt === maxRetries) {
+        if (logLevel !== "none") {
+          log("error", `All retry attempts exhausted`, {
+            url,
+            error: lastError.message,
+            attempts
+          });
+        }
+        return {
+          error: lastError.message,
+          status: 0,
+          attempts
+        };
+      }
+    }
+  }
+  return {
+    error: "Unknown error occurred",
+    status: 0,
+    attempts
+  };
+}
+async function fetchJson(url, options = {}) {
+  const response = await fetchWithRetry(url, {
+    ...options,
+    parseJson: true
+  });
+  if (response.error) {
+    throw new Error(response.error);
+  }
+  if (!response.data) {
+    throw new Error("No data received");
+  }
+  return response.data;
+}
+async function get$1(url, options) {
+  return fetchWithRetry(url, {
+    ...options,
+    method: "GET"
+  });
+}
+async function post(url, body, options) {
+  return fetchWithRetry(url, {
+    ...options,
+    method: "POST",
+    body: typeof body === "object" ? JSON.stringify(body) : body
+  });
+}
+async function fetchBatch(urls, options = {}) {
+  const { concurrency = 3, ...fetchOptions } = options;
+  const results = [];
+  const executing = [];
+  for (const url of urls) {
+    const promise = fetchWithRetry(url, fetchOptions).then((result) => {
+      results.push(result);
+    });
+    executing.push(promise);
+    if (executing.length >= concurrency) {
+      await Promise.race(executing);
+      executing.splice(executing.findIndex((p) => p === promise), 1);
+    }
+  }
+  await Promise.all(executing);
+  return results;
+}
+const fetchUtils = {
+  fetch: fetchWithRetry,
+  json: fetchJson,
+  get: get$1,
+  post,
+  batch: fetchBatch
+};
 async function createWallet(config2 = {}) {
   const defaultConfig = {
     name: "YAKKL Wallet",
@@ -3774,6 +3967,17 @@ class BaseProvider extends eventemitter3.EventEmitter {
     this._chainInfo = chainInfo;
     this.config = config2 || {};
     this.rpcUrl = config2?.rpcUrl || chainInfo.rpcUrls[0];
+    this.metadata = {
+      name: "base-provider",
+      priority: config2?.priority || 10,
+      supportedMethods: ["*"],
+      supportedChainIds: [Number(chainInfo.chainId)],
+      costStructure: "free",
+      features: {
+        websocket: false,
+        batchRequests: false
+      }
+    };
   }
   get chainInfo() {
     return this._chainInfo;
@@ -3784,7 +3988,7 @@ class BaseProvider extends eventemitter3.EventEmitter {
   /**
    * Connect to the blockchain
    */
-  async connect() {
+  async connect(chainId) {
     try {
       await this.getBlockNumber();
       this._isConnected = true;
@@ -3881,6 +4085,13 @@ class EVMProvider extends BaseProvider {
   constructor(chainInfo, config2) {
     super(chainInfo, config2);
     this.accounts = [];
+    this.metadata.name = "evm-provider";
+    this.metadata.features = {
+      ...this.metadata.features,
+      archive: false,
+      trace: false,
+      debug: false
+    };
   }
   /**
    * Switch to a different chain
@@ -3942,31 +4153,57 @@ class EVMProvider extends BaseProvider {
   /**
    * Get balance
    */
-  async getBalance(address, tokenAddress) {
-    if (tokenAddress) {
-      const data = this.encodeERC20Call("balanceOf", [address]);
-      const result = await this.call({
-        from: address,
-        to: tokenAddress,
-        data
-      });
-      return this.decodeUint256(result);
-    }
-    const balance = await this.rpcRequest("eth_getBalance", [address, "latest"]);
-    return balance;
+  async getBalance(address, blockTag) {
+    const balance = await this.rpcRequest("eth_getBalance", [
+      address,
+      blockTag || "latest"
+    ]);
+    return BigInt(balance);
+  }
+  /**
+   * Get token balance (EVM-specific)
+   */
+  async getTokenBalance(address, tokenAddress) {
+    const data = this.encodeERC20Call("balanceOf", [address]);
+    const result = await this.call({
+      to: tokenAddress,
+      data
+    });
+    return this.decodeUint256(result);
   }
   /**
    * Send transaction
    */
-  async sendTransaction(tx) {
-    const params = this.formatTransaction(tx);
+  async sendTransaction(transaction) {
+    const params = this.formatTransactionRequest(transaction);
+    let txHash;
     if (this.config.customProvider) {
-      return await this.config.customProvider.request({
+      txHash = await this.config.customProvider.request({
         method: "eth_sendTransaction",
         params: [params]
       });
+    } else {
+      txHash = await this.rpcRequest("eth_sendTransaction", [params]);
     }
-    return await this.rpcRequest("eth_sendTransaction", [params]);
+    return {
+      hash: txHash,
+      from: transaction.from || "",
+      to: transaction.to || void 0,
+      value: transaction.value || 0n,
+      gasLimit: transaction.gasLimit || 0n,
+      gasPrice: transaction.gasPrice || void 0,
+      maxFeePerGas: transaction.maxFeePerGas || void 0,
+      maxPriorityFeePerGas: transaction.maxPriorityFeePerGas || void 0,
+      nonce: transaction.nonce || 0,
+      data: transaction.data || "0x",
+      chainId: Number(this._chainInfo.chainId),
+      blockNumber: void 0,
+      blockHash: void 0,
+      confirmations: 0,
+      wait: async (confirmations) => {
+        return this.waitForTransaction(txHash, confirmations);
+      }
+    };
   }
   /**
    * Sign transaction
@@ -3988,39 +4225,44 @@ class EVMProvider extends BaseProvider {
    * Get transaction
    */
   async getTransaction(hash) {
-    const [tx, receipt] = await Promise.all([
-      this.rpcRequest("eth_getTransactionByHash", [hash]),
-      this.rpcRequest("eth_getTransactionReceipt", [hash])
-    ]);
+    const tx = await this.rpcRequest("eth_getTransactionByHash", [hash]);
     if (!tx) {
-      throw new ProviderError("Transaction not found", RpcErrorCode.INVALID_REQUEST);
+      return null;
     }
-    const currentBlock = await this.getBlockNumber();
-    const confirmations = receipt ? currentBlock - parseInt(receipt.blockNumber, 16) : 0;
     return {
-      hash,
-      status: receipt ? receipt.status === "0x1" ? "confirmed" : "failed" : "pending",
-      confirmations,
-      blockNumber: receipt ? parseInt(receipt.blockNumber, 16) : void 0,
-      timestamp: Date.now(),
-      // Would need to fetch block for actual timestamp
-      gasUsed: receipt ? receipt.gasUsed : void 0,
-      effectiveGasPrice: receipt ? receipt.effectiveGasPrice : void 0,
-      error: receipt && receipt.status === "0x0" ? "Transaction failed" : void 0
+      hash: tx.hash,
+      from: tx.from,
+      to: tx.to || void 0,
+      value: BigInt(tx.value || "0"),
+      gasLimit: BigInt(tx.gas || tx.gasLimit || "0"),
+      gasPrice: tx.gasPrice ? BigInt(tx.gasPrice) : void 0,
+      maxFeePerGas: tx.maxFeePerGas ? BigInt(tx.maxFeePerGas) : void 0,
+      maxPriorityFeePerGas: tx.maxPriorityFeePerGas ? BigInt(tx.maxPriorityFeePerGas) : void 0,
+      nonce: parseInt(tx.nonce, 16),
+      data: tx.input || tx.data || "0x",
+      chainId: tx.chainId ? parseInt(tx.chainId, 16) : Number(this._chainInfo.chainId),
+      blockNumber: tx.blockNumber ? parseInt(tx.blockNumber, 16) : void 0,
+      blockHash: tx.blockHash || void 0,
+      confirmations: tx.blockNumber ? await this.getBlockNumber() - parseInt(tx.blockNumber, 16) : 0,
+      wait: async (confirmations) => {
+        return this.waitForTransaction(hash, confirmations);
+      }
     };
   }
   /**
    * Estimate gas
    */
-  async estimateGas(tx) {
-    const params = this.formatTransaction(tx);
-    return await this.rpcRequest("eth_estimateGas", [params]);
+  async estimateGas(transaction) {
+    const params = this.formatTransactionRequest(transaction);
+    const gas = await this.rpcRequest("eth_estimateGas", [params]);
+    return BigInt(gas);
   }
   /**
    * Get gas price
    */
   async getGasPrice() {
-    return await this.rpcRequest("eth_gasPrice", []);
+    const gasPrice = await this.rpcRequest("eth_gasPrice", []);
+    return BigInt(gasPrice);
   }
   /**
    * Sign message
@@ -4088,14 +4330,15 @@ class EVMProvider extends BaseProvider {
       throw new ProviderError("Block not found", RpcErrorCode.INVALID_REQUEST);
     }
     return {
-      number: parseInt(block.number, 16),
       hash: block.hash,
       parentHash: block.parentHash,
+      number: parseInt(block.number, 16),
       timestamp: parseInt(block.timestamp, 16),
-      transactions: block.transactions,
-      gasLimit: block.gasLimit,
-      gasUsed: block.gasUsed,
-      baseFeePerGas: block.baseFeePerGas
+      gasLimit: BigInt(block.gasLimit),
+      gasUsed: BigInt(block.gasUsed),
+      miner: block.miner,
+      baseFeePerGas: block.baseFeePerGas ? BigInt(block.baseFeePerGas) : void 0,
+      transactions: block.transactions || []
     };
   }
   /**
@@ -4108,16 +4351,17 @@ class EVMProvider extends BaseProvider {
   /**
    * Call contract method
    */
-  async call(tx) {
-    const params = this.formatTransaction(tx);
-    return await this.rpcRequest("eth_call", [params, "latest"]);
+  async call(transaction, blockTag) {
+    const params = this.formatTransactionRequest(transaction);
+    return await this.rpcRequest("eth_call", [params, blockTag || "latest"]);
   }
   // EVM-specific methods
   /**
    * Get max priority fee per gas
    */
   async getMaxPriorityFeePerGas() {
-    return await this.rpcRequest("eth_maxPriorityFeePerGas", []);
+    const fee = await this.rpcRequest("eth_maxPriorityFeePerGas", []);
+    return BigInt(fee);
   }
   /**
    * Get fee history
@@ -4164,17 +4408,6 @@ class EVMProvider extends BaseProvider {
    */
   async getStorageAt(address, position) {
     return await this.rpcRequest("eth_getStorageAt", [address, position, "latest"]);
-  }
-  /**
-   * Get logs
-   */
-  async getLogs(filter) {
-    const params = {
-      ...filter,
-      fromBlock: filter.fromBlock ? typeof filter.fromBlock === "number" ? `0x${filter.fromBlock.toString(16)}` : filter.fromBlock : "latest",
-      toBlock: filter.toBlock ? typeof filter.toBlock === "number" ? `0x${filter.toBlock.toString(16)}` : filter.toBlock : "latest"
-    };
-    return await this.rpcRequest("eth_getLogs", [params]);
   }
   /**
    * EIP-1193 request method
@@ -4224,6 +4457,202 @@ class EVMProvider extends BaseProvider {
   }
   encodeENSResolve(name) {
     return "0x" + name;
+  }
+  formatBlockTag(blockTag) {
+    if (typeof blockTag === "string") {
+      return blockTag;
+    }
+    if (typeof blockTag === "number") {
+      return `0x${blockTag.toString(16)}`;
+    }
+    return "latest";
+  }
+  /**
+   * Additional required methods
+   */
+  async getNetwork() {
+    const chainId = await this.getChainId();
+    const networkNames = {
+      1: "mainnet",
+      5: "goerli",
+      11155111: "sepolia",
+      137: "polygon",
+      42161: "arbitrum",
+      10: "optimism",
+      8453: "base"
+    };
+    return {
+      name: networkNames[chainId] || "unknown",
+      chainId
+    };
+  }
+  async getChainId() {
+    const chainId = await this.rpcRequest("eth_chainId", []);
+    return parseInt(chainId, 16);
+  }
+  async getBlockWithTransactions(blockHashOrTag) {
+    const blockParam = this.formatBlockTag(blockHashOrTag);
+    const block = await this.rpcRequest("eth_getBlockByNumber", [
+      blockParam,
+      true
+      // Include full transactions
+    ]);
+    if (!block) {
+      return null;
+    }
+    return {
+      hash: block.hash,
+      parentHash: block.parentHash,
+      number: parseInt(block.number, 16),
+      timestamp: parseInt(block.timestamp, 16),
+      gasLimit: BigInt(block.gasLimit),
+      gasUsed: BigInt(block.gasUsed),
+      miner: block.miner,
+      baseFeePerGas: block.baseFeePerGas ? BigInt(block.baseFeePerGas) : void 0,
+      transactions: block.transactions.map((tx) => this.formatTransactionResponse(tx))
+    };
+  }
+  async getTransactionReceipt(hash) {
+    const receipt = await this.rpcRequest("eth_getTransactionReceipt", [hash]);
+    if (!receipt) {
+      return null;
+    }
+    return {
+      transactionHash: receipt.transactionHash,
+      blockHash: receipt.blockHash,
+      blockNumber: parseInt(receipt.blockNumber, 16),
+      transactionIndex: parseInt(receipt.transactionIndex, 16),
+      from: receipt.from,
+      to: receipt.to,
+      contractAddress: receipt.contractAddress,
+      cumulativeGasUsed: BigInt(receipt.cumulativeGasUsed),
+      gasUsed: BigInt(receipt.gasUsed),
+      effectiveGasPrice: receipt.effectiveGasPrice ? BigInt(receipt.effectiveGasPrice) : void 0,
+      logs: receipt.logs,
+      logsBloom: receipt.logsBloom,
+      status: parseInt(receipt.status, 16)
+    };
+  }
+  async waitForTransaction(hash, confirmations = 1, timeout = 6e4) {
+    const start = Date.now();
+    while (Date.now() - start < timeout) {
+      const receipt = await this.getTransactionReceipt(hash);
+      if (receipt) {
+        const currentBlock = await this.getBlockNumber();
+        const txConfirmations = currentBlock - receipt.blockNumber;
+        if (txConfirmations >= confirmations) {
+          return receipt;
+        }
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1e3));
+    }
+    throw new ProviderError(`Transaction ${hash} timed out`, RpcErrorCode.INTERNAL_ERROR);
+  }
+  async getFeeData() {
+    const [gasPrice, block] = await Promise.all([
+      this.getGasPrice(),
+      this.getBlock("latest")
+    ]);
+    let maxFeePerGas;
+    let maxPriorityFeePerGas;
+    let lastBaseFeePerGas;
+    if (block && block.baseFeePerGas) {
+      lastBaseFeePerGas = typeof block.baseFeePerGas === "bigint" ? block.baseFeePerGas : BigInt(block.baseFeePerGas);
+      maxPriorityFeePerGas = BigInt(15e8);
+      maxFeePerGas = lastBaseFeePerGas * BigInt(2) + maxPriorityFeePerGas;
+    }
+    return {
+      gasPrice,
+      lastBaseFeePerGas,
+      maxFeePerGas,
+      maxPriorityFeePerGas
+    };
+  }
+  async getLogs(filter) {
+    const params = {
+      ...filter,
+      fromBlock: filter.fromBlock ? this.formatBlockTag(filter.fromBlock) : "latest",
+      toBlock: filter.toBlock ? this.formatBlockTag(filter.toBlock) : "latest"
+    };
+    return await this.rpcRequest("eth_getLogs", [params]);
+  }
+  getRawProvider() {
+    return this.config.customProvider || null;
+  }
+  getEndpoint() {
+    return this.rpcUrl;
+  }
+  async getCostMetrics() {
+    return {
+      computeUnitsUsed: 0,
+      requestsUsed: 0,
+      billingPeriod: {
+        start: /* @__PURE__ */ new Date(),
+        end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1e3)
+        // 30 days from now
+      }
+    };
+  }
+  async getHealthMetrics() {
+    const start = Date.now();
+    try {
+      await this.getBlockNumber();
+      const latency = Date.now() - start;
+      return {
+        healthy: true,
+        latency,
+        successRate: 1,
+        uptime: 1
+      };
+    } catch (error) {
+      return {
+        healthy: false,
+        latency: Date.now() - start,
+        successRate: 0,
+        uptime: 0,
+        lastError: {
+          message: error.message,
+          timestamp: /* @__PURE__ */ new Date()
+        }
+      };
+    }
+  }
+  async healthCheck() {
+    return this.getHealthMetrics();
+  }
+  formatTransactionResponse(tx) {
+    return {
+      hash: tx.hash,
+      from: tx.from,
+      to: tx.to || void 0,
+      value: BigInt(tx.value || "0"),
+      gasLimit: BigInt(tx.gas || tx.gasLimit || "0"),
+      gasPrice: tx.gasPrice ? BigInt(tx.gasPrice) : void 0,
+      maxFeePerGas: tx.maxFeePerGas ? BigInt(tx.maxFeePerGas) : void 0,
+      maxPriorityFeePerGas: tx.maxPriorityFeePerGas ? BigInt(tx.maxPriorityFeePerGas) : void 0,
+      nonce: parseInt(tx.nonce, 16),
+      data: tx.input || tx.data || "0x",
+      chainId: tx.chainId ? parseInt(tx.chainId, 16) : Number(this._chainInfo.chainId),
+      blockNumber: tx.blockNumber ? parseInt(tx.blockNumber, 16) : void 0,
+      blockHash: tx.blockHash || void 0,
+      confirmations: 0,
+      wait: async (confirmations) => {
+        return this.waitForTransaction(tx.hash, confirmations);
+      }
+    };
+  }
+  formatTransactionRequest(tx) {
+    const formatted = {};
+    if (tx.from) formatted.from = tx.from;
+    if (tx.to) formatted.to = tx.to;
+    if (tx.value) formatted.value = `0x${tx.value.toString(16)}`;
+    if (tx.data) formatted.data = tx.data;
+    if (tx.gasLimit) formatted.gas = `0x${tx.gasLimit.toString(16)}`;
+    if (tx.gasPrice) formatted.gasPrice = `0x${tx.gasPrice.toString(16)}`;
+    if (tx.maxFeePerGas) formatted.maxFeePerGas = `0x${tx.maxFeePerGas.toString(16)}`;
+    if (tx.maxPriorityFeePerGas) formatted.maxPriorityFeePerGas = `0x${tx.maxPriorityFeePerGas.toString(16)}`;
+    if (tx.nonce !== void 0) formatted.nonce = `0x${tx.nonce.toString(16)}`;
+    return formatted;
   }
 }
 class ProviderFactory {
@@ -8175,7 +8604,6 @@ exports.DiscoveryProtocol = DiscoveryProtocol.DiscoveryProtocol;
 exports.Logger = DiscoveryProtocol.Logger;
 exports.ModLoader = DiscoveryProtocol.ModLoader;
 exports.ModRegistry = DiscoveryProtocol.ModRegistry;
-exports.AccountType = AccountType;
 exports.AccountTypeCategory = AccountTypeCategory;
 exports.AccountTypeStatus = AccountTypeStatus;
 exports.BASIS_POINTS_DIVISOR = BASIS_POINTS_DIVISOR;
@@ -8187,7 +8615,6 @@ exports.BigNumberishMath = BigNumberishMath;
 exports.BroadcastStateSync = BroadcastStateSync;
 exports.CACHE_TTL = CACHE_TTL;
 exports.CORE_VERSION = CORE_VERSION;
-exports.CacheEvictionPolicy = CacheEvictionPolicy;
 exports.ChainId = ChainId;
 exports.ChainType = ChainType;
 exports.ChromeLocalStorageProviderFactory = ChromeLocalStorageProviderFactory;
@@ -8269,11 +8696,9 @@ exports.StorageManager = StorageManager;
 exports.StorageMigrator = StorageMigrator;
 exports.StorageStateSync = StorageStateSync;
 exports.StorageType = StorageType;
-exports.StreamState = StreamState;
 exports.SynchronizedState = SynchronizedState;
 exports.SystemTheme = SystemTheme;
 exports.TokenStandard = TokenStandard;
-exports.TransactionCategory = TransactionCategory;
 exports.TransactionStatus = TransactionStatus;
 exports.TransactionType = TransactionType;
 exports.VersionedStorageWrapper = VersionedStorageWrapper;
@@ -8301,6 +8726,11 @@ exports.defaultContainer = defaultContainer;
 exports.derived = derived;
 exports.endOfDay = endOfDay;
 exports.ensureHexFormat = ensureHexFormat;
+exports.fetchBatch = fetchBatch;
+exports.fetchGet = get$1;
+exports.fetchJson = fetchJson;
+exports.fetchUtils = fetchUtils;
+exports.fetchWithRetry = fetchWithRetry;
 exports.formatDate = formatDate;
 exports.formatTimestamp = formatTimestamp;
 exports.get = get;
@@ -8325,6 +8755,7 @@ exports.isYesterday = isYesterday;
 exports.localPersisted = localPersisted;
 exports.loggingMiddleware = loggingMiddleware;
 exports.persisted = persisted;
+exports.post = post;
 exports.providerFactory = providerFactory;
 exports.readable = readable;
 exports.resetStateManager = resetStateManager;

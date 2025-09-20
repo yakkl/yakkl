@@ -30,7 +30,8 @@
 	// Get network status
 	function getNetworkStatus(chainId: number): 'active' | 'inactive' | 'error' {
 		// This would be enhanced with actual network status checking
-		if (chainId === 1 || chainId === 137 || chainId === 56) {
+		// Only Alchemy-supported chains are considered active by default
+		if (chainId === 1 || chainId === 137 || chainId === 42161 || chainId === 10 || chainId === 8453) {
 			return 'active';
 		}
 		return 'inactive';
@@ -41,10 +42,9 @@
 		const colors: Record<number, string> = {
 			1: 'from-blue-500 to-blue-600',      // Ethereum
 			137: 'from-purple-500 to-purple-600', // Polygon
-			56: 'from-yellow-500 to-yellow-600',  // BSC
-			43114: 'from-red-500 to-red-600',     // Avalanche
 			42161: 'from-blue-400 to-blue-500',   // Arbitrum
 			10: 'from-red-400 to-red-500',        // Optimism
+			8453: 'from-indigo-500 to-indigo-600', // Base
 		};
 		return colors[chainId] || 'from-gray-500 to-gray-600';
 	}
@@ -54,10 +54,9 @@
 		const icons: Record<number, string> = {
 			1: '⟠',      // Ethereum
 			137: '🟣',   // Polygon
-			56: '🟡',    // BSC
-			43114: '🔺', // Avalanche
 			42161: '🔵', // Arbitrum
 			10: '🔴',    // Optimism
+			8453: '🔵', // Base
 		};
 		return icons[chainId] || '🔗';
 	}

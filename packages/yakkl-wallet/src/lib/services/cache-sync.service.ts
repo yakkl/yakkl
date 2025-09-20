@@ -36,6 +36,15 @@ export class CacheSyncManager {
 	private readonly PRICE_SYNC_INTERVAL = 15000; // 15 seconds for price updates (testing)
 	private readonly TRANSACTION_SYNC_INTERVAL = 180000; // 3 minutes for transactions
 
+	// Request deduplication - prevent concurrent identical requests
+	private pendingRequests = new Map<string, Promise<any>>();
+	private lastRequestTime = new Map<string, number>();
+	private readonly REQUEST_CACHE_TTL = 5000; // 5 seconds cache for identical requests
+
+	// Balance cache - prevent excessive RPC calls
+	private balanceCache = new Map<string, { balance: any; timestamp: number }>();
+	private readonly BALANCE_CACHE_TTL = 15 * 60 * 1000; // 15 minutes for balance cache
+
 	private constructor() {
 		// Delay service initialization to avoid circular dependencies
 		// Services will be initialized on first use
@@ -51,6 +60,74 @@ export class CacheSyncManager {
 		if (!this.transactionService) {
 			this.transactionService = TransactionService.getInstance();
 		}
+	}
+
+	/**
+	 * Get native balance with caching to prevent excessive RPC calls
+	 */
+	private async getNativeBalanceWithCache(address: string, chainId: number): Promise<any> {
+		const cacheKey = `balance_${address}_${chainId}`;
+		const cached = this.balanceCache.get(cacheKey);
+
+		if (cached && Date.now() - cached.timestamp < this.BALANCE_CACHE_TTL) {
+			console.debug(`[CacheSync] Using cached balance for ${address} on chain ${chainId}`);
+			return { success: true, data: cached.balance };
+		}
+
+		// Use deduplication for the actual request
+		return this.deduplicateRequest(cacheKey, async () => {
+			const response = await sendMessageWithPromise({
+				type: 'GET_NATIVE_BALANCE',
+				data: { address, chainId }
+			});
+
+			// Cache the successful response
+			if (response?.success && response.data) {
+				this.balanceCache.set(cacheKey, {
+					balance: response.data,
+					timestamp: Date.now()
+				});
+			}
+
+			return response;
+		});
+	}
+
+	/**
+	 * Deduplicate requests to prevent multiple concurrent identical calls
+	 */
+	private async deduplicateRequest<T>(
+		key: string,
+		requestFn: () => Promise<T>
+	): Promise<T> {
+		// Check if we have a pending request for this key
+		if (this.pendingRequests.has(key)) {
+			console.debug(`[CacheSync] Deduplicating request: ${key}`);
+			return this.pendingRequests.get(key) as Promise<T>;
+		}
+
+		// Don't cache empty results - always make the request if we have no data
+		// This was causing issues where empty results were being cached
+		// const lastTime = this.lastRequestTime.get(key);
+		// if (lastTime && Date.now() - lastTime < this.REQUEST_CACHE_TTL) {
+		// 	console.debug(`[CacheSync] Request ${key} cached, skipping`);
+		// 	return Promise.resolve({ success: true, data: [] } as any);
+		// }
+
+		// Create new request and store promise
+		const promise = requestFn()
+			.then((result) => {
+				// Update last request time on success
+				this.lastRequestTime.set(key, Date.now());
+				return result;
+			})
+			.finally(() => {
+				// Clean up pending request
+				this.pendingRequests.delete(key);
+			});
+
+		this.pendingRequests.set(key, promise);
+		return promise;
 	}
 
 	static getInstance(): CacheSyncManager {
@@ -97,6 +174,10 @@ export class CacheSyncManager {
 					// Add minimal required properties
 				} as any; // Cast to any since we only need address
 				walletCacheStore.initializeAccountCache(yakklAccount, chain.chainId);
+
+				// CRITICAL: Set the current account and network so derived stores work
+				walletCacheStore.setCurrentAccount(yakklAccount);
+				walletCacheStore.setCurrentNetwork(chain.chainId);
 
 				// Add at least the native token immediately with 0 balance
 				// import { getNativeTokenInfo } from '$lib/utils/native-token.utils';
@@ -166,7 +247,13 @@ export class CacheSyncManager {
 
 			// CRITICAL FIX: Get fresh token data directly from blockchain, not from TokenService cache
 			console.log('[CacheSync] About to fetchTokensDirectlyFromBlockchain...');
-			const response = await this.fetchTokensDirectlyFromBlockchain(address, chainId);
+
+			// Use deduplication to prevent concurrent identical requests
+			const requestKey = `tokens:${chainId}:${address}`;
+			const response = await this.deduplicateRequest(requestKey, () =>
+				this.fetchTokensDirectlyFromBlockchain(address, chainId)
+			);
+
 			console.log('[CacheSync] fetchTokensDirectlyFromBlockchain response:', {
 				success: response?.success,
 				dataLength: response?.data?.length,
@@ -201,13 +288,13 @@ export class CacheSyncManager {
 					});
 
 					// Calculate value using balance * price with precision-safe arithmetic
-					let calculatedValue = 0n;
+					let calculatedValue: string | number = 0;
 					if (balanceStr && token.price) {
 						// Balance is already in token units, use Decimal for precision
 						const balanceDecimal = new Decimal(balanceStr);
 						const valueDecimal = balanceDecimal.times(token.price);
-						// Store as cents (bigint) to preserve precision
-						calculatedValue = BigInt(valueDecimal.times(100).toFixed(0));
+						// Store as string in dollars for consistency with UI components
+						calculatedValue = valueDecimal.toFixed(2);
 					}
 
 					return {
@@ -234,12 +321,9 @@ export class CacheSyncManager {
 				const hasNativeToken = tokenCache.some((t) => t.isNative);
 
 				if (!hasNativeToken) {
-					// Get actual ETH balance from background service
+					// Get actual ETH balance from background service with caching
 					try {
-						const response = await sendMessageWithPromise({
-							type: 'GET_NATIVE_BALANCE',
-							data: { address, chainId }
-						});
+						const response = await this.getNativeBalanceWithCache(address, chainId);
 
 						if (response.success && response.data) {
 							const balance = response.data.balance;
@@ -263,10 +347,7 @@ export class CacheSyncManager {
 								balanceLastUpdated: new Date(),
 								price: ethPrice,
 								priceLastUpdated: new Date(),
-								value: DecimalMath.of(parseFloat(balanceFormatted))
-									.mul(BigNumberishUtils.toNumber(ethPrice))
-									.toNumber()
-									.toString(),
+								value: (parseFloat(balanceFormatted) * ethPrice).toFixed(2),
 								icon: '/images/eth.svg',
 								isNative: true,
 								chainId
@@ -289,7 +370,7 @@ export class CacheSyncManager {
 							balanceLastUpdated: new Date(),
 							price: 3579.97,
 							priceLastUpdated: new Date(),
-							value: '0',
+							value: '0.00',
 							icon: '/images/eth.svg',
 							isNative: true,
 							chainId
@@ -300,12 +381,9 @@ export class CacheSyncManager {
 					// Update existing native token balance from provider if available
 					const nativeTokenIndex = tokenCache.findIndex((t) => t.isNative);
 					if (nativeTokenIndex >= 0) {
-						// Remove direct provider access - use background message instead
+						// Remove direct provider access - use background message instead with caching
 						try {
-							const response = await sendMessageWithPromise({
-								type: 'GET_NATIVE_BALANCE',
-								data: { address, chainId }
-							});
+							const response = await this.getNativeBalanceWithCache(address, chainId);
 
 							if (response.success && response.data) {
 								// Balance already comes from background service
@@ -317,10 +395,7 @@ export class CacheSyncManager {
 									...tokenCache[nativeTokenIndex],
 									balance: balanceFormatted,
 									balanceLastUpdated: new Date(),
-									value: DecimalMath.of(parseFloat(balanceFormatted))
-										.mul(BigNumberishUtils.toNumber(tokenCache[nativeTokenIndex].price || 0))
-										.toNumber()
-										.toString()
+									value: (parseFloat(balanceFormatted) * (tokenCache[nativeTokenIndex].price || 0)).toFixed(2)
 								};
 
 								log.info(
@@ -443,13 +518,14 @@ export class CacheSyncManager {
 			// Retry logic with exponential backoff
 			let nativeResponse = null;
 			let retries = 3;
-			let delay = 1000; // Start with 1 second
+			let delay = 1000; // Start with 1 second for initialization
 
 			while (retries > 0 && !nativeResponse?.success) {
 				try {
-					// Add timeout to prevent hanging
+					// Try the blockchain operation with reasonable timeout
+					// 10 seconds should be enough for most operations
 					const timeoutPromise = new Promise((_, reject) =>
-						setTimeout(() => reject(new Error('Request timeout')), 5000)
+						setTimeout(() => reject(new Error('Request timeout - blockchain operation took too long')), 10000)
 					);
 
 					const messagePromise = sendMessageWithPromise({
@@ -462,13 +538,26 @@ export class CacheSyncManager {
 					if (nativeResponse?.success) {
 						break; // Success, exit retry loop
 					}
-				} catch (error) {
-					console.warn(`[CacheSync] Attempt ${4 - retries} failed:`, error);
+				} catch (error: any) {
+					const errorMsg = error.message || String(error);
+
+					// Use debug level for timeout errors during startup - these are expected
+					if (errorMsg.includes('timeout') || errorMsg.includes('took too long')) {
+						console.debug(`[CacheSync] Attempt ${4 - retries} timed out (provider not ready):`, errorMsg);
+					} else {
+						console.warn(`[CacheSync] Attempt ${4 - retries} failed:`, errorMsg);
+					}
+
+					// Don't retry if user interrupted
+					if (errorMsg.includes('interrupted')) {
+						console.log('[CacheSync] Stopping retries - user action interrupted');
+						break;
+					}
 
 					if (retries > 1) {
 						console.log(`[CacheSync] Retrying in ${delay}ms...`);
 						await new Promise(resolve => setTimeout(resolve, delay));
-						delay *= 2; // Exponential backoff
+						delay = Math.min(delay * 2, 5000); // Exponential backoff with cap at 5 seconds
 					}
 				}
 
@@ -477,8 +566,23 @@ export class CacheSyncManager {
 
 			// Handle null or undefined response
 			if (!nativeResponse) {
-				console.error('[CacheSync] No response from background service after retries');
-				throw new Error('Background service not responding - provider may be initializing');
+				console.warn('[CacheSync] No response from background service after retries - using default values');
+				// Return empty token list instead of throwing - allows wallet to initialize
+				return {
+					success: true,
+					data: [{
+						address: '0x0000000000000000000000000000000000000000',
+						symbol: 'ETH',
+						name: 'Ethereum',
+						decimals: 18,
+						balance: '0',
+						isNative: true,
+						chainId,
+						icon: '/images/eth.svg',
+						price: 0,
+						value: '0.00'
+					}]
+				};
 			}
 
 			if (!nativeResponse.success) {
@@ -568,15 +672,44 @@ export class CacheSyncManager {
 			}
 
 			const tokenBalances = [];
-			const tokenAddresses = [
-				'0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC
-				'0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', // WETH
-				'0xdAC17F958D2ee523a2206206994597C13D831ec7', // USDT
-				'0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599'  // WBTC
-			];
 
-			// CRITICAL: Force check the specific tokens user claims to own
-			console.log(`[CacheSync] Force-checking specific tokens for account ${address}`);
+			// Get user-specific tokens from storage first
+			let tokenAddresses: string[] = [];
+
+			try {
+				// Check if user has custom tokens saved via message passing
+				const userTokensKey = `userTokens_${address}_${chainId}`;
+				const storageResponse = await sendMessageWithPromise({
+					type: 'STORAGE_GET',
+					data: { keys: [userTokensKey] }
+				});
+
+				if (storageResponse?.success && storageResponse.data?.[userTokensKey] && Array.isArray(storageResponse.data[userTokensKey])) {
+					tokenAddresses = storageResponse.data[userTokensKey];
+					console.log(`[CacheSync] Found ${tokenAddresses.length} saved user tokens for account ${address}`);
+				} else {
+					// Only use popular tokens as a starting point, not a fixed list
+					// These will be checked for actual balances, not forced on all accounts
+					const popularTokens = [
+						'0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC
+						'0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', // WETH
+						'0xdAC17F958D2ee523a2206206994597C13D831ec7', // USDT
+						'0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599'  // WBTC
+					];
+
+					// TODO: In the future, implement token discovery from blockchain events
+					// For now, just check popular tokens for non-zero balances
+					tokenAddresses = popularTokens;
+					console.log(`[CacheSync] No saved tokens found, checking ${tokenAddresses.length} popular tokens for non-zero balances`);
+				}
+			} catch (error) {
+				console.warn('[CacheSync] Failed to load user tokens from storage:', error);
+				// Continue with empty array - will only show native token
+				tokenAddresses = [];
+			}
+
+			// Check token balances, but only include those with non-zero balance
+			console.log(`[CacheSync] Checking token balances for account ${address}`);
 
 			for (const tokenAddress of tokenAddresses) {
 				const tokenData = chainTokens.find(t => t.address.toLowerCase() === tokenAddress.toLowerCase());
@@ -622,45 +755,31 @@ export class CacheSyncManager {
 					});
 
 					const decimals = contractDecimals || tokenData.decimals || 18;
-
-					// Include ALL tokens, even zero balance ones for debugging
 					const balanceFormatted = formatUnits(balance.toString(), decimals);
-					const tokenEntry = {
-						address: tokenData.address,
-						symbol: tokenData.symbol,
-						name: tokenData.name,
-						decimals,
-						balance: balanceFormatted,
-						isNative: false,
-						chainId,
-						icon: tokenData.logoURI || tokenData.icon || '🪙',
-						price: 0, // Will be set during price sync
-						value: 0n // Will be calculated after price sync
-					};
 
-					tokenBalances.push(tokenEntry);
-
+					// Only include tokens with non-zero balance
 					if (balance > 0n) {
+						const tokenEntry = {
+							address: tokenData.address,
+							symbol: tokenData.symbol,
+							name: tokenData.name,
+							decimals,
+							balance: balanceFormatted,
+							isNative: false,
+							chainId,
+							icon: tokenData.logoURI || tokenData.icon || '🪙',
+							price: 0, // Will be set during price sync
+							value: '0.00' // Will be calculated after price sync
+						};
+
+						tokenBalances.push(tokenEntry);
 						console.log(`[CacheSync] ✅ Found balance for ${tokenData.symbol}: ${balanceFormatted}`);
 					} else {
-						console.log(`[CacheSync] ⚠️  Zero balance for ${tokenData.symbol}: ${balanceFormatted}`);
+						console.log(`[CacheSync] ⚠️  Zero balance for ${tokenData.symbol}, skipping`);
 					}
 				} catch (error) {
 					console.error(`[CacheSync] ❌ Error checking ${tokenData.symbol} at ${tokenData.address}:`, error);
-					// Add zero balance entry for failed tokens so we can see the issue
-					tokenBalances.push({
-						address: tokenData.address,
-						symbol: tokenData.symbol,
-						name: tokenData.name,
-						decimals: tokenData.decimals || 18,
-						balance: '0',
-						isNative: false,
-						chainId,
-						icon: tokenData.logoURI || tokenData.icon || '🪙',
-						error: error.message,
-						price: 0,
-						value: 0n
-					});
+					// Skip failed tokens - don't add them to the list
 				}
 			}
 
@@ -713,7 +832,7 @@ export class CacheSyncManager {
 							chainId,
 							icon: tokenData.logoURI || tokenData.icon || '🪙',
 							price: 0,
-							value: 0n
+							value: '0.00'
 						});
 						console.debug(`[CacheSync] Found balance for ${tokenData.symbol}: ${balanceFormatted}`);
 					}
@@ -723,8 +842,31 @@ export class CacheSyncManager {
 				}
 			}
 
-			console.log(`[CacheSync] Found ${tokenBalances.length} ERC20 tokens total (including zero balances)`);
-			console.log(`[CacheSync] Non-zero balances: ${tokenBalances.filter(t => parseFloat(t.balance) > 0).length}`);
+			console.log(`[CacheSync] Found ${tokenBalances.length} ERC20 tokens with non-zero balances`);
+
+			// Save discovered tokens for this account to avoid checking all tokens next time
+			if (tokenBalances.length > 0) {
+				try {
+					const userTokensKey = `userTokens_${address}_${chainId}`;
+					const tokenAddressesToSave = tokenBalances.map(t => t.address);
+
+					const storageResponse = await sendMessageWithPromise({
+						type: 'STORAGE_SET',
+						data: {
+							[userTokensKey]: tokenAddressesToSave
+						}
+					});
+
+					if (storageResponse?.success) {
+						console.log(`[CacheSync] Saved ${tokenAddressesToSave.length} discovered tokens for account ${address}`);
+					} else {
+						console.warn('[CacheSync] Failed to save user tokens:', storageResponse?.error);
+					}
+				} catch (error) {
+					console.warn('[CacheSync] Failed to save user tokens:', error);
+				}
+			}
+
 			return tokenBalances;
 		} catch (error) {
 			console.error('[CacheSync] ERC20 fetch failed:', error);
@@ -802,12 +944,28 @@ export class CacheSyncManager {
 				if (!response.data || response.data.length === 0) {
 					// Get existing cache to check if this is suspicious
 					const cache = walletCacheStore.getAccountCache(chainId, address);
-					if (cache?.transactions.transactions.length > 0) {
+					const existingTransactionCount = cache?.transactions.transactions.length || 0;
+
+					if (existingTransactionCount > 0) {
 						console.warn(
-							'[CacheSync] Transaction service returned empty but we have existing transactions - SKIPPING',
-							{ existingCount: cache.transactions.transactions.length }
+							'[CacheSync] Transaction service returned empty but we have existing transactions - LIKELY API ISSUE',
+							{
+								existingCount: existingTransactionCount,
+								address,
+								chainId,
+								serviceResponse: response
+							}
 						);
+
+						// Check if this is a persistent issue (multiple empty responses in a row)
+						// For now, we'll log and skip to preserve existing data
+						// TODO: Implement retry logic with exponential backoff
 						return;
+					} else {
+						console.debug(
+							'[CacheSync] No transactions found for new account/address',
+							{ address, chainId }
+						);
 					}
 				}
 

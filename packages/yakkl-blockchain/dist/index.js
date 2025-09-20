@@ -1,15 +1,47 @@
 import { arbitrum, avalanche, base, bsc, chainById, chains, ethereum, getChainById, getChainByNetwork, getMainnetChains, getTestnetChains, isTestnet, optimism, polygon, sepolia } from "./chains.js";
 import { BaseToken, ERC20Token, TokenService, commonTokens, formatTokenAmount, getToken, getTokensByChain, getTokensBySymbol, isStablecoin, isWrappedNative, mergeTokenLists, parseTokenAmount, validateTokenList } from "./tokens.js";
 import { AAVE_ATOKENS, AAVE_INFO, AAVE_ORACLE, AAVE_V3_DATA_PROVIDER, AAVE_V3_POOL, HEALTH_FACTOR_LIQUIDATION_THRESHOLD, HEALTH_FACTOR_SAFE_THRESHOLD, HEALTH_FACTOR_WARNING_THRESHOLD, InterestRateMode, UNISWAP_INFO, UNISWAP_V2_FACTORY, UNISWAP_V2_ROUTER, UNISWAP_V3_FACTORY, UNISWAP_V3_ROUTER, UniswapV3FeeTier, calculateBorrowAPY, calculateHealthFactor, calculateMaxBorrow, calculateMinimumAmountOut, calculatePriceImpact, calculateSupplyAPY, getAaveAddresses, getOptimalRoute, getRiskLevel, getUniswapAddresses, getV3PoolAddress, hasLiquidity } from "./protocols.js";
+import { ChainType } from "@yakkl/core";
+import { ChainType as ChainType2 } from "@yakkl/core";
 class BaseProvider {
   constructor(config) {
     this.listeners = /* @__PURE__ */ new Map();
-    this.connected = false;
+    this._connected = false;
     this.config = config;
     this.name = config.name;
     this.blockchains = config.blockchains || [];
     this.chainIds = config.chainIds || [];
-    this.currentChainId = config.chainId || 1;
+    this.currentChainId = this.chainIds[0] || 1;
+    this.metadata = {
+      name: this.name,
+      priority: config.priority || 10,
+      supportedMethods: ["*"],
+      // Will be overridden by subclasses
+      supportedChainIds: this.chainIds,
+      costStructure: "free",
+      // Will be overridden by subclasses
+      features: {
+        websocket: false,
+        batchRequests: false
+      }
+    };
+    this.chainInfo = {
+      chainId: this.currentChainId,
+      name: this.getChainName(this.currentChainId),
+      type: ChainType.EVM,
+      // Default to EVM, override in subclasses
+      nativeCurrency: {
+        name: "Ether",
+        symbol: "ETH",
+        decimals: 18
+      },
+      rpcUrls: config.url ? [config.url] : [],
+      isTestnet: this.isTestnetChain(this.currentChainId)
+    };
+  }
+  // Getter for isConnected property
+  get isConnected() {
+    return this._connected;
   }
   // Common implementation for transaction waiting
   async waitForTransaction(transactionHash, confirmations = 1, timeout = 6e4) {
@@ -86,24 +118,24 @@ class BaseProvider {
     }
     return JSON.stringify(eventName);
   }
-  // Connection management
-  async connect() {
-    if (this.connected) {
+  // Connection management with optional chainId
+  async connect(chainId) {
+    if (this._connected && (!chainId || chainId === this.currentChainId)) {
       return;
     }
-    this.connected = true;
-    this.emit("connect");
+    if (chainId && chainId !== this.currentChainId) {
+      await this.switchChain(chainId);
+    }
+    this._connected = true;
+    this.emit("connect", this.currentChainId);
   }
   async disconnect() {
-    if (!this.connected) {
+    if (!this._connected) {
       return;
     }
-    this.connected = false;
+    this._connected = false;
     this.emit("disconnect");
     this.removeAllListeners();
-  }
-  isConnected() {
-    return this.connected;
   }
   // Helper methods
   getName() {
@@ -123,7 +155,76 @@ class BaseProvider {
       throw new Error(`Chain ID ${chainId} not supported by ${this.name} provider`);
     }
     this.currentChainId = chainId;
+    this.chainInfo.chainId = chainId;
+    this.chainInfo.name = this.getChainName(chainId);
+    this.chainInfo.isTestnet = this.isTestnetChain(chainId);
     this.emit("chainChanged", chainId);
+  }
+  /**
+   * Get the raw underlying provider instance
+   */
+  getRawProvider() {
+    return this;
+  }
+  /**
+   * Get the provider's RPC endpoint URL
+   */
+  getEndpoint() {
+    return this.config.url || "";
+  }
+  /**
+   * Get current cost metrics for routing decisions
+   */
+  async getCostMetrics() {
+    return {
+      requestsUsed: 0,
+      requestsLimit: void 0,
+      methodCosts: {},
+      billingPeriod: {
+        start: /* @__PURE__ */ new Date(),
+        end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1e3),
+        // 30 days
+        costSoFar: 0
+      }
+    };
+  }
+  /**
+   * Get current health metrics
+   */
+  async getHealthMetrics() {
+    return {
+      healthy: this._connected,
+      latency: 0,
+      successRate: 1,
+      uptime: 100
+    };
+  }
+  /**
+   * Perform a health check
+   */
+  async healthCheck() {
+    try {
+      const start = Date.now();
+      await this.getBlockNumber();
+      const latency = Date.now() - start;
+      return {
+        healthy: true,
+        latency,
+        successRate: 1,
+        uptime: 100
+      };
+    } catch (error) {
+      return {
+        healthy: false,
+        latency: 0,
+        successRate: 0,
+        uptime: 0,
+        lastError: {
+          message: error instanceof Error ? error.message : "Health check failed",
+          timestamp: /* @__PURE__ */ new Date()
+        }
+      };
+    }
   }
   // Utility method to validate addresses
   isValidAddress(address) {
@@ -142,6 +243,28 @@ class BaseProvider {
       return new Error(`RPC Error ${error.code}: ${error.message}`);
     }
     return error instanceof Error ? error : new Error(String(error));
+  }
+  // Helper method to get chain name
+  getChainName(chainId) {
+    const chainNames = {
+      1: "Ethereum Mainnet",
+      5: "Goerli",
+      11155111: "Sepolia",
+      137: "Polygon",
+      80001: "Mumbai",
+      56: "BSC",
+      97: "BSC Testnet",
+      42161: "Arbitrum",
+      421613: "Arbitrum Goerli",
+      10: "Optimism",
+      420: "Optimism Goerli"
+    };
+    return chainNames[chainId] || `Chain ${chainId}`;
+  }
+  // Helper method to check if chain is testnet
+  isTestnetChain(chainId) {
+    const testnets = [5, 11155111, 80001, 97, 421613, 420];
+    return testnets.includes(chainId);
   }
 }
 const NETWORK_MAP = {
@@ -194,6 +317,12 @@ class AlchemyProvider extends BaseProvider {
       throw this.handleRpcError(data.error);
     }
     return data.result;
+  }
+  /**
+   * EIP-1193 request method implementation
+   */
+  async request(args) {
+    return this.makeRpcCall(args.method, args.params || []);
   }
   async getNetwork() {
     const chainId = await this.getChainId();
@@ -297,9 +426,9 @@ class AlchemyProvider extends BaseProvider {
       this.getGasPrice(),
       this.getBlock("latest")
     ]);
-    let maxFeePerGas = null;
-    let maxPriorityFeePerGas = null;
-    let lastBaseFeePerGas = null;
+    let maxFeePerGas;
+    let maxPriorityFeePerGas;
+    let lastBaseFeePerGas;
     if (block && block.baseFeePerGas) {
       lastBaseFeePerGas = BigInt(block.baseFeePerGas.toString());
       maxPriorityFeePerGas = BigInt(15e8);
@@ -420,6 +549,7 @@ export {
   AlchemyProvider,
   BaseProvider,
   BaseToken,
+  ChainType2 as ChainType,
   ERC20Token,
   HEALTH_FACTOR_LIQUIDATION_THRESHOLD,
   HEALTH_FACTOR_SAFE_THRESHOLD,

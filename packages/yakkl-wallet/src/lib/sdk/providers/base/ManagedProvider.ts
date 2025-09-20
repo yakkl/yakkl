@@ -74,36 +74,50 @@ export abstract class ManagedProvider extends BaseProvider {
   }
 
   /**
+   * EIP-1193 request format - override base class to add rate limiting and quota tracking
+   */
+  async request<T = any>(args: { method: string; params?: any[] }): Promise<T> {
+    return this.requestWithMethod<T>(args.method, args.params);
+  }
+
+  /**
    * Make a request with rate limiting and quota tracking
    */
-  async request<T = unknown>(method: string, params?: unknown[]): Promise<T> {
+  async requestWithMethod<T = unknown>(method: string, params?: unknown[]): Promise<T> {
     this.validateConnection();
-    
+
     // Check rate limits
     await this.rateLimitTracker.checkRateLimit(this.providerName);
-    
+
     // Check quota
     if (!this.quotaTracker.canMakeRequest(this.providerName)) {
       throw new Error(`Quota exceeded for ${this.providerName}`);
     }
 
     const startTime = Date.now();
-    
+
     try {
       const result = await this.makeProviderRequest<T>(method, params);
-      
+
       // Track successful request
       const responseTime = Date.now() - startTime;
       await this.trackSuccess(method, responseTime);
-      
+
       return result;
     } catch (error) {
       // Track failed request
       const responseTime = Date.now() - startTime;
       await this.trackFailure(method, error, responseTime);
-      
+
       throw error;
     }
+  }
+
+  /**
+   * Implementation of doRequest for BaseProvider compatibility
+   */
+  protected async doRequest<T = unknown>(method: string, params?: unknown[]): Promise<T> {
+    return this.requestWithMethod<T>(method, params);
   }
 
   /**

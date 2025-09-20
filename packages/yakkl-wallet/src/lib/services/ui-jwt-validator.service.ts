@@ -67,12 +67,16 @@ export class UIJWTValidatorService {
       const authState = get(authStore);
       const sessionManager = SessionManager.getInstance();
       const sessionState = sessionManager.getSessionState();
-      const hasJWT = !!(authState.jwtToken || sessionState?.jwtToken);
-      
-      // Adjust delay based on JWT status - longer delay if no JWT yet
-      const initialDelay = hasJWT ? 30000 : 120000; // 30s if JWT exists, 120s if not
-      
-      console.log('[UIJWTValidator] Initial delay:', initialDelay, 'ms, hasJWT:', hasJWT);
+      const hasJWT = !!(authState.jwtToken || sessionState?.jwtToken || sessionStorage.getItem('wallet-jwt-token'));
+
+      // Check if we just logged in (JWT in sessionStorage means fresh login)
+      const justLoggedIn = !!sessionStorage.getItem('wallet-jwt-token');
+
+      // Adjust delay based on JWT status and login state
+      // Much longer grace period if we just logged in to prevent immediate popup
+      const initialDelay = justLoggedIn ? 180000 : (hasJWT ? 60000 : 120000); // 3 min for fresh login, 1 min if JWT exists, 2 min if not
+
+      console.log('[UIJWTValidator] Initial delay:', initialDelay, 'ms, hasJWT:', hasJWT, 'justLoggedIn:', justLoggedIn);
 
       // Delay all JWT validation operations to prevent login/home page slowdown
       // Phase 1: Connect to background after initial delay
@@ -283,48 +287,69 @@ export class UIJWTValidatorService {
       
       // Basic checks without calling full session validation
       if (!authState.isAuthenticated || !jwtToken) {
-        console.log('[UIJWTValidator] Not authenticated or no JWT token');
-        
-        // Check if we're within grace period after login (first 120 seconds)
-        // Extended grace period to account for JWT generation and propagation
+        console.log('[UIJWTValidator] Not authenticated or no JWT token', {
+          isAuthenticated: authState.isAuthenticated,
+          hasJWT: !!jwtToken,
+          lastActivity: authState.lastActivity
+        });
+
+        // CRITICAL FIX: If user is authenticated but JWT is not ready yet,
+        // we should ALWAYS skip validation to prevent false positives
+        if (authState.isAuthenticated && !jwtToken) {
+          console.log('[UIJWTValidator] User authenticated but JWT not ready - skipping validation entirely');
+          // JWT is still being generated after login - this is normal
+          // DO NOT show any warning - the JWT will arrive soon
+          return;
+        }
+
+        // Check if we're within grace period after login (first 5 minutes)
+        // This handles cases where both auth and JWT are missing temporarily
         const timeSinceActivity = Date.now() - authState.lastActivity;
-        if (timeSinceActivity < 120000) { // Changed from 60000 to 120000 (2 minutes)
+        if (timeSinceActivity < 300000) { // 5 minutes grace period
           console.log('[UIJWTValidator] Within extended grace period after login, skipping validation');
           return;
         }
-        
-        // Additional check: if authenticated but no JWT yet, give more time
-        if (authState.isAuthenticated && !jwtToken && timeSinceActivity < 180000) { // 3 minutes grace for JWT generation
-          console.log('[UIJWTValidator] Authenticated but JWT not yet set, extending grace period');
-          return;
+
+        // Only show warning if truly not authenticated AND past grace period
+        if (!authState.isAuthenticated) {
+          // Show 20-second security countdown modal
+          this.showSecurityWarningModal(
+            'Your session has expired or is invalid.',
+            'JWT validation failed - not authenticated'
+          );
         }
-        
-        // Show 20-second security countdown modal instead of immediate logout
-        this.showSecurityWarningModal(
-          'Your session has expired or is invalid.',
-          'JWT validation failed - no authentication or token'
-        );
         return;
       }
 
       // Check if session state exists and is active
       if (!authState.sessionState || !authState.profile) {
-        console.log('[UIJWTValidator] No valid session state or profile');
-        
-        // Check if we're within grace period after login (first 120 seconds)
-        // Extended grace period to account for session state propagation
-        const timeSinceActivity = Date.now() - authState.lastActivity;
-        if (timeSinceActivity < 120000) { // Changed from 60000 to 120000 (2 minutes)
-          console.log('[UIJWTValidator] Within extended grace period after login, skipping validation');
+        console.log('[UIJWTValidator] No valid session state or profile', {
+          hasSessionState: !!authState.sessionState,
+          hasProfile: !!authState.profile,
+          hasJWT: !!jwtToken
+        });
+
+        // CRITICAL FIX: If we have a JWT token, the session is valid
+        // Session state might be updating asynchronously - don't fail validation
+        if (jwtToken) {
+          console.log('[UIJWTValidator] Have valid JWT token - session is valid despite missing state');
+          // Continue with validation - JWT is the source of truth
+          // Session state will catch up asynchronously
+        } else {
+          // Check if we're within grace period after login (first 5 minutes)
+          const timeSinceActivity = Date.now() - authState.lastActivity;
+          if (timeSinceActivity < 300000) { // 5 minutes grace period
+            console.log('[UIJWTValidator] Within grace period for session state, skipping validation');
+            return;
+          }
+
+          // Only show warning if we don't have JWT AND past grace period
+          this.showSecurityWarningModal(
+            'Your session state is invalid.',
+            'JWT validation failed - no valid session state or profile'
+          );
           return;
         }
-        
-        // Show 20-second security countdown modal instead of immediate logout
-        this.showSecurityWarningModal(
-          'Your session state is invalid.',
-          'JWT validation failed - no valid session state or profile'
-        );
-        return;
       }
 
       // Send validation result to background

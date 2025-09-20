@@ -31,6 +31,17 @@ class TORDetectorService {
    * Main detection method - combines multiple techniques
    */
   async detectTOR(): Promise<TORDetectionResult> {
+    // Skip TOR detection for sidepanel - it doesn't interact with blockchain
+    // Sidepanel only aggregates news and pricing, no wallet operations
+    if (typeof window !== 'undefined' && window.location?.pathname?.includes('sidepanel')) {
+      return {
+        isTOR: false,
+        confidence: 'low',
+        detectionMethod: [],
+        reason: undefined
+      };
+    }
+
     // Check cache
     if (this.detectionCache && Date.now() - this.lastCheck < this.CACHE_DURATION) {
       return this.detectionCache;
@@ -133,31 +144,32 @@ class TORDetectorService {
     const checks = {
       // TOR Browser uses specific window sizes
       windowSize: (
-        window.screen.width === 1000 && 
+        window.screen.width === 1000 &&
         window.screen.height === 1000
       ) || (
-        window.screen.width === 1000 && 
+        window.screen.width === 1000 &&
         window.screen.height === 900
       ),
-      
+
       // TOR Browser always reports UTC timezone
       timezone: new Date().getTimezoneOffset() === 0,
-      
+
       // TOR Browser has no plugins
       noPlugins: navigator.plugins.length === 0,
-      
+
       // TOR Browser blocks canvas fingerprinting
       canvasBlocked: this.isCanvasBlocked(),
-      
-      // TOR Browser user agent pattern
+
+      // TOR Browser user agent pattern - MUST include "Tor" explicitly
       userAgent: navigator.userAgent.includes('Tor')
     };
 
     // Count positive signals
     const signals = Object.values(checks).filter(v => v === true).length;
-    
-    // 3+ signals strongly indicate TOR
-    return signals >= 3;
+
+    // Increased threshold from 3 to 4 signals to reduce false positives
+    // Must have at least 4 out of 5 indicators to be considered TOR
+    return signals >= 4;
   }
 
   /**
@@ -186,7 +198,7 @@ class TORDetectorService {
   private async checkNetworkTiming(): Promise<boolean> {
     try {
       const timings: number[] = [];
-      
+
       // Make multiple small requests to measure latency
       for (let i = 0; i < 3; i++) {
         const start = performance.now();
@@ -201,9 +213,11 @@ class TORDetectorService {
       // Calculate average and variance
       const avg = timings.reduce((a, b) => a + b, 0) / timings.length;
       const variance = timings.reduce((sum, t) => sum + Math.pow(t - avg, 2), 0) / timings.length;
-      
-      // TOR typically has high latency (>500ms) and high variance
-      return avg > 500 && variance > 10000;
+
+      // TOR typically has VERY high latency (>2000ms) and extreme variance
+      // Adjusted from 500ms to 2000ms to avoid false positives on slow connections
+      // Also increased variance threshold from 10000 to 50000
+      return avg > 2000 && variance > 50000;
     } catch {
       return false;
     }

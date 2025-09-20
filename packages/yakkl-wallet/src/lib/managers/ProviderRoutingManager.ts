@@ -86,12 +86,13 @@ export class ProviderRoutingManager {
       totalRequests: 0
     });
 
-    // Infura - backup provider with lower weight
+    // Infura - TEMPORARILY DISABLED (will be enabled later)
+    // TODO: Re-enable Infura once other issues are fixed
     this.addProvider({
       name: 'infura',
       weight: 5,  // Lower weight as backup provider
-      enabled: true,  // Enabled as backup (user will fix API keys)
-      suspended: false,  // Active for failover
+      enabled: false,  // TEMPORARILY DISABLED - only use Alchemy for now
+      suspended: true,  // SUSPENDED until ready to enable
       overrideCount: -1,
       failureCount: 0,
       avgResponseTime: 0,
@@ -146,7 +147,6 @@ export class ProviderRoutingManager {
         if (config && config.enabled && !config.suspended) {
           // Time-based override takes precedence
           if (config.overrideUntil && config.overrideUntil > new Date()) {
-            log.debug(`[ProviderRouting] Using time-override provider: ${this.currentProvider}`);
             return await this.getProviderInstance(this.currentProvider);
           }
 
@@ -154,12 +154,10 @@ export class ProviderRoutingManager {
           if (config.overrideCount !== undefined && config.overrideCount >= 0) {
             if (config.overrideCount === 0) {
               // Permanent override
-              log.debug(`[ProviderRouting] Using permanent-override provider: ${this.currentProvider}`);
               return await this.getProviderInstance(this.currentProvider);
             } else if (config.overrideCount > 0) {
               // Decrement count
               config.overrideCount--;
-              log.debug(`[ProviderRouting] Using count-override provider: ${this.currentProvider}, remaining: ${config.overrideCount}`);
               return await this.getProviderInstance(this.currentProvider);
             }
           }
@@ -216,7 +214,6 @@ export class ProviderRoutingManager {
         if (config.suspendedUntil && config.suspendedUntil <= new Date()) {
           config.suspended = false;
           config.suspendedUntil = undefined;
-          log.info(`[ProviderRouting] Provider ${name} suspension expired, resuming`);
         }
 
         // Add provider name to pool based on weight
@@ -225,7 +222,6 @@ export class ProviderRoutingManager {
         }
       }
     }
-    log.debug(`[ProviderRouting] Weighted pool rebuilt: ${this.providerPool.length} entries`);
   }
 
   /**
@@ -314,7 +310,7 @@ export class ProviderRoutingManager {
       await keyManager.initialize();
       return await keyManager.getKey(name.toLowerCase(), 'read');
     } catch (error) {
-      console.warn(`Failed to get API key for ${name}:`, error);
+      log.warn(`Failed to get API key for ${name}:`, false, error);
       return null;
     }
   }
@@ -331,8 +327,6 @@ export class ProviderRoutingManager {
     config.overrideCount = count;
     config.overrideUntil = until;
     this.currentProvider = name;
-
-    log.info(`[ProviderRouting] Override set for ${name}: count=${count}, until=${until?.toISOString()}`);
   }
 
   /**
@@ -349,8 +343,6 @@ export class ProviderRoutingManager {
 
     // Rebuild pool to exclude suspended provider
     this.buildWeightedPool();
-
-    log.warn(`[ProviderRouting] Provider ${name} suspended until ${config.suspendedUntil.toISOString()}`);
   }
 
   /**
@@ -368,8 +360,6 @@ export class ProviderRoutingManager {
 
     // Rebuild pool to include resumed provider
     this.buildWeightedPool();
-
-    log.info(`[ProviderRouting] Provider ${name} resumed`);
   }
 
   /**
@@ -390,8 +380,6 @@ export class ProviderRoutingManager {
 
     // Rebuild pool
     this.buildWeightedPool();
-
-    log.info(`[ProviderRouting] Provider ${name} disabled`);
   }
 
   /**
@@ -407,8 +395,6 @@ export class ProviderRoutingManager {
 
     // Rebuild pool
     this.buildWeightedPool();
-
-    log.info(`[ProviderRouting] Provider ${name} enabled`);
   }
 
   /**
@@ -421,8 +407,6 @@ export class ProviderRoutingManager {
 
     this.providers.delete(name);
     this.buildWeightedPool();
-
-    log.info(`[ProviderRouting] Provider ${name} removed`);
   }
 
   /**
@@ -434,8 +418,6 @@ export class ProviderRoutingManager {
     if (config.enabled && !config.suspended) {
       this.buildWeightedPool();
     }
-
-    log.info(`[ProviderRouting] Provider ${config.name} added with weight ${config.weight}`);
   }
 
   /**
@@ -449,8 +431,6 @@ export class ProviderRoutingManager {
 
     config.weight = Math.max(1, weight); // Minimum weight of 1
     this.buildWeightedPool();
-
-    log.info(`[ProviderRouting] Provider ${name} weight set to ${config.weight}`);
   }
 
   /**
@@ -538,8 +518,6 @@ export class ProviderRoutingManager {
     config.lastError = error?.message || error?.toString() || 'Unknown error';
     config.failureCount++;
 
-    log.warn(`[ProviderRouting] Provider ${providerName} failed (${config.failureCount}/${this.MAX_FAILURES}):`, config.lastError);
-
     // Record failure metrics
     this.recordProviderMetrics(providerName, 0, false);
 
@@ -559,7 +537,6 @@ export class ProviderRoutingManager {
 
     // Only reset if there were recent failures
     if (config.failureCount > 0) {
-      log.info(`[ProviderRouting] Provider ${providerName} recovered, resetting failure count`);
       config.failureCount = 0;
       config.lastError = undefined;
     }
@@ -580,7 +557,6 @@ export class ProviderRoutingManager {
         config.suspended = false;
         config.suspendedUntil = undefined;
         config.failureCount = 0; // Reset on resume
-        log.info(`[ProviderRouting] Provider ${name} suspension expired`);
       }
 
       // Include if healthy (no recent failures or low failure rate)
@@ -596,8 +572,6 @@ export class ProviderRoutingManager {
    * Handle provider failure with auto-failover
    */
   async handleProviderFailure(failedProvider: string, error?: any): Promise<Provider> {
-    log.warn(`[ProviderRouting] Provider ${failedProvider} failed, attempting failover`);
-
     // Track the failure (works for ANY error type)
     this.trackProviderFailure(failedProvider, error);
 
@@ -632,7 +606,6 @@ export class ProviderRoutingManager {
 
     // Select next provider using weighted random selection
     const nextProvider = this.getWeightedRandomProvider(availableConfigs);
-    log.info(`[ProviderRouting] Failing over to provider: ${nextProvider}`);
 
     return await this.getProviderInstance(nextProvider);
   }
@@ -648,7 +621,6 @@ export class ProviderRoutingManager {
       config.totalRequests = 0;
       config.lastUsed = undefined;
     }
-    log.info('[ProviderRouting] All provider metrics reset');
   }
 
   /**

@@ -173,6 +173,14 @@ export class ErrorHandler {
 					return; // Ignore ResizeObserver errors
 				}
 
+        console.trace('Global Error Caught:', {
+          message,
+          source,
+          lineno,
+          colno,
+          error
+        });
+
 				if (!this.isClosing) {
 					const errorInfo = {
 						message: messageText,
@@ -198,7 +206,16 @@ export class ErrorHandler {
 						// Ignore storage errors
 					}
 
-					log.error('Fatal error caught', true, errorInfo);
+					// Log the full error details for debugging
+					console.error('[ErrorHandler] Fatal error details:', {
+						message: errorInfo.message,
+						source: errorInfo.source,
+						line: errorInfo.lineno,
+						column: errorInfo.colno,
+						stack: errorInfo.error?.stack,
+						error: errorInfo.error
+					});
+					log.error('Fatal error caught', false, errorInfo);
 				}
 
 				return true;
@@ -215,7 +232,17 @@ export class ErrorHandler {
 					type: 'event'
 				};
 
-				log.error('Error Event Caught', true, {
+				// Log detailed error info for debugging
+				console.error('[ErrorHandler] Error event details:', {
+					message: event.message,
+					source: event.filename,
+					line: event.lineno,
+					column: event.colno,
+					error: event.error,
+					stack: event.error?.stack
+				});
+
+				log.error('Error Event Caught', false, {
 					...errorDetails,
 					event: {
 						type: event.type,
@@ -571,7 +598,7 @@ export class ErrorHandler {
 		if (!isBrowser) return [];
 
 		const stack: string[] = [];
-		
+
 		if (typeof document !== 'undefined') {
 			let element = document.activeElement;
 
@@ -591,7 +618,7 @@ export class ErrorHandler {
 
 		// Basic estimation of event types
 		const listeners: string[] = [];
-		
+
 		if (typeof document !== 'undefined') {
 			const elements = document.getElementsByTagName('*');
 
@@ -610,7 +637,7 @@ export class ErrorHandler {
 		if (!isBrowser) return 0;
 
 		let count = 0;
-		
+
 		if (typeof document !== 'undefined') {
 			const elements = document.getElementsByTagName('*');
 			for (const element of elements) {

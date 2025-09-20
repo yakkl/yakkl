@@ -99,43 +99,43 @@ export interface TokenInfo {
 
 // TokenBalance and NetworkConfig are now exported from interfaces module
 
-// Time-related types
+// Time Types
 export type Timestamp = number; // Unix timestamp in seconds
 export type Milliseconds = number; // Duration in milliseconds
 
 // Pagination Types
 export interface PaginationParams {
-	page?: number;
-	limit?: number;
-	offset?: number;
+  page?: number;
+  limit?: number;
+  offset?: number;
 }
 
 export interface PaginatedResponse<T> {
-	data: T[];
-	total: number;
-	page: number;
-	limit: number;
-	hasMore: boolean;
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
 }
 
 // Sort Direction
 export enum SortDirection {
-	ASC = 'asc',
-	DESC = 'desc'
+  ASC = 'asc',
+  DESC = 'desc'
 }
 
-// Common Status Types
+// Generic Status
 export enum Status {
-	IDLE = 'idle',
-	LOADING = 'loading',
-	SUCCESS = 'success',
-	ERROR = 'error'
+  IDLE = 'idle',
+  LOADING = 'loading',
+  SUCCESS = 'success',
+  ERROR = 'error'
 }
 
-// Hex String Type
+// Hex and Bytes Types
 export type HexString = `0x${string}`;
 
-// Bytes Type
+// Bytes-like data that can be either hex string or uint8array
 export type BytesLike = HexString | Uint8Array;
 
 // Common Blockchain Types

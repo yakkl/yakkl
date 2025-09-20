@@ -47,8 +47,8 @@ export class UnifiedTimerManager {
 	// Interval methods
 	addInterval(id: string, callback: TimerCallback, duration: number): void {
 		if (this.intervals.has(id)) {
-			log.warn(`Interval "${id}" already exists.`);
-			return;
+			log.warn(`Interval "${id}" already exists. Clearing existing interval.`);
+			this.removeInterval(id);
 		}
 		this.intervals.set(id, { id, callback, duration, handle: null, type: 'interval' });
 	}
@@ -81,8 +81,8 @@ export class UnifiedTimerManager {
 	// Timeout methods
 	addTimeout(id: string, callback: TimerCallback, duration: number): void {
 		if (this.timeouts.has(id)) {
-			log.warn(`Timeout "${id}" already exists.`);
-			return;
+			log.warn(`Timeout "${id}" already exists. Clearing existing timeout.`);
+			this.removeTimeout(id);
 		}
 		this.timeouts.set(id, { id, callback, duration, handle: null, type: 'timeout' });
 	}

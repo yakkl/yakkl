@@ -1,6 +1,9 @@
 import type { MessageHandlerFunc, MessageResponse } from './MessageHandler';
 import { BackgroundPriceService } from '$lib/services/background/BackgroundPriceService';
-// import browser from 'webextension-polyfill';
+import { BackgroundIntervalService } from '$lib/services/background-interval.service';
+import { BackgroundCacheStore } from '$lib/services/background/BackgroundCacheStore';
+import { portfolioCoordinator, UpdatePriority, UpdateType } from '$lib/services/portfolio-data-coordinator.service';
+import browser from 'webextension-polyfill';
 // import { getSettings } from '$lib/common/stores';
 // import { setBadgeText, setIconLock, setIconUnlock } from '$lib/utilities/utilities';
 
@@ -36,10 +39,57 @@ export const runtimeHandlers = new Map<string, MessageHandlerFunc>([
 
   // Handler for yakkl_refreshTokens (handles both 'type' and 'method' format)
   ['yakkl_refreshTokens', async (payload: any): Promise<MessageResponse> => {
-    // Handle token refresh request
-    console.log('Token refresh requested:', payload);
-    // TODO: Implement actual token refresh logic
-    return { success: true, data: { refreshed: false, message: 'Token refresh not yet implemented' } };
+    try {
+      const { address, chainId, force = false } = payload || {};
+
+      console.log('[Runtime] Token refresh requested:', { address, chainId, force });
+
+      // Get the interval service instance
+      const intervalService = BackgroundIntervalService.getInstance();
+
+      // Trigger token balance update for all accounts
+      await intervalService.updateAllTokenBalances();
+
+      // Queue portfolio coordinator update with high priority
+      portfolioCoordinator.queueUpdate({
+        type: UpdateType.FULL_PORTFOLIO,
+        priority: UpdatePriority.USER_ACTION,
+        source: 'UI_REFRESH',
+        data: { address, chainId }
+      });
+
+      // Get updated cache data to return
+      const cacheStore = BackgroundCacheStore.getInstance();
+      const cache = await cacheStore.getCache();
+
+      // Extract tokens for the requested account if specified
+      let tokens = [];
+      if (address && chainId && cache?.chainAccountCache?.[chainId]?.[address.toLowerCase()]) {
+        tokens = cache.chainAccountCache[chainId][address.toLowerCase()].tokens || [];
+      }
+
+      console.log('[Runtime] Token refresh completed:', {
+        tokenCount: tokens.length,
+        hasCache: !!cache,
+        address,
+        chainId
+      });
+
+      return {
+        success: true,
+        data: {
+          refreshed: true,
+          tokens,
+          timestamp: Date.now()
+        }
+      };
+    } catch (error) {
+      console.error('[Runtime] Token refresh failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to refresh tokens'
+      };
+    }
   }],
 
   // Handler for INTERNAL_TOKEN_REQUEST
@@ -66,9 +116,6 @@ export const runtimeHandlers = new Map<string, MessageHandlerFunc>([
       }
       
       console.log('Getting tokens for chain:', { address, chainId });
-      
-      // Import browser storage API for fetching stored tokens
-      const browser = (await import('webextension-polyfill')).default;
       
       // Get stored tokens from browser storage
       const storageKey = `yakkl_tokens_${chainId}`;

@@ -1,5 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { log } from '$lib/managers/Logger';
+// MIGRATION: Move to @yakkl/security
+// import { decryptData, deriveKeyFromPassword, encryptData } from '@yakkl/security/wallet/encryption-utils';
+// Note: digestMessage needs to be added to @yakkl/security
 import { decryptData, deriveKeyFromPassword, digestMessage, encryptData } from './encryption';
 import type { EncryptedData } from '$lib/common/interfaces';
 import type { SaltedKey } from '$lib/common/evm';

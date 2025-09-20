@@ -2,6 +2,8 @@ import { log } from './Logger';
 import { dateString } from '$lib/common/datetime';
 import { setProfileStorage, getYakklSettings, setYakklSettingsStorage } from '$lib/common/stores';
 import { getProfile } from '$lib/common/profile';
+// MIGRATION: Move to @yakkl/security
+// import { encryptData, decryptData } from '@yakkl/security/wallet/encryption-utils';
 import { encryptData, decryptData } from '$lib/common/encryption';
 import { AccessSourceType, PlanType, PromoClassificationType } from '$lib/common/types';
 import { isEncryptedData } from '$lib/common/misc';

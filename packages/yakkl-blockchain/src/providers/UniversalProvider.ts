@@ -4,21 +4,42 @@
  */
 
 import { BaseProvider } from './base/BaseProvider';
-import type { 
-  TransactionRequest, 
-  TransactionResponse, 
+import type {
+  TransactionRequest,
+  TransactionResponse,
   BlockTag,
   Log,
-  Block
-} from '../types';
+  Block,
+  BlockWithTransactions,
+  FeeData
+} from './types';
 
 export class UniversalProvider extends BaseProvider {
-  private providers: Map<string, BaseProvider> = new Map();
-  private activeChain: string = 'ethereum';
+  private providers: Map<number, BaseProvider> = new Map();
+  private chainToId: Map<string, number> = new Map([
+    ['ethereum', 1],
+    ['polygon', 137],
+    ['arbitrum', 42161],
+    ['optimism', 10],
+    ['solana', 999999], // Non-standard chain ID for Solana
+    ['bitcoin', 888888]  // Non-standard chain ID for Bitcoin
+  ]);
+  private activeChainId: number = 1;
 
   constructor(config?: any) {
-    super(config);
+    super(config || { name: 'universal', chainId: 1, blockchains: ['ethereum'], chainIds: [1] });
     this.setupProviders();
+  }
+
+  /**
+   * EIP-1193 request method implementation
+   */
+  async request<T = any>(args: { method: string; params?: any[] }): Promise<T> {
+    const provider = this.getActiveProvider();
+    if ('request' in provider && typeof provider.request === 'function') {
+      return provider.request(args);
+    }
+    throw new Error('Active provider does not support request method');
   }
 
   /**
@@ -39,10 +60,11 @@ export class UniversalProvider extends BaseProvider {
     return provider.getCode(address, blockTag);
   }
 
-  async getStorageAt(address: string, position: string, blockTag?: BlockTag): Promise<string> {
-    const provider = this.getActiveProvider();
-    return provider.getStorageAt(address, position, blockTag);
-  }
+  // getStorageAt not implemented in BaseProvider - would need custom implementation
+  // async getStorageAt(address: string, position: string, blockTag?: BlockTag): Promise<string> {
+  //   const provider = this.getActiveProvider();
+  //   return provider.getStorageAt(address, position, blockTag);
+  // }
 
   async call(transaction: TransactionRequest, blockTag?: BlockTag): Promise<string> {
     const provider = this.getActiveProvider();
@@ -59,7 +81,7 @@ export class UniversalProvider extends BaseProvider {
     return provider.sendTransaction(transaction);
   }
 
-  async getBlock(blockHashOrNumber: string | number): Promise<Block> {
+  async getBlock(blockHashOrNumber: string | number): Promise<Block | null> {
     const provider = this.getActiveProvider();
     return provider.getBlock(blockHashOrNumber);
   }
@@ -82,44 +104,57 @@ export class UniversalProvider extends BaseProvider {
   /**
    * Multi-chain support (YAKKL advantage)
    */
-  async switchChain(chain: string): Promise<void> {
-    if (!this.providers.has(chain)) {
-      throw new Error(`Chain ${chain} not supported`);
+  async switchChain(chainId: number): Promise<void> {
+    if (!this.providers.has(chainId)) {
+      throw new Error(`Chain ID ${chainId} not supported`);
     }
-    this.activeChain = chain;
+    this.activeChainId = chainId;
+    this.currentChainId = chainId;
   }
 
-  async addChain(chain: string, provider: BaseProvider): Promise<void> {
-    this.providers.set(chain, provider);
+  async switchChainByName(chainName: string): Promise<void> {
+    const chainId = this.chainToId.get(chainName);
+    if (!chainId) {
+      throw new Error(`Chain ${chainName} not recognized`);
+    }
+    return this.switchChain(chainId);
+  }
+
+  async addChain(chainId: number, provider: BaseProvider, chainName?: string): Promise<void> {
+    this.providers.set(chainId, provider);
+    if (chainName) {
+      this.chainToId.set(chainName, chainId);
+    }
   }
 
   /**
    * Solana-specific methods
    */
   async getSolanaBalance(pubkey: string): Promise<number> {
-    if (this.activeChain !== 'solana') {
-      await this.switchChain('solana');
+    if (this.activeChainId !== 999999) {
+      await this.switchChainByName('solana');
     }
     const provider = this.getActiveProvider();
     // Solana-specific implementation
-    return provider.getBalance(pubkey);
+    return Number(await provider.getBalance(pubkey));
   }
 
   async sendSolanaTransaction(transaction: any): Promise<string> {
-    if (this.activeChain !== 'solana') {
-      await this.switchChain('solana');
+    if (this.activeChainId !== 999999) {
+      await this.switchChainByName('solana');
     }
     const provider = this.getActiveProvider();
     // Solana-specific implementation
-    return provider.sendTransaction(transaction);
+    const result = await provider.sendTransaction(transaction);
+    return result.hash || '';
   }
 
   /**
    * Bitcoin-specific methods
    */
   async getBitcoinUTXOs(address: string): Promise<any[]> {
-    if (this.activeChain !== 'bitcoin') {
-      await this.switchChain('bitcoin');
+    if (this.activeChainId !== 888888) {
+      await this.switchChainByName('bitcoin');
     }
     const provider = this.getActiveProvider();
     // Bitcoin-specific implementation
@@ -127,12 +162,13 @@ export class UniversalProvider extends BaseProvider {
   }
 
   async sendBitcoinTransaction(transaction: any): Promise<string> {
-    if (this.activeChain !== 'bitcoin') {
-      await this.switchChain('bitcoin');
+    if (this.activeChainId !== 888888) {
+      await this.switchChainByName('bitcoin');
     }
     const provider = this.getActiveProvider();
     // Bitcoin-specific implementation
-    return provider.sendTransaction(transaction);
+    const result = await provider.sendTransaction(transaction);
+    return result.hash || '';
   }
 
   /**
@@ -143,10 +179,10 @@ export class UniversalProvider extends BaseProvider {
     return Promise.all(requests.map(req => this.executeRequest(req)));
   }
 
-  async subscribeToEvents(eventName: string, callback: (data: any) => void): Promise<() => void> {
+  async subscribeToEvents(eventName: string, callback: (data: any) => void): Promise<void> {
     const provider = this.getActiveProvider();
     // WebSocket subscription for real-time events
-    return provider.on(eventName, callback);
+    provider.on(eventName, callback);
   }
 
   async getGasPrice(): Promise<bigint> {
@@ -154,23 +190,23 @@ export class UniversalProvider extends BaseProvider {
     return provider.getGasPrice();
   }
 
-  async getFeeData(): Promise<any> {
+  async getFeeData(): Promise<FeeData> {
     const provider = this.getActiveProvider();
     return provider.getFeeData();
   }
 
   /**
-   * ENS Support
+   * ENS Support - Not in BaseProvider, would need custom implementation
    */
-  async resolveName(name: string): Promise<string | null> {
-    const provider = this.getActiveProvider();
-    return provider.resolveName(name);
-  }
+  // async resolveName(name: string): Promise<string | null> {
+  //   const provider = this.getActiveProvider();
+  //   return provider.resolveName(name);
+  // }
 
-  async lookupAddress(address: string): Promise<string | null> {
-    const provider = this.getActiveProvider();
-    return provider.lookupAddress(address);
-  }
+  // async lookupAddress(address: string): Promise<string | null> {
+  //   const provider = this.getActiveProvider();
+  //   return provider.lookupAddress(address);
+  // }
 
   /**
    * Private methods
@@ -178,20 +214,55 @@ export class UniversalProvider extends BaseProvider {
   private setupProviders(): void {
     // Setup default providers for each chain
     // In production, these would be actual implementations
-    this.providers.set('ethereum', this);
-    // this.providers.set('solana', new SolanaProvider());
-    // this.providers.set('bitcoin', new BitcoinProvider());
-    // this.providers.set('polygon', new PolygonProvider());
-    // this.providers.set('arbitrum', new ArbitrumProvider());
+    this.providers.set(1, this); // Ethereum mainnet
+    // this.providers.set(999999, new SolanaProvider());
+    // this.providers.set(888888, new BitcoinProvider());
+    // this.providers.set(137, new PolygonProvider());
+    // this.providers.set(42161, new ArbitrumProvider());
   }
 
   private getActiveProvider(): BaseProvider {
-    return this.providers.get(this.activeChain) || this;
+    return this.providers.get(this.activeChainId) || this;
   }
 
   private async executeRequest(request: any): Promise<any> {
     const { method, params } = request;
     const provider = this.getActiveProvider();
     return (provider as any)[method](...params);
+  }
+
+  // Implement abstract methods from BaseProvider
+  async getNetwork(): Promise<{ name: string; chainId: number }> {
+    const chainNames: { [key: number]: string } = {
+      1: 'ethereum',
+      137: 'polygon',
+      42161: 'arbitrum',
+      10: 'optimism',
+      999999: 'solana',
+      888888: 'bitcoin'
+    };
+    return { name: chainNames[this.activeChainId] || 'unknown', chainId: this.activeChainId };
+  }
+
+  async getChainId(): Promise<number> {
+    return this.activeChainId;
+  }
+
+  async getBlockNumber(): Promise<number> {
+    const provider = this.getActiveProvider();
+    if (provider === this) {
+      // Default implementation for self
+      return 0;
+    }
+    return provider.getBlockNumber();
+  }
+
+  async getBlockWithTransactions(blockHashOrBlockTag: BlockTag | string): Promise<BlockWithTransactions | null> {
+    const provider = this.getActiveProvider();
+    if (provider === this) {
+      // Default implementation for self
+      return null;
+    }
+    return provider.getBlockWithTransactions(blockHashOrBlockTag);
   }
 }

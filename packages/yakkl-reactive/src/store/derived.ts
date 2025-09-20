@@ -8,15 +8,31 @@ import { readable } from './readable';
 /**
  * Create a store that derives its value from one or more other stores
  */
+// Single store with setter callback
 export function derived<S, T>(
-  stores: Readable<S> | [Readable<S>, ...Array<Readable<any>>],
-  fn: (values: S | any[], set: (value: T) => void) => Unsubscriber | void,
+  stores: Readable<S>,
+  fn: (value: S, set: (value: T) => void) => Unsubscriber | void,
   initialValue?: T
 ): Readable<T>;
 
+// Multiple stores with setter callback
+export function derived<T>(
+  stores: Array<Readable<any>>,
+  fn: (values: any[], set: (value: T) => void) => Unsubscriber | void,
+  initialValue?: T
+): Readable<T>;
+
+// Single store with simple function
 export function derived<S, T>(
-  stores: Readable<S> | [Readable<S>, ...Array<Readable<any>>],
-  fn: (values: S | any[]) => T,
+  stores: Readable<S>,
+  fn: (value: S) => T,
+  initialValue?: T
+): Readable<T>;
+
+// Multiple stores with simple function
+export function derived<T>(
+  stores: Array<Readable<any>>,
+  fn: (values: any[]) => T,
   initialValue?: T
 ): Readable<T>;
 

@@ -15,7 +15,8 @@ import {
 // Remove direct import of currentAccount to avoid circular dependency
 // import { currentAccount } from './account.store';
 import { currentChain } from './chain.store';
-import { CacheSyncManager } from '../services/cache-sync.service';
+// REMOVED: CacheSyncManager dependency to fix timeout issues
+// import { CacheSyncManager } from '../services/cache-sync.service';
 import { log } from '$lib/common/logger-wrapper';
 
 import type { TokenData } from '$lib/common/interfaces';
@@ -40,7 +41,8 @@ function createTokenStore() {
     isMultiChainView: false
   });
 
-  const syncManager = CacheSyncManager.getInstance();
+  // REMOVED: CacheSyncManager instance - using direct services instead
+  // const syncManager = CacheSyncManager.getInstance();
 
       // Initialize on creation
   async function initialize() {
@@ -51,9 +53,9 @@ function createTokenStore() {
       log.info('[TokenStore] Step 1: Initializing wallet cache from storage...', false);
       await walletCacheStore.initialize();
 
-      // CRITICAL FIX: Initialize current account cache with retry logic
-      log.info('[TokenStore] Step 2: Initializing current account cache...', false);
-      await syncManager.initializeCurrentAccount();
+      // SIMPLIFIED: Skip cache sync initialization - using direct data loading
+      log.info('[TokenStore] Step 2: Skipping cache sync initialization...', false);
+      // await syncManager.initializeCurrentAccount();
 
       // CRITICAL FIX: Ensure rollups are always calculated on initial load
       log.info('[TokenStore] Step 3: Calculating rollups...', false);
@@ -67,10 +69,10 @@ function createTokenStore() {
         walletCacheStore.setHasEverLoaded(true);
       }
 
-      // Start auto-sync only in browser
+      // SIMPLIFIED: Skip auto-sync - home page loads data directly
       if (browser) {
-        log.info('[TokenStore] Step 4: Starting auto-sync...', false);
-        syncManager.startAutoSync();
+        log.info('[TokenStore] Step 4: Skipping auto-sync...', false);
+        // syncManager.startAutoSync();
       }
 
       // Set up listeners after initialization to avoid circular dependency
@@ -82,14 +84,19 @@ function createTokenStore() {
 
           // Listen for account changes with better error handling
           currentAccount.subscribe(async (account) => {
-            if (account) {
+            // Add null/undefined check before accessing properties
+            if (account && account.address) {
               log.info('[TokenStore] Account changed, initializing cache...', false, account.address);
               try {
-                await syncManager.initializeCurrentAccount();
+                // SIMPLIFIED: Skip cache sync for account changes
+                // await syncManager.initializeCurrentAccount();
                 // Ensure rollups are recalculated for new account
                 await walletCacheStore.calculateAllRollups();
-              } catch (error) {
-                log.error('[TokenStore] Failed to initialize cache for account change:', false, error);
+              } catch (error: any) {
+                // Only log actual errors, not expected conditions during startup
+                if (error?.message && !error.message.includes('No account or chain yet')) {
+                  log.warn('[TokenStore] Failed to initialize cache for account change:', false, error.message);
+                }
               }
             }
           });
@@ -99,14 +106,18 @@ function createTokenStore() {
 
         // Listen for chain changes with better error handling
         currentChain.subscribe(async (chain) => {
-          if (chain) {
+          if (chain && chain.chainId) {
             log.info('[TokenStore] Chain changed, initializing cache...', false, chain.chainId);
             try {
-              await syncManager.initializeCurrentAccount();
+              // SIMPLIFIED: Skip cache sync for chain changes
+              // await syncManager.initializeCurrentAccount();
               // Ensure rollups are recalculated for new chain
               await walletCacheStore.calculateAllRollups();
-            } catch (error) {
-              log.error('[TokenStore] Failed to initialize cache for chain change:', false, error);
+            } catch (error: any) {
+              // Only log actual errors, not expected conditions during startup
+              if (error?.message && !error.message.includes('No account or chain yet')) {
+                log.warn('[TokenStore] Failed to initialize cache for chain change:', false, error.message);
+              }
             }
           }
         });
@@ -137,11 +148,10 @@ function createTokenStore() {
         // CRITICAL FIX: Ensure cache is properly initialized before refresh
         log.info('[TokenStore] Starting refresh - ensuring cache initialization...');
 
-        // First ensure cache is initialized
-        await syncManager.initializeCurrentAccount();
-
-        // Then sync current account data
-        await syncManager.syncCurrentAccount();
+        // SIMPLIFIED: Skip cache sync operations
+        // await syncManager.initializeCurrentAccount();
+        // await syncManager.syncCurrentAccount();
+        log.info('[TokenStore] Skipping cache sync in refresh - using direct data loading');
 
         // CRITICAL: Always recalculate rollups after refresh to ensure UI shows values
         log.info('[TokenStore] Refresh complete - recalculating rollups...');
@@ -182,8 +192,9 @@ function createTokenStore() {
         // Get current token data before sync
         const currentTokens = get(currentAccountTokens);
 
-        // Re-sync current account from storage
-        await syncManager.syncCurrentAccount();
+        // SIMPLIFIED: Skip cache sync from storage
+        // await syncManager.syncCurrentAccount();
+        log.debug('[TokenStore] Skipping cache sync from storage');
 
         // Get new token data after sync
         const newTokens = get(currentAccountTokens);
@@ -209,11 +220,11 @@ function createTokenStore() {
       try {
         // Get current token data to compare prices
         const currentTokens = get(currentAccountTokens);
-        const currentPrices = currentTokens.map(t => ({ address: t.address.toLowerCase(), price: t.price }));
+        const currentPrices = currentTokens.map(t => ({ address: t.address?.toLowerCase() || '', price: t.price }));
 
         // Extract new prices from token cache
         const newPrices = Object.entries(tokenCache).map(([key, entry]: [string, any]) => ({
-          address: entry.tokenAddress?.toLowerCase() || key.toLowerCase(),
+          address: entry.tokenAddress?.toLowerCase() || key?.toLowerCase() || '',
           price: entry.price
         }));
 
@@ -242,14 +253,15 @@ function createTokenStore() {
       try {
         // Get current token balances for comparison
         const currentTokens = get(currentAccountTokens);
-        const currentBalances = currentTokens.map(t => ({ address: t.address.toLowerCase(), balance: t.balance }));
+        const currentBalances = currentTokens.map(t => ({ address: t.address?.toLowerCase() || '', balance: t.balance }));
 
-        // The sync manager handles balance updates
-        await syncManager.syncCurrentAccount();
+        // SIMPLIFIED: Skip sync manager balance updates
+        // await syncManager.syncCurrentAccount();
+        log.debug('[TokenStore] Skipping sync manager balance updates');
 
         // Get new token balances after sync
         const newTokens = get(currentAccountTokens);
-        const newBalances = newTokens.map(t => ({ address: t.address.toLowerCase(), balance: t.balance }));
+        const newBalances = newTokens.map(t => ({ address: t.address?.toLowerCase() || '', balance: t.balance }));
 
         // CRITICAL FIX: Only recalculate rollups if balances actually changed
         const balancesChanged = hasChanged(currentBalances, newBalances);
@@ -274,7 +286,9 @@ function createTokenStore() {
       }));
 
       try {
-        await syncManager.refreshPrices();
+        // SIMPLIFIED: Skip sync manager price refresh
+        // await syncManager.refreshPrices();
+        log.debug('[TokenStore] Skipping sync manager price refresh');
 
         update(state => ({
           ...state,
@@ -291,9 +305,10 @@ function createTokenStore() {
     },
 
     reset() {
-      // Stop sync manager only in browser
+      // SIMPLIFIED: Skip sync manager cleanup
       if (browser) {
-        syncManager.stopAutoSync();
+        // syncManager.stopAutoSync();
+        log.debug('[TokenStore] Skipping sync manager cleanup');
       }
 
       // Reset UI state
@@ -345,7 +360,7 @@ function createTokenStore() {
         for (const [chainId, chainData] of Object.entries(cache.chainAccountCache)) {
           for (const [address, accountCache] of Object.entries(chainData)) {
             accountCache.tokens = accountCache.tokens.map(token => {
-              const priceEntry = priceData[token.address.toLowerCase()];
+              const priceEntry = priceData[token.address?.toLowerCase() || ''];
               if (priceEntry && priceEntry.price !== undefined) {
                 // Recalculate value with new price
                 const balance = BigNumberishUtils.toBigInt(token.balance || 0n);
@@ -389,10 +404,10 @@ function createTokenStore() {
         // Update token balances in cache
         for (const [accountAddress, accountBalances] of Object.entries(balanceData)) {
           for (const [chainId, chainData] of Object.entries(cache.chainAccountCache)) {
-            const accountCache = chainData[accountAddress.toLowerCase()];
+            const accountCache = chainData[accountAddress?.toLowerCase() || ''];
             if (accountCache && accountBalances) {
               accountCache.tokens = accountCache.tokens.map(token => {
-                const newBalance = (accountBalances as any)[token.address.toLowerCase()];
+                const newBalance = (accountBalances as any)[token.address?.toLowerCase() || ''];
                 if (newBalance !== undefined) {
                   const balanceBigInt = BigNumberishUtils.toBigInt(newBalance);
                   const price = token.price || 0;
@@ -431,24 +446,42 @@ function createTokenStore() {
 
       try {
         const cache = walletCacheStore.getCacheSync();
-        if (!cache) return;
+        if (!cache) {
+          log.debug('[TokenStore] Cache not yet initialized, skipping update');
+          return;
+        }
 
         // Determine which account/chain to update
         const address = data.address || cache.activeAccountAddress;
         const chainId = data.chainId || cache.activeChainId;
 
-        if (cache.chainAccountCache[chainId]?.[address]) {
-          // Update the token list
-          cache.chainAccountCache[chainId][address].tokens = data.tokens;
-          cache.chainAccountCache[chainId][address].lastTokenRefresh = new Date();
-
-          // Trigger wallet cache update
-          await walletCacheStore.updateFromCoordinator(cache);
+        if (!address || !chainId) {
+          log.debug('[TokenStore] No active account or chain yet, skipping update');
+          return;
         }
+
+        // Initialize cache structure if needed
+        if (!cache.chainAccountCache[chainId]) {
+          cache.chainAccountCache[chainId] = {};
+        }
+        if (!cache.chainAccountCache[chainId][address]) {
+          cache.chainAccountCache[chainId][address] = {
+            tokens: [],
+            lastTokenRefresh: new Date(),
+            portfolioTotal: 0
+          };
+        }
+
+        // Update the token list
+        cache.chainAccountCache[chainId][address].tokens = data.tokens || [];
+        cache.chainAccountCache[chainId][address].lastTokenRefresh = new Date();
+
+        // Trigger wallet cache update
+        await walletCacheStore.updateFromCoordinator(cache);
 
         log.debug('[TokenStore] Token list updated from coordinator');
       } catch (error) {
-        log.error('[TokenStore] Error updating token list from coordinator:', false, error);
+        log.warn('[TokenStore] Error updating token list from coordinator (non-critical):', false, error);
       }
     }
   };
@@ -563,7 +596,8 @@ export const displayTokens = derived(
     // Always ensure we return an array, even if empty
     const result = Array.isArray(tokenList) ? tokenList : [];
 
-    console.error('[TokenStore] displayTokens', {$store, $singleTokens, $multiTokens, tokenList, result});
+    // Remove debug console.error - was causing noise in logs
+    // console.error('[TokenStore] displayTokens', {$store, $singleTokens, $multiTokens, tokenList, result});
 
     // Only log if there's an unexpected state (debug logging can be re-enabled if needed)
     if (process.env.NODE_ENV === 'development' && result.length > 0) {

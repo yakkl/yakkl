@@ -1,5 +1,5 @@
 import { log } from '$lib/common/logger-wrapper';
-import { backgroundJWTManager } from '$lib/utilities/jwt-background';
+import { browserJWT as backgroundJWTManager } from '@yakkl/security';
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from '$lib/common/backgroundStorage';
 import { STORAGE_YAKKL_SETTINGS } from '$lib/common/constants';
 import type { YakklSettings } from '$lib/common/interfaces';
@@ -166,19 +166,19 @@ export class PopupSecurityManager {
         if (currentToken) {
            jwtValid = await backgroundJWTManager.validateToken(currentToken);
            if (!jwtValid) {
-            await backgroundJWTManager.invalidateToken();
+            await backgroundJWTManager.clearToken();
             walletLocked = true;
             settings.isLocked = true;
             await setObjectInLocalStorage(STORAGE_YAKKL_SETTINGS, settings);
             throw new Error('Invalid token');
            }
 
-           // Get session info if available
-           const sessionInfo = await backgroundJWTManager.getSessionInfo();
-           if (sessionInfo) {
-             sessionActive = sessionInfo.hasActiveSession;
-             if (sessionInfo.payload) {
-               lastActivity = new Date(sessionInfo.payload.iat * 1000);
+           // Decode token to get session info
+           const decoded = await backgroundJWTManager.decode(currentToken);
+           if (decoded) {
+             sessionActive = true;
+             if (decoded.iat) {
+               lastActivity = new Date(decoded.iat * 1000);
              }
            }
          }
@@ -298,7 +298,11 @@ export class PopupSecurityManager {
    */
   async invalidateJWTToken(token?: string): Promise<boolean> {
     try {
-      await backgroundJWTManager.invalidateToken(token);
+      if (token) {
+        await backgroundJWTManager.revoke(token);
+      } else {
+        await backgroundJWTManager.clearToken();
+      }
       log.info('[PopupSecurity] JWT token invalidated successfully', false);
       return true;
     } catch (error) {
@@ -316,12 +320,22 @@ export class PopupSecurityManager {
     sessionId: string | null;
   }> {
     try {
-      const sessionInfo = await backgroundJWTManager.getSessionInfo();
+      const token = await backgroundJWTManager.getCurrentToken();
+
+      if (!token) {
+        return {
+          hasActiveSession: false,
+          sessionExpiresAt: null,
+          sessionId: null
+        };
+      }
+
+      const decoded = await backgroundJWTManager.decode(token);
 
       return {
-        hasActiveSession: sessionInfo.hasActiveSession,
-        sessionExpiresAt: sessionInfo.sessionExpiresAt,
-        sessionId: sessionInfo.sessionId
+        hasActiveSession: !!decoded,
+        sessionExpiresAt: decoded?.exp ? decoded.exp * 1000 : null,
+        sessionId: decoded?.sessionId || null
       };
     } catch (error) {
       log.error('[PopupSecurity] Failed to get session info', false, error);

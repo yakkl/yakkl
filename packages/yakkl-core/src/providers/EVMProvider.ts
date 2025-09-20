@@ -4,11 +4,21 @@
 
 import { BaseProvider, ProviderError, RpcErrorCode } from './BaseProvider';
 import type {
-  IEVMProvider,
+  EVMProviderInterface,
   ChainInfo,
   ProviderConfig,
-  TransactionStatusInfo,
-  Block
+  Block,
+  BlockTag,
+  BlockWithTransactions,
+  TransactionRequest,
+  TransactionResponse,
+  TransactionReceipt,
+  FeeData,
+  Log,
+  Filter,
+  ProviderMetadata,
+  ProviderCostMetrics,
+  ProviderHealthMetrics
 } from '../interfaces/provider.interface';
 import type { Address, HexString } from '../types';
 import type { TransactionSignRequest } from '../interfaces/wallet.interface';
@@ -17,11 +27,19 @@ import type { SignatureRequest, SignatureResult } from '../interfaces/crypto.int
 /**
  * EVM Provider implementation
  */
-export class EVMProvider extends BaseProvider implements IEVMProvider {
+export class EVMProvider extends BaseProvider implements EVMProviderInterface {
   private accounts: Address[] = [];
 
   constructor(chainInfo: ChainInfo, config?: ProviderConfig) {
     super(chainInfo, config);
+    // Override metadata for EVM-specific features
+    this.metadata.name = 'evm-provider';
+    this.metadata.features = {
+      ...this.metadata.features,
+      archive: false,
+      trace: false,
+      debug: false
+    };
   }
 
   /**
@@ -91,37 +109,62 @@ export class EVMProvider extends BaseProvider implements IEVMProvider {
   /**
    * Get balance
    */
-  async getBalance(address: Address, tokenAddress?: Address): Promise<string> {
-    if (tokenAddress) {
-      // ERC20 token balance
-      const data = this.encodeERC20Call('balanceOf', [address]);
-      const result = await this.call({
-        from: address,
-        to: tokenAddress,
-        data: data as HexString
-      });
-      return this.decodeUint256(result);
-    }
-    
-    // Native balance
-    const balance = await this.rpcRequest('eth_getBalance', [address, 'latest']);
-    return balance;
+  async getBalance(address: string, blockTag?: BlockTag): Promise<bigint> {
+    const balance = await this.rpcRequest('eth_getBalance', [
+      address,
+      blockTag || 'latest'
+    ]);
+    return BigInt(balance);
+  }
+
+  /**
+   * Get token balance (EVM-specific)
+   */
+  async getTokenBalance(address: Address, tokenAddress: Address): Promise<string> {
+    const data = this.encodeERC20Call('balanceOf', [address]);
+    const result = await this.call({
+      to: tokenAddress,
+      data: data as HexString
+    });
+    return this.decodeUint256(result);
   }
 
   /**
    * Send transaction
    */
-  async sendTransaction(tx: TransactionSignRequest): Promise<string> {
-    const params = this.formatTransaction(tx);
-    
+  async sendTransaction(transaction: TransactionRequest): Promise<TransactionResponse> {
+    const params = this.formatTransactionRequest(transaction);
+
+    let txHash: string;
     if (this.config.customProvider) {
-      return await this.config.customProvider.request({
+      txHash = await this.config.customProvider.request({
         method: 'eth_sendTransaction',
         params: [params]
       });
+    } else {
+      txHash = await this.rpcRequest('eth_sendTransaction', [params]);
     }
-    
-    return await this.rpcRequest('eth_sendTransaction', [params]);
+
+    // Return TransactionResponse with basic info
+    return {
+      hash: txHash,
+      from: transaction.from || '',
+      to: transaction.to || undefined,
+      value: transaction.value || 0n,
+      gasLimit: transaction.gasLimit || 0n,
+      gasPrice: transaction.gasPrice || undefined,
+      maxFeePerGas: transaction.maxFeePerGas || undefined,
+      maxPriorityFeePerGas: transaction.maxPriorityFeePerGas || undefined,
+      nonce: transaction.nonce || 0,
+      data: transaction.data || '0x',
+      chainId: Number(this._chainInfo.chainId),
+      blockNumber: undefined,
+      blockHash: undefined,
+      confirmations: 0,
+      wait: async (confirmations?: number) => {
+        return this.waitForTransaction(txHash, confirmations);
+      }
+    };
   }
 
   /**
@@ -146,46 +189,49 @@ export class EVMProvider extends BaseProvider implements IEVMProvider {
   /**
    * Get transaction
    */
-  async getTransaction(hash: string): Promise<TransactionStatusInfo> {
-    const [tx, receipt] = await Promise.all([
-      this.rpcRequest('eth_getTransactionByHash', [hash]),
-      this.rpcRequest('eth_getTransactionReceipt', [hash])
-    ]);
+  async getTransaction(hash: string): Promise<TransactionResponse | null> {
+    const tx = await this.rpcRequest('eth_getTransactionByHash', [hash]);
 
     if (!tx) {
-      throw new ProviderError('Transaction not found', RpcErrorCode.INVALID_REQUEST);
+      return null;
     }
 
-    const currentBlock = await this.getBlockNumber();
-    const confirmations = receipt ? currentBlock - parseInt(receipt.blockNumber, 16) : 0;
-
     return {
-      hash,
-      status: receipt 
-        ? (receipt.status === '0x1' ? 'confirmed' : 'failed')
-        : 'pending',
-      confirmations,
-      blockNumber: receipt ? parseInt(receipt.blockNumber, 16) : undefined,
-      timestamp: Date.now(), // Would need to fetch block for actual timestamp
-      gasUsed: receipt ? receipt.gasUsed : undefined,
-      effectiveGasPrice: receipt ? receipt.effectiveGasPrice : undefined,
-      error: receipt && receipt.status === '0x0' ? 'Transaction failed' : undefined
+      hash: tx.hash,
+      from: tx.from,
+      to: tx.to || undefined,
+      value: BigInt(tx.value || '0'),
+      gasLimit: BigInt(tx.gas || tx.gasLimit || '0'),
+      gasPrice: tx.gasPrice ? BigInt(tx.gasPrice) : undefined,
+      maxFeePerGas: tx.maxFeePerGas ? BigInt(tx.maxFeePerGas) : undefined,
+      maxPriorityFeePerGas: tx.maxPriorityFeePerGas ? BigInt(tx.maxPriorityFeePerGas) : undefined,
+      nonce: parseInt(tx.nonce, 16),
+      data: tx.input || tx.data || '0x',
+      chainId: tx.chainId ? parseInt(tx.chainId, 16) : Number(this._chainInfo.chainId),
+      blockNumber: tx.blockNumber ? parseInt(tx.blockNumber, 16) : undefined,
+      blockHash: tx.blockHash || undefined,
+      confirmations: tx.blockNumber ? await this.getBlockNumber() - parseInt(tx.blockNumber, 16) : 0,
+      wait: async (confirmations?: number) => {
+        return this.waitForTransaction(hash, confirmations);
+      }
     };
   }
 
   /**
    * Estimate gas
    */
-  async estimateGas(tx: TransactionSignRequest): Promise<string> {
-    const params = this.formatTransaction(tx);
-    return await this.rpcRequest('eth_estimateGas', [params]);
+  async estimateGas(transaction: TransactionRequest): Promise<bigint> {
+    const params = this.formatTransactionRequest(transaction);
+    const gas = await this.rpcRequest('eth_estimateGas', [params]);
+    return BigInt(gas);
   }
 
   /**
    * Get gas price
    */
-  async getGasPrice(): Promise<string> {
-    return await this.rpcRequest('eth_gasPrice', []);
+  async getGasPrice(): Promise<bigint> {
+    const gasPrice = await this.rpcRequest('eth_gasPrice', []);
+    return BigInt(gasPrice);
   }
 
   /**
@@ -264,14 +310,15 @@ export class EVMProvider extends BaseProvider implements IEVMProvider {
     }
 
     return {
-      number: parseInt(block.number, 16),
       hash: block.hash,
       parentHash: block.parentHash,
+      number: parseInt(block.number, 16),
       timestamp: parseInt(block.timestamp, 16),
-      transactions: block.transactions,
-      gasLimit: block.gasLimit,
-      gasUsed: block.gasUsed,
-      baseFeePerGas: block.baseFeePerGas
+      gasLimit: BigInt(block.gasLimit),
+      gasUsed: BigInt(block.gasUsed),
+      miner: block.miner,
+      baseFeePerGas: block.baseFeePerGas ? BigInt(block.baseFeePerGas) : undefined,
+      transactions: block.transactions || []
     };
   }
 
@@ -286,9 +333,9 @@ export class EVMProvider extends BaseProvider implements IEVMProvider {
   /**
    * Call contract method
    */
-  async call(tx: TransactionSignRequest): Promise<string> {
-    const params = this.formatTransaction(tx);
-    return await this.rpcRequest('eth_call', [params, 'latest']);
+  async call(transaction: TransactionRequest, blockTag?: BlockTag): Promise<string> {
+    const params = this.formatTransactionRequest(transaction);
+    return await this.rpcRequest('eth_call', [params, blockTag || 'latest']);
   }
 
   // EVM-specific methods
@@ -296,8 +343,9 @@ export class EVMProvider extends BaseProvider implements IEVMProvider {
   /**
    * Get max priority fee per gas
    */
-  async getMaxPriorityFeePerGas(): Promise<string> {
-    return await this.rpcRequest('eth_maxPriorityFeePerGas', []);
+  async getMaxPriorityFeePerGas(): Promise<bigint> {
+    const fee = await this.rpcRequest('eth_maxPriorityFeePerGas', []);
+    return BigInt(fee);
   }
 
   /**
@@ -355,31 +403,6 @@ export class EVMProvider extends BaseProvider implements IEVMProvider {
     return await this.rpcRequest('eth_getStorageAt', [address, position, 'latest']);
   }
 
-  /**
-   * Get logs
-   */
-  async getLogs(filter: {
-    fromBlock?: string | number;
-    toBlock?: string | number;
-    address?: Address | Address[];
-    topics?: string[];
-  }): Promise<any[]> {
-    const params = {
-      ...filter,
-      fromBlock: filter.fromBlock 
-        ? (typeof filter.fromBlock === 'number' 
-          ? `0x${filter.fromBlock.toString(16)}` 
-          : filter.fromBlock)
-        : 'latest',
-      toBlock: filter.toBlock
-        ? (typeof filter.toBlock === 'number'
-          ? `0x${filter.toBlock.toString(16)}`
-          : filter.toBlock)
-        : 'latest'
-    };
-    
-    return await this.rpcRequest('eth_getLogs', [params]);
-  }
 
   /**
    * EIP-1193 request method
@@ -444,5 +467,237 @@ export class EVMProvider extends BaseProvider implements IEVMProvider {
   private encodeENSResolve(name: string): string {
     // Simplified - real implementation needs proper ENS encoding
     return '0x' + name;
+  }
+
+  private formatBlockTag(blockTag: BlockTag | string | number): string {
+    if (typeof blockTag === 'string') {
+      return blockTag;
+    }
+    if (typeof blockTag === 'number') {
+      return `0x${blockTag.toString(16)}`;
+    }
+    return 'latest';
+  }
+
+  /**
+   * Additional required methods
+   */
+  async getNetwork(): Promise<{ name: string; chainId: number }> {
+    const chainId = await this.getChainId();
+    const networkNames: Record<number, string> = {
+      1: 'mainnet',
+      5: 'goerli',
+      11155111: 'sepolia',
+      137: 'polygon',
+      42161: 'arbitrum',
+      10: 'optimism',
+      8453: 'base'
+    };
+    return {
+      name: networkNames[chainId] || 'unknown',
+      chainId
+    };
+  }
+
+  async getChainId(): Promise<number> {
+    const chainId = await this.rpcRequest('eth_chainId', []);
+    return parseInt(chainId, 16);
+  }
+
+  async getBlockWithTransactions(blockHashOrTag: BlockTag | string): Promise<BlockWithTransactions | null> {
+    const blockParam = this.formatBlockTag(blockHashOrTag);
+    const block = await this.rpcRequest('eth_getBlockByNumber', [
+      blockParam,
+      true // Include full transactions
+    ]);
+
+    if (!block) {
+      return null;
+    }
+
+    return {
+      hash: block.hash,
+      parentHash: block.parentHash,
+      number: parseInt(block.number, 16),
+      timestamp: parseInt(block.timestamp, 16),
+      gasLimit: BigInt(block.gasLimit),
+      gasUsed: BigInt(block.gasUsed),
+      miner: block.miner,
+      baseFeePerGas: block.baseFeePerGas ? BigInt(block.baseFeePerGas) : undefined,
+      transactions: block.transactions.map((tx: any) => this.formatTransactionResponse(tx))
+    };
+  }
+
+  async getTransactionReceipt(hash: string): Promise<TransactionReceipt | null> {
+    const receipt = await this.rpcRequest('eth_getTransactionReceipt', [hash]);
+
+    if (!receipt) {
+      return null;
+    }
+
+    return {
+      transactionHash: receipt.transactionHash,
+      blockHash: receipt.blockHash,
+      blockNumber: parseInt(receipt.blockNumber, 16),
+      transactionIndex: parseInt(receipt.transactionIndex, 16),
+      from: receipt.from,
+      to: receipt.to,
+      contractAddress: receipt.contractAddress,
+      cumulativeGasUsed: BigInt(receipt.cumulativeGasUsed),
+      gasUsed: BigInt(receipt.gasUsed),
+      effectiveGasPrice: receipt.effectiveGasPrice ? BigInt(receipt.effectiveGasPrice) : undefined,
+      logs: receipt.logs,
+      logsBloom: receipt.logsBloom,
+      status: parseInt(receipt.status, 16)
+    };
+  }
+
+  async waitForTransaction(hash: string, confirmations: number = 1, timeout: number = 60000): Promise<TransactionReceipt> {
+    const start = Date.now();
+
+    while (Date.now() - start < timeout) {
+      const receipt = await this.getTransactionReceipt(hash);
+
+      if (receipt) {
+        const currentBlock = await this.getBlockNumber();
+        const txConfirmations = currentBlock - receipt.blockNumber;
+
+        if (txConfirmations >= confirmations) {
+          return receipt;
+        }
+      }
+
+      // Wait 1 second before checking again
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    throw new ProviderError(`Transaction ${hash} timed out`, RpcErrorCode.INTERNAL_ERROR);
+  }
+
+  async getFeeData(): Promise<FeeData> {
+    const [gasPrice, block] = await Promise.all([
+      this.getGasPrice(),
+      this.getBlock('latest')
+    ]);
+
+    let maxFeePerGas: bigint | undefined;
+    let maxPriorityFeePerGas: bigint | undefined;
+    let lastBaseFeePerGas: bigint | undefined;
+
+    if (block && block.baseFeePerGas) {
+      lastBaseFeePerGas = typeof block.baseFeePerGas === 'bigint'
+        ? block.baseFeePerGas
+        : BigInt(block.baseFeePerGas);
+      // EIP-1559 fee calculation
+      maxPriorityFeePerGas = BigInt(1500000000); // 1.5 gwei default
+      maxFeePerGas = lastBaseFeePerGas * BigInt(2) + maxPriorityFeePerGas;
+    }
+
+    return {
+      gasPrice,
+      lastBaseFeePerGas,
+      maxFeePerGas,
+      maxPriorityFeePerGas
+    };
+  }
+
+  async getLogs(filter: Filter): Promise<Log[]> {
+    const params = {
+      ...filter,
+      fromBlock: filter.fromBlock
+        ? this.formatBlockTag(filter.fromBlock)
+        : 'latest',
+      toBlock: filter.toBlock
+        ? this.formatBlockTag(filter.toBlock)
+        : 'latest'
+    };
+
+    return await this.rpcRequest('eth_getLogs', [params]);
+  }
+
+  getRawProvider(): any {
+    return this.config.customProvider || null;
+  }
+
+  getEndpoint(): string {
+    return this.rpcUrl;
+  }
+
+  async getCostMetrics(): Promise<ProviderCostMetrics> {
+    // Basic implementation - can be enhanced with actual tracking
+    return {
+      computeUnitsUsed: 0,
+      requestsUsed: 0,
+      billingPeriod: {
+        start: new Date(),
+        end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+      }
+    };
+  }
+
+  async getHealthMetrics(): Promise<ProviderHealthMetrics> {
+    const start = Date.now();
+    try {
+      await this.getBlockNumber();
+      const latency = Date.now() - start;
+
+      return {
+        healthy: true,
+        latency,
+        successRate: 1,
+        uptime: 1
+      };
+    } catch (error) {
+      return {
+        healthy: false,
+        latency: Date.now() - start,
+        successRate: 0,
+        uptime: 0,
+        lastError: {
+          message: (error as Error).message,
+          timestamp: new Date()
+        }
+      };
+    }
+  }
+
+  async healthCheck(): Promise<ProviderHealthMetrics> {
+    return this.getHealthMetrics();
+  }
+
+  private formatTransactionResponse(tx: any): TransactionResponse {
+    return {
+      hash: tx.hash,
+      from: tx.from,
+      to: tx.to || undefined,
+      value: BigInt(tx.value || '0'),
+      gasLimit: BigInt(tx.gas || tx.gasLimit || '0'),
+      gasPrice: tx.gasPrice ? BigInt(tx.gasPrice) : undefined,
+      maxFeePerGas: tx.maxFeePerGas ? BigInt(tx.maxFeePerGas) : undefined,
+      maxPriorityFeePerGas: tx.maxPriorityFeePerGas ? BigInt(tx.maxPriorityFeePerGas) : undefined,
+      nonce: parseInt(tx.nonce, 16),
+      data: tx.input || tx.data || '0x',
+      chainId: tx.chainId ? parseInt(tx.chainId, 16) : Number(this._chainInfo.chainId),
+      blockNumber: tx.blockNumber ? parseInt(tx.blockNumber, 16) : undefined,
+      blockHash: tx.blockHash || undefined,
+      confirmations: 0,
+      wait: async (confirmations?: number) => {
+        return this.waitForTransaction(tx.hash, confirmations);
+      }
+    };
+  }
+
+  private formatTransactionRequest(tx: TransactionRequest): any {
+    const formatted: any = {};
+    if (tx.from) formatted.from = tx.from;
+    if (tx.to) formatted.to = tx.to;
+    if (tx.value) formatted.value = `0x${tx.value.toString(16)}`;
+    if (tx.data) formatted.data = tx.data;
+    if (tx.gasLimit) formatted.gas = `0x${tx.gasLimit.toString(16)}`;
+    if (tx.gasPrice) formatted.gasPrice = `0x${tx.gasPrice.toString(16)}`;
+    if (tx.maxFeePerGas) formatted.maxFeePerGas = `0x${tx.maxFeePerGas.toString(16)}`;
+    if (tx.maxPriorityFeePerGas) formatted.maxPriorityFeePerGas = `0x${tx.maxPriorityFeePerGas.toString(16)}`;
+    if (tx.nonce !== undefined) formatted.nonce = `0x${tx.nonce.toString(16)}`;
+    return formatted;
   }
 }

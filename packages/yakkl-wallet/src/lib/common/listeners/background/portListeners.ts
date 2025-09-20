@@ -26,7 +26,7 @@ import { onUnifiedMessageHandler } from '$contexts/background/extensions/chrome/
 import { sessionPortManager } from '$lib/managers/SessionPortManager';
 import { showPopupForMethod } from '$lib/managers/DAppPopupManager';
 import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
-import { BackgroundJWTValidatorService } from '$lib/services/background-jwt-validator.service';
+import { backgroundJWTValidator as BackgroundJWTValidatorService } from '@yakkl/security';
 import { EnhancedKeyManager } from '$lib/sdk/security/EnhancedKeyManager';
 import { showEIP6963Popup } from '$contexts/background/extensions/chrome/eip-6963';
 
@@ -156,13 +156,8 @@ export async function onPortConnectListener(port: Runtime.Port) {
 					url: connectionInfo.url
 				});
 
-				// Register the port with the JWT validator service
-				try {
-					const jwtValidator = BackgroundJWTValidatorService.getInstance();
-					jwtValidator.registerJWTValidatorPort(port);
-				} catch (error) {
-					log.error('[PortListener] Failed to register JWT validator port', false, error);
-				}
+				// JWT validator port registration not needed with new yakkl-security implementation
+				// The JWT validator now uses browser messaging APIs directly
 
 				// Also register it internally for tracking
 				registerInternalPort(connectionId, port, connectionInfo);

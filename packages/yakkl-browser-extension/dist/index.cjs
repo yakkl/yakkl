@@ -265,8 +265,8 @@ function createExtensionStorage(options) {
 }
 let clientStorage = null;
 let backgroundStorage = null;
-function getStorage(isBackground = false) {
-  if (isBackground) {
+function getStorage(isBackground2 = false) {
+  if (isBackground2) {
     if (!backgroundStorage) {
       backgroundStorage = new ExtensionStorage({
         area: "local",
@@ -284,9 +284,9 @@ function getStorage(isBackground = false) {
     return clientStorage;
   }
 }
-const clearObjectsFromLocalStorage = async (isBackground = false) => {
+const clearObjectsFromLocalStorage = async (isBackground2 = false) => {
   try {
-    const storage = getStorage(isBackground);
+    const storage = getStorage(isBackground2);
     await storage.clear();
   } catch (error) {
     console.error("Error clearing local storage", error);
@@ -562,6 +562,92 @@ function getExtensionVersion() {
   var _a, _b, _c, _d;
   return ((_d = (_c = (_b = (_a = getBrowserAPI()) == null ? void 0 : _a.runtime) == null ? void 0 : _b.getManifest) == null ? void 0 : _c.call(_b)) == null ? void 0 : _d.version) || null;
 }
+function getContextInfo() {
+  var _a, _b;
+  if (typeof globalThis === "undefined" || !("window" in globalThis) && !("chrome" in globalThis) && !("browser" in globalThis)) {
+    return {
+      isExtension: false,
+      context: "ssr",
+      hasDOM: false,
+      canUseSvelteStores: false
+    };
+  }
+  const hasExtensionAPI = typeof chrome !== "undefined" && ((_a = chrome == null ? void 0 : chrome.runtime) == null ? void 0 : _a.id) || typeof browser !== "undefined" && ((_b = browser == null ? void 0 : browser.runtime) == null ? void 0 : _b.id);
+  const hasWindow = typeof window !== "undefined";
+  const hasDocument = typeof document !== "undefined";
+  const hasDOM = hasWindow && hasDocument;
+  if (!hasExtensionAPI) {
+    return {
+      isExtension: false,
+      context: "web",
+      hasDOM,
+      canUseSvelteStores: hasDOM
+    };
+  }
+  if (!hasDOM) {
+    return {
+      isExtension: true,
+      context: "background",
+      hasDOM: false,
+      canUseSvelteStores: false
+    };
+  }
+  try {
+    const canAccessTabs = typeof chrome !== "undefined" && chrome.tabs !== void 0;
+    const isContentScript2 = !canAccessTabs && hasDOM;
+    if (isContentScript2) {
+      return {
+        isExtension: true,
+        context: "content",
+        hasDOM: true,
+        canUseSvelteStores: false
+        // In theory content scripts may have access to DOM, but we don't want to use svelte stores in content scripts
+      };
+    }
+  } catch {
+    return {
+      isExtension: true,
+      context: "content",
+      hasDOM: true,
+      canUseSvelteStores: false
+      // In theory content scripts may have access to DOM, but we don't want to use svelte stores in content scripts
+    };
+  }
+  return {
+    isExtension: true,
+    context: "extension-page",
+    hasDOM: true,
+    canUseSvelteStores: true
+  };
+}
+exports.cachedInfo = null;
+function getContext() {
+  if (!exports.cachedInfo) {
+    exports.cachedInfo = getContextInfo();
+  }
+  return exports.cachedInfo;
+}
+function isExtension() {
+  return getContext().isExtension;
+}
+function canUseSvelteStores() {
+  return getContext().canUseSvelteStores;
+}
+function isBackground() {
+  return getContext().context === "background";
+}
+function isContentScript() {
+  return getContext().context === "content";
+}
+function isExtensionPage() {
+  return getContext().context === "extension-page";
+}
+function isWeb() {
+  return getContext().context === "web";
+}
+function isSSR() {
+  return getContext().context === "ssr";
+}
 exports.ExtensionMessageHandler = messaging.ExtensionMessageHandler;
 exports.createMessageHandler = messaging.createMessageHandler;
 exports.ManifestBuilder = manifest.ManifestBuilder;
@@ -569,16 +655,25 @@ exports.createWalletManifest = manifest.createWalletManifest;
 exports.ExtensionContextManager = ExtensionContextManager;
 exports.ExtensionStorage = ExtensionStorage;
 exports.RequireContext = RequireContext;
+exports.canUseSvelteStores = canUseSvelteStores;
 exports.clearObjectsFromLocalStorage = clearObjectsFromLocalStorage;
 exports.contextManager = contextManager;
 exports.createExtensionStorage = createExtensionStorage;
 exports.createTypedStorage = createTypedStorage;
 exports.getBrowserAPI = getBrowserAPI;
+exports.getContext = getContext;
+exports.getContextInfo = getContextInfo;
 exports.getExtensionId = getExtensionId;
 exports.getExtensionVersion = getExtensionVersion;
 exports.getObjectFromLocalStorage = getObjectFromLocalStorage;
 exports.getObjectFromLocalStorageDirect = getObjectFromLocalStorageDirect;
+exports.isBackground = isBackground;
+exports.isContentScript = isContentScript;
+exports.isExtension = isExtension;
 exports.isExtensionContext = isExtensionContext;
+exports.isExtensionPage = isExtensionPage;
+exports.isSSR = isSSR;
+exports.isWeb = isWeb;
 exports.removeObjectFromLocalStorage = removeObjectFromLocalStorage;
 exports.setObjectInLocalStorage = setObjectInLocalStorage;
 //# sourceMappingURL=index.cjs.map

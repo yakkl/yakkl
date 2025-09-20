@@ -16,7 +16,7 @@ export interface OAuthConfig {
 export declare class OAuthProvider implements AuthProvider {
     name: string;
     type: "oauth";
-    private config;
+    protected config: OAuthConfig;
     private providers;
     constructor(config: OAuthConfig);
     /**
@@ -51,7 +51,7 @@ export declare class OAuthProvider implements AuthProvider {
      * Revoke OAuth token
      */
     revoke(token: string): Promise<void>;
-    private mapUserInfo;
+    protected mapUserInfo(userInfo: any): any;
     private generateState;
     private generateSessionId;
     private decodeIdToken;

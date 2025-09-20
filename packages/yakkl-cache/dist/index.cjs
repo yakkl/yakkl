@@ -23,7 +23,8 @@ var MemoryCache = class {
       ttl: this.defaultTTL,
       updateAgeOnGet: _nullishCoalesce(options.updateAgeOnGet, () => ( true)),
       updateAgeOnHas: _nullishCoalesce(options.updateAgeOnHas, () => ( false)),
-      maxEntrySize: 1e3,
+      // Removed maxEntrySize as it requires sizeCalculation function
+      // If size limiting is needed, add sizeCalculation: (entry) => entry.data.length
       dispose: () => {
         this.stats.evictions++;
       }

@@ -6,8 +6,8 @@ import {
 } from '$lib/common/stores';
 import { log } from '$lib/common/logger-wrapper';
 
-// Default networks
-const DEFAULT_NETWORKS: ChainDisplay[] = [
+// Define all available networks (includes unsupported ones for future use)
+const ALL_NETWORKS: ChainDisplay[] = [
   {
     key: 'ethereum',
     chainId: 1,
@@ -39,36 +39,6 @@ const DEFAULT_NETWORKS: ChainDisplay[] = [
     isTestnet: false
   },
   {
-    key: 'bsc',
-    chainId: 56,
-    name: 'BNB Smart Chain',
-    network: 'bsc',
-    icon: '🟡',
-    rpcUrl: 'https://bsc-dataseed.binance.org',
-    nativeCurrency: {
-      name: 'BNB',
-      symbol: 'BNB',
-      decimals: 18
-    },
-    explorerUrl: 'https://bscscan.com',
-    isTestnet: false
-  },
-  {
-    key: 'avalanche',
-    chainId: 43114,
-    name: 'Avalanche',
-    network: 'avalanche',
-    icon: '🔺',
-    rpcUrl: 'https://api.avax.network/ext/bc/C/rpc',
-    nativeCurrency: {
-      name: 'AVAX',
-      symbol: 'AVAX',
-      decimals: 18
-    },
-    explorerUrl: 'https://snowtrace.io',
-    isTestnet: false
-  },
-  {
     key: 'arbitrum',
     chainId: 42161,
     name: 'Arbitrum One',
@@ -97,8 +67,76 @@ const DEFAULT_NETWORKS: ChainDisplay[] = [
     },
     explorerUrl: 'https://optimistic.etherscan.io',
     isTestnet: false
-  }
+  },
+  {
+    key: 'base',
+    chainId: 8453,
+    name: 'Base',
+    network: 'base',
+    icon: '🔵',
+    rpcUrl: 'https://mainnet.base.org',
+    nativeCurrency: {
+      name: 'Ether',
+      symbol: 'ETH',
+      decimals: 18
+    },
+    explorerUrl: 'https://basescan.org',
+    isTestnet: false
+  },
+  // Unsupported chains (commented out but available for future provider support)
+  // {
+  //   key: 'bsc',
+  //   chainId: 56,
+  //   name: 'BNB Smart Chain',
+  //   network: 'bsc',
+  //   icon: '🟡',
+  //   rpcUrl: 'https://bsc-dataseed.binance.org',
+  //   nativeCurrency: {
+  //     name: 'BNB',
+  //     symbol: 'BNB',
+  //     decimals: 18
+  //   },
+  //   explorerUrl: 'https://bscscan.com',
+  //   isTestnet: false
+  // },
+  // {
+  //   key: 'avalanche',
+  //   chainId: 43114,
+  //   name: 'Avalanche',
+  //   network: 'avalanche',
+  //   icon: '🔺',
+  //   rpcUrl: 'https://api.avax.network/ext/bc/C/rpc',
+  //   nativeCurrency: {
+  //     name: 'AVAX',
+  //     symbol: 'AVAX',
+  //     decimals: 18
+  //   },
+  //   explorerUrl: 'https://snowtrace.io',
+  //   isTestnet: false
+  // }
 ];
+
+// Get supported chain IDs for Alchemy provider (must match provider-cache.service.ts)
+function getSupportedAlchemyChains(): number[] {
+  return [
+    1,        // Ethereum Mainnet
+    5,        // Goerli (deprecated but still supported)
+    11155111, // Sepolia
+    137,      // Polygon Mainnet
+    80001,    // Polygon Mumbai
+    42161,    // Arbitrum One
+    421613,   // Arbitrum Goerli
+    10,       // Optimism
+    420,      // Optimism Goerli
+    8453,     // Base Mainnet
+    84531     // Base Goerli
+  ];
+}
+
+// Filter networks to only include supported ones
+const DEFAULT_NETWORKS: ChainDisplay[] = ALL_NETWORKS.filter(network =>
+  getSupportedAlchemyChains().includes(network.chainId)
+);
 
 // Testnet networks
 const TESTNET_NETWORKS: ChainDisplay[] = [

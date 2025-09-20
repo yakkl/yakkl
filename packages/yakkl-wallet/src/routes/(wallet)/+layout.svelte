@@ -43,7 +43,6 @@
   // --- State ---
   let appState = $state($appStateManager);
   let initializing = $state(false);  // Default to false since we check app state separately
-  let isAuthenticating = $state(true);  // Show loader while authenticating
   let showTestnets = $state(false);
   let showSettings = $state(false);
   let showProfile = $state(false);
@@ -51,7 +50,6 @@
   let showEmergencyKit = $state(false);
   let showManageAccounts = $state(false);
   let showNetworkMismatch = $state(false);
-  let isAuthenticated = $state(false);
   let pendingChain = $state<ChainDisplay | null>(null);
   let isLoggingOut = $state(false);
   let logoutMessage = $state('');
@@ -70,6 +68,9 @@
 
     // setupConsoleFilters();
 
+    // NOTE: Lock logic moved to app initialization to avoid running on every page load
+    // The initial security check is now handled in hooks.client.ts or the root route
+
     // Subscribe to app state changes
     const unsubscribe = appStateManager.subscribe(state => {
       appState = state;
@@ -82,36 +83,25 @@
     // Run async initialization
     (async () => {
       try {
-        // CRITICAL: Start storage sync service IMMEDIATELY
-        // This ensures all persistent data is loaded into stores before login
-        log.info('[(wallet)/+Layout.svelte] Starting storage sync service immediately...');
+        // Start storage sync service for real-time updates
         await storageSyncService.start();
-        log.info('[(wallet)/+Layout.svelte] Storage sync service started - data loaded from persistent storage');
-
-        // Initialize auth store first to ensure JWT and authentication state is loaded
-        await authStore.initialize();
 
         // Try to wait for app ready, but don't block on timeout
         try {
-          await appStateManager.waitForReady(5000); // Reduced timeout to 5 seconds
+          await appStateManager.waitForReady(5000); // 5 second timeout
         } catch (error) {
           log.warn('[(wallet)/+Layout.svelte] AppStateManager timeout, continuing anyway:', false, error);
-          // Continue initialization even if AppStateManager times out
         }
 
-        // Authentication has already been validated in +layout.ts
-        // We can assume we're authenticated if we reach this component
-        isAuthenticated = true;
-        isAuthenticating = false;  // Hide loader once authenticated
-
-        // Load remaining stores that aren't critical for initialization
+        // SIMPLIFIED: Load data directly from storage to stores (no unnecessary caching)
+        // These are NOT cacheable items - they should always load from persistent storage
         await Promise.all([
-          accountStore.loadAccounts(),
-          chainStore.loadChains(),
-          planStore.loadPlan()
+          accountStore.loadAccounts(),    // Load accounts directly from storage
+          chainStore.loadChains(),        // Load chains directly from storage
+          planStore.loadPlan()             // Load plan directly from storage
         ]);
 
-        // Also initialize/refresh token store to ensure data is loaded
+        // Initialize token store (this CAN use caching for prices/balances)
         const { tokenStore } = await import('$lib/stores/token.store');
         await tokenStore.refresh().catch(err =>
           log.warn('[(wallet)/+layout.svelte] Token store refresh failed:', false, err));
@@ -122,7 +112,6 @@
         if (profile && profile.data && miscStore) {
           if (isEncryptedData(profile.data)) {
             const profileData = await decryptData(profile.data, miscStore) as ProfileData;
-            log.info('Layout: Starting session with JWT', false, profileData);
             const jwtToken = await sessionManager.startSession(
               profile.id,
               profile.username || 'user',
@@ -136,7 +125,6 @@
             // Update auth store with session state using the new method
             if (sessionState) {
               authStore.updateSessionState(sessionState, sessionState.jwtToken || jwtToken);
-              log.info('Layout: Session state updated in authStore', false, { sessionState });
             }
 
             if (profile.preferences?.showTestNetworks) {
@@ -153,9 +141,6 @@
           log.error('[(wallet)/+Layout.svelte] App initialization error:', false, error);
         }
       } finally {
-        // Ensure authentication loader is hidden
-        isAuthenticating = false;
-
         // App state manager will handle the initializing state through the subscription
         // No need to manually set it here
       }
@@ -331,8 +316,6 @@
       }
 
     } catch (error) {
-      log.warn(`[(wallet)/+Layout.svelte] performLogout: ${mode} error:`, false, error?.message);
-
       // Even on error, navigate to login for logout
       if (mode === 'logout') {
         try {
@@ -347,75 +330,72 @@
   }
 </script>
 
-<!-- Loading overlay for logout/exit -->
-{#if isAuthenticating}
-  <!-- <AuthenticationLoader /> -->
-{/if}
+<!-- Wallet UI -->
 
-{#if isLoggingOut}
-  <div class="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center">
-    <div class="bg-white dark:bg-zinc-800 rounded-lg p-6 shadow-2xl">
-      <div class="flex items-center gap-3">
-        <div class="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full"></div>
-        <span class="text-lg font-medium">{logoutMessage}</span>
+  {#if isLoggingOut}
+    <div class="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center">
+      <div class="bg-white dark:bg-zinc-800 rounded-lg p-6 shadow-2xl">
+        <div class="flex items-center gap-3">
+          <div class="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full"></div>
+          <span class="text-lg font-medium">{logoutMessage}</span>
+        </div>
+        <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-2">Please wait...</p>
       </div>
-      <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-2">Please wait...</p>
     </div>
-  </div>
-{/if}
+  {/if}
 
-<!-- Wallet-specific overlays & modals -->
-<Settings bind:show={showSettings} />
-<Profile bind:show={showProfile} />
-{#if showEmergencyKit}
-  <EmergencyKit onClose={() => showEmergencyKit = false} />
-{/if}
-{#if showManageAccounts}
-  <ManageAccounts onClose={() => showManageAccounts = false} />
-{/if}
-<ConfirmLogout
-  bind:show={showLogoutConfirm}
-  onConfirm={handleLogoutConfirm}
-  onCancel={() => showLogoutConfirm = false}
-/>
-{#if isAuthenticated}
+  <!-- Wallet-specific overlays & modals -->
+  <Settings bind:show={showSettings} />
+  <Profile bind:show={showProfile} />
+  {#if showEmergencyKit}
+    <EmergencyKit onClose={() => showEmergencyKit = false} />
+  {/if}
+  {#if showManageAccounts}
+    <ManageAccounts onClose={() => showManageAccounts = false} />
+  {/if}
+  <ConfirmLogout
+    bind:show={showLogoutConfirm}
+    onConfirm={handleLogoutConfirm}
+    onCancel={() => showLogoutConfirm = false}
+  />
+
   <SessionWarning />
   <JWTValidationModalProvider />
   <IdleCountdownModalEnhanced />
-{/if}
-{#if pendingChain}
-  <NetworkMismatchModal
-    bind:show={showNetworkMismatch}
-    chain={pendingChain}
-    onCreateAccount={handleCreateAccountForNetwork}
-    onCancel={handleCancelNetworkSwitch}
+
+  {#if pendingChain}
+    <NetworkMismatchModal
+      bind:show={showNetworkMismatch}
+      chain={pendingChain}
+      onCreateAccount={handleCreateAccountForNetwork}
+      onCancel={handleCancelNetworkSwitch}
+    />
+  {/if}
+
+  <!-- Fixed Header -->
+  <Header
+    link="/home"
+    account={account}
+    chains={chains}
+    selectedChain={selectedChain}
+    showTestnets={showTestnets}
+    onSwitchChain={handleSwitchChain}
+    onManageAccount={handleManageAccount}
+    onSettings={handleSettings}
+    onTheme={handleTheme}
+    onLogout={handleLogout}
+    onExit={handleExit}
+    onEmergencyKit={handleEmergencyKit}
+    onManageAccounts={handleManageAccounts}
+    className="flex-shrink-0 fixed z-[40] top-0"
   />
-{/if}
 
-<!-- Fixed Header -->
-<Header
-  link="/home"
-  account={account}
-  chains={chains}
-  selectedChain={selectedChain}
-  showTestnets={showTestnets}
-  onSwitchChain={handleSwitchChain}
-  onManageAccount={handleManageAccount}
-  onSettings={handleSettings}
-  onTheme={handleTheme}
-  onLogout={handleLogout}
-  onExit={handleExit}
-  onEmergencyKit={handleEmergencyKit}
-  onManageAccounts={handleManageAccounts}
-  className="flex-shrink-0 fixed z-[40] top-0"
-/>
-
-<!-- Scrollable Content Area -->
-<main class="flex-1 overflow-hidden mt-4">
-  <ScrollIndicator>
-    <div class="min-h-full">
-      {@render children?.()}
-    </div>
+  <!-- Scrollable Content Area -->
+  <main class="flex-1 overflow-hidden mt-4">
+    <ScrollIndicator>
+      <div class="min-h-full">
+        {@render children?.()}
+      </div>
     {#if initializing}
       <div class="fixed bottom-20 right-4 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-3 py-2 rounded-lg shadow-lg text-sm z-40">
         <div class="flex items-center gap-2">

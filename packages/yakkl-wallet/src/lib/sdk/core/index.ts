@@ -1,4 +1,3 @@
 // SDK Core - Main Export File
-export * from './bignumber';
-export * from './math';
+// BigNumber and math are now from @yakkl/core
 export * from './chain';

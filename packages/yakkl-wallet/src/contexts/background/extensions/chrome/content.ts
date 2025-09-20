@@ -34,7 +34,8 @@ import { SecurityLevel as SecurityLevelEnum } from '$lib/permissions/types';
 import browser from 'webextension-polyfill';
 import type { Runtime } from 'webextension-polyfill';
 import { log } from '$lib/managers/Logger';
-import { isExtensionContextValid } from '$lib/common';
+// Import directly from utils to avoid pulling in cache services
+import { isExtensionContextValid } from '$lib/common/utils';
 import {
 	isValidOrigin,
 	getTargetOrigin,
@@ -44,6 +45,7 @@ import {
 	debugOriginInfo,
 	safePostMessage
 } from '$lib/common/origin';
+import { safePortPostMessage, safePortDisconnect, safeRuntimeConnect } from '$lib/common/port-utils';
 
 // Type definitions
 type RuntimePort = Runtime.Port;
@@ -125,6 +127,10 @@ class PortDuplexStream extends Duplex {
 
 		// Handle disconnection
 		this.port.onDisconnect.addListener(() => {
+			// Check runtime.lastError to understand disconnect reason
+			if (browser.runtime.lastError) {
+				log.debug('Port disconnect reason:', false, browser.runtime.lastError.message);
+			}
 			this.destroy();
 		});
 	}
@@ -136,7 +142,11 @@ class PortDuplexStream extends Duplex {
 	_write(message: any, _encoding: string, callback: () => void) {
 		try {
 			log.debug('PortDuplexStream - content: Writing to port', false, message);
-			this.port.postMessage(message);
+			// Use safe port posting that checks runtime.lastError
+			const success = safePortPostMessage(this.port, message);
+			if (!success) {
+				log.debug('Port message failed - port may be disconnected or in bfcache', false);
+			}
 			callback();
 		} catch (error) {
 			log.warn('Failed to write to port', false, error);
@@ -158,7 +168,8 @@ class PortDuplexStream extends Duplex {
 		try {
 			log.debug('PortDuplexStream - content: Destroying port', false);
 			this.isDestroyed = true;
-			this.port.disconnect();
+			// Use safe disconnect that checks runtime.lastError
+			safePortDisconnect(this.port);
 			callback(err);
 		} catch (error: unknown) {
 			log.warn('Error in _destroy', false, error);
@@ -252,16 +263,11 @@ class ContentScriptManager {
 				// Add a small delay to ensure background is ready
 				await new Promise(resolve => setTimeout(resolve, 100));
 
-				try {
-					this.port = browser.runtime.connect({ name: YAKKL_DAPP });
-				} catch (connectError) {
-					// Silently handle connection errors
-					if (connectError instanceof Error &&
-					    (connectError.message.includes('Extension context invalidated') ||
-					     connectError.message.includes('Receiving end does not exist'))) {
-						return;
-					}
-					throw connectError;
+				// Use safe connect that checks runtime.lastError
+				this.port = safeRuntimeConnect({ name: YAKKL_DAPP });
+				if (!this.port) {
+					log.debug('Failed to connect port - extension may be reloading or context invalid', false);
+					return;
 				}
 			} catch (error) {
 				if (error instanceof Error) {
@@ -286,6 +292,19 @@ class ContentScriptManager {
 
 			// Handle disconnection
 			this.port.onDisconnect.addListener(() => {
+				// Check runtime.lastError to understand disconnect reason
+				if (browser.runtime.lastError) {
+					const error = browser.runtime.lastError;
+					// Log specific disconnect reasons
+					if (error.message?.includes('back/forward cache')) {
+						log.debug('Port disconnected: Page moved to bfcache', false);
+					} else if (error.message?.includes('Extension context invalidated')) {
+						log.debug('Port disconnected: Extension context invalidated', false);
+					} else {
+						log.debug('Port disconnected with error:', false, error.message);
+					}
+				}
+				
 				try {
 					this.handleDisconnection();
 				} catch (error) {
@@ -769,21 +788,32 @@ class ContentScriptManager {
 
 	// Test connection validity
 	private async testConnection(): Promise<boolean> {
-		if (!this.contentStream) return false;
+		if (!this.contentStream || !this.port) return false;
 
 		try {
 			const testId = `test-${Date.now()}`;
 
 			return new Promise((resolve) => {
 				const timeout = setTimeout(() => {
+					// Check for errors on timeout
+					if (browser.runtime.lastError) {
+						log.debug('Connection test timeout with error:', false, browser.runtime.lastError.message);
+					}
 					resolve(false);
 				}, 1000);
 
-				// Send test message
-				this.contentStream!.write({
+				// Send test message using safe post
+				const testMessage = {
 					type: 'CONNECTION_TEST',
 					id: testId
-				});
+				};
+				
+				// Use safe posting for the test
+				if (!safePortPostMessage(this.port, testMessage)) {
+					clearTimeout(timeout);
+					resolve(false);
+					return;
+				}
 
 				// Listen for response
 				const testHandler = (data: any) => {
@@ -797,6 +827,7 @@ class ContentScriptManager {
 				this.contentStream!.on('data', testHandler);
 			});
 		} catch (error) {
+			log.debug('Connection test failed:', false, error);
 			return false;
 		}
 	}
@@ -948,9 +979,8 @@ class ContentScriptManager {
 			clearInterval(this.healthCheckInterval);
 		}
 
-		if (this.port) {
-			this.port.disconnect();
-		}
+		// Use safe disconnect that checks runtime.lastError
+		safePortDisconnect(this.port);
 
 		this.port = null;
 		this.contentStream = null;

@@ -1,0 +1,590 @@
+
+> yakkl-wallet@2.0.2 dev:chrome /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet
+> pnpm run check:public && pnpm run copy:security && NODE_ENV=development VITE_LOG_LEVEL=debug npm run build:env:dev && NODE_ENV=development webpack -c webpack.config.cjs && NODE_ENV=development DEV_MODE=true vite build && NODE_ENV=development node ./buildSveltekitForCSP.mjs
+
+
+> yakkl-wallet@2.0.2 check:public /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet
+> node ./check-no-pro-private-imports.mjs
+
+
+> yakkl-wallet@2.0.2 copy:security /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet
+> node ./scripts/copy-security-files.js
+
+Copying security files from yakkl-security...
+✓ Skipped src/lib/managers/EmergencyKitManager.ts (already exists)
+Security files copy complete.
+
+> yakkl-wallet@2.0.2 build:env:dev
+> node ./build-env.js dev
+
+[build-env] Wrote .env for "dev" environment.
+[build-env] Wrote manifest.json for "dev" environment.
+asset background.js 8.55 MiB [compared for emit] (name: background) 1 related asset
+asset content.js 7.51 MiB [compared for emit] (name: content) 1 related asset
+asset inpage.js 428 KiB [compared for emit] (name: inpage) 1 related asset
+asset node_modules_pnpm_alchemy-sdk_3_6_0_bufferutil_4_0_9_typescript_5_8_3_utf-8-validate_5_0_10_n-632f4c.js 320 KiB [compared for emit] 1 related asset
+asset sandbox.js 305 KiB [compared for emit] (name: sandbox) 1 related asset
+asset node_modules_pnpm_alchemy-sdk_3_6_0_bufferutil_4_0_9_typescript_5_8_3_utf-8-validate_5_0_10_n-d83b19.js 232 KiB [compared for emit] 1 related asset
+asset browser-polyfill.js 37.5 KiB [compared for emit] [from: node_modules/webextension-polyfill/dist/browser-polyfill.js] [copied]
+asset src_contexts_background_extensions_chrome_iconTimer_ts.js 5.23 KiB [compared for emit] 1 related asset
+asset src_lib_common_primaryAccounts_ts.js 1.9 KiB [compared for emit] 1 related asset
+asset src_lib_common_preferences_ts.js 1.81 KiB [compared for emit] 1 related asset
+asset src_lib_common_contacts_ts.js 1.64 KiB [compared for emit] 1 related asset
+orphan modules 805 KiB [orphan] 626 modules
+runtime modules 13.9 KiB 35 modules
+javascript modules 7.21 MiB
+  modules by path ../ 5.02 MiB 733 modules
+  modules by path ./src/ 2.18 MiB
+    modules by path ./src/lib/ 1.73 MiB 210 modules
+    modules by path ./src/contexts/background/ 467 KiB 40 modules
+  + 7 modules
+json modules 58.8 KiB
+  modules by path ../../node_modules/.pnpm/ 55.5 KiB 10 modules
+  modules by path ./src/ 3.35 KiB
+    ./src/lib/managers/contracts/evm/abis/erc20.json 1.52 KiB [built] [code generated]
+    ./src/lib/managers/tokens/defaultTokens.json 1.83 KiB [built] [code generated]
+webpack 5.99.9 compiled successfully in 8983 ms
+Vite building with NODE_ENV: development
+You have specified a baseUrl and/or paths in your tsconfig.json which interferes with SvelteKit's auto-generated tsconfig.json. Remove it to avoid problems with intellisense. For path aliases, use `kit.alias` instead: https://svelte.dev/docs/kit/configuration#alias
+vite v7.0.6 building SSR bundle for production...
+transforming...
+
+🌼   daisyUI 4.12.24
+├─ ✔︎ 7 themes added		https://daisyui.com/docs/themes
+╰─ ❤︎ Support daisyUI project:	https://opencollective.com/daisyui
+
+
+🌼   daisyUI 4.12.24
+├─ ✔︎ 7 themes added		https://daisyui.com/docs/themes
+╰─ ★ Star daisyUI on GitHub	https://github.com/saadeghi/daisyui
+
+src/lib/components/pro/KeyManagement.svelte (27:5): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/lib/components/pro/KeyManagement.svelte (27:5): A comment
+
+"/* @__PURE__ */"
+
+in "src/lib/components/pro/KeyManagement.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+src/lib/components/pro/KeyManagement.svelte (28:2): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/lib/components/pro/KeyManagement.svelte (28:2): A comment
+
+"/* @__PURE__ */"
+
+in "src/lib/components/pro/KeyManagement.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+✓ 4248 modules transformed.
+Export "planStore" of module "src/lib/stores/plan.store.ts" was reexported through module "src/lib/stores/index.ts" while both modules are dependencies of each other and will end up in different chunks by current Rollup settings. This scenario is not well supported at the moment as it will produce a circular dependency between chunks and will likely lead to broken execution order.
+Either change the import in "src/lib/common/security.ts" to point directly to the exporting module or reconfigure "output.manualChunks" to ensure these modules end up in the same chunk.
+rendering chunks...
+[plugin vite:reporter] 
+(!) /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/storage.ts is dynamically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/settings.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/stores.ts but also statically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/contexts/background/extensions/chrome/iconTimer.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/contexts/background/extensions/chrome/ui.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/accounts.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/authValidation.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/contacts.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/currentlySelected.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/handlers.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/index.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/lockWallet.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/locks.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/preferences.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/primaryAccounts.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/profile.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/settings.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/stores.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/extensions/chrome/verifyDomainConnected.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/storage-sync.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/keyManagement.store.ts, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter] 
+(!) /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/stores.ts is dynamically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/accounts.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/EmergencyKit.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/managers/AppStateManager.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/managers/AppStateManager.ts but also statically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/contexts/background/extensions/chrome/ui.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/accounts.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/authValidation.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/handlers.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/listeners/ui/uiListeners.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/lockWallet.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/locks.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/miscStore.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/security.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/tokenPriceManager.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/tokens.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/utils.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/wallet.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/ArticleControls.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/ContactForm.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/Contacts.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/Copyright.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/EmergencyKit.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/ExportPrivateKey.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/IdleTimeoutSettings.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/ImportPhrase.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/ImportPrivateKey.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/ImportWatchAccount.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/Login.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/PincodeVerify.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/Profile.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/Receive.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/SessionWarning.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/Settings.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/SoundSettings.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/TokenComponentList.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/managers/networks/ethereum/createPortfolioAccount.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/managers/tokens/loadDefaultTokens.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/cache-sync.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/plan-level.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/storage-sync.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/token.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/wallet.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/account.store.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/auth-store.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/chain.store.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/network.store.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/plan.store.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/token.store.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/tokens/prices.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/utilities/connection.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/utilities/gas.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/utilities/utilities.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(dapp)/dapp/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(dapp)/dapp/login/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(dapp)/dapp/popups/accounts/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(dapp)/dapp/popups/approve/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(dapp)/dapp/popups/permissions/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(dapp)/dapp/popups/sign/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(dapp)/dapp/popups/transactions/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(dapp)/dapp/popups/wallet/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(dapp)/dapp/walletConnect/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(sidepanel)/sidepanel/sidepanel/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/+layout.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/create-new/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/create/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/print-emergency-kit/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/contacts/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/legal/tos/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/login/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/login/social/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/register/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/register/create/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/register/social/+page.svelte, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter] 
+(!) /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/accounts.ts is dynamically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/stores.ts but also statically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/utils.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/managers/networks/ethereum/createPortfolioAccount.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/wallet.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(dapp)/dapp/popups/accounts/+page.svelte, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter] 
+(!) /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/account.store.ts is dynamically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/token.store.ts but also statically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/BuyModal.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/EmergencyKit.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/ImportPhrase.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/ImportPrivateKey.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/ManageAccounts.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/PortfolioOverviewSimple.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/RecentActivity.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/SendModalEnhanced.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/SwapModalV2.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/TransactionDetailModal.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/UserMenu.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/views/ViewContainer.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/views/innovative/AccountOrbital.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/features/payment/buy/buy.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/native-token-price.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/transaction.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/transactionMonitor.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/index.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/transaction.store.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/view.store.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/+layout.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/create/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/export/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/manage/[address]/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/print-emergency-kit/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/dashboard/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/home/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/swap/+page.svelte, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter] 
+(!) /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/plan.store.ts is dynamically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/utils/features.ts but also statically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/BuyModal.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/HealthMonitor.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/PortfolioOverviewSimple.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/Settings.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/TrialCountdown.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/TroubleshootingModal.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/Upgrade.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/UserMenu.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/pro/KeyManagement.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/index.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/+layout.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/innovation/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/settings/+page.svelte, dynamic import will not move module into another chunk.
+
+[AppStateManager] createAppStateManager: AppStateManager created {
+  state: {
+    set: [Function: set],
+    update: [Function: update],
+    subscribe: [Function: subscribe]
+  }
+}
+Vite building with NODE_ENV: development
+vite v7.0.6 building for production...
+transforming...
+src/routes/(wallet)/accounts/create/+page.svelte (400:1): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/routes/(wallet)/accounts/create/+page.svelte (400:1): A comment
+
+"/* @__PURE__ */"
+
+in "src/routes/(wallet)/accounts/create/+page.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+src/routes/(wallet)/accounts/create/+page.svelte (401:1): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/routes/(wallet)/accounts/create/+page.svelte (401:1): A comment
+
+"/* @__PURE__ */"
+
+in "src/routes/(wallet)/accounts/create/+page.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+src/routes/(wallet)/contacts/+page.svelte (18:15): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/routes/(wallet)/contacts/+page.svelte (18:15): A comment
+
+"/* @__PURE__ */"
+
+in "src/routes/(wallet)/contacts/+page.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+src/routes/(wallet)/contacts/+page.svelte (19:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/routes/(wallet)/contacts/+page.svelte (19:0): A comment
+
+"/* @__PURE__ */"
+
+in "src/routes/(wallet)/contacts/+page.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+src/routes/(wallet)/contacts/+page.svelte (20:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/routes/(wallet)/contacts/+page.svelte (20:0): A comment
+
+"/* @__PURE__ */"
+
+in "src/routes/(wallet)/contacts/+page.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+src/routes/(wallet)/contacts/+page.svelte (150:34): A comment
+
+"/* @__PURE__ */"
+
+in "src/routes/(wallet)/contacts/+page.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+../yakkl-security-ui/src/lib/components/registration/RegisterProgressive.svelte (108:45): A comment
+
+"/* @__PURE__ */"
+
+in "../yakkl-security-ui/src/lib/components/registration/RegisterProgressive.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+src/lib/components/EmergencyKitShamir.svelte (107:10): A comment
+
+"/* @__PURE__ */"
+
+in "src/lib/components/EmergencyKitShamir.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+src/lib/components/EmergencyKitShamir.svelte (214:15): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/lib/components/EmergencyKitShamir.svelte (214:15): A comment
+
+"/* @__PURE__ */"
+
+in "src/lib/components/EmergencyKitShamir.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+src/lib/components/EmergencyKitShamir.svelte (363:1): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/lib/components/EmergencyKitShamir.svelte (363:1): A comment
+
+"/* @__PURE__ */"
+
+in "src/lib/components/EmergencyKitShamir.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+src/lib/components/EmergencyKitShamir.svelte (364:1): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/lib/components/EmergencyKitShamir.svelte (364:1): A comment
+
+"/* @__PURE__ */"
+
+in "src/lib/components/EmergencyKitShamir.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+src/lib/components/troubleshooting/CacheCleaner.svelte (165:2): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/lib/components/troubleshooting/CacheCleaner.svelte (165:2): A comment
+
+"/* @__PURE__ */"
+
+in "src/lib/components/troubleshooting/CacheCleaner.svelte" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+✓ 5807 modules transformed.
+Export "planStore" of module "src/lib/stores/plan.store.ts" was reexported through module "src/lib/stores/index.ts" while both modules are dependencies of each other and will end up in different chunks by current Rollup settings. This scenario is not well supported at the moment as it will produce a circular dependency between chunks and will likely lead to broken execution order.
+Either change the import in "src/lib/common/security.ts" to point directly to the exporting module or reconfigure "output.manualChunks" to ensure these modules end up in the same chunk.
+rendering chunks...
+[plugin vite:reporter] 
+(!) /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/storage.ts is dynamically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/settings.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/stores.ts but also statically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/contexts/background/extensions/chrome/iconTimer.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/contexts/background/extensions/chrome/ui.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/accounts.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/authValidation.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/contacts.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/currentlySelected.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/handlers.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/index.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/lockWallet.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/locks.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/preferences.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/primaryAccounts.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/profile.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/settings.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/stores.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/extensions/chrome/verifyDomainConnected.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/storage-sync.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/keyManagement.store.ts, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter] 
+(!) /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/accounts.ts is dynamically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/stores.ts but also statically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/utils.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/managers/networks/ethereum/createPortfolioAccount.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/wallet.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(dapp)/dapp/popups/accounts/+page.svelte, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter] 
+(!) /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/account.store.ts is dynamically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/token.store.ts but also statically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/BuyModal.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/EmergencyKit.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/ImportPhrase.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/ImportPrivateKey.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/ManageAccounts.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/PortfolioOverviewSimple.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/RecentActivity.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/SendModalEnhanced.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/SwapModalV2.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/TransactionDetailModal.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/UserMenu.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/views/ViewContainer.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/views/innovative/AccountOrbital.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/features/payment/buy/buy.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/native-token-price.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/transaction.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/transactionMonitor.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/index.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/transaction.store.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/view.store.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/+layout.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/create/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/export/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/manage/[address]/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/print-emergency-kit/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/dashboard/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/home/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/swap/+page.svelte, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter] 
+(!) /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/plan.store.ts is dynamically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/utils/features.ts but also statically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/BuyModal.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/HealthMonitor.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/PortfolioOverviewSimple.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/Settings.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/TrialCountdown.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/TroubleshootingModal.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/Upgrade.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/UserMenu.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/pro/KeyManagement.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/index.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/+layout.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/innovation/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/settings/+page.svelte, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter] 
+(!) /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/settings.ts is dynamically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/stores.ts but also statically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/stores.ts, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter] 
+(!) /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/stores.ts is dynamically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/accounts.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/EmergencyKit.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/managers/AppStateManager.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/managers/AppStateManager.ts but also statically imported by /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/contexts/background/extensions/chrome/ui.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/hooks.client.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/accounts.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/authValidation.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/handlers.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/listeners/ui/uiListeners.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/lockWallet.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/locks.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/miscStore.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/security.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/tokenPriceManager.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/tokens.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/utils.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/common/wallet.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/ArticleControls.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/ContactForm.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/Contacts.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/Copyright.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/EmergencyKit.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/ExportPrivateKey.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/IdleTimeoutSettings.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/ImportPhrase.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/ImportPrivateKey.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/ImportWatchAccount.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/Login.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/PincodeVerify.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/Profile.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/Receive.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/SessionWarning.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/Settings.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/SoundSettings.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/components/TokenComponentList.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/managers/networks/ethereum/createPortfolioAccount.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/managers/tokens/loadDefaultTokens.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/cache-sync.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/plan-level.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/storage-sync.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/token.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/services/wallet.service.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/account.store.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/auth-store.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/chain.store.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/network.store.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/plan.store.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/stores/token.store.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/tokens/prices.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/utilities/connection.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/utilities/gas.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/lib/utilities/utilities.ts, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(dapp)/dapp/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(dapp)/dapp/login/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(dapp)/dapp/popups/accounts/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(dapp)/dapp/popups/approve/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(dapp)/dapp/popups/permissions/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(dapp)/dapp/popups/sign/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(dapp)/dapp/popups/transactions/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(dapp)/dapp/popups/wallet/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(dapp)/dapp/walletConnect/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(sidepanel)/sidepanel/sidepanel/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/+layout.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/create-new/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/create/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/accounts/print-emergency-kit/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/contacts/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/legal/tos/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/login/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/login/social/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/register/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/register/create/+page.svelte, /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/src/routes/(wallet)/register/social/+page.svelte, dynamic import will not move module into another chunk.
+
+computing gzip size...
+[vite-plugin-static-copy] Copied 1 items.
+.svelte-kit/output/client/app/version.json                                              0.03 kB │ gzip:   0.05 kB
+.svelte-kit/output/client/.vite/manifest.json                                          69.57 kB │ gzip:   7.48 kB
+.svelte-kit/output/client/app/immutable/assets/ScrollIndicator.7443H5x1.css             0.07 kB │ gzip:   0.09 kB
+.svelte-kit/output/client/app/immutable/assets/LoginFlow.C8xWQ_iZ.css                   0.07 kB │ gzip:   0.09 kB
+.svelte-kit/output/client/app/immutable/assets/8.8PSmOl5U.css                           0.08 kB │ gzip:   0.08 kB
+.svelte-kit/output/client/app/immutable/assets/16.CAfKqLDq.css                          0.10 kB │ gzip:   0.09 kB
+.svelte-kit/output/client/app/immutable/assets/19.Dxt0OUVo.css                          0.10 kB │ gzip:   0.09 kB
+.svelte-kit/output/client/app/immutable/assets/ExtensionDashboard.DZ1cTedZ.css          0.11 kB │ gzip:   0.11 kB
+.svelte-kit/output/client/app/immutable/assets/0.BWJjg3yz.css                           0.12 kB │ gzip:   0.11 kB
+.svelte-kit/output/client/app/immutable/assets/12.D15k9NYW.css                          0.16 kB │ gzip:   0.13 kB
+.svelte-kit/output/client/app/immutable/assets/54.BcvCjPyi.css                          0.19 kB │ gzip:   0.13 kB
+.svelte-kit/output/client/app/immutable/assets/TransactionDetailModal.CCBCoTpy.css      0.36 kB │ gzip:   0.21 kB
+.svelte-kit/output/client/app/immutable/assets/17.CPSq65vF.css                          0.43 kB │ gzip:   0.21 kB
+.svelte-kit/output/client/app/immutable/assets/14.BaDCgw0Y.css                          0.43 kB │ gzip:   0.21 kB
+.svelte-kit/output/client/app/immutable/assets/15.D6BwIo-r.css                          0.44 kB │ gzip:   0.21 kB
+.svelte-kit/output/client/app/immutable/assets/18.BEAeT4WR.css                          0.58 kB │ gzip:   0.31 kB
+.svelte-kit/output/client/app/immutable/assets/RegisterProgressive.BGwvVr7l.css         0.78 kB │ gzip:   0.26 kB
+.svelte-kit/output/client/app/immutable/assets/34.By7ECdWY.css                          0.85 kB │ gzip:   0.37 kB
+.svelte-kit/output/client/app/immutable/assets/37.CWyAjsZH.css                          1.88 kB │ gzip:   0.68 kB
+.svelte-kit/output/client/app/immutable/assets/ProtectedValue.6ZiB5IsA.css              3.28 kB │ gzip:   0.96 kB
+.svelte-kit/output/client/app/immutable/assets/36.CLEdMhgH.css                          3.55 kB │ gzip:   1.11 kB
+.svelte-kit/output/client/app/immutable/assets/OrbitalViewSelector.Bq2Zk_9p.css         3.63 kB │ gzip:   1.17 kB
+.svelte-kit/output/client/app/immutable/assets/6.BXdpV96d.css                           9.91 kB │ gzip:   1.81 kB
+.svelte-kit/output/client/app/immutable/assets/21.UNL8Vosx.css                         14.19 kB │ gzip:   2.73 kB
+.svelte-kit/output/client/app/immutable/assets/app.C2541fnz.css                       396.59 kB │ gzip:  52.68 kB
+.svelte-kit/output/client/app/immutable/entry/start.CqA-ejB3.js                         0.12 kB │ gzip:   0.13 kB │ map:     0.10 kB
+.svelte-kit/output/client/app/immutable/nodes/6.BatvUMb7.js                             0.12 kB │ gzip:   0.13 kB │ map:     0.09 kB
+.svelte-kit/output/client/app/immutable/chunks/C0xg89nw.js                              0.12 kB │ gzip:   0.12 kB │ map:     0.34 kB
+.svelte-kit/output/client/app/immutable/chunks/DjtOuDSU.js                              0.14 kB │ gzip:   0.14 kB │ map:     0.09 kB
+.svelte-kit/output/client/app/immutable/chunks/CeVpAFrt.js                              0.34 kB │ gzip:   0.22 kB │ map:     0.85 kB
+.svelte-kit/output/client/app/immutable/chunks/B2_O4p6k.js                              0.37 kB │ gzip:   0.24 kB │ map:     4.88 kB
+.svelte-kit/output/client/app/immutable/chunks/CKoap7oN.js                              0.38 kB │ gzip:   0.24 kB │ map:     0.88 kB
+.svelte-kit/output/client/app/immutable/chunks/Bm5BTMZg.js                              0.39 kB │ gzip:   0.25 kB │ map:     0.09 kB
+.svelte-kit/output/client/app/immutable/chunks/BGHbU-xM.js                              0.45 kB │ gzip:   0.25 kB │ map:     5.55 kB
+.svelte-kit/output/client/app/immutable/chunks/D8tQrtJK.js                              0.47 kB │ gzip:   0.30 kB │ map:     6.28 kB
+.svelte-kit/output/client/app/immutable/chunks/DkFDHoPb.js                              0.51 kB │ gzip:   0.34 kB │ map:     1.34 kB
+.svelte-kit/output/client/app/immutable/chunks/Bs3rirZc.js                              0.53 kB │ gzip:   0.34 kB │ map:     1.38 kB
+.svelte-kit/output/client/app/immutable/chunks/rjZoynsy.js                              0.53 kB │ gzip:   0.27 kB │ map:     1.40 kB
+.svelte-kit/output/client/app/immutable/chunks/DApPkuFU.js                              0.58 kB │ gzip:   0.36 kB │ map:     1.46 kB
+.svelte-kit/output/client/app/immutable/chunks/DFXSH7Se.js                              0.67 kB │ gzip:   0.38 kB │ map:     2.11 kB
+.svelte-kit/output/client/app/immutable/chunks/Bbzs4mR8.js                              0.71 kB │ gzip:   0.41 kB │ map:     3.35 kB
+.svelte-kit/output/client/app/immutable/nodes/57.C2-Ze4K3.js                            0.75 kB │ gzip:   0.48 kB │ map:     0.10 kB
+.svelte-kit/output/client/app/immutable/nodes/44.CjmRYUS3.js                            0.76 kB │ gzip:   0.49 kB │ map:     0.10 kB
+.svelte-kit/output/client/app/immutable/nodes/32.DpV5EKmI.js                            0.78 kB │ gzip:   0.51 kB │ map:     0.10 kB
+.svelte-kit/output/client/app/immutable/chunks/i9t9U7Oh.js                              0.85 kB │ gzip:   0.38 kB │ map:     3.00 kB
+.svelte-kit/output/client/app/immutable/nodes/1.BJXiMrlI.js                             0.86 kB │ gzip:   0.50 kB │ map:     0.09 kB
+.svelte-kit/output/client/app/immutable/nodes/8.C_0cELlA.js                             0.90 kB │ gzip:   0.54 kB │ map:     0.67 kB
+.svelte-kit/output/client/app/immutable/nodes/9.D2qVf3CM.js                             0.90 kB │ gzip:   0.54 kB │ map:     0.67 kB
+.svelte-kit/output/client/app/immutable/chunks/pzdYVUxG.js                              0.92 kB │ gzip:   0.43 kB │ map:     2.86 kB
+.svelte-kit/output/client/app/immutable/nodes/7.pRFPx9Ps.js                             1.03 kB │ gzip:   0.63 kB │ map:     0.66 kB
+.svelte-kit/output/client/app/immutable/nodes/4.CicY3rRx.js                             1.04 kB │ gzip:   0.59 kB │ map:     0.84 kB
+.svelte-kit/output/client/app/immutable/nodes/5.Bi-2TdiC.js                             1.05 kB │ gzip:   0.60 kB │ map:     0.85 kB
+.svelte-kit/output/client/app/immutable/chunks/DaC1MRZ6.js                              1.05 kB │ gzip:   0.51 kB │ map:     3.57 kB
+.svelte-kit/output/client/app/immutable/chunks/CZWvv_Bq.js                              1.08 kB │ gzip:   0.50 kB │ map:     3.27 kB
+.svelte-kit/output/client/app/immutable/chunks/n5cPN55r.js                              1.10 kB │ gzip:   0.53 kB │ map:     3.24 kB
+.svelte-kit/output/client/app/immutable/chunks/CW--h7uZ.js                              1.15 kB │ gzip:   0.36 kB │ map:     3.03 kB
+.svelte-kit/output/client/app/immutable/chunks/CTrWoiui.js                              1.19 kB │ gzip:   0.46 kB │ map:     4.14 kB
+.svelte-kit/output/client/app/immutable/chunks/B7Nr9ygR.js                              1.22 kB │ gzip:   0.57 kB │ map:     3.85 kB
+.svelte-kit/output/client/app/immutable/chunks/BYxPHX7_.js                              1.25 kB │ gzip:   0.46 kB │ map:     4.00 kB
+.svelte-kit/output/client/app/immutable/chunks/BUdsak2i.js                              1.28 kB │ gzip:   0.62 kB │ map:     3.91 kB
+.svelte-kit/output/client/app/immutable/chunks/DQ2nURl9.js                              1.33 kB │ gzip:   0.71 kB │ map:     0.89 kB
+.svelte-kit/output/client/app/immutable/nodes/24.CFxfzIqF.js                            1.33 kB │ gzip:   0.72 kB │ map:     1.25 kB
+.svelte-kit/output/client/app/immutable/chunks/DJL0K6lZ.js                              1.39 kB │ gzip:   0.77 kB │ map:     1.49 kB
+.svelte-kit/output/client/app/immutable/chunks/CkUkbGIh.js                              1.40 kB │ gzip:   0.78 kB │ map:     1.57 kB
+.svelte-kit/output/client/app/immutable/chunks/BpPKsVcP.js                              1.43 kB │ gzip:   0.80 kB │ map:     1.65 kB
+.svelte-kit/output/client/app/immutable/chunks/Cltb3IMH.js                              1.44 kB │ gzip:   0.78 kB │ map:     1.52 kB
+.svelte-kit/output/client/app/immutable/chunks/CMzI6PWo.js                              1.48 kB │ gzip:   0.84 kB │ map:     1.87 kB
+.svelte-kit/output/client/app/immutable/chunks/Bfz1CCo4.js                              1.49 kB │ gzip:   0.57 kB │ map:     7.22 kB
+.svelte-kit/output/client/app/immutable/chunks/BU3YoX04.js                              1.49 kB │ gzip:   0.84 kB │ map:     1.87 kB
+.svelte-kit/output/client/app/immutable/chunks/BmPoOVrP.js                              1.52 kB │ gzip:   0.84 kB │ map:     1.91 kB
+.svelte-kit/output/client/app/immutable/chunks/CwV-ROUb.js                              1.54 kB │ gzip:   0.82 kB │ map:     1.98 kB
+.svelte-kit/output/client/app/immutable/chunks/DYa8tHEY.js                              1.54 kB │ gzip:   0.65 kB │ map:     7.79 kB
+.svelte-kit/output/client/app/immutable/chunks/C6tP6zZ9.js                              1.54 kB │ gzip:   0.87 kB │ map:     1.83 kB
+.svelte-kit/output/client/app/immutable/chunks/k_0Y8MNA.js                              1.57 kB │ gzip:   0.84 kB │ map:     1.83 kB
+.svelte-kit/output/client/app/immutable/chunks/9iUnxoqW.js                              1.59 kB │ gzip:   0.87 kB │ map:     2.20 kB
+.svelte-kit/output/client/app/immutable/nodes/42.Bvi6Lr7m.js                            1.59 kB │ gzip:   0.85 kB │ map:     1.74 kB
+.svelte-kit/output/client/app/immutable/chunks/BdSRmVrW.js                              1.60 kB │ gzip:   0.58 kB │ map:     5.04 kB
+.svelte-kit/output/client/app/immutable/nodes/48.CfIdBQtA.js                            1.83 kB │ gzip:   0.86 kB │ map:     1.13 kB
+.svelte-kit/output/client/app/immutable/chunks/CwoJfgPj.js                              1.97 kB │ gzip:   0.87 kB │ map:     6.01 kB
+.svelte-kit/output/client/app/immutable/chunks/CCqDsorS.js                              2.10 kB │ gzip:   0.93 kB │ map:     4.60 kB
+.svelte-kit/output/client/app/immutable/chunks/Bl_RGKrT.js                              2.17 kB │ gzip:   0.91 kB │ map:     9.33 kB
+.svelte-kit/output/client/app/immutable/chunks/BbDc-is9.js                              2.19 kB │ gzip:   0.86 kB │ map:     6.47 kB
+.svelte-kit/output/client/app/immutable/chunks/DAj2xRoO.js                              2.33 kB │ gzip:   0.78 kB │ map:     6.61 kB
+.svelte-kit/output/client/app/immutable/chunks/PGLRmPfr.js                              2.37 kB │ gzip:   0.98 kB │ map:    24.14 kB
+.svelte-kit/output/client/app/immutable/nodes/22.CQR6fQGS.js                            2.46 kB │ gzip:   1.10 kB │ map:    11.17 kB
+.svelte-kit/output/client/app/immutable/nodes/23.BJT6ksPf.js                            2.47 kB │ gzip:   1.11 kB │ map:     3.77 kB
+.svelte-kit/output/client/app/immutable/nodes/10.C-OMWI_W.js                            2.51 kB │ gzip:   1.21 kB │ map:     1.63 kB
+.svelte-kit/output/client/app/immutable/chunks/BTcou32Q.js                              2.59 kB │ gzip:   1.11 kB │ map:     9.00 kB
+.svelte-kit/output/client/app/immutable/chunks/Kmm4WnQ1.js                              2.60 kB │ gzip:   1.05 kB │ map:    14.49 kB
+.svelte-kit/output/client/app/immutable/chunks/BFlBGdo6.js                              2.62 kB │ gzip:   1.13 kB │ map:     2.64 kB
+.svelte-kit/output/client/app/immutable/chunks/oR2fWOPG.js                              2.65 kB │ gzip:   1.30 kB │ map:     2.99 kB
+.svelte-kit/output/client/app/immutable/chunks/5qcW6J_O.js                              2.82 kB │ gzip:   1.21 kB │ map:     2.38 kB
+.svelte-kit/output/client/app/immutable/chunks/Dsz72pn5.js                              3.07 kB │ gzip:   1.20 kB │ map:     9.29 kB
+.svelte-kit/output/client/app/immutable/nodes/11.DZqxWqIp.js                            3.10 kB │ gzip:   1.43 kB │ map:     3.58 kB
+.svelte-kit/output/client/app/immutable/chunks/CbQBPwW3.js                              3.14 kB │ gzip:   1.08 kB │ map:     4.61 kB
+.svelte-kit/output/client/app/immutable/chunks/BiC0guqc.js                              3.17 kB │ gzip:   1.03 kB │ map:     9.64 kB
+.svelte-kit/output/client/app/immutable/chunks/DZTwNABV.js                              3.33 kB │ gzip:   1.38 kB │ map:     2.50 kB
+.svelte-kit/output/client/app/immutable/chunks/CEogzHdE.js                              3.37 kB │ gzip:   1.19 kB │ map:    33.54 kB
+.svelte-kit/output/client/app/immutable/chunks/pFGipsd-.js                              3.47 kB │ gzip:   1.20 kB │ map:    12.30 kB
+.svelte-kit/output/client/app/immutable/chunks/BqKtMm32.js                              3.47 kB │ gzip:   1.25 kB │ map:    13.23 kB
+.svelte-kit/output/client/app/immutable/chunks/C5yHhn7g.js                              3.65 kB │ gzip:   1.41 kB │ map:    12.67 kB
+.svelte-kit/output/client/app/immutable/chunks/CUV0yHPm.js                              3.65 kB │ gzip:   1.51 kB │ map:     2.88 kB
+.svelte-kit/output/client/app/immutable/chunks/Bx4mesbE.js                              3.72 kB │ gzip:   1.27 kB │ map:     2.09 kB
+.svelte-kit/output/client/app/immutable/chunks/DPjzZFlK.js                              3.74 kB │ gzip:   1.44 kB │ map:     2.97 kB
+.svelte-kit/output/client/app/immutable/nodes/43.CTXWkWpX.js                            3.78 kB │ gzip:   1.91 kB │ map:     3.94 kB
+.svelte-kit/output/client/app/immutable/chunks/BsDm4Kw_.js                              4.13 kB │ gzip:   0.64 kB │ map:     7.35 kB
+.svelte-kit/output/client/app/immutable/chunks/BiPSfRey.js                              4.33 kB │ gzip:   1.70 kB │ map:     5.62 kB
+.svelte-kit/output/client/app/immutable/nodes/45.Br98iyFr.js                            4.43 kB │ gzip:   1.83 kB │ map:     4.75 kB
+.svelte-kit/output/client/app/immutable/chunks/DSJB0sas.js                              4.49 kB │ gzip:   1.55 kB │ map:    11.38 kB
+.svelte-kit/output/client/app/immutable/chunks/CYCcW_Yd.js                              5.30 kB │ gzip:   1.36 kB │ map:     4.40 kB
+.svelte-kit/output/client/app/immutable/chunks/F194QF6S.js                              5.40 kB │ gzip:   1.87 kB │ map:    13.06 kB
+.svelte-kit/output/client/app/immutable/chunks/BoH1Tvnb.js                              5.51 kB │ gzip:   2.26 kB │ map:    11.88 kB
+.svelte-kit/output/client/app/immutable/nodes/54.D1qfqqO-.js                            5.55 kB │ gzip:   1.83 kB │ map:     4.70 kB
+.svelte-kit/output/client/app/immutable/chunks/so6Sn0ud.js                              5.56 kB │ gzip:   1.66 kB │ map:    19.16 kB
+.svelte-kit/output/client/app/immutable/chunks/BgSJvKor.js                              5.62 kB │ gzip:   2.12 kB │ map:    11.42 kB
+.svelte-kit/output/client/app/immutable/chunks/1mT_Mnr7.js                              5.65 kB │ gzip:   1.72 kB │ map:    18.55 kB
+.svelte-kit/output/client/app/immutable/nodes/41.D3GpO9v2.js                            5.70 kB │ gzip:   2.38 kB │ map:     8.04 kB
+.svelte-kit/output/client/app/immutable/chunks/C5ofx-4C.js                              5.90 kB │ gzip:   1.82 kB │ map:     4.99 kB
+.svelte-kit/output/client/app/immutable/chunks/BkcL6zjg.js                              6.09 kB │ gzip:   2.13 kB │ map:    13.14 kB
+.svelte-kit/output/client/app/immutable/nodes/55.p3JfucaY.js                            6.32 kB │ gzip:   2.32 kB │ map:     5.23 kB
+.svelte-kit/output/client/app/immutable/nodes/46.DkUjmkpG.js                            6.45 kB │ gzip:   2.63 kB │ map:    11.13 kB
+.svelte-kit/output/client/app/immutable/chunks/BbEaf2MN.js                              6.48 kB │ gzip:   1.95 kB │ map:    12.25 kB
+.svelte-kit/output/client/app/immutable/nodes/40.DZfFUMDc.js                            6.80 kB │ gzip:   2.77 kB │ map:    11.41 kB
+.svelte-kit/output/client/app/immutable/chunks/CXPrPJQ3.js                              7.16 kB │ gzip:   1.65 kB │ map:    20.21 kB
+.svelte-kit/output/client/app/immutable/chunks/CiYq3Ipl.js                              7.29 kB │ gzip:   2.25 kB │ map:    18.49 kB
+.svelte-kit/output/client/app/immutable/nodes/3.CdXGTdRZ.js                             7.67 kB │ gzip:   2.78 kB │ map:    10.30 kB
+.svelte-kit/output/client/app/immutable/chunks/C1pZ1yu1.js                              8.28 kB │ gzip:   2.61 kB │ map:    13.08 kB
+.svelte-kit/output/client/app/immutable/nodes/20.79FFXe4F.js                            8.50 kB │ gzip:   3.21 kB │ map:    11.68 kB
+.svelte-kit/output/client/app/immutable/chunks/Chs077YC.js                              8.55 kB │ gzip:   2.29 kB │ map:    19.77 kB
+.svelte-kit/output/client/app/immutable/chunks/BAtLKgB6.js                              8.64 kB │ gzip:   2.77 kB │ map:    29.00 kB
+.svelte-kit/output/client/app/immutable/chunks/QMCP5LgV.js                              8.78 kB │ gzip:   2.34 kB │ map:    24.75 kB
+.svelte-kit/output/client/app/immutable/nodes/12.Ct99bMcl.js                            9.51 kB │ gzip:   2.98 kB │ map:    10.63 kB
+.svelte-kit/output/client/app/immutable/chunks/CRd7FKH8.js                              9.58 kB │ gzip:   3.16 kB │ map:    37.57 kB
+.svelte-kit/output/client/app/immutable/chunks/DWthG8EZ.js                              9.63 kB │ gzip:   3.57 kB │ map:    12.65 kB
+.svelte-kit/output/client/app/immutable/chunks/D7M-N1MX.js                              9.85 kB │ gzip:   3.18 kB │ map:    36.49 kB
+.svelte-kit/output/client/app/immutable/nodes/19.BexrlN99.js                           10.74 kB │ gzip:   3.91 kB │ map:    17.18 kB
+.svelte-kit/output/client/app/immutable/nodes/16.Bsucc4cZ.js                           11.23 kB │ gzip:   4.00 kB │ map:    17.37 kB
+.svelte-kit/output/client/app/immutable/nodes/53.HmAp3iTb.js                           11.62 kB │ gzip:   3.58 kB │ map:    11.33 kB
+.svelte-kit/output/client/app/immutable/nodes/38.Cqy4wxIV.js                           12.09 kB │ gzip:   4.63 kB │ map:     2.25 kB
+.svelte-kit/output/client/app/immutable/nodes/27.Cffd4dWx.js                           12.38 kB │ gzip:   3.96 kB │ map:    12.19 kB
+.svelte-kit/output/client/app/immutable/nodes/52.Drk6ASLH.js                           12.50 kB │ gzip:   3.67 kB │ map:    14.42 kB
+.svelte-kit/output/client/app/immutable/nodes/2.H9qhiILi.js                            13.55 kB │ gzip:   4.58 kB │ map:    20.33 kB
+.svelte-kit/output/client/app/immutable/chunks/Dw855f7x.js                             13.67 kB │ gzip:   3.64 kB │ map:    55.51 kB
+.svelte-kit/output/client/app/immutable/chunks/B4jHTHj-.js                             13.69 kB │ gzip:   3.64 kB │ map:    55.51 kB
+.svelte-kit/output/client/app/immutable/nodes/49.CD646b6Z.js                           13.76 kB │ gzip:   3.58 kB │ map:    11.51 kB
+.svelte-kit/output/client/app/immutable/nodes/56.gqArzfeb.js                           14.89 kB │ gzip:   4.20 kB │ map:    16.32 kB
+.svelte-kit/output/client/app/immutable/nodes/28.ufYqm6-Z.js                           15.12 kB │ gzip:   4.42 kB │ map:    13.50 kB
+.svelte-kit/output/client/app/immutable/nodes/51.DkghqF1Y.js                           15.18 kB │ gzip:   4.47 kB │ map:    15.19 kB
+.svelte-kit/output/client/app/immutable/nodes/0.C3hiqpFM.js                            15.31 kB │ gzip:   5.38 kB │ map:    30.44 kB
+.svelte-kit/output/client/app/immutable/chunks/DyIHha61.js                             15.93 kB │ gzip:   4.15 kB │ map:    45.39 kB
+.svelte-kit/output/client/app/immutable/chunks/UqriEVpL.js                             17.37 kB │ gzip:   5.65 kB │ map:    25.88 kB
+.svelte-kit/output/client/app/immutable/chunks/CCgtJ8py.js                             17.66 kB │ gzip:   4.31 kB │ map:    47.30 kB
+.svelte-kit/output/client/app/immutable/nodes/30.DZWxzKWH.js                           17.66 kB │ gzip:   4.89 kB │ map:    17.28 kB
+.svelte-kit/output/client/app/immutable/chunks/C5XH5MRp.js                             18.32 kB │ gzip:   5.33 kB │ map:    44.33 kB
+.svelte-kit/output/client/app/immutable/nodes/18.CEicLuBt.js                           18.34 kB │ gzip:   5.66 kB │ map:    26.46 kB
+.svelte-kit/output/client/app/immutable/chunks/oNzZ5Srz.js                             18.64 kB │ gzip:   4.97 kB │ map:    71.63 kB
+.svelte-kit/output/client/app/immutable/nodes/35.CsxM1u8o.js                           19.05 kB │ gzip:   5.11 kB │ map:    22.95 kB
+.svelte-kit/output/client/app/immutable/nodes/47.C7yoaX0A.js                           19.12 kB │ gzip:   6.03 kB │ map:    31.20 kB
+.svelte-kit/output/client/app/immutable/nodes/17.DaJ35ytE.js                           19.22 kB │ gzip:   5.94 kB │ map:    29.39 kB
+.svelte-kit/output/client/app/immutable/nodes/14.DkzD4Dnw.js                           19.98 kB │ gzip:   5.92 kB │ map:    38.38 kB
+.svelte-kit/output/client/app/immutable/nodes/25.CHBHzG71.js                           20.19 kB │ gzip:   5.44 kB │ map:    21.66 kB
+.svelte-kit/output/client/app/immutable/nodes/15.CviAodJL.js                           20.30 kB │ gzip:   5.72 kB │ map:    26.12 kB
+.svelte-kit/output/client/app/immutable/chunks/BExq3UPg.js                             21.98 kB │ gzip:   6.26 kB │ map:    22.87 kB
+.svelte-kit/output/client/app/immutable/nodes/26.CJRsdA-b.js                           23.20 kB │ gzip:   6.55 kB │ map:    27.42 kB
+.svelte-kit/output/client/app/immutable/chunks/DtjhwWpb.js                             24.04 kB │ gzip:   5.74 kB │ map:    64.10 kB
+.svelte-kit/output/client/app/immutable/nodes/13.BXzKetMW.js                           24.30 kB │ gzip:   7.26 kB │ map:    29.72 kB
+.svelte-kit/output/client/app/immutable/chunks/r2tyMRjM.js                             24.96 kB │ gzip:   5.63 kB │ map:    27.85 kB
+.svelte-kit/output/client/app/immutable/nodes/33.DEdmtUoz.js                           25.19 kB │ gzip:   6.07 kB │ map:    27.19 kB
+.svelte-kit/output/client/app/immutable/nodes/50.D7g8OStK.js                           29.83 kB │ gzip:   7.89 kB │ map:    36.00 kB
+.svelte-kit/output/client/app/immutable/chunks/QG9z3Aob.js                             31.15 kB │ gzip:   7.99 kB │ map:   102.98 kB
+.svelte-kit/output/client/app/immutable/chunks/His-sDYi.js                             32.21 kB │ gzip:   7.51 kB │ map:    88.63 kB
+.svelte-kit/output/client/app/immutable/chunks/BJQqLJiY.js                             35.07 kB │ gzip:   8.63 kB │ map:    97.22 kB
+.svelte-kit/output/client/app/immutable/chunks/Dfds8BTI.js                             38.01 kB │ gzip:   9.26 kB │ map:   116.02 kB
+.svelte-kit/output/client/app/immutable/chunks/BfR5pmLe.js                             38.49 kB │ gzip:   9.38 kB │ map:    51.12 kB
+.svelte-kit/output/client/app/immutable/entry/app.CxLuqbGv.js                          44.21 kB │ gzip:  11.55 kB │ map:    76.50 kB
+.svelte-kit/output/client/app/immutable/nodes/29.C16X2--x.js                           45.63 kB │ gzip:   9.75 kB │ map:    49.44 kB
+.svelte-kit/output/client/app/immutable/chunks/BZlBgrmt.js                             46.91 kB │ gzip:  11.46 kB │ map:    96.31 kB
+.svelte-kit/output/client/app/immutable/chunks/Bdfhh3tt.js                             52.96 kB │ gzip:  14.69 kB │ map:   136.81 kB
+.svelte-kit/output/client/app/immutable/chunks/CTyqOcyO.js                             56.87 kB │ gzip:  17.28 kB │ map:   208.57 kB
+.svelte-kit/output/client/app/immutable/nodes/39.CYz4hLpG.js                           57.37 kB │ gzip:  18.95 kB │ map:     8.53 kB
+.svelte-kit/output/client/app/immutable/chunks/BM1jfMEB.js                             64.46 kB │ gzip:  13.28 kB │ map:    64.87 kB
+.svelte-kit/output/client/app/immutable/nodes/31.DEz042BH.js                           74.69 kB │ gzip:  20.96 kB │ map:   162.89 kB
+.svelte-kit/output/client/app/immutable/chunks/BxkIFLuZ.js                             80.74 kB │ gzip:  21.68 kB │ map:   309.29 kB
+.svelte-kit/output/client/app/immutable/chunks/CjXf6wQk.js                            100.18 kB │ gzip:  22.64 kB │ map:   246.70 kB
+.svelte-kit/output/client/app/immutable/nodes/37.DcbiolOZ.js                          114.16 kB │ gzip:  28.34 kB │ map:   162.05 kB
+.svelte-kit/output/client/app/immutable/chunks/B_JjQnCE.js                            122.93 kB │ gzip:  37.69 kB │ map:   347.17 kB
+.svelte-kit/output/client/app/immutable/chunks/BWUz_sjT.js                            133.02 kB │ gzip:  31.23 kB │ map:   337.67 kB
+.svelte-kit/output/client/app/immutable/nodes/34.D4LiF-mw.js                          163.29 kB │ gzip:  32.01 kB │ map:   178.92 kB
+.svelte-kit/output/client/app/immutable/chunks/CISxDtRz.js                            170.40 kB │ gzip:  44.69 kB │ map:   484.02 kB
+.svelte-kit/output/client/app/immutable/nodes/21.D7OOjVH3.js                          230.67 kB │ gzip:  57.05 kB │ map:   358.35 kB
+.svelte-kit/output/client/app/immutable/chunks/BTWiNmiK.js                            233.48 kB │ gzip:  56.07 kB │ map:   324.83 kB
+.svelte-kit/output/client/app/immutable/nodes/36.9b28FkuJ.js                          244.78 kB │ gzip:  54.73 kB │ map:   304.50 kB
+.svelte-kit/output/client/app/immutable/chunks/DKEbXvrB.js                            362.45 kB │ gzip:  82.34 kB │ map:   456.27 kB
+.svelte-kit/output/client/app/immutable/chunks/D81XJJj1.js                            676.73 kB │ gzip: 188.83 kB │ map: 2,006.59 kB
+.svelte-kit/output/client/app/immutable/chunks/Ujox8xbe.js                          1,202.88 kB │ gzip: 326.89 kB │ map: 3,765.40 kB
+✓ built in 12.65s
+[AppStateManager] createAppStateManager: AppStateManager created {
+  state: {
+    set: [Function: set],
+    update: [Function: update],
+    subscribe: [Function: subscribe]
+  }
+}
+📋 System extension registry initialized with 2 extensions
+📋 System extension registry exported
+[Derived] currentAccountTokens: No current account or network
+[Home] Building tokenList: {
+  rawTokensCount: 0,
+  hasAccount: false,
+  accountAddress: undefined,
+  hasChain: false,
+  chainId: undefined,
+  accountBalance: undefined,
+  firstRawToken: 'No tokens in currentAccountTokens'
+}
+[Home] Final tokenList: { count: 0, tokens: [] }
+currentPlan explorer_member
+currentPlan explorer_member
+currentPlan 2 explorer_member
+[Derived] currentAccountTokens: No current account or network
+.svelte-kit/output/server/.vite/manifest.json                                                   47.40 kB
+.svelte-kit/output/server/app/immutable/assets/_page.CtrjRV7X.css                                0.06 kB
+.svelte-kit/output/server/app/immutable/assets/ScrollIndicator.7443H5x1.css                      0.07 kB
+.svelte-kit/output/server/app/immutable/assets/LoginFlow.C8xWQ_iZ.css                            0.07 kB
+.svelte-kit/output/server/app/immutable/assets/_layout@.8PSmOl5U.css                             0.08 kB
+.svelte-kit/output/server/app/immutable/assets/_page.CAfKqLDq.css                                0.10 kB
+.svelte-kit/output/server/app/immutable/assets/_page.Dxt0OUVo.css                                0.10 kB
+.svelte-kit/output/server/app/immutable/assets/ExtensionDashboard.DZ1cTedZ.css                   0.11 kB
+.svelte-kit/output/server/app/immutable/assets/_layout.BWJjg3yz.css                              0.12 kB
+.svelte-kit/output/server/app/immutable/assets/_page.D15k9NYW.css                                0.16 kB
+.svelte-kit/output/server/app/immutable/assets/_page.BcvCjPyi.css                                0.19 kB
+.svelte-kit/output/server/app/immutable/assets/TransactionDetailModal.CCBCoTpy.css               0.36 kB
+.svelte-kit/output/server/app/immutable/assets/_page.CPSq65vF.css                                0.43 kB
+.svelte-kit/output/server/app/immutable/assets/_page.BaDCgw0Y.css                                0.43 kB
+.svelte-kit/output/server/app/immutable/assets/_page.D6BwIo-r.css                                0.44 kB
+.svelte-kit/output/server/app/immutable/assets/_page.BEAeT4WR.css                                0.58 kB
+.svelte-kit/output/server/app/immutable/assets/RegisterProgressive.BGwvVr7l.css                  0.78 kB
+.svelte-kit/output/server/app/immutable/assets/_page.CWyAjsZH.css                                1.88 kB
+.svelte-kit/output/server/app/immutable/assets/_page.C7QLkNWw.css                                3.21 kB
+.svelte-kit/output/server/app/immutable/assets/ProtectedValue.6ZiB5IsA.css                       3.28 kB
+.svelte-kit/output/server/app/immutable/assets/OrbitalViewSelector.Bq2Zk_9p.css                  3.63 kB
+.svelte-kit/output/server/app/immutable/assets/_layout.BXdpV96d.css                              9.91 kB
+.svelte-kit/output/server/app/immutable/assets/_page.UNL8Vosx.css                               14.19 kB
+.svelte-kit/output/server/app/immutable/assets/app.C2541fnz.css                                396.59 kB
+.svelte-kit/output/server/entries/pages/(sidepanel)/sidepanel/_layout.ts.js                      0.10 kB │ map:     0.27 kB
+.svelte-kit/output/server/entries/pages/(wallet)/accounts/manage/_layout.ts.js                   0.10 kB │ map:     0.32 kB
+.svelte-kit/output/server/chunks/client2.js                                                      0.11 kB │ map:     1.89 kB
+.svelte-kit/output/server/chunks/index-server.js                                                 0.19 kB │ map:     1.49 kB
+.svelte-kit/output/server/chunks/html.js                                                         0.21 kB │ map:     0.64 kB
+.svelte-kit/output/server/chunks/extensionConnection.js                                          0.25 kB │ map:     6.31 kB
+.svelte-kit/output/server/internal.js                                                            0.30 kB │ map:     0.09 kB
+.svelte-kit/output/server/chunks/stores.js                                                       0.39 kB │ map:     4.88 kB
+.svelte-kit/output/server/chunks/message.service.js                                              0.39 kB │ map:     1.29 kB
+.svelte-kit/output/server/chunks/safeNavigate.js                                                 0.39 kB │ map:     0.88 kB
+.svelte-kit/output/server/chunks/rateLimiter.js                                                  0.45 kB │ map:     1.53 kB
+.svelte-kit/output/server/chunks/settings.js                                                     0.48 kB │ map:     2.27 kB
+.svelte-kit/output/server/chunks/contacts.js                                                     0.49 kB │ map:     1.33 kB
+.svelte-kit/output/server/chunks/preferences.js                                                  0.50 kB │ map:     1.37 kB
+.svelte-kit/output/server/chunks/primaryAccounts.js                                              0.56 kB │ map:     1.46 kB
+.svelte-kit/output/server/entries/pages/(wallet)/_layout.svelte.js                               0.67 kB │ map:     0.10 kB
+.svelte-kit/output/server/chunks/registration.store.js                                           0.68 kB │ map:     2.01 kB
+.svelte-kit/output/server/chunks/iconTimer.js                                                    0.73 kB │ map:     3.34 kB
+.svelte-kit/output/server/entries/pages/_error.svelte.js                                         0.77 kB │ map:     0.10 kB
+.svelte-kit/output/server/entries/fallbacks/layout.svelte.js                                     0.82 kB │ map:     0.50 kB
+.svelte-kit/output/server/chunks/client.js                                                       0.92 kB │ map:   109.08 kB
+.svelte-kit/output/server/entries/pages/(wallet)/legal/_layout@.svelte.js                        0.93 kB │ map:     0.75 kB
+.svelte-kit/output/server/entries/pages/(wallet)/login/_layout@.svelte.js                        0.93 kB │ map:     0.75 kB
+.svelte-kit/output/server/chunks/virtual_browser-polyfill-mock.js                                0.96 kB │ map:     2.98 kB
+.svelte-kit/output/server/entries/pages/(wallet)/tokens/_page.svelte.js                          0.97 kB │ map:     0.10 kB
+.svelte-kit/output/server/entries/pages/(wallet)/preferences/_page.svelte.js                     0.99 kB │ map:     0.10 kB
+.svelte-kit/output/server/entries/pages/(wallet)/ai-help/_page.svelte.js                         1.01 kB │ map:     0.10 kB
+.svelte-kit/output/server/chunks/SimpleTooltip.js                                                1.06 kB │ map:     9.30 kB
+.svelte-kit/output/server/entries/pages/(splash)/popup/_layout.svelte.js                         1.15 kB │ map:     0.95 kB
+.svelte-kit/output/server/entries/pages/(splash)/popup/popup/_layout.svelte.js                   1.16 kB │ map:     0.96 kB
+.svelte-kit/output/server/chunks/member-pricing.js                                               1.19 kB │ map:     4.14 kB
+.svelte-kit/output/server/entries/pages/(splash)/popup/_page.svelte.js                           1.24 kB │ map:    10.08 kB
+.svelte-kit/output/server/chunks/LockIcon.js                                                     1.25 kB │ map:     0.88 kB
+.svelte-kit/output/server/chunks/plus.js                                                         1.26 kB │ map:     1.55 kB
+.svelte-kit/output/server/entries/pages/(splash)/popup/popup/_page.svelte.js                     1.27 kB │ map:     2.70 kB
+.svelte-kit/output/server/chunks/search.js                                                       1.29 kB │ map:     1.64 kB
+.svelte-kit/output/server/chunks/chevron-left.js                                                 1.31 kB │ map:     1.51 kB
+.svelte-kit/output/server/chunks/copy.js                                                         1.34 kB │ map:     1.85 kB
+.svelte-kit/output/server/entries/pages/(wallet)/accounts/export/_page.svelte.js                 1.38 kB │ map:     4.95 kB
+.svelte-kit/output/server/chunks/download.js                                                     1.38 kB │ map:     1.90 kB
+.svelte-kit/output/server/chunks/utils2.js                                                       1.43 kB │ map:    23.24 kB
+.svelte-kit/output/server/chunks/trash-2.js                                                      1.45 kB │ map:     2.18 kB
+.svelte-kit/output/server/entries/pages/(wallet)/_page.svelte.js                                 1.45 kB │ map:     1.01 kB
+.svelte-kit/output/server/entries/pages/_layout.svelte.js                                        1.56 kB │ map:     6.85 kB
+.svelte-kit/output/server/entries/pages/(wallet)/accounts/import/_page.svelte.js                 1.64 kB │ map:     5.60 kB
+.svelte-kit/output/server/entries/pages/(wallet)/logout/_page.svelte.js                          1.65 kB │ map:     1.59 kB
+.svelte-kit/output/server/entries/pages/(wallet)/_layout.ts.js                                   1.67 kB │ map:     4.12 kB
+.svelte-kit/output/server/entries/pages/(wallet)/register/_page.svelte.js                        1.76 kB │ map:     3.75 kB
+.svelte-kit/output/server/entries/pages/(wallet)/test-network-speed/_page.svelte.js              1.79 kB │ map:     4.23 kB
+.svelte-kit/output/server/chunks/AppStateManager.js                                              1.89 kB │ map:     9.54 kB
+.svelte-kit/output/server/chunks/index.js                                                        1.93 kB │ map:     8.02 kB
+.svelte-kit/output/server/entries/pages/(wallet)/send/_page.svelte.js                            2.00 kB │ map:     0.98 kB
+.svelte-kit/output/server/chunks/Button.js                                                       2.02 kB │ map:     2.55 kB
+.svelte-kit/output/server/entries/pages/(wallet)/login/social/_page.svelte.js                    2.02 kB │ map:     0.10 kB
+.svelte-kit/output/server/entries/pages/(wallet)/accounts/create/_page.svelte.js                 2.03 kB │ map:    22.79 kB
+.svelte-kit/output/server/chunks/Copyright.js                                                    2.05 kB │ map:     2.68 kB
+.svelte-kit/output/server/chunks/SubMenu.js                                                      2.14 kB │ map:     1.76 kB
+.svelte-kit/output/server/chunks/Copy2.js                                                        2.25 kB │ map:     9.32 kB
+.svelte-kit/output/server/entries/pages/(wallet)/extensions/_page.svelte.js                      2.27 kB │ map:     2.05 kB
+.svelte-kit/output/server/entries/pages/(dapp)/dapp/_page.svelte.js                              2.37 kB │ map:     2.96 kB
+.svelte-kit/output/server/chunks/Confirmation.js                                                 2.52 kB │ map:     2.08 kB
+.svelte-kit/output/server/entries/pages/(wallet)/dashboard/_page.svelte.js                       2.64 kB │ map:    10.77 kB
+.svelte-kit/output/server/chunks/Modal.js                                                        2.65 kB │ map:     2.63 kB
+.svelte-kit/output/server/entries/pages/(wallet)/logout/_error.svelte.js                         2.70 kB │ map:     1.68 kB
+.svelte-kit/output/server/chunks/ScrollIndicator.js                                              2.74 kB │ map:     7.31 kB
+.svelte-kit/output/server/chunks/Icon2.js                                                        2.79 kB │ map:     2.72 kB
+.svelte-kit/output/server/chunks/spring.js                                                       2.83 kB │ map:    16.74 kB
+.svelte-kit/output/server/chunks/settings2.js                                                    3.00 kB │ map:     4.59 kB
+.svelte-kit/output/server/entries/pages/(sidepanel)/sidepanel/_layout@.svelte.js                 3.14 kB │ map:     8.15 kB
+.svelte-kit/output/server/chunks/ui.store.js                                                     3.34 kB │ map:    11.00 kB
+.svelte-kit/output/server/chunks/authValidation.js                                               3.46 kB │ map:    13.23 kB
+.svelte-kit/output/server/entries/pages/(dapp)/dapp/_layout@.svelte.js                           3.52 kB │ map:    16.85 kB
+.svelte-kit/output/server/chunks/ErrorNoAction.js                                                3.59 kB │ map:     2.31 kB
+.svelte-kit/output/server/chunks/Failed.js                                                       3.75 kB │ map:     2.62 kB
+.svelte-kit/output/server/entries/pages/(wallet)/phishing/_page.svelte.js                        4.05 kB │ map:     3.37 kB
+.svelte-kit/output/server/chunks/purchase-code.service.js                                        4.06 kB │ map:    11.25 kB
+.svelte-kit/output/server/chunks/browser-api-messages.js                                         4.14 kB │ map:     7.35 kB
+.svelte-kit/output/server/chunks/exports.js                                                      4.47 kB │ map:    12.48 kB
+.svelte-kit/output/server/chunks/environment.js                                                  4.55 kB │ map:    45.92 kB
+.svelte-kit/output/server/entries/pages/(wallet)/register/create/_page.svelte.js                 4.62 kB │ map:    10.87 kB
+.svelte-kit/output/server/entries/pages/(dapp)/dapp/EIP6963/_page.svelte.js                      5.23 kB │ map:     8.43 kB
+.svelte-kit/output/server/chunks/Icon.js                                                         5.39 kB │ map:     4.77 kB
+.svelte-kit/output/server/entries/pages/(wallet)/login/_page.svelte.js                           5.46 kB │ map:    10.82 kB
+.svelte-kit/output/server/chunks/browser-api-port.service.js                                     5.64 kB │ map:    18.52 kB
+.svelte-kit/output/server/entries/pages/(wallet)/test-copy/_page.svelte.js                       5.68 kB │ map:     4.29 kB
+.svelte-kit/output/server/chunks/PincodeVerify.js                                                5.76 kB │ map:     9.60 kB
+.svelte-kit/output/server/chunks/RefreshIcon.js                                                  6.14 kB │ map:     4.26 kB
+.svelte-kit/output/server/entries/pages/_layout.ts.js                                            6.43 kB │ map:    19.08 kB
+.svelte-kit/output/server/entries/pages/(wallet)/swap/_page.svelte.js                            6.52 kB │ map:    12.04 kB
+.svelte-kit/output/server/entries/pages/(wallet)/test-browser-api/_page.svelte.js                6.63 kB │ map:    10.65 kB
+.svelte-kit/output/server/entries/pages/(dapp)/dapp/walletConnect/_page.svelte.js                6.78 kB │ map:     9.53 kB
+.svelte-kit/output/server/entries/pages/(dapp)/dapp/popups/wallet/_page.svelte.js                6.89 kB │ map:    14.16 kB
+.svelte-kit/output/server/entries/pages/(wallet)/test-browser-api-port/_page.svelte.js           6.95 kB │ map:     9.09 kB
+.svelte-kit/output/server/entries/pages/(wallet)/register/social/_page.svelte.js                 7.02 kB │ map:    15.44 kB
+.svelte-kit/output/server/chunks/create-form.js                                                  7.29 kB │ map:    18.48 kB
+.svelte-kit/output/server/entries/pages/(dapp)/dapp/popups/permissions/_page.svelte.js           7.39 kB │ map:    14.16 kB
+.svelte-kit/output/server/entries/pages/(wallet)/test-vault/_page.svelte.js                      7.49 kB │ map:    12.69 kB
+.svelte-kit/output/server/chunks/ProtectedValue.js                                               7.62 kB │ map:    30.54 kB
+.svelte-kit/output/server/chunks/Logger.js                                                       8.39 kB │ map:    30.20 kB
+.svelte-kit/output/server/entries/pages/(wallet)/accounts/create-new/_page.svelte.js             9.07 kB │ map:    10.73 kB
+.svelte-kit/output/server/entries/pages/(dapp)/dapp/popups/sign/_page.svelte.js                  9.24 kB │ map:    24.02 kB
+.svelte-kit/output/server/chunks/LoginFlow.js                                                   10.32 kB │ map:    18.60 kB
+.svelte-kit/output/server/entries/pages/(dapp)/dapp/popups/approve/_page.svelte.js              10.56 kB │ map:    26.71 kB
+.svelte-kit/output/server/chunks/Upgrade.js                                                     11.17 kB │ map:    20.32 kB
+.svelte-kit/output/server/entries/pages/(wallet)/contacts/_page.svelte.js                       11.69 kB │ map:    22.91 kB
+.svelte-kit/output/server/entries/pages/(wallet)/accounts/print-emergency-kit/_page.svelte.js   12.27 kB │ map:    22.29 kB
+.svelte-kit/output/server/entries/pages/(wallet)/legal/privacy/_page.svelte.js                  12.70 kB │ map:     2.19 kB
+.svelte-kit/output/server/entries/pages/(dapp)/dapp/popups/accounts/_page.svelte.js             13.20 kB │ map:    33.91 kB
+.svelte-kit/output/server/chunks/OrbitalViewSelector.js                                         13.61 kB │ map:    24.04 kB
+.svelte-kit/output/server/entries/pages/(dapp)/dapp/popups/transactions/_page.svelte.js         13.85 kB │ map:    22.30 kB
+.svelte-kit/output/server/chunks/internal.js                                                    15.16 kB │ map:    66.42 kB
+.svelte-kit/output/server/chunks/auth-store.js                                                  15.93 kB │ map:    45.37 kB
+.svelte-kit/output/server/chunks/portfolio-data-coordinator.service.js                          16.72 kB │ map:    50.42 kB
+.svelte-kit/output/server/entries/pages/(wallet)/accounts/manage/_address_/_page.svelte.js      17.20 kB │ map:    17.71 kB
+.svelte-kit/output/server/chunks/view.store.js                                                  17.50 kB │ map:    47.22 kB
+.svelte-kit/output/server/chunks/index2.js                                                      17.95 kB │ map:    71.57 kB
+.svelte-kit/output/server/entries/pages/(wallet)/accounts/_page.svelte.js                       18.17 kB │ map:    21.15 kB
+.svelte-kit/output/server/entries/pages/(wallet)/settings/_page.svelte.js                       19.61 kB │ map:    11.11 kB
+.svelte-kit/output/server/entries/pages/(dapp)/dapp/login/_page.svelte.js                       21.00 kB │ map:    26.96 kB
+.svelte-kit/output/server/entries/pages/(wallet)/settings/keys/_page.svelte.js                  22.82 kB │ map:    32.32 kB
+.svelte-kit/output/server/chunks/session.js                                                     31.03 kB │ map:    88.52 kB
+.svelte-kit/output/server/chunks/RegisterProgressive.js                                         35.82 kB │ map:    43.29 kB
+.svelte-kit/output/server/chunks/utils.js                                                       39.83 kB │ map:   202.06 kB
+.svelte-kit/output/server/chunks/ExtensionDashboard.js                                          41.61 kB │ map:    94.83 kB
+.svelte-kit/output/server/entries/pages/(wallet)/legal/tos/_page.svelte.js                      55.78 kB │ map:     6.54 kB
+.svelte-kit/output/server/entries/pages/(wallet)/innovation/_page.svelte.js                     85.99 kB │ map:   140.34 kB
+.svelte-kit/output/server/index.js                                                              97.48 kB │ map:   307.14 kB
+.svelte-kit/output/server/chunks/TransactionDetailModal.js                                     111.12 kB │ map:   166.83 kB
+.svelte-kit/output/server/entries/pages/(sidepanel)/sidepanel/sidepanel/_page.svelte.js        119.37 kB │ map:   291.25 kB
+.svelte-kit/output/server/entries/pages/(wallet)/home/_page.svelte.js                          162.31 kB │ map:   237.46 kB
+.svelte-kit/output/server/chunks/_layout.js                                                    166.85 kB │ map:   326.99 kB
+.svelte-kit/output/server/chunks/utilities.js                                                  401.05 kB │ map: 1,312.91 kB
+.svelte-kit/output/server/chunks/index3.js                                                     719.47 kB │ map: 2,061.10 kB
+[vite-plugin-static-copy] Copied 1 items.
+✓ built in 23.13s
+
+Run npm run preview to preview your production build locally.
+
+> Using sveltekit-adapter-chrome-extension
+  Removing Inline Scripts
+  ✔ Inline script extracted and saved at: build/script-1wvgtu1.js
+  Removing App Manifest
+  Removing App Manifest
+  ✔ Removed app manifest file at path: /Users/hansjones/projects/lambdastack/yakkl/crypto/yakkl/packages/yakkl-wallet/build/manifest.json
+  Re-writing extension manifest
+  ✔ Successfully re-wrote extension manifest
+  ✔ done
+  Wrote site to "build"
+[CSP Build] Injected browser polyfill into ./build/eip6963-test.html
+[CSP Build] Injected browser polyfill into ./build/sidepanel_orig.html
+[CSP Build] Injected browser polyfill into ./build/snippet-privacy.html
+[CSP Build] Injected browser polyfill into ./build/snippet-tos.html
