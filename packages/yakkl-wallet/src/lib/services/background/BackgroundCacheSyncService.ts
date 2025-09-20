@@ -12,7 +12,7 @@ import { UnifiedTimerManager } from '$lib/managers/UnifiedTimerManager';
 import { BackgroundCacheStore } from './BackgroundCacheStore';
 import { BackgroundTransactionService } from './BackgroundTransactionService';
 import { BackgroundPriceService } from './BackgroundPriceService';
-import { providerCache } from '../../../contexts/background/services/provider-cache.service';
+import { simpleProvider } from '../../../contexts/background/services/simple-provider.service';
 import { BigNumberishUtils } from '@yakkl/core'; // Use for formatEther replacement
 import type { TokenData } from '$lib/common/interfaces';
 import { blockchainHandlers } from '$contexts/background/handlers/blockchain'; // STATIC IMPORT - NO DYNAMIC IMPORTS IN SERVICE WORKERS
@@ -287,15 +287,15 @@ export class BackgroundCacheSyncService {
   }
 
   /**
-   * Get provider from centralized cache
+   * Get provider from simple provider service
    */
   private async getProvider(chainId: number): Promise<any | null> {
     try {
-      // Use the centralized provider cache
-      const provider = await providerCache.getProvider(chainId);
+      // Use the simple provider service
+      const provider = await simpleProvider.getProvider(chainId);
       return provider;
     } catch (error) {
-      log.error('[BackgroundCacheSync] Failed to get provider from cache', false, {
+      log.error('[BackgroundCacheSync] Failed to get provider', false, {
         chainId,
         error: error instanceof Error ? error.message : 'Unknown error'
       });

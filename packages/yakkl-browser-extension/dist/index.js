@@ -1,5 +1,6 @@
 import { ExtensionMessageHandler, createMessageHandler } from "./messaging.js";
 import { ManifestBuilder, createWalletManifest } from "./manifest.js";
+
 class ExtensionStorage {
   constructor(options = {}) {
     this.prefix = options.prefix || "";

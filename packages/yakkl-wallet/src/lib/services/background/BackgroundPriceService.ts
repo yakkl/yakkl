@@ -1,6 +1,6 @@
 /**
  * BackgroundPriceService - Background context compatible price service
- * 
+ *
  * NO Svelte stores, NO window object, NO client messaging
  * Uses direct browser.storage API and UnifiedTimerManager
  * Compatible with service worker environment
@@ -167,7 +167,7 @@ export class BackgroundPriceService {
 
       // Get native token symbol based on chain
       const nativeSymbol = this.getNativeTokenSymbol(chainId);
-      const pair = `${nativeSymbol}/USD`;
+      const pair = `${nativeSymbol}-USD`;
 
       // Check cache first (unless forced)
       if (!forceUpdate) {
@@ -230,12 +230,12 @@ export class BackgroundPriceService {
   public async updatePrices(): Promise<void> {
     try {
       log.debug('[BackgroundPriceService] Starting price update cycle');
-      
+
       // Get current cache from storage
       const storage = await browser.storage.local.get(['yakklWalletCache', 'yakkl-currently-selected']);
       const cache = storage.yakklWalletCache;
       const currentlySelected = storage['yakkl-currently-selected'];
-      
+
       if (!cache || !currentlySelected) {
         log.debug('[BackgroundPriceService] No cache or selection available');
         return;
@@ -245,14 +245,14 @@ export class BackgroundPriceService {
       const selected = currentlySelected as { shortcuts?: { chainId?: number; address?: string } };
       const chainId = selected?.shortcuts?.chainId;
       const address = selected?.shortcuts?.address;
-      
+
       if (chainId && address) {
         await this.updateNativeTokenPrice(chainId, address, true);
       }
 
       // Update other token prices if needed
       await this.updateTokenPrices(cache);
-      
+
     } catch (error) {
       log.error('[BackgroundPriceService] Failed to update prices', false, error);
     }
@@ -284,14 +284,14 @@ export class BackgroundPriceService {
 
           if (token.isNative) {
             const symbol = this.getNativeTokenSymbol(Number(chainId));
-            pair = `${symbol}/USD`;
+            pair = `${symbol}-USD`;
           } else {
             const tokenSymbol = token.symbol?.toUpperCase();
             if (tokenSymbol && ['USDC', 'USDT', 'DAI'].includes(tokenSymbol)) {
               // Skip stablecoins - they're always $1
               continue;
             } else if (tokenSymbol && ['WETH', 'WBTC'].includes(tokenSymbol)) {
-              pair = tokenSymbol === 'WETH' ? 'ETH/USD' : 'BTC/USD';
+              pair = tokenSymbol === 'WETH' ? 'ETH-USD' : 'BTC-USD';
             }
           }
 
@@ -544,15 +544,15 @@ export class BackgroundPriceService {
    * Update price in browser storage
    */
   private async updatePriceInStorage(
-    chainId: number, 
-    address: string, 
-    price: number, 
+    chainId: number,
+    address: string,
+    price: number,
     symbol: string
   ): Promise<void> {
     // Get existing prices
     const storage = await browser.storage.local.get(this.STORAGE_KEY);
     const prices = storage[this.STORAGE_KEY] || {};
-    
+
     // Update price
     prices[`native_${chainId}_${address}`] = {
       price,
@@ -561,7 +561,7 @@ export class BackgroundPriceService {
       chainId,
       address
     };
-    
+
     // Save back to storage
     await browser.storage.local.set({ [this.STORAGE_KEY]: prices });
   }
@@ -595,7 +595,7 @@ export class BackgroundPriceService {
    */
   private getNativeTokenPair(chainId: number): string {
     const symbol = this.getNativeTokenSymbol(chainId);
-    return `${symbol}/USD`;
+    return `${symbol}-USD`;
   }
 
   /**
@@ -604,11 +604,11 @@ export class BackgroundPriceService {
   public async updatePricesAndValues(): Promise<void> {
     try {
       log.debug('[BackgroundPriceService] Starting coordinated price and value update');
-      
+
       // Get current cache from storage
       const storage = await browser.storage.local.get(['yakklWalletCache']);
       const cache = storage.yakklWalletCache;
-      
+
       if (!cache) {
         log.debug('[BackgroundPriceService] No cache available');
         return;
@@ -616,7 +616,7 @@ export class BackgroundPriceService {
 
       // Update prices and calculate values
       await this.updateTokenPrices(cache);
-      
+
     } catch (error) {
       log.error('[BackgroundPriceService] Failed to update prices and values', false, error);
     }
@@ -627,29 +627,29 @@ export class BackgroundPriceService {
    */
   public async fetchLatestPrices(): Promise<Record<string, any>> {
     const priceData: Record<string, any> = {};
-    
+
     try {
       await this.ensurePriceManagerInitialized();
-      
+
       // Get cache to determine which tokens to fetch
       const storage = await browser.storage.local.get('yakklWalletCache');
       const cache = storage.yakklWalletCache as any;
-      
+
       if (!cache?.chainAccountCache) {
         return priceData;
       }
 
       // Process each chain's native token
       const processedChains = new Set<number>();
-      
+
       for (const [chainId, chainData] of Object.entries(cache.chainAccountCache as any)) {
         const numericChainId = Number(chainId);
-        
+
         if (!processedChains.has(numericChainId)) {
           processedChains.add(numericChainId);
-          
+
           const pair = this.getNativeTokenPair(numericChainId);
-          
+
           try {
             // Check cache first
             const cached = this.getCachedPrice(pair);
@@ -694,7 +694,7 @@ export class BackgroundPriceService {
 
       log.debug(`[BackgroundPriceService] Fetched prices for ${Object.keys(priceData).length} tokens`);
       return priceData;
-      
+
     } catch (error) {
       log.error('[BackgroundPriceService] Error fetching latest prices', false, error);
       return priceData;

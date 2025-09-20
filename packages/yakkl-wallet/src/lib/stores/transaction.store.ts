@@ -7,6 +7,8 @@ import { currentAccount } from './account.store';
 import { currentChain } from './chain.store';
 import { get } from 'svelte/store';
 import { walletCacheStore } from './wallet-cache.store';
+// Add BlockchainExplorer for direct transaction fetching
+import { BlockchainExplorer } from '$lib/managers/providers/explorer/BlockchainExplorer';
 
 import { log } from '$lib/common/logger-wrapper';
 
@@ -93,7 +95,7 @@ function createTransactionStore() {
         gasPrice: tx.gasPrice,
         blockNumber: tx.blockNumber,
         confirmations: tx.confirmations,
-        type: tx.from.toLowerCase() === account.address.toLowerCase() ? 'send' : 'receive'
+        type: tx.from?.toLowerCase() === account.address?.toLowerCase() ? 'send' : 'receive'
       }));
       
       // Sort according to current sort order
@@ -193,23 +195,42 @@ function createTransactionStore() {
       const walletCacheTransactions = accountCache?.transactions?.transactions || [];
       
       log.info('TransactionStore: Found transactions in wallet cache:', false, walletCacheTransactions.length);
-      
-      // Convert to TransactionDisplay format
-      const displayTransactions: TransactionDisplay[] = walletCacheTransactions.map((tx: any) => ({
-        hash: tx.hash,
-        from: tx.from,
-        to: tx.to,
-        value: tx.value,
-        timestamp: tx.timestamp,
-        status: tx.status || 'success',
-        chainId: chain.chainId,
-        nonce: tx.nonce,
-        gas: tx.gas,
-        gasPrice: tx.gasPrice,
-        blockNumber: tx.blockNumber,
-        confirmations: tx.confirmations,
-        type: tx.from.toLowerCase() === address.toLowerCase() ? 'send' : 'receive'
-      }));
+
+      // If wallet cache is empty, try BlockchainExplorer
+      let displayTransactions: TransactionDisplay[] = [];
+
+      if (walletCacheTransactions.length === 0) {
+        log.info('TransactionStore: Wallet cache empty, fetching from BlockchainExplorer');
+
+        try {
+          const explorer = BlockchainExplorer.getInstance();
+          const explorerTransactions = await explorer.getTransactionHistory(address, chain.chainId, 100, false);
+
+          log.info('TransactionStore: Found transactions from BlockchainExplorer:', false, explorerTransactions.length);
+
+          // BlockchainExplorer already returns TransactionDisplay format
+          displayTransactions = explorerTransactions;
+        } catch (error) {
+          log.warn('TransactionStore: Failed to fetch from BlockchainExplorer:', false, error);
+        }
+      } else {
+        // Convert wallet cache format to TransactionDisplay format
+        displayTransactions = walletCacheTransactions.map((tx: any) => ({
+          hash: tx.hash,
+          from: tx.from,
+          to: tx.to,
+          value: tx.value,
+          timestamp: tx.timestamp,
+          status: tx.status || 'success',
+          chainId: chain.chainId,
+          nonce: tx.nonce,
+          gas: tx.gas,
+          gasPrice: tx.gasPrice,
+          blockNumber: tx.blockNumber,
+          confirmations: tx.confirmations,
+          type: tx.from?.toLowerCase() === address?.toLowerCase() ? 'send' : 'receive'
+        }));
+      }
       
       // Sort according to current sort order
       const currentState = get({ subscribe });

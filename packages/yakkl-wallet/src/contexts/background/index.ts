@@ -8,6 +8,7 @@ import { log } from '$lib/common/logger-wrapper';
 import { bookmarkContextMenu } from './extensions/chrome/contextMenu';
 import { sessionHandlers } from './handlers/session';
 import { backgroundProviderManager } from './services/provider-manager';
+import { balancePollingService } from './services/balance-polling.service';
 
 // Initialize background cache services ONLY after authentication
 // CRITICAL: Services should NOT run before user is authenticated
@@ -33,6 +34,10 @@ async function initializeCacheServices() {
     const backgroundIntervals = BackgroundIntervalService.getInstance();
     await backgroundIntervals.initialize();
     backgroundIntervals.startAll();
+
+    // Start balance polling service
+    log.info('[Background] Starting balance polling service');
+    await balancePollingService.start();
   } catch (error) {
     log.error('[Background] Failed to initialize cache services:', false, error);
   }

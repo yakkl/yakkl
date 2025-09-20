@@ -34,7 +34,6 @@
   import IdleCountdownModalEnhanced from '$lib/components/IdleCountdownModalEnhanced.svelte';
   import { authStore } from '$lib/stores/auth-store';
   import { storageSyncService } from '$lib/services/storage-sync.service';
-  import { clientStorageLoader } from '$lib/services/client-storage-loader.service';
 
   interface Props {
     children?: import('svelte').Snippet;
@@ -44,7 +43,6 @@
   // --- State ---
   let appState = $state($appStateManager);
   let initializing = $state(false);  // Default to false since we check app state separately
-  let isAuthenticating = $state(true);  // Show loader while authenticating
   let showTestnets = $state(false);
   let showSettings = $state(false);
   let showProfile = $state(false);
@@ -52,7 +50,6 @@
   let showEmergencyKit = $state(false);
   let showManageAccounts = $state(false);
   let showNetworkMismatch = $state(false);
-  let isAuthenticated = $state(false);
   let pendingChain = $state<ChainDisplay | null>(null);
   let isLoggingOut = $state(false);
   let logoutMessage = $state('');
@@ -71,29 +68,8 @@
 
     // setupConsoleFilters();
 
-    // 🔒 CRITICAL SECURITY: ALWAYS LOCK FIRST - NO EXCEPTIONS
-    // This ensures the wallet is ALWAYS in a secure locked state on startup
-    // regardless of any stored data, sessions, or previous state
-    (async () => {
-      try {
-        // Set loading states immediately to prevent flash of content
-        isAuthenticating = true;
-        initializing = true;
-
-        log.info('[(wallet)/+Layout.svelte] 🔒 SECURITY: Locking wallet immediately on startup');
-        await lockWallet();
-        log.info('[(wallet)/+Layout.svelte] 🔒 Wallet locked successfully');
-
-        // Clear any existing authentication state
-        isAuthenticated = false;
-
-        // Immediately redirect to login page
-        await goto('/login', { replaceState: true });
-      } catch (error) {
-        // Even if lock fails, still redirect to login for safety
-        await goto('/login', { replaceState: true });
-      }
-    })();
+    // NOTE: Lock logic moved to app initialization to avoid running on every page load
+    // The initial security check is now handled in hooks.client.ts or the root route
 
     // Subscribe to app state changes
     const unsubscribe = appStateManager.subscribe(state => {
@@ -104,68 +80,28 @@
                    state.phase === AppPhase.LOADING_CACHE;
     });
 
-    // Run async initialization (AFTER locking)
+    // Run async initialization
     (async () => {
       try {
+        // Start storage sync service for real-time updates
         await storageSyncService.start();
-
-        // 🔒 CRITICAL SECURITY: DO NOT RE-AUTHENTICATE ON INITIAL MOUNT
-        // The wallet has been locked and user redirected to login.
-        // ANY authentication must come from the login page, not from stored credentials.
-        // This prevents bypass of the security lock.
-
-        // Check if we're opening from sidepanel by looking for a valid session
-        // If there's a valid session, don't logout as this will close the popup
-        const hasValidSession = await authStore.checkSession();
-        if (!hasValidSession) {
-          // Only logout if there's no valid session
-          // This prevents closing the popup when opened from sidepanel
-          authStore.logout().catch(err =>
-            log.debug('[(wallet)/+Layout.svelte] Auth logout during security lock (non-blocking):', false, err)
-          );
-        } else {
-          log.info('[(wallet)/+Layout.svelte] Valid session detected, skipping auto-logout');
-        }
 
         // Try to wait for app ready, but don't block on timeout
         try {
-          await appStateManager.waitForReady(5000); // Reduced timeout to 5 seconds
+          await appStateManager.waitForReady(5000); // 5 second timeout
         } catch (error) {
           log.warn('[(wallet)/+Layout.svelte] AppStateManager timeout, continuing anyway:', false, error);
-          // Continue initialization even if AppStateManager times out
         }
 
-        // DO NOT CHECK FOR EXISTING AUTHENTICATION HERE
-        // User MUST authenticate through the login page
-        isAuthenticated = false;  // Always false on initial mount
-        isAuthenticating = false;  // Hide loader
-
-        // Use client storage loader for cache-first loading
-        // This provides fast initial load from cache while background updates happen
-        const [accountsResult, settingsResult] = await Promise.all([
-          clientStorageLoader.loadAccounts(),
-          clientStorageLoader.loadSettings()
-        ]);
-
-        // Update stores with loaded data
-        if (accountsResult.data) {
-          // Update account store with loaded accounts
-          await accountStore.setAccounts(accountsResult.data);
-          if (accountsResult.fromCache) {
-            log.info('[(wallet)/+layout.svelte] Accounts loaded from cache');
-          }
-        } else {
-          // Fallback to regular loading if cache miss
-          await accountStore.loadAccounts();
-        }
-
-        // Load remaining stores
+        // SIMPLIFIED: Load data directly from storage to stores (no unnecessary caching)
+        // These are NOT cacheable items - they should always load from persistent storage
         await Promise.all([
-          chainStore.loadChains(),
-          planStore.loadPlan()
+          accountStore.loadAccounts(),    // Load accounts directly from storage
+          chainStore.loadChains(),        // Load chains directly from storage
+          planStore.loadPlan()             // Load plan directly from storage
         ]);
 
-        // Also initialize/refresh token store to ensure data is loaded
+        // Initialize token store (this CAN use caching for prices/balances)
         const { tokenStore } = await import('$lib/stores/token.store');
         await tokenStore.refresh().catch(err =>
           log.warn('[(wallet)/+layout.svelte] Token store refresh failed:', false, err));
@@ -205,9 +141,6 @@
           log.error('[(wallet)/+Layout.svelte] App initialization error:', false, error);
         }
       } finally {
-        // Ensure authentication loader is hidden
-        isAuthenticating = false;
-
         // App state manager will handle the initializing state through the subscription
         // No need to manually set it here
       }
@@ -397,16 +330,7 @@
   }
 </script>
 
-<!-- 🔒 CRITICAL SECURITY: Show loading screen while authenticating -->
-{#if isAuthenticating || !isAuthenticated}
-  <div class="fixed inset-0 z-[70] bg-base-100 flex items-center justify-center">
-    <div class="flex flex-col items-center gap-4">
-      <div class="animate-spin h-8 w-8 border-3 border-primary border-t-transparent rounded-full"></div>
-      <span class="text-lg font-medium">Securing wallet...</span>
-    </div>
-  </div>
-{:else}
-  <!-- Only render wallet UI if authenticated -->
+<!-- Wallet UI -->
 
   {#if isLoggingOut}
     <div class="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center">
@@ -522,6 +446,4 @@
 {/if}
 
 <TroubleshootingFAB />
-
-{/if} <!-- End of authentication check -->
 

@@ -2,56 +2,30 @@ import type { Blockchain } from '$lib/managers/Blockchain';
 import type { Provider } from '$lib/managers/Provider';
 import type { Wallet } from '$lib/managers/Wallet';
 import { blockchainServiceManager } from '$lib/sdk/BlockchainServiceManager';
-import { getYakklCurrentlySelectedAccountKey } from './security';
-import { getMiscStore } from './stores';
-import { getYakklCurrentlySelected } from './currentlySelected';
-import type { Ethereum } from '$lib/managers/blockchains/evm/ethereum/Ethereum';
 import { TokenService } from '$lib/managers/blockchains/evm/TokenService';
 import { log } from '$lib/managers/Logger';
 
-export async function getInstances(): Promise<
+export async function getInstances(chainId: number = 1): Promise<
 	[Wallet | null, Provider | null, Blockchain | null, TokenService<any> | null]
 > {
 	try {
-		const yakklMiscStore = getMiscStore();
-		if (!yakklMiscStore) {
-			// log.debug("getInstances() - Not logged in.");
-			return [null, null, null, null];
-		}
-
-		const currentlySelected = await getYakklCurrentlySelected();
-		const chainId = currentlySelected.shortcuts?.chainId ?? 1;
-
-		console.log('[getInstances] About to initialize BlockchainServiceManager with chainId:', chainId);
-		console.log('[getInstances] blockchainServiceManager exists:', !!blockchainServiceManager);
-		
 		try {
 			// Initialize blockchain service manager
 			await blockchainServiceManager.initialize({
 				defaultChainId: chainId,
 				autoSetupProviders: true
 			});
-			console.log('[getInstances] BlockchainServiceManager initialized successfully');
 		} catch (initError) {
-			console.error('[getInstances] Failed to initialize BlockchainServiceManager:', initError);
+			log.error('[getInstances] Failed to initialize BlockchainServiceManager:', false, initError);
 			throw initError;
 		}
 
 		// Get provider from SDK
 		const sdkProvider = blockchainServiceManager.getProvider();
-		console.log('[getInstances] Got provider from blockchainServiceManager:', !!sdkProvider);
 		if (!sdkProvider) {
 			log.warn('[getInstances] No provider available from blockchainServiceManager');
-			console.warn('[getInstances] Provider is null - check if RPC endpoints are configured');
 			return [null, null, null, null];
 		}
-		
-		log.debug('[getInstances] Got provider from SDK');
-		console.log('[getInstances] Provider details:', {
-			hasProvider: !!sdkProvider,
-			providerType: sdkProvider?.constructor?.name,
-			chainId: sdkProvider?.chainInfo?.chainId
-		});
 
 		// Create a compatibility wrapper for the SDK provider
 		// CacheSync expects instances[1].getProvider() to return the actual provider
@@ -92,7 +66,7 @@ export async function getInstances(): Promise<
 					gasLimit: transaction.gasLimit || undefined,
 					gasPrice: transaction.gasPrice || undefined
 				};
-				
+
 				// Use the SDK provider's call method
 				if (typeof sdkProvider.call === 'function') {
 					return await sdkProvider.call(formattedTx);
@@ -137,16 +111,6 @@ export async function getInstances(): Promise<
 		let wallet: Wallet | null = null;
 		let blockchain: Blockchain | null = null;
 		let tokenService: TokenService<any> | null = null;
-
-		// Try to create TokenService if we have a provider
-		// This is a temporary solution until full SDK migration
-		try {
-			// For now, we can't create the blockchain instance without the wallet
-			// but we can return the provider wrapper for basic operations
-			log.debug('[getInstances] Returning provider wrapper (wallet migration pending)');
-		} catch (error) {
-			log.warn('[getInstances] Failed to create TokenService:', error);
-		}
 
 		return [wallet, providerWrapper as any, blockchain, tokenService];
 	} catch (error) {
