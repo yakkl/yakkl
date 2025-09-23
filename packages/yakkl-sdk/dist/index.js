@@ -5312,6 +5312,100 @@ class QuickNodeTransactionProvider extends AbstractTransactionProvider {
     };
   }
 }
+let _crypto;
+if (typeof window !== "undefined" && window.crypto) {
+  _crypto = window.crypto;
+} else if (typeof globalThis !== "undefined" && globalThis.crypto) {
+  _crypto = globalThis.crypto;
+} else {
+  try {
+    _crypto = require("crypto").webcrypto;
+  } catch {
+    throw new Error("No crypto support found");
+  }
+}
+async function generateSalt() {
+  const saltBuffer = _crypto.getRandomValues(new Uint8Array(64));
+  return bufferToBase64(saltBuffer);
+}
+function bufferToBase64(array) {
+  if (typeof btoa !== "undefined") {
+    let binary = "";
+    for (let i = 0; i < array.length; i++) binary += String.fromCharCode(array[i]);
+    return btoa(binary);
+  }
+  const { Buffer: Buffer2 } = require("buffer");
+  return Buffer2.from(array).toString("base64");
+}
+function base64ToUint8(base64) {
+  if (typeof atob !== "undefined") {
+    const binary = atob(base64);
+    const out = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+    return out;
+  }
+  const { Buffer: Buffer2 } = require("buffer");
+  return new Uint8Array(Buffer2.from(base64, "base64"));
+}
+function bufferForCrypto(base64) {
+  return base64ToUint8(base64).buffer;
+}
+async function deriveKeyFromPassword(password, existingSalt) {
+  const salt = existingSalt || await generateSalt();
+  const encoder = new TextEncoder();
+  const derivationKey = await _crypto.subtle.importKey(
+    "raw",
+    encoder.encode(password),
+    { name: "PBKDF2" },
+    false,
+    ["deriveKey"]
+  );
+  const key = await _crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: encoder.encode(salt),
+      iterations: 1e6,
+      hash: "SHA-256"
+    },
+    derivationKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+  return { key, salt };
+}
+function encodeJSON(obj) {
+  return JSON.stringify(obj, (_k, v) => typeof v === "bigint" ? v.toString() : v);
+}
+function isEncryptedData(data) {
+  return data != null && typeof data === "object" && typeof data.iv === "string" && typeof data.data === "string" && typeof data.salt === "string";
+}
+async function encryptData(data, passwordOrSaltedKey) {
+  if (data == null) throw new Error("Missing data to encrypt");
+  if (!passwordOrSaltedKey) throw new Error("Missing password or key");
+  const { key, salt } = typeof passwordOrSaltedKey === "string" ? await deriveKeyFromPassword(passwordOrSaltedKey) : passwordOrSaltedKey;
+  const encoder = new TextEncoder();
+  const iv = _crypto.getRandomValues(new Uint8Array(16));
+  const encoded = encoder.encode(encodeJSON(data));
+  const cipher = await _crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoded);
+  return {
+    data: bufferToBase64(new Uint8Array(cipher)),
+    iv: bufferToBase64(iv),
+    salt
+  };
+}
+async function decryptData(encryptedData, passwordOrSaltedKey) {
+  if (!passwordOrSaltedKey) throw new Error("Missing password or key");
+  const { data, iv, salt } = encryptedData;
+  const { key } = typeof passwordOrSaltedKey === "string" ? await deriveKeyFromPassword(passwordOrSaltedKey, salt) : passwordOrSaltedKey;
+  const plain = await _crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: bufferForCrypto(iv) },
+    key,
+    bufferForCrypto(data)
+  );
+  const txt = new TextDecoder().decode(plain);
+  return JSON.parse(txt);
+}
 exports.AbstractTransactionProvider = AbstractTransactionProvider;
 exports.AlchemyProvider = AlchemyProvider;
 exports.AlchemyTransactionProvider = AlchemyTransactionProvider;
@@ -5348,7 +5442,12 @@ exports.createWalletConnector = createWalletConnector;
 exports.createWhiteLabelWallet = createWhiteLabelWallet;
 exports.createYAKKLRPCHandler = createYAKKLRPCHandler;
 exports.createYakklProvider = createYakklProvider;
+exports.decryptData = decryptData;
+exports.deriveKeyFromPassword = deriveKeyFromPassword;
+exports.encryptData = encryptData;
 exports.generateModPackage = generateModPackage;
+exports.generateSalt = generateSalt;
+exports.isEncryptedData = isEncryptedData;
 exports.modTemplates = modTemplates;
 exports.whitelabelTemplates = whitelabelTemplates;
 //# sourceMappingURL=index.js.map

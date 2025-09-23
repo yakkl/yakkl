@@ -2,7 +2,11 @@ export * from '$lib/common/interfaces';
 export * from '$lib/common/types';
 export * from '$lib/common/constants';
 export * from '$lib/common/errors';
-export * from '$lib/common/encryption';
+// Encryption utilities now sourced from @yakkl/sdk
+export { encryptData, decryptData, isEncryptedData } from '@yakkl/sdk';
+export type { SaltedKey, EncryptedData } from '@yakkl/sdk';
+// Hash/digest utility from security package for convenience
+export { digestMessage } from '@yakkl/security';
 export * from '$lib/common/loggerColor';
 export * from '$lib/common/math';
 export * from '$lib/common/misc';

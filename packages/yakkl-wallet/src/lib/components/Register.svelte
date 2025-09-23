@@ -13,7 +13,7 @@
   import { log } from '$lib/common/logger-wrapper';
   import type { Profile, Preferences, ProfileData, Name } from '$lib/common/interfaces';
   import { SystemTheme } from '$lib/common/types';
-  import { encryptData } from '$lib/common/encryption';
+  import { encryptData } from '@yakkl/sdk';
   import { browserJWT as jwtManager } from '@yakkl/security';
   import { getNormalizedSettings } from '$lib/common';
   import SimpleTooltip from '$lib/components/SimpleTooltip.svelte';

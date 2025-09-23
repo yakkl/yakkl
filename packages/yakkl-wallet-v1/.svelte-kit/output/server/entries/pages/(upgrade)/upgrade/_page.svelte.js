@@ -1,2 +1,0 @@
-import{F as FILENAME}from"../../../../chunks/utils.js";import"clsx";import{p as push,c as pop}from"../../../../chunks/index2.js";_page[FILENAME]="src/routes/(upgrade)/upgrade/+page.svelte";function _page($$payload,$$props){push(_page);pop()}_page.render=function(){throw new Error("Component.render(...) is no longer valid in Svelte 5. See https://svelte.dev/docs/svelte/v5-migration-guide#Components-are-no-longer-classes for more information")};export{_page as default};
-//# sourceMappingURL=_page.svelte.js.map

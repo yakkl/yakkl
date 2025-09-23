@@ -107,3 +107,8 @@ export type {
   Mod,
   ModManifest
 } from '@yakkl/core';
+
+// Crypto utilities (public-safe)
+export { encryptData, decryptData, isEncryptedData } from './crypto/encryption';
+export { deriveKeyFromPassword, generateSalt } from './crypto/keyDerivation';
+export type { SaltedKey, EncryptedData } from './crypto/types';

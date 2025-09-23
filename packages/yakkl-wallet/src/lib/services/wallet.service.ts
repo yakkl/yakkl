@@ -15,7 +15,7 @@ import { getYakklCurrentlySelected } from '$lib/common/currentlySelected';
 import { getSafeUUID } from '$lib/common/uuid';
 import { walletStore } from '$lib/managers/Wallet';
 import { DEFAULT_CHAINS } from '$lib/config/chains';
-import { encryptData } from '$lib/common/encryption';
+import { encryptData } from '@yakkl/sdk';
 import { browser_ext } from '$lib/common/environment';
 import { log } from '$lib/common/logger-wrapper';
 import { getInstances } from '$lib/common/wallet';

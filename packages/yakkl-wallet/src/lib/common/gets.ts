@@ -2,7 +2,7 @@
 // src/lib/utilities/get.ts
 // MIGRATION: Move to @yakkl/security
 // import { decryptData, encryptData } from '@yakkl/security/wallet/encryption-utils';
-import { decryptData, encryptData } from '$lib/common/encryption';
+import { decryptData, encryptData } from '@yakkl/sdk';
 import { isEncryptedData } from '$lib/common/misc';
 import type { EncryptedData } from '$lib/common/interfaces';
 
