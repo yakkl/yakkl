@@ -62,6 +62,29 @@ export { YakklProvider, createYakklProvider } from './integration/YakklProvider'
 export { WalletConnector, createWalletConnector } from './integration/WalletConnector';
 export { EventBridge, SecureChannel, createEventBridge } from './integration/EventBridge';
 
+// Provider System
+export { ProviderManager } from './providers/ProviderManager';
+export { AlchemyProvider } from './providers/plugins/AlchemyProvider';
+export type { ProviderConfig, BaseProvider } from './providers/ProviderInterface';
+
+// Historical Pricing
+export { HistoricalPriceService } from './historical-price/HistoricalPriceService';
+export { CoinGeckoHistoricalProvider } from './historical-price/providers/CoinGeckoHistoricalProvider';
+export { OnChainDEXProvider } from './historical-price/providers/OnChainDEXProvider';
+export type { PricePoint, PriceRange, ProviderCapabilities } from './historical-price/HistoricalPriceService';
+
+// Transaction Providers
+export { AbstractTransactionProvider } from './providers/abstract/AbstractTransactionProvider';
+export { AlchemyTransactionProvider } from './providers/alchemy/AlchemyTransactionProvider';
+export { EtherscanTransactionProvider } from './providers/etherscan/EtherscanTransactionProvider';
+export { InfuraTransactionProvider } from './providers/infura/InfuraTransactionProvider';
+export { QuickNodeTransactionProvider } from './providers/quicknode/QuickNodeTransactionProvider';
+export type {
+  TransactionData,
+  TransactionProviderConfig,
+  TransactionFetchOptions
+} from './providers/abstract/AbstractTransactionProvider';
+
 // Types
 export type { 
   EmbeddedWalletConfig,
@@ -84,3 +107,8 @@ export type {
   Mod,
   ModManifest
 } from '@yakkl/core';
+
+// Crypto utilities (public-safe)
+export { encryptData, decryptData, isEncryptedData } from './crypto/encryption';
+export { deriveKeyFromPassword, generateSalt } from './crypto/keyDerivation';
+export type { SaltedKey, EncryptedData } from './crypto/types';

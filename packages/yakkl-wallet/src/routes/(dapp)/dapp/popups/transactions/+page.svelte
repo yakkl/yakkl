@@ -140,7 +140,7 @@
 		transactionDisplay = {
 			from: transaction.from,
 			to: transaction.to,
-			value: transaction.quantity ? formatEther(transaction.quantity.toString()) + ' ETH' : '0 ETH',
+			value: transaction.value ? formatEther(transaction.value.toString()) + ' ETH' : '0 ETH',
 			data: transaction.data ? `Data: ${(transaction.data as string).slice(0, 10)}...` : 'No data',
 			gasLimit: 'Will be calculated',
 			estimatedFee: 'Calculating...'

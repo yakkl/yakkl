@@ -9,6 +9,7 @@
   import TransactionStatusTooltip from './TransactionStatusTooltip.svelte';
   import TransactionHoverCard from './TransactionHoverCard.svelte';
   import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
+  import { PriceManager } from '$lib/managers/PriceManager';
 
   // TODO: May need to update tokens to be whatever the symbol for cross-chain transactions
 
@@ -33,29 +34,78 @@
       t.symbol === 'BNB'
     )
   );
-  let nativePrice = $derived(nativeToken?.price || 0);
+
+  // Extract price properly - handle different formats
+  let nativePrice = $derived.by(() => {
+    const price = nativeToken?.price;
+
+    // Try to get price from token
+    if (price) {
+      if (typeof price === 'number') return price;
+      if (typeof price === 'string') return parseFloat(price);
+      // If it's an object with value property
+      if (typeof price === 'object' && price !== null && 'value' in price) {
+        return parseFloat(String(nativeToken?.value || price));
+      }
+    }
+
+    // Fallback to reasonable estimate for ETH if no price available
+    // This should be replaced with actual price feed in production
+    if (chain?.nativeCurrency?.symbol === 'ETH') {
+      return 2500; // Reasonable fallback for ETH price
+    }
+
+    return 0;
+  });
+
+  // Opportunistically fetch live price if token store price is missing
+  let liveNativePrice = $state<number | null>(null);
+  $effect(() => {
+    try {
+      const sym = chain?.nativeCurrency?.symbol || 'ETH';
+      if (typeof nativePrice === 'number' && nativePrice > 0) {
+        liveNativePrice = null; // token store already has price
+        return;
+      }
+      if (sym) {
+        const pm = new PriceManager();
+        pm.getMarketPrice(`${sym.toUpperCase()}-USD`).then((pd) => {
+          if (pd && typeof pd.price === 'number' && pd.price > 0) {
+            liveNativePrice = pd.price;
+          }
+        }).catch(() => {});
+      }
+    } catch {}
+  });
 
   function formatAddress(addr: string): string {
     if (!addr) return '';
     return `${addr.slice(0, 10)}...${addr.slice(-8)}`;
   }
 
-  function formatFullAmount(value: string): string {
+  // Format ETH amount (transaction.value is already in ETH units)
+  function formatFullAmount(ethValueStr: string): string {
     try {
-      const num = parseFloat(value);
-      if (num < 0.000001) {
-        return num.toExponential(4);
+      const ethValue = parseFloat(ethValueStr || '0');
+      if (!isFinite(ethValue)) return '0.000000';
+      if (ethValue === 0) return '0.000000';
+      if (Math.abs(ethValue) < 0.000001) return ethValue.toExponential(4);
+      // For small amounts show higher precision, otherwise 6 decimals
+      if (Math.abs(ethValue) < 1) {
+        return ethValue.toFixed(8).replace(/\.?0+$/, '') || '0';
       }
-      return num.toFixed(6);
+      return ethValue.toFixed(6).replace(/\.?0+$/, '');
     } catch {
-      return value;
+      return '0.000000';
     }
   }
 
   function formatGasPrice(gasPrice: string): string {
     try {
-      const gwei = parseFloat(gasPrice) / 1e9;
-      return `${gwei.toFixed(2)} Gwei`;
+      // gasPrice is in wei, convert to Gwei (1 Gwei = 10^9 wei)
+      const weiValue = BigInt(gasPrice || '0');
+      const gweiValue = Number(weiValue) / 1e9;
+      return `${gweiValue.toFixed(4)} Gwei`;
     } catch {
       return 'N/A';
     }
@@ -65,18 +115,27 @@
     try {
       const gas = BigInt(gasUsed || '0');
       const price = BigInt(gasPrice || '0');
-      const ethUsed = (gas * price) / BigInt(1e18);
-      // Handle the conversion from BigInt to string for display
-      const ethValue = Number(ethUsed) / 1e18 + Number((gas * price) % BigInt(1e18)) / 1e18;
-      return ethValue.toFixed(6);
+      const totalWei = gas * price;
+      // Convert wei to ETH properly
+      const ethValue = Number(totalWei) / 1e18;
+      return ethValue.toFixed(9); // Show more precision for gas costs
     } catch {
-      return '0.000000';
+      return '0.000000000';
     }
   }
 
-  function formatFiatValue(ethAmount: string, ethPrice?: number): string {
+  function formatFiatValue(weiOrEthAmount: string, ethPrice?: number, isWei: boolean = false): string {
     try {
-      const eth = parseFloat(ethAmount);
+      let eth: number;
+      if (isWei) {
+        // Convert wei to ETH if the value is in wei
+        const weiValue = BigInt(weiOrEthAmount || '0');
+        eth = Number(weiValue) / 1e18;
+      } else {
+        // Value is already in ETH
+        eth = parseFloat(weiOrEthAmount);
+      }
+
       const price = ethPrice || 0;
       const fiat = eth * price;
       return new Intl.NumberFormat('en-US', {
@@ -91,10 +150,12 @@
   }
 
   function formatTimestamp(timestamp: number): string {
+    // Handle both seconds (from blockchain) and milliseconds timestamps
+    const ts = timestamp < 10000000000 ? timestamp * 1000 : timestamp;
     return new Intl.DateTimeFormat('en-US', {
       dateStyle: 'medium',
       timeStyle: 'short'
-    }).format(new Date(timestamp));
+    }).format(new Date(ts));
   }
 
   function getTransactionType(tx: TransactionDisplay): string {
@@ -144,8 +205,9 @@
   let txType = $derived(transaction ? getTransactionType(transaction) : '');
   let isOutgoing = $derived(transaction && account ? transaction.from.toLowerCase() === account.address.toLowerCase() : false);
   let gasEth = $derived(transaction ? formatGasUsed(transaction.gasUsed || '0', String(transaction.gasPrice || 0)) : '0');
-  let gasFiat = $derived(formatFiatValue(gasEth, typeof nativePrice === 'number' ? nativePrice : 0));
-  let valueFiat = $derived(transaction ? formatFiatValue(String(transaction.value || 0), typeof nativePrice === 'number' ? nativePrice : 0) : '$0.00');
+  const priceForFiat = $derived((liveNativePrice ?? (typeof nativePrice === 'number' ? nativePrice : 0)) || 0);
+  let gasFiat = $derived(formatFiatValue(gasEth, priceForFiat, false)); // gasEth is in ETH
+  let valueFiat = $derived(transaction ? formatFiatValue(String(transaction.value || 0), priceForFiat, false) : '$0.00'); // value is in ETH
 </script>
 
 <Modal bind:show {onClose} title="Transaction Details" className="max-w-lg">
@@ -258,15 +320,15 @@
       <!-- Amount -->
       <div class="bg-zinc-50 dark:bg-zinc-900 p-4 rounded-lg">
         <div class="font-semibold dark:text-zinc-300 mb-2">Amount</div>
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-2 gap-6">
           <div>
             <div class="flex items-center gap-1 mb-1">
-              <span class="text-xs text-zinc-500 dark:text-zinc-500">Native Token</span>
-              <TransactionTooltips type="nativeToken" placement="auto" />
+              <span class="text-xs text-zinc-500 dark:text-zinc-500">Token</span>
+              <TransactionTooltips type="token" placement="auto" />
             </div>
-            <div class="font-mono {isOutgoing ? 'text-red-500' : 'text-green-500'} font-bold text-lg">
+            <div class="font-mono {isOutgoing ? 'text-red-500' : 'text-green-500'} font-semibold text-sm">
               <ProtectedValue
-                value={`${isOutgoing ? '−' : '+'}${formatFullAmount(transaction.value)} ${chain?.nativeCurrency?.symbol || 'ETH'}`}
+                value={`${isOutgoing ? '−' : '+'}${formatFullAmount(String(transaction.value || '0'))} ${chain?.nativeCurrency?.symbol || 'ETH'}`}
                 placeholder="******* ***"
               />
             </div>
@@ -276,7 +338,7 @@
               <span class="text-xs text-zinc-500 dark:text-zinc-500">Value</span>
               <TransactionTooltips type="value" placement="auto" />
             </div>
-            <div class="font-mono {isOutgoing ? 'text-red-500' : 'text-green-500'} font-bold text-lg">
+            <div class="font-mono {isOutgoing ? 'text-red-500' : 'text-green-500'} font-semibold text-sm">
               <ProtectedValue value={valueFiat} placeholder="*******" />
             </div>
           </div>

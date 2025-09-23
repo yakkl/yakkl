@@ -1,1 +1,0 @@
-export { default as component } from "../../../../src/routes/preview1/emergency-kit/+page.svelte";

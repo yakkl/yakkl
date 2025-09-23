@@ -148,16 +148,16 @@
       <!-- Amount -->
       <div class="bg-zinc-50 dark:bg-zinc-900 p-2 rounded-lg">
         <div class="font-semibold dark:text-zinc-300 mb-1 text-xs">Amount:</div>
-        <div class="grid grid-cols-2 gap-2">
+        <div class="grid grid-cols-2 gap-3">
           <div>
             <span class="text-[10px] text-zinc-500 dark:text-zinc-500">Native Token:</span>
-            <div class="font-mono {isOutgoing ? 'text-red-500' : 'text-green-500'} font-bold text-xs">
+            <div class="font-mono {isOutgoing ? 'text-red-500' : 'text-green-500'} font-semibold text-xs">
               {isOutgoing ? '−' : '+'}{formatFullAmount(transaction.value)} {chain?.nativeCurrency?.symbol || 'ETH'}
             </div>
           </div>
           <div>
             <span class="text-[10px] text-zinc-500 dark:text-zinc-500">Fiat Value:</span>
-            <div class="font-mono {isOutgoing ? 'text-red-500' : 'text-green-500'} font-bold text-xs">
+            <div class="font-mono {isOutgoing ? 'text-red-500' : 'text-green-500'} font-semibold text-xs">
               <ProtectedValue value={valueFiat} placeholder="*******" />
             </div>
           </div>

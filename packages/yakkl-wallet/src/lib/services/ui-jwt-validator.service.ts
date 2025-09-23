@@ -72,11 +72,15 @@ export class UIJWTValidatorService {
       // Check if we just logged in (JWT in sessionStorage means fresh login)
       const justLoggedIn = !!sessionStorage.getItem('wallet-jwt-token');
 
-      // Adjust delay based on JWT status and login state
-      // Much longer grace period if we just logged in to prevent immediate popup
-      const initialDelay = justLoggedIn ? 180000 : (hasJWT ? 60000 : 120000); // 3 min for fresh login, 1 min if JWT exists, 2 min if not
+      // Check if we recently had activity (within last 2 minutes)
+      const recentActivity = authState.lastActivity && (Date.now() - authState.lastActivity) < 120000;
 
-      console.log('[UIJWTValidator] Initial delay:', initialDelay, 'ms, hasJWT:', hasJWT, 'justLoggedIn:', justLoggedIn);
+      // Adjust delay based on JWT status and login state
+      // Much longer grace period if we just logged in or have recent activity
+      const initialDelay = justLoggedIn ? 300000 : (recentActivity ? 180000 : (hasJWT ? 60000 : 120000));
+      // 5 min for fresh login, 3 min for recent activity, 1 min if JWT exists, 2 min if not
+
+      console.log('[UIJWTValidator] Initial delay:', initialDelay, 'ms, hasJWT:', hasJWT, 'justLoggedIn:', justLoggedIn, 'recentActivity:', recentActivity);
 
       // Delay all JWT validation operations to prevent login/home page slowdown
       // Phase 1: Connect to background after initial delay
@@ -296,16 +300,25 @@ export class UIJWTValidatorService {
         // CRITICAL FIX: If user is authenticated but JWT is not ready yet,
         // we should ALWAYS skip validation to prevent false positives
         if (authState.isAuthenticated && !jwtToken) {
-          console.log('[UIJWTValidator] User authenticated but JWT not ready - skipping validation entirely');
-          // JWT is still being generated after login - this is normal
-          // DO NOT show any warning - the JWT will arrive soon
+          // Check if this is a fresh login (within first 10 minutes)
+          const timeSinceActivity = Date.now() - authState.lastActivity;
+          if (timeSinceActivity < 600000) { // 10 minutes grace period for JWT generation
+            console.log('[UIJWTValidator] User authenticated but JWT not ready - within grace period, skipping validation');
+            // JWT might still be generating or synchronizing - this is normal
+            // DO NOT show any warning - the JWT will arrive soon
+            return;
+          }
+
+          // If we're past the grace period and still no JWT, this might be a legacy session
+          // or digest-only authentication - still valid, don't show error
+          console.log('[UIJWTValidator] User authenticated with digest-only (no JWT) - this is valid');
           return;
         }
 
-        // Check if we're within grace period after login (first 5 minutes)
+        // Check if we're within extended grace period after login (first 10 minutes)
         // This handles cases where both auth and JWT are missing temporarily
         const timeSinceActivity = Date.now() - authState.lastActivity;
-        if (timeSinceActivity < 300000) { // 5 minutes grace period
+        if (timeSinceActivity < 600000) { // 10 minutes grace period
           console.log('[UIJWTValidator] Within extended grace period after login, skipping validation');
           return;
         }
@@ -336,14 +349,20 @@ export class UIJWTValidatorService {
           // Continue with validation - JWT is the source of truth
           // Session state will catch up asynchronously
         } else {
-          // Check if we're within grace period after login (first 5 minutes)
+          // Check if we're within extended grace period after login (first 10 minutes)
           const timeSinceActivity = Date.now() - authState.lastActivity;
-          if (timeSinceActivity < 300000) { // 5 minutes grace period
+          if (timeSinceActivity < 600000) { // 10 minutes grace period
             console.log('[UIJWTValidator] Within grace period for session state, skipping validation');
             return;
           }
 
-          // Only show warning if we don't have JWT AND past grace period
+          // Even without JWT, if user is authenticated with digest, that's valid
+          if (authState.isAuthenticated) {
+            console.log('[UIJWTValidator] Authenticated with digest only - valid session');
+            return;
+          }
+
+          // Only show warning if we don't have JWT AND not authenticated AND past grace period
           this.showSecurityWarningModal(
             'Your session state is invalid.',
             'JWT validation failed - no valid session state or profile'

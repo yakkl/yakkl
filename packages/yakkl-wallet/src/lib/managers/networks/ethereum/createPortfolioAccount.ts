@@ -13,7 +13,7 @@ import {
 import { getYakklCurrentlySelected } from '$lib/common/currentlySelected';
 // MIGRATION: Move to @yakkl/security
 // import { encryptData, decryptData } from '@yakkl/security/wallet/encryption-utils';
-import { encryptData, decryptData } from '$lib/common/encryption';
+import { encryptData, decryptData } from '@yakkl/sdk';
 import { DEFAULT_DERIVED_PATH_ETH, DEFAULT_PERSONA } from '$lib/common/constants';
 import type {
 	CurrentlySelectedData,

@@ -67,7 +67,7 @@ class WalletClient {
       throw new Error("Wallet not connected");
     }
     if (this.config.provider) {
-      return await this.config.provider.getBalance(address);
+      return String(await this.config.provider.getBalance(address));
     }
     if (typeof window !== "undefined" && "yakkl" in window) {
       const balance = await window.yakkl.request({
@@ -98,7 +98,7 @@ class WalletClient {
         value: params.value || "0",
         data: params.data || "0x"
       });
-      return response;
+      return typeof response === "string" ? response : response.hash;
     }
     throw new Error("No provider available");
   }
@@ -2585,13 +2585,2820 @@ class SecureChannel {
 function createEventBridge(options) {
   return new EventBridge(options);
 }
+var LoadBalancerStrategy = /* @__PURE__ */ ((LoadBalancerStrategy2) => {
+  LoadBalancerStrategy2["ROUND_ROBIN"] = "round_robin";
+  LoadBalancerStrategy2["WEIGHTED_ROUND_ROBIN"] = "weighted_round_robin";
+  LoadBalancerStrategy2["LEAST_CONNECTIONS"] = "least_connections";
+  LoadBalancerStrategy2["LEAST_RESPONSE_TIME"] = "least_response_time";
+  LoadBalancerStrategy2["PRIORITY"] = "priority";
+  LoadBalancerStrategy2["COST_OPTIMIZED"] = "cost_optimized";
+  return LoadBalancerStrategy2;
+})(LoadBalancerStrategy || {});
+class LoadBalancer {
+  constructor(providers, strategy) {
+    this.providers = [];
+    this.currentIndex = 0;
+    this.weightedIndexes = [];
+    this.strategy = strategy;
+    this.updateProviders(providers);
+  }
+  /**
+   * Update the list of providers
+   */
+  updateProviders(providers) {
+    this.providers = providers.map((provider) => ({
+      provider,
+      activeConnections: 0,
+      totalRequests: 0,
+      successCount: 0,
+      failureCount: 0,
+      averageResponseTime: 0,
+      lastResponseTime: 0,
+      isHealthy: true,
+      weight: provider.config.weight || 1,
+      priority: provider.config.priority || 100,
+      costPerRequest: this.getProviderCost(provider)
+    }));
+    this.buildWeightedIndexes();
+  }
+  /**
+   * Select a provider based on the configured strategy
+   */
+  async selectProvider() {
+    const healthyProviders = this.providers.filter((p) => p.isHealthy);
+    if (healthyProviders.length === 0) {
+      return null;
+    }
+    switch (this.strategy) {
+      case "round_robin":
+        return this.selectRoundRobin(healthyProviders);
+      case "weighted_round_robin":
+        return this.selectWeightedRoundRobin(healthyProviders);
+      case "least_connections":
+        return this.selectLeastConnections(healthyProviders);
+      case "least_response_time":
+        return this.selectLeastResponseTime(healthyProviders);
+      case "priority":
+        return this.selectByPriority(healthyProviders);
+      case "cost_optimized":
+        return this.selectByCost(healthyProviders);
+      default:
+        return this.selectRoundRobin(healthyProviders);
+    }
+  }
+  /**
+   * Round-robin selection
+   */
+  selectRoundRobin(providers) {
+    const provider = providers[this.currentIndex % providers.length];
+    this.currentIndex++;
+    provider.activeConnections++;
+    return provider.provider;
+  }
+  /**
+   * Weighted round-robin selection
+   */
+  selectWeightedRoundRobin(providers) {
+    if (this.weightedIndexes.length === 0) {
+      this.buildWeightedIndexes();
+    }
+    const index = this.weightedIndexes[this.currentIndex % this.weightedIndexes.length];
+    this.currentIndex++;
+    const provider = providers[index];
+    provider.activeConnections++;
+    return provider.provider;
+  }
+  /**
+   * Select provider with least active connections
+   */
+  selectLeastConnections(providers) {
+    const provider = providers.reduce(
+      (min, p) => p.activeConnections < min.activeConnections ? p : min
+    );
+    provider.activeConnections++;
+    return provider.provider;
+  }
+  /**
+   * Select provider with best response time
+   */
+  selectLeastResponseTime(providers) {
+    const provider = providers.reduce((best, p) => {
+      if (p.totalRequests === 0) return p;
+      if (best.totalRequests === 0) return best;
+      return p.averageResponseTime < best.averageResponseTime ? p : best;
+    });
+    provider.activeConnections++;
+    return provider.provider;
+  }
+  /**
+   * Select by priority (lower number = higher priority)
+   */
+  selectByPriority(providers) {
+    const provider = providers.reduce(
+      (best, p) => p.priority < best.priority ? p : best
+    );
+    provider.activeConnections++;
+    return provider.provider;
+  }
+  /**
+   * Select cheapest provider
+   */
+  selectByCost(providers) {
+    const provider = providers.reduce((cheapest, p) => {
+      if (p.costPerRequest === void 0) return cheapest;
+      if (cheapest.costPerRequest === void 0) return p;
+      return p.costPerRequest < cheapest.costPerRequest ? p : cheapest;
+    });
+    provider.activeConnections++;
+    return provider.provider;
+  }
+  /**
+   * Record successful request
+   */
+  recordSuccess(provider, responseTime) {
+    const metrics = this.providers.find((p) => p.provider === provider);
+    if (metrics) {
+      metrics.activeConnections = Math.max(0, metrics.activeConnections - 1);
+      metrics.totalRequests++;
+      metrics.successCount++;
+      if (responseTime !== void 0) {
+        metrics.lastResponseTime = responseTime;
+        metrics.averageResponseTime = (metrics.averageResponseTime * (metrics.totalRequests - 1) + responseTime) / metrics.totalRequests;
+      }
+    }
+  }
+  /**
+   * Record failed request
+   */
+  recordFailure(provider) {
+    const metrics = this.providers.find((p) => p.provider === provider);
+    if (metrics) {
+      metrics.activeConnections = Math.max(0, metrics.activeConnections - 1);
+      metrics.totalRequests++;
+      metrics.failureCount++;
+      const failureRate = metrics.failureCount / metrics.totalRequests;
+      if (failureRate > 0.5 && metrics.totalRequests > 10) {
+        metrics.isHealthy = false;
+      }
+    }
+  }
+  /**
+   * Mark provider as unhealthy
+   */
+  markUnhealthy(provider) {
+    const metrics = this.providers.find((p) => p.provider === provider);
+    if (metrics) {
+      metrics.isHealthy = false;
+    }
+  }
+  /**
+   * Mark provider as healthy
+   */
+  markHealthy(provider) {
+    const metrics = this.providers.find((p) => p.provider === provider);
+    if (metrics) {
+      metrics.isHealthy = true;
+    }
+  }
+  /**
+   * Build weighted indexes for weighted round-robin
+   */
+  buildWeightedIndexes() {
+    this.weightedIndexes = [];
+    this.providers.forEach((provider, index) => {
+      const weight = provider.weight;
+      for (let i = 0; i < weight; i++) {
+        this.weightedIndexes.push(index);
+      }
+    });
+    for (let i = this.weightedIndexes.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [this.weightedIndexes[i], this.weightedIndexes[j]] = [this.weightedIndexes[j], this.weightedIndexes[i]];
+    }
+  }
+  /**
+   * Estimate cost per request for a provider
+   */
+  getProviderCost(provider) {
+    const costEstimates = {
+      "alchemy": 0.12,
+      // Alchemy pricing
+      "infura": 0.1,
+      // Infura pricing
+      "quicknode": 0.15,
+      // QuickNode pricing
+      "etherscan": 0,
+      // Free tier
+      "custom": 0.05
+      // Assume self-hosted
+    };
+    return costEstimates[provider.type] ? costEstimates[provider.type] / 1e3 : void 0;
+  }
+  /**
+   * Get current metrics
+   */
+  getMetrics() {
+    return [...this.providers];
+  }
+  /**
+   * Reset all metrics
+   */
+  resetMetrics() {
+    this.providers.forEach((metrics) => {
+      metrics.activeConnections = 0;
+      metrics.totalRequests = 0;
+      metrics.successCount = 0;
+      metrics.failureCount = 0;
+      metrics.averageResponseTime = 0;
+      metrics.lastResponseTime = 0;
+    });
+  }
+}
+class ProviderCache {
+  constructor(config = {}) {
+    this.cache = /* @__PURE__ */ new Map();
+    this.memoryUsage = 0;
+    this.NO_CACHE_METHODS = /* @__PURE__ */ new Set([
+      "eth_sendTransaction",
+      "eth_sendRawTransaction",
+      "eth_sign",
+      "eth_signTransaction",
+      "eth_signTypedData",
+      "personal_sign",
+      "eth_accounts",
+      "eth_coinbase",
+      "eth_mining",
+      "eth_hashrate",
+      "eth_submitWork",
+      "eth_submitHashrate"
+    ]);
+    this.SHORT_TTL_METHODS = /* @__PURE__ */ new Set([
+      "eth_gasPrice",
+      "eth_blockNumber",
+      "eth_getBalance",
+      "eth_getTransactionCount",
+      "eth_estimateGas",
+      "eth_getBlockByNumber",
+      "eth_syncing",
+      "net_peerCount"
+    ]);
+    this.LONG_TTL_METHODS = /* @__PURE__ */ new Set([
+      "eth_getCode",
+      "eth_getStorageAt",
+      "eth_getTransactionByHash",
+      "eth_getTransactionReceipt",
+      "eth_getBlockByHash",
+      "eth_getLogs",
+      "eth_chainId",
+      "net_version"
+    ]);
+    this.config = {
+      ttl: config.ttl || 6e4,
+      // 1 minute default
+      maxSize: config.maxSize || 1e3,
+      // 1000 entries
+      maxMemory: config.maxMemory || 50 * 1024 * 1024
+      // 50MB
+    };
+  }
+  /**
+   * Get a value from cache
+   */
+  get(key) {
+    const entry = this.cache.get(key);
+    if (!entry) {
+      return void 0;
+    }
+    if (Date.now() - entry.timestamp > entry.ttl) {
+      this.delete(key);
+      return void 0;
+    }
+    entry.hits++;
+    this.cache.delete(key);
+    this.cache.set(key, entry);
+    return entry.value;
+  }
+  /**
+   * Set a value in cache
+   */
+  set(key, value, ttl) {
+    const method = this.extractMethod(key);
+    if (this.NO_CACHE_METHODS.has(method)) {
+      return;
+    }
+    const finalTtl = ttl || this.getTTLForMethod(method) || this.config.ttl;
+    const size = this.estimateSize(value);
+    if (this.memoryUsage + size > this.config.maxMemory) {
+      this.evictLRU();
+    }
+    if (this.cache.size >= this.config.maxSize) {
+      this.evictLRU();
+    }
+    const entry = {
+      value,
+      timestamp: Date.now(),
+      ttl: finalTtl,
+      hits: 0
+    };
+    this.cache.set(key, entry);
+    this.memoryUsage += size;
+  }
+  /**
+   * Delete a specific entry
+   */
+  delete(key) {
+    const entry = this.cache.get(key);
+    if (entry) {
+      const size = this.estimateSize(entry.value);
+      this.memoryUsage = Math.max(0, this.memoryUsage - size);
+    }
+    return this.cache.delete(key);
+  }
+  /**
+   * Clear all cache entries
+   */
+  clear() {
+    this.cache.clear();
+    this.memoryUsage = 0;
+  }
+  /**
+   * Get cache statistics
+   */
+  getStats() {
+    let totalHits = 0;
+    let entriesWithHits = 0;
+    this.cache.forEach((entry) => {
+      totalHits += entry.hits;
+      if (entry.hits > 0) entriesWithHits++;
+    });
+    return {
+      entries: this.cache.size,
+      memoryUsage: this.memoryUsage,
+      hitRate: this.cache.size > 0 ? entriesWithHits / this.cache.size : 0,
+      avgHits: this.cache.size > 0 ? totalHits / this.cache.size : 0
+    };
+  }
+  /**
+   * Extract method name from cache key
+   */
+  extractMethod(key) {
+    const colonIndex = key.indexOf(":");
+    return colonIndex > 0 ? key.substring(0, colonIndex) : "";
+  }
+  /**
+   * Get TTL for specific method
+   */
+  getTTLForMethod(method) {
+    if (this.SHORT_TTL_METHODS.has(method)) {
+      return 5e3;
+    }
+    if (this.LONG_TTL_METHODS.has(method)) {
+      return 3e5;
+    }
+    return void 0;
+  }
+  /**
+   * Evict least recently used entry
+   */
+  evictLRU() {
+    const firstKey = this.cache.keys().next().value;
+    if (firstKey) {
+      this.delete(firstKey);
+    }
+  }
+  /**
+   * Estimate memory size of a value
+   */
+  estimateSize(value) {
+    const str = JSON.stringify(value);
+    return str.length * 2;
+  }
+  /**
+   * Clean up expired entries (can be called periodically)
+   */
+  cleanup() {
+    const now = Date.now();
+    const keysToDelete = [];
+    this.cache.forEach((entry, key) => {
+      if (now - entry.timestamp > entry.ttl) {
+        keysToDelete.push(key);
+      }
+    });
+    keysToDelete.forEach((key) => this.delete(key));
+  }
+}
+class RateLimiter {
+  constructor(requestsPerWindow, windowMs) {
+    this.queue = [];
+    this.maxTokens = requestsPerWindow;
+    this.tokens = requestsPerWindow;
+    this.refillRate = requestsPerWindow / windowMs * 1e3;
+    this.lastRefill = Date.now();
+  }
+  /**
+   * Check if a request can be made immediately
+   */
+  canMakeRequest() {
+    this.refill();
+    return this.tokens >= 1;
+  }
+  /**
+   * Consume a token for a request
+   */
+  async consumeToken() {
+    this.refill();
+    if (this.tokens >= 1) {
+      this.tokens--;
+      return;
+    }
+    return new Promise((resolve) => {
+      this.queue.push(resolve);
+      this.processQueue();
+    });
+  }
+  /**
+   * Refill tokens based on elapsed time
+   */
+  refill() {
+    const now = Date.now();
+    const elapsed = now - this.lastRefill;
+    const tokensToAdd = elapsed / 1e3 * this.refillRate;
+    this.tokens = Math.min(this.maxTokens, this.tokens + tokensToAdd);
+    this.lastRefill = now;
+  }
+  /**
+   * Process queued requests
+   */
+  processQueue() {
+    this.refill();
+    while (this.queue.length > 0 && this.tokens >= 1) {
+      const resolve = this.queue.shift();
+      if (resolve) {
+        this.tokens--;
+        resolve();
+      }
+    }
+    if (this.queue.length > 0) {
+      const timeToNextToken = 1 / this.refillRate * 1e3;
+      setTimeout(() => this.processQueue(), timeToNextToken);
+    }
+  }
+  /**
+   * Get current state
+   */
+  getState() {
+    this.refill();
+    return {
+      tokens: Math.floor(this.tokens),
+      queueLength: this.queue.length
+    };
+  }
+  /**
+   * Reset the rate limiter
+   */
+  reset() {
+    this.tokens = this.maxTokens;
+    this.lastRefill = Date.now();
+    this.queue = [];
+  }
+}
+class ProviderManager {
+  constructor(config) {
+    var _a, _b;
+    this.providers = /* @__PURE__ */ new Map();
+    this.rateLimiters = /* @__PURE__ */ new Map();
+    this.config = config;
+    config.providers.forEach((provider) => {
+      this.addProvider(provider);
+    });
+    this.loadBalancer = new LoadBalancer(
+      Array.from(this.providers.values()),
+      config.strategy || LoadBalancerStrategy.ROUND_ROBIN
+    );
+    if ((_a = config.cache) == null ? void 0 : _a.enabled) {
+      this.cache = new ProviderCache({
+        ttl: config.cache.ttl || 6e4,
+        // 1 minute default
+        maxSize: config.cache.maxSize || 1e3
+      });
+    }
+    if ((_b = config.monitoring) == null ? void 0 : _b.enabled) {
+      this.startHealthMonitoring();
+    }
+  }
+  /**
+   * Add a provider to the manager
+   */
+  addProvider(provider) {
+    const key = `${provider.type}_${provider.name}`;
+    this.providers.set(key, provider);
+    if (provider.config.rateLimit) {
+      this.rateLimiters.set(key, new RateLimiter(
+        provider.config.rateLimit.requests,
+        provider.config.rateLimit.window
+      ));
+    }
+    this.loadBalancer.updateProviders(Array.from(this.providers.values()));
+  }
+  /**
+   * Remove a provider from the manager
+   */
+  removeProvider(type, name) {
+    const key = `${type}_${name}`;
+    const provider = this.providers.get(key);
+    if (provider) {
+      provider.disconnect();
+      this.providers.delete(key);
+      this.rateLimiters.delete(key);
+      this.loadBalancer.updateProviders(Array.from(this.providers.values()));
+    }
+  }
+  /**
+   * Execute a request with automatic provider selection and fallback
+   */
+  async request(args) {
+    var _a, _b;
+    const cacheKey = this.getCacheKey(args);
+    if (this.cache) {
+      const cached = this.cache.get(cacheKey);
+      if (cached !== void 0) {
+        return cached;
+      }
+    }
+    const maxRetries = ((_a = this.config.fallback) == null ? void 0 : _a.maxRetries) || 3;
+    const retryDelay = ((_b = this.config.fallback) == null ? void 0 : _b.retryDelay) || 1e3;
+    let lastError;
+    for (let retry = 0; retry < maxRetries; retry++) {
+      const provider = await this.selectProvider(args.method);
+      if (!provider) {
+        throw new Error("No healthy providers available");
+      }
+      try {
+        const rateLimiter = this.rateLimiters.get(
+          `${provider.type}_${provider.name}`
+        );
+        if (rateLimiter && !rateLimiter.canMakeRequest()) {
+          continue;
+        }
+        const result = await provider.request(args);
+        if (this.cache) {
+          this.cache.set(cacheKey, result);
+        }
+        this.loadBalancer.recordSuccess(provider);
+        return result;
+      } catch (error) {
+        lastError = error;
+        this.loadBalancer.recordFailure(provider);
+        if (retry < maxRetries - 1) {
+          await this.delay(retryDelay * Math.pow(2, retry));
+        }
+      }
+    }
+    throw lastError || new Error("All providers failed");
+  }
+  /**
+   * Select the best provider for a specific method
+   */
+  async selectProvider(method) {
+    return this.loadBalancer.selectProvider();
+  }
+  /**
+   * Batch multiple requests (optimized for providers that support batch)
+   */
+  async batch(requests) {
+    const batchProvider = Array.from(this.providers.values()).find((p) => p.batch);
+    if (batchProvider && batchProvider.batch) {
+      try {
+        return await batchProvider.batch(requests.map((r) => ({
+          method: r.method,
+          params: r.params || []
+        })));
+      } catch (error) {
+      }
+    }
+    return Promise.all(requests.map((req) => this.request(req)));
+  }
+  /**
+   * Get statistics for all providers
+   */
+  getStats() {
+    const stats = /* @__PURE__ */ new Map();
+    this.providers.forEach((provider, key) => {
+      stats.set(key, provider.getStats());
+    });
+    return stats;
+  }
+  /**
+   * Start health monitoring
+   */
+  startHealthMonitoring() {
+    var _a;
+    const interval = ((_a = this.config.monitoring) == null ? void 0 : _a.healthCheckInterval) || 3e4;
+    this.healthCheckInterval = setInterval(async () => {
+      const checks = Array.from(this.providers.values()).map(async (provider) => {
+        const healthy = await provider.healthCheck();
+        if (!healthy) {
+          this.loadBalancer.markUnhealthy(provider);
+        } else {
+          this.loadBalancer.markHealthy(provider);
+        }
+      });
+      await Promise.all(checks);
+    }, interval);
+  }
+  /**
+   * Stop health monitoring
+   */
+  stopHealthMonitoring() {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = void 0;
+    }
+  }
+  /**
+   * Generate cache key for a request
+   */
+  getCacheKey(args) {
+    return `${args.method}:${JSON.stringify(args.params || [])}`;
+  }
+  /**
+   * Helper delay function
+   */
+  delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+  /**
+   * Cleanup resources
+   */
+  async destroy() {
+    var _a;
+    this.stopHealthMonitoring();
+    const disconnects = Array.from(this.providers.values()).map((p) => p.disconnect());
+    await Promise.all(disconnects);
+    this.providers.clear();
+    this.rateLimiters.clear();
+    (_a = this.cache) == null ? void 0 : _a.clear();
+  }
+  // Convenience methods that use the request method
+  async getBalance(address) {
+    return this.request({ method: "eth_getBalance", params: [address, "latest"] });
+  }
+  async getTransactionCount(address) {
+    const result = await this.request({
+      method: "eth_getTransactionCount",
+      params: [address, "latest"]
+    });
+    return parseInt(result, 16);
+  }
+  async getGasPrice() {
+    return this.request({ method: "eth_gasPrice" });
+  }
+  async getBlockNumber() {
+    const result = await this.request({ method: "eth_blockNumber" });
+    return parseInt(result, 16);
+  }
+  async getChainId() {
+    const result = await this.request({ method: "eth_chainId" });
+    return parseInt(result, 16);
+  }
+  async sendTransaction(transaction) {
+    return this.request({ method: "eth_sendTransaction", params: [transaction] });
+  }
+  async getTransaction(hash) {
+    return this.request({ method: "eth_getTransactionByHash", params: [hash] });
+  }
+  async getTransactionReceipt(hash) {
+    return this.request({ method: "eth_getTransactionReceipt", params: [hash] });
+  }
+}
+var ProviderType = /* @__PURE__ */ ((ProviderType2) => {
+  ProviderType2["ALCHEMY"] = "alchemy";
+  ProviderType2["INFURA"] = "infura";
+  ProviderType2["QUICKNODE"] = "quicknode";
+  ProviderType2["ETHERSCAN"] = "etherscan";
+  ProviderType2["CUSTOM"] = "custom";
+  ProviderType2["BROWSER_EXTENSION"] = "browser_extension";
+  ProviderType2["WEBSOCKET"] = "websocket";
+  ProviderType2["IPC"] = "ipc";
+  return ProviderType2;
+})(ProviderType || {});
+class BaseProvider {
+  constructor(config) {
+    this.stats = {
+      requestCount: 0,
+      errorCount: 0,
+      averageResponseTime: 0,
+      isHealthy: true
+    };
+    this.config = config;
+  }
+  // Default implementations using call()
+  async send(method, params) {
+    return this.call(method, params);
+  }
+  async request(args) {
+    return this.call(args.method, args.params || []);
+  }
+  async getBalance(address) {
+    return this.call("eth_getBalance", [address, "latest"]);
+  }
+  async getTransactionCount(address) {
+    const result = await this.call("eth_getTransactionCount", [address, "latest"]);
+    return parseInt(result, 16);
+  }
+  async getGasPrice() {
+    return this.call("eth_gasPrice", []);
+  }
+  async estimateGas(transaction) {
+    return this.call("eth_estimateGas", [transaction]);
+  }
+  async sendTransaction(transaction) {
+    return this.call("eth_sendTransaction", [transaction]);
+  }
+  async getTransaction(hash) {
+    return this.call("eth_getTransactionByHash", [hash]);
+  }
+  async getTransactionReceipt(hash) {
+    return this.call("eth_getTransactionReceipt", [hash]);
+  }
+  async getBlock(blockHashOrNumber) {
+    const method = typeof blockHashOrNumber === "string" ? "eth_getBlockByHash" : "eth_getBlockByNumber";
+    const param = typeof blockHashOrNumber === "number" ? `0x${blockHashOrNumber.toString(16)}` : blockHashOrNumber;
+    return this.call(method, [param, false]);
+  }
+  async getBlockNumber() {
+    const result = await this.call("eth_blockNumber", []);
+    return parseInt(result, 16);
+  }
+  async getChainId() {
+    const result = await this.call("eth_chainId", []);
+    return parseInt(result, 16);
+  }
+  getStats() {
+    return { ...this.stats };
+  }
+  async healthCheck() {
+    try {
+      await this.getBlockNumber();
+      this.stats.isHealthy = true;
+      return true;
+    } catch (error) {
+      this.stats.isHealthy = false;
+      this.stats.lastError = error;
+      return false;
+    }
+  }
+  // Helper method to track stats
+  async trackRequest(operation) {
+    const startTime = Date.now();
+    this.stats.requestCount++;
+    this.stats.lastRequestTime = /* @__PURE__ */ new Date();
+    try {
+      const result = await operation();
+      const responseTime = Date.now() - startTime;
+      this.stats.averageResponseTime = (this.stats.averageResponseTime * (this.stats.requestCount - 1) + responseTime) / this.stats.requestCount;
+      return result;
+    } catch (error) {
+      this.stats.errorCount++;
+      this.stats.lastError = error;
+      throw error;
+    }
+  }
+}
+class AlchemyProvider extends BaseProvider {
+  constructor(config) {
+    super(config);
+    this.type = ProviderType.ALCHEMY;
+    this.name = "Alchemy";
+    this.connected = false;
+    const network = config.network || "eth-mainnet";
+    this.url = `https://${network}.g.alchemy.com/v2/${config.apiKey}`;
+    if (typeof WebSocket !== "undefined") {
+      this.wsUrl = `wss://${network}.g.alchemy.com/v2/${config.apiKey}`;
+    }
+  }
+  async connect() {
+    await this.getBlockNumber();
+    this.connected = true;
+    if (this.wsUrl && typeof WebSocket !== "undefined") {
+      this.connectWebSocket();
+    }
+  }
+  async disconnect() {
+    this.connected = false;
+    if (this.ws) {
+      this.ws.close();
+      this.ws = void 0;
+    }
+  }
+  isConnected() {
+    return this.connected;
+  }
+  async call(method, params) {
+    return this.trackRequest(async () => {
+      const response = await fetch(this.url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: Date.now(),
+          method,
+          params
+        })
+      });
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error.message || "RPC Error");
+      }
+      return data.result;
+    });
+  }
+  // Alchemy-specific methods
+  /**
+   * Get NFTs for an address
+   */
+  async getNFTs(owner, options) {
+    return this.call("alchemy_getNFTs", [{
+      owner,
+      ...options
+    }]);
+  }
+  /**
+   * Get token balances for an address
+   */
+  async getTokenBalances(address, contractAddresses) {
+    return this.call("alchemy_getTokenBalances", [
+      address,
+      contractAddresses || "DEFAULT_TOKENS"
+    ]);
+  }
+  /**
+   * Get token metadata
+   */
+  async getTokenMetadata(contractAddress) {
+    return this.call("alchemy_getTokenMetadata", [contractAddress]);
+  }
+  /**
+   * Get asset transfers (transaction history)
+   */
+  async getAssetTransfers(params) {
+    return this.call("alchemy_getAssetTransfers", [params]);
+  }
+  /**
+   * Enhanced transaction receipts
+   */
+  async getTransactionReceipts(params) {
+    return this.call("alchemy_getTransactionReceipts", [params]);
+  }
+  /**
+   * Simulate transaction execution
+   */
+  async simulateExecution(transaction, blockNumber) {
+    return this.call("alchemy_simulateExecution", [
+      transaction,
+      blockNumber || "latest"
+    ]);
+  }
+  /**
+   * Batch support for Alchemy
+   */
+  async batch(requests) {
+    const response = await fetch(this.url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        requests.map((req, index) => ({
+          jsonrpc: "2.0",
+          id: index,
+          method: req.method,
+          params: req.params
+        }))
+      )
+    });
+    const data = await response.json();
+    if (!Array.isArray(data)) {
+      throw new Error("Invalid batch response");
+    }
+    data.sort((a, b) => a.id - b.id);
+    return data.map((item) => {
+      if (item.error) {
+        throw new Error(item.error.message);
+      }
+      return item.result;
+    });
+  }
+  /**
+   * Subscribe to events (WebSocket)
+   */
+  subscribe(event, callback) {
+    if (!this.ws) {
+      throw new Error("WebSocket not connected");
+    }
+    const subscriptionId = Date.now().toString();
+    this.ws.send(JSON.stringify({
+      jsonrpc: "2.0",
+      id: subscriptionId,
+      method: "eth_subscribe",
+      params: [event]
+    }));
+    this.ws.addEventListener("message", (e) => {
+      const data = JSON.parse(e.data);
+      if (data.params && data.params.subscription === subscriptionId) {
+        callback(data.params.result);
+      }
+    });
+  }
+  /**
+   * Connect WebSocket for subscriptions
+   */
+  connectWebSocket() {
+    if (!this.wsUrl) return;
+    this.ws = new WebSocket(this.wsUrl);
+    this.ws.addEventListener("open", () => {
+      console.log("Alchemy WebSocket connected");
+    });
+    this.ws.addEventListener("error", (error) => {
+      console.error("Alchemy WebSocket error:", error);
+      this.stats.lastError = new Error("WebSocket error");
+    });
+    this.ws.addEventListener("close", () => {
+      console.log("Alchemy WebSocket disconnected");
+      if (this.connected) {
+        setTimeout(() => this.connectWebSocket(), 5e3);
+      }
+    });
+  }
+}
+class HistoricalPriceProvider {
+  constructor(config) {
+    this.config = config;
+  }
+  /**
+   * Check if provider supports this query
+   */
+  canHandle(token, chainId, timestamp) {
+    if (!this.capabilities.supportedChains.includes(chainId)) {
+      return false;
+    }
+    if (this.capabilities.supportedTokens && !this.capabilities.supportedTokens.includes(token)) {
+      return false;
+    }
+    const maxHistory = Date.now() - this.capabilities.maxHistoryDays * 24 * 60 * 60 * 1e3;
+    if (timestamp < maxHistory) {
+      return false;
+    }
+    return true;
+  }
+  /**
+   * Calculate confidence score for a price point
+   */
+  calculateConfidence(source, age) {
+    const agePenalty = Math.min(age / (365 * 24 * 60 * 60 * 1e3), 0.5);
+    const sourceScores = {
+      "onchain": 1,
+      // Direct from blockchain
+      "coingecko": 0.9,
+      // Aggregated from multiple exchanges
+      "coinmarketcap": 0.85,
+      "messari": 0.85,
+      "dexscreener": 0.8,
+      "transaction": 0.7,
+      // Derived from user transactions
+      "interpolated": 0.5
+      // Interpolated between known points
+    };
+    const baseScore = sourceScores[source] || 0.5;
+    return baseScore * (1 - agePenalty);
+  }
+}
+class HistoricalPriceService {
+  constructor() {
+    this.providers = /* @__PURE__ */ new Map();
+    this.cache = /* @__PURE__ */ new Map();
+    this.initializeStorage();
+  }
+  /**
+   * Register a provider
+   */
+  registerProvider(provider) {
+    this.providers.set(provider.name, provider);
+    console.info(`[HistoricalPriceService] Registered provider: ${provider.name}`);
+  }
+  /**
+   * Get price at specific timestamp with automatic provider selection
+   */
+  async getPriceAtTime(token, chainId, timestamp) {
+    const cacheKey = `${token}-${chainId}-${timestamp}`;
+    if (this.cache.has(cacheKey)) {
+      return this.cache.get(cacheKey);
+    }
+    const stored = await this.getFromStorage(cacheKey);
+    if (stored) {
+      this.cache.set(cacheKey, stored);
+      return stored;
+    }
+    const capableProviders = Array.from(this.providers.values()).filter((p) => p.canHandle(token, chainId, timestamp)).sort((a, b) => a.config.priority - b.config.priority);
+    for (const provider of capableProviders) {
+      try {
+        const price = await provider.getPriceAtTime(token, chainId, timestamp);
+        if (price) {
+          this.cache.set(cacheKey, price);
+          await this.saveToStorage(cacheKey, price);
+          return price;
+        }
+      } catch (error) {
+        console.warn(`[HistoricalPriceService] Provider ${provider.name} failed:`, error);
+      }
+    }
+    return this.interpolatePrice(token, chainId, timestamp);
+  }
+  /**
+   * Get price at specific block
+   */
+  async getPriceAtBlock(token, chainId, blockNumber) {
+    const blockProviders = Array.from(this.providers.values()).filter((p) => p.capabilities.hasBlockLevel);
+    for (const provider of blockProviders) {
+      try {
+        const price = await provider.getPriceAtBlock(token, chainId, blockNumber);
+        if (price) return price;
+      } catch (error) {
+        console.warn(`[HistoricalPriceService] Block provider ${provider.name} failed:`, error);
+      }
+    }
+    const estimatedTime = await this.estimateBlockTimestamp(chainId, blockNumber);
+    if (estimatedTime) {
+      return this.getPriceAtTime(token, chainId, estimatedTime);
+    }
+    return null;
+  }
+  /**
+   * Get price range for charting
+   */
+  async getPriceRange(token, chainId, startTime, endTime, interval = "hour") {
+    const rangeProviders = Array.from(this.providers.values()).filter((p) => p.capabilities.resolution[interval]).sort((a, b) => a.config.priority - b.config.priority);
+    for (const provider of rangeProviders) {
+      try {
+        const range = await provider.getPriceRange(
+          token,
+          chainId,
+          startTime,
+          endTime,
+          interval
+        );
+        if (range && range.prices.length > 0) {
+          return range;
+        }
+      } catch (error) {
+        console.warn(`[HistoricalPriceService] Range provider ${provider.name} failed:`, error);
+      }
+    }
+    return this.buildRangeFromPoints(token, chainId, startTime, endTime, interval);
+  }
+  /**
+   * Build price history from user's transactions
+   */
+  async buildPriceHistoryFromTransactions(transactions) {
+    const priceHistory = /* @__PURE__ */ new Map();
+    for (const tx of transactions) {
+      if (!tx.tokenAddress || !tx.tokenAmount || !tx.value) continue;
+      const ethValue = parseFloat(tx.value);
+      const tokenAmount = parseFloat(tx.tokenAmount);
+      if (tokenAmount > 0) {
+        const impliedPrice = ethValue / tokenAmount;
+        const token = tx.tokenAddress.toLowerCase();
+        if (!priceHistory.has(token)) {
+          priceHistory.set(token, []);
+        }
+        priceHistory.get(token).push({
+          timestamp: tx.timestamp,
+          price: impliedPrice,
+          source: "transaction",
+          confidence: this.calculateConfidence("transaction", Date.now() - tx.timestamp)
+        });
+      }
+    }
+    for (const [token, points] of priceHistory.entries()) {
+      for (const point of points) {
+        const cacheKey = `${token}-1-${point.timestamp}`;
+        this.cache.set(cacheKey, point);
+        await this.saveToStorage(cacheKey, point);
+      }
+    }
+    return priceHistory;
+  }
+  /**
+   * Interpolate price between known points
+   */
+  async interpolatePrice(token, chainId, timestamp) {
+    const before = await this.findNearestPrice(token, chainId, timestamp, "before");
+    const after = await this.findNearestPrice(token, chainId, timestamp, "after");
+    if (!before || !after) return null;
+    const timeDiff = after.timestamp - before.timestamp;
+    const priceDiff = after.price - before.price;
+    const timeOffset = timestamp - before.timestamp;
+    const interpolatedPrice = before.price + priceDiff * (timeOffset / timeDiff);
+    return {
+      timestamp,
+      price: interpolatedPrice,
+      source: "interpolated",
+      confidence: Math.min(before.confidence, after.confidence) * 0.8
+      // Reduce confidence for interpolated
+    };
+  }
+  /**
+   * Initialize IndexedDB storage
+   */
+  async initializeStorage() {
+    if (typeof indexedDB === "undefined") return;
+    const request = indexedDB.open("HistoricalPrices", 1);
+    request.onerror = () => {
+      console.error("[HistoricalPriceService] Failed to open IndexedDB");
+    };
+    request.onsuccess = () => {
+      this.storage = request.result;
+    };
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains("prices")) {
+        const store = db.createObjectStore("prices", { keyPath: "key" });
+        store.createIndex("token", "token", { unique: false });
+        store.createIndex("timestamp", "timestamp", { unique: false });
+      }
+    };
+  }
+  async getFromStorage(key) {
+    if (!this.storage) return null;
+    return new Promise((resolve) => {
+      const transaction = this.storage.transaction(["prices"], "readonly");
+      const store = transaction.objectStore("prices");
+      const request = store.get(key);
+      request.onsuccess = () => {
+        var _a;
+        resolve(((_a = request.result) == null ? void 0 : _a.data) || null);
+      };
+      request.onerror = () => {
+        resolve(null);
+      };
+    });
+  }
+  async saveToStorage(key, price) {
+    if (!this.storage) return;
+    const transaction = this.storage.transaction(["prices"], "readwrite");
+    const store = transaction.objectStore("prices");
+    store.put({
+      key,
+      token: key.split("-")[0],
+      timestamp: price.timestamp,
+      data: price
+    });
+  }
+  async findNearestPrice(token, chainId, timestamp, direction) {
+    return null;
+  }
+  async estimateBlockTimestamp(chainId, blockNumber) {
+    return null;
+  }
+  async buildRangeFromPoints(token, chainId, startTime, endTime, interval) {
+    const prices = [];
+    const intervalMs = {
+      minute: 60 * 1e3,
+      hour: 60 * 60 * 1e3,
+      day: 24 * 60 * 60 * 1e3
+    }[interval];
+    for (let time = startTime; time <= endTime; time += intervalMs) {
+      const price = await this.getPriceAtTime(token, chainId, time);
+      if (price) prices.push(price);
+    }
+    return {
+      token,
+      chainId,
+      startTime,
+      endTime,
+      interval,
+      prices
+    };
+  }
+  calculateConfidence(source, age) {
+    const agePenalty = Math.min(age / (365 * 24 * 60 * 60 * 1e3), 0.5);
+    const sourceScores = {
+      "onchain": 1,
+      "coingecko": 0.9,
+      "transaction": 0.7,
+      "interpolated": 0.5
+    };
+    const baseScore = sourceScores[source] || 0.5;
+    return baseScore * (1 - agePenalty);
+  }
+}
+class CoinGeckoHistoricalProvider extends HistoricalPriceProvider {
+  constructor() {
+    super(...arguments);
+    this.name = "coingecko";
+    this.capabilities = {
+      maxHistoryDays: 365,
+      supportedChains: [1, 137, 56, 43114, 250, 10, 42161],
+      // Major EVM chains
+      hasBlockLevel: false,
+      hasVolumeData: true,
+      hasFreeTier: true,
+      resolution: {
+        hour: true,
+        day: true
+      }
+    };
+    this.baseUrl = "https://api.coingecko.com/api/v3";
+    this.tokenIdCache = /* @__PURE__ */ new Map();
+  }
+  async getPriceAtTime(tokenAddress, chainId, timestamp) {
+    var _a, _b, _c, _d;
+    try {
+      const tokenId = await this.getTokenId(tokenAddress, chainId);
+      if (!tokenId) return null;
+      const date = new Date(timestamp);
+      const dateStr = `${date.getDate()}-${date.getMonth() + 1}-${date.getFullYear()}`;
+      const url = `${this.baseUrl}/coins/${tokenId}/history?date=${dateStr}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`CoinGecko API error: ${response.status}`);
+      }
+      const data = await response.json();
+      if (!((_b = (_a = data.market_data) == null ? void 0 : _a.current_price) == null ? void 0 : _b.usd)) {
+        return null;
+      }
+      return {
+        timestamp,
+        price: data.market_data.current_price.usd,
+        volume24h: (_c = data.market_data.total_volume) == null ? void 0 : _c.usd,
+        marketCap: (_d = data.market_data.market_cap) == null ? void 0 : _d.usd,
+        source: "coingecko",
+        confidence: this.calculateConfidence("coingecko", Date.now() - timestamp)
+      };
+    } catch (error) {
+      console.warn("[CoinGecko] Failed to get historical price:", error);
+      return null;
+    }
+  }
+  async getPriceAtBlock(tokenAddress, chainId, blockNumber) {
+    return null;
+  }
+  async getPriceRange(tokenAddress, chainId, startTime, endTime, interval) {
+    try {
+      const tokenId = await this.getTokenId(tokenAddress, chainId);
+      if (!tokenId) {
+        return {
+          token: tokenAddress,
+          chainId,
+          startTime,
+          endTime,
+          interval: interval || "hour",
+          prices: []
+        };
+      }
+      const days = Math.ceil((endTime - startTime) / (1e3 * 60 * 60 * 24));
+      const url = `${this.baseUrl}/coins/${tokenId}/market_chart?vs_currency=usd&days=${days}&interval=${interval || "hourly"}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`CoinGecko API error: ${response.status}`);
+      }
+      const data = await response.json();
+      const prices = data.prices.map(([timestamp, price]) => ({
+        timestamp,
+        price,
+        source: "coingecko",
+        confidence: this.calculateConfidence("coingecko", Date.now() - timestamp)
+      }));
+      if (data.total_volumes) {
+        data.total_volumes.forEach(([timestamp, volume], index) => {
+          if (prices[index] && prices[index].timestamp === timestamp) {
+            prices[index].volume24h = volume;
+          }
+        });
+      }
+      if (data.market_caps) {
+        data.market_caps.forEach(([timestamp, marketCap], index) => {
+          if (prices[index] && prices[index].timestamp === timestamp) {
+            prices[index].marketCap = marketCap;
+          }
+        });
+      }
+      return {
+        token: tokenAddress,
+        chainId,
+        startTime,
+        endTime,
+        interval: interval || "hour",
+        prices: prices.filter((p) => p.timestamp >= startTime && p.timestamp <= endTime)
+      };
+    } catch (error) {
+      console.warn("[CoinGecko] Failed to get price range:", error);
+      return {
+        token: tokenAddress,
+        chainId,
+        startTime,
+        endTime,
+        interval: interval || "hour",
+        prices: []
+      };
+    }
+  }
+  /**
+   * Map token address to CoinGecko ID
+   */
+  async getTokenId(tokenAddress, chainId) {
+    const cacheKey = `${chainId}-${tokenAddress.toLowerCase()}`;
+    if (this.tokenIdCache.has(cacheKey)) {
+      return this.tokenIdCache.get(cacheKey);
+    }
+    try {
+      const platformMap = {
+        1: "ethereum",
+        137: "polygon-pos",
+        56: "binance-smart-chain",
+        43114: "avalanche",
+        250: "fantom",
+        10: "optimistic-ethereum",
+        42161: "arbitrum-one"
+      };
+      const platform = platformMap[chainId];
+      if (!platform) return null;
+      if (tokenAddress.toLowerCase() === "0x0000000000000000000000000000000000000000") {
+        const nativeTokens = {
+          1: "ethereum",
+          137: "matic-network",
+          56: "binancecoin",
+          43114: "avalanche-2",
+          250: "fantom",
+          10: "ethereum",
+          // Uses ETH
+          42161: "ethereum"
+          // Uses ETH
+        };
+        const tokenId = nativeTokens[chainId];
+        if (tokenId) {
+          this.tokenIdCache.set(cacheKey, tokenId);
+          return tokenId;
+        }
+      }
+      const url = `${this.baseUrl}/coins/${platform}/contract/${tokenAddress.toLowerCase()}`;
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        const tokenId = data.id;
+        this.tokenIdCache.set(cacheKey, tokenId);
+        return tokenId;
+      }
+      return null;
+    } catch (error) {
+      console.warn("[CoinGecko] Failed to get token ID:", error);
+      return null;
+    }
+  }
+}
+class OnChainDEXProvider extends HistoricalPriceProvider {
+  constructor(config) {
+    super(config);
+    this.name = "onchain-dex";
+    this.capabilities = {
+      maxHistoryDays: Infinity,
+      // Limited only by archive node
+      supportedChains: [1, 137, 42161, 10],
+      // Chains with good DEX liquidity
+      hasBlockLevel: true,
+      hasVolumeData: true,
+      hasFreeTier: false,
+      // Requires archive node
+      resolution: {
+        minute: true,
+        hour: true,
+        day: true
+      }
+    };
+    this.poolCache = /* @__PURE__ */ new Map();
+    this.archiveNodeUrl = config.archiveNodeUrl || "";
+  }
+  async getPriceAtTime(tokenAddress, chainId, timestamp) {
+    try {
+      const blockNumber = await this.getBlockFromTimestamp(chainId, timestamp);
+      if (!blockNumber) return null;
+      return this.getPriceAtBlock(tokenAddress, chainId, blockNumber);
+    } catch (error) {
+      console.warn("[OnChainDEX] Failed to get price at time:", error);
+      return null;
+    }
+  }
+  async getPriceAtBlock(tokenAddress, chainId, blockNumber) {
+    try {
+      if (!this.archiveNodeUrl) {
+        throw new Error("Archive node URL not configured");
+      }
+      const pool = await this.findBestPool(tokenAddress, chainId);
+      if (!pool) return null;
+      const reserves = await this.getPoolReserves(pool, blockNumber);
+      if (!reserves) return null;
+      const price = this.calculatePriceFromReserves(
+        tokenAddress,
+        pool,
+        reserves
+      );
+      const timestamp = await this.getBlockTimestamp(chainId, blockNumber);
+      return {
+        timestamp,
+        blockNumber,
+        price,
+        source: "onchain",
+        confidence: 1
+        // Maximum confidence for on-chain data
+      };
+    } catch (error) {
+      console.warn("[OnChainDEX] Failed to get price at block:", error);
+      return null;
+    }
+  }
+  async getPriceRange(tokenAddress, chainId, startTime, endTime, interval) {
+    try {
+      const pool = await this.findBestPool(tokenAddress, chainId);
+      if (!pool) {
+        return {
+          token: tokenAddress,
+          chainId,
+          startTime,
+          endTime,
+          interval: interval || "hour",
+          prices: []
+        };
+      }
+      const swapEvents = await this.getSwapEvents(
+        pool,
+        startTime,
+        endTime
+      );
+      const prices = this.aggregateSwapsIntoPrices(
+        swapEvents,
+        tokenAddress,
+        pool,
+        interval || "hour"
+      );
+      return {
+        token: tokenAddress,
+        chainId,
+        startTime,
+        endTime,
+        interval: interval || "hour",
+        prices
+      };
+    } catch (error) {
+      console.warn("[OnChainDEX] Failed to get price range:", error);
+      return {
+        token: tokenAddress,
+        chainId,
+        startTime,
+        endTime,
+        interval: interval || "hour",
+        prices: []
+      };
+    }
+  }
+  /**
+   * Find the best liquidity pool for a token
+   */
+  async findBestPool(tokenAddress, chainId) {
+    const cacheKey = `${chainId}-${tokenAddress}`;
+    if (this.poolCache.has(cacheKey)) {
+      const pools = this.poolCache.get(cacheKey);
+      return pools[0];
+    }
+    try {
+      const quoteTokens = this.getQuoteTokens(chainId);
+      const pools = [];
+      for (const quoteToken of quoteTokens) {
+        const v3Pool = await this.findUniswapV3Pool(
+          tokenAddress,
+          quoteToken,
+          chainId
+        );
+        if (v3Pool) pools.push(v3Pool);
+      }
+      for (const quoteToken of quoteTokens) {
+        const v2Pool = await this.findUniswapV2Pool(
+          tokenAddress,
+          quoteToken,
+          chainId
+        );
+        if (v2Pool) pools.push(v2Pool);
+      }
+      if (pools.length === 0) return null;
+      const sortedPools = await this.sortPoolsByLiquidity(pools);
+      this.poolCache.set(cacheKey, sortedPools);
+      return sortedPools[0];
+    } catch (error) {
+      console.warn("[OnChainDEX] Failed to find pool:", error);
+      return null;
+    }
+  }
+  /**
+   * Get pool reserves at specific block
+   */
+  async getPoolReserves(pool, blockNumber) {
+    try {
+      const response = await fetch(this.archiveNodeUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "eth_call",
+          params: [
+            {
+              to: pool.address,
+              data: "0x0902f1ac"
+              // getReserves() selector
+            },
+            `0x${blockNumber.toString(16)}`
+          ]
+        })
+      });
+      const data = await response.json();
+      if (!data.result) return null;
+      const result = data.result.slice(2);
+      const reserve0 = BigInt("0x" + result.slice(0, 64));
+      const reserve1 = BigInt("0x" + result.slice(64, 128));
+      return { reserve0, reserve1 };
+    } catch (error) {
+      console.warn("[OnChainDEX] Failed to get reserves:", error);
+      return null;
+    }
+  }
+  /**
+   * Calculate price from pool reserves
+   */
+  calculatePriceFromReserves(tokenAddress, pool, reserves) {
+    const isToken0 = pool.token0.toLowerCase() === tokenAddress.toLowerCase();
+    const tokenReserve = isToken0 ? reserves.reserve0 : reserves.reserve1;
+    const quoteReserve = isToken0 ? reserves.reserve1 : reserves.reserve0;
+    const price = Number(quoteReserve) / Number(tokenReserve);
+    return price;
+  }
+  /**
+   * Get swap events from a pool
+   */
+  async getSwapEvents(pool, startTime, endTime) {
+    return [];
+  }
+  /**
+   * Aggregate swap events into price points
+   */
+  aggregateSwapsIntoPrices(swaps, tokenAddress, pool, interval) {
+    const intervalMs = {
+      minute: 60 * 1e3,
+      hour: 60 * 60 * 1e3,
+      day: 24 * 60 * 60 * 1e3
+    }[interval];
+    const grouped = /* @__PURE__ */ new Map();
+    for (const swap of swaps) {
+      const intervalKey = Math.floor(swap.timestamp / intervalMs) * intervalMs;
+      if (!grouped.has(intervalKey)) {
+        grouped.set(intervalKey, []);
+      }
+      grouped.get(intervalKey).push(swap);
+    }
+    const prices = [];
+    for (const [timestamp, intervalSwaps] of grouped.entries()) {
+      let totalVolume = 0;
+      let volumeWeightedPrice = 0;
+      for (const swap of intervalSwaps) {
+        const volume = swap.amount;
+        const price = swap.price;
+        totalVolume += volume;
+        volumeWeightedPrice += price * volume;
+      }
+      prices.push({
+        timestamp,
+        price: volumeWeightedPrice / totalVolume,
+        volume24h: totalVolume,
+        source: "onchain",
+        confidence: 1
+      });
+    }
+    return prices.sort((a, b) => a.timestamp - b.timestamp);
+  }
+  /**
+   * Helper methods
+   */
+  getQuoteTokens(chainId) {
+    const tokens = {
+      1: [
+        // Ethereum
+        "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+        // WETH
+        "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        // USDC
+        "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+        // USDT
+        "0x6B175474E89094C44Da98b954EedeAC495271d0F"
+        // DAI
+      ],
+      137: [
+        // Polygon
+        "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
+        // WMATIC
+        "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+        // USDC
+        "0xc2132D05D31c914a87C6611C10748AEb04B58e8F"
+        // USDT
+      ],
+      42161: [
+        // Arbitrum
+        "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+        // WETH
+        "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"
+        // USDC
+      ],
+      10: [
+        // Optimism
+        "0x4200000000000000000000000000000000000006",
+        // WETH
+        "0x7F5c764cBc14f9669B88837ca1490cCa17c31607"
+        // USDC
+      ]
+    };
+    return tokens[chainId] || [];
+  }
+  async findUniswapV3Pool(token0, token1, chainId) {
+    return null;
+  }
+  async findUniswapV2Pool(token0, token1, chainId) {
+    return null;
+  }
+  async sortPoolsByLiquidity(pools) {
+    return pools;
+  }
+  async getBlockFromTimestamp(chainId, timestamp) {
+    return null;
+  }
+  async getBlockTimestamp(chainId, blockNumber) {
+    try {
+      const response = await fetch(this.archiveNodeUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "eth_getBlockByNumber",
+          params: [`0x${blockNumber.toString(16)}`, false]
+        })
+      });
+      const data = await response.json();
+      return parseInt(data.result.timestamp, 16) * 1e3;
+    } catch {
+      return Date.now();
+    }
+  }
+}
+class AbstractTransactionProvider {
+  constructor(config, name) {
+    this.config = config;
+    this.name = name;
+  }
+  /**
+   * Get the provider name
+   */
+  getName() {
+    return this.name;
+  }
+  /**
+   * Validate the provider configuration
+   */
+  validateConfig() {
+    if (!this.config.apiKey) {
+      throw new Error(`${this.name} provider requires an API key`);
+    }
+  }
+  /**
+   * Build the RPC URL for a specific chain
+   * Override this in providers that use RPC endpoints
+   */
+  buildRpcUrl(chainId) {
+    throw new Error(`Provider ${this.name} must implement buildRpcUrl`);
+  }
+  /**
+   * Helper method to handle rate limiting
+   */
+  async rateLimitDelay() {
+    if (this.config.rateLimit) {
+      await new Promise((resolve) => setTimeout(resolve, this.config.rateLimit));
+    }
+  }
+  /**
+   * Helper method to retry failed requests
+   */
+  async retryRequest(fn, retries = this.config.retryCount || 3) {
+    let lastError;
+    for (let i = 0; i < retries; i++) {
+      try {
+        return await fn();
+      } catch (error) {
+        lastError = error;
+        if (i < retries - 1) {
+          await new Promise((resolve) => setTimeout(resolve, Math.pow(2, i) * 1e3));
+        }
+      }
+    }
+    throw lastError || new Error("Request failed after retries");
+  }
+  /**
+   * Convert provider-specific transaction format to standard format
+   * Each provider should override this if needed
+   */
+  normalizeTransaction(tx, chainId) {
+    return {
+      hash: tx.hash || tx.transactionHash,
+      from: tx.from,
+      to: tx.to,
+      value: tx.value || "0",
+      blockNumber: parseInt(tx.blockNumber),
+      timestamp: tx.timestamp || Date.now(),
+      nonce: tx.nonce,
+      gasPrice: tx.gasPrice,
+      gasUsed: tx.gasUsed,
+      gasLimit: tx.gasLimit || tx.gas,
+      status: tx.status ? "confirmed" : "pending",
+      confirmations: tx.confirmations,
+      type: this.determineTransactionType(tx),
+      chainId,
+      symbol: tx.symbol || "ETH"
+    };
+  }
+  /**
+   * Determine transaction type based on transaction data
+   */
+  determineTransactionType(tx) {
+    if (tx.input && tx.input !== "0x" && tx.input !== "0x0") {
+      return "contract";
+    }
+    return "send";
+  }
+  /**
+   * Make an RPC call
+   * Helper method for providers that use JSON-RPC
+   */
+  async rpcCall(url, method, params = []) {
+    const controller = new AbortController();
+    const timeout = this.config.timeout || 3e4;
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method,
+          params
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(`RPC error: ${data.error.message || JSON.stringify(data.error)}`);
+      }
+      return data.result;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === "AbortError") {
+        throw new Error(`Request timeout after ${timeout}ms`);
+      }
+      throw error;
+    }
+  }
+}
+class AlchemyTransactionProvider extends AbstractTransactionProvider {
+  constructor(config) {
+    super(config, "Alchemy");
+    this.SUPPORTED_CHAINS = [1, 11155111, 137, 42161, 10, 8453, 43114];
+    this.NETWORK_URLS = {
+      1: "https://eth-mainnet.g.alchemy.com/v2/",
+      11155111: "https://eth-sepolia.g.alchemy.com/v2/",
+      137: "https://polygon-mainnet.g.alchemy.com/v2/",
+      42161: "https://arb-mainnet.g.alchemy.com/v2/",
+      10: "https://opt-mainnet.g.alchemy.com/v2/",
+      8453: "https://base-mainnet.g.alchemy.com/v2/",
+      43114: "https://avax-mainnet.g.alchemy.com/v2/"
+    };
+    this.validateConfig();
+  }
+  /**
+   * Build the RPC URL for a specific chain
+   */
+  buildRpcUrl(chainId) {
+    const baseUrl = this.NETWORK_URLS[chainId];
+    if (!baseUrl) {
+      throw new Error(`Chain ${chainId} is not supported by Alchemy`);
+    }
+    return baseUrl + this.config.apiKey;
+  }
+  /**
+   * Check if the provider supports a specific chain
+   */
+  supportsChain(chainId) {
+    return this.SUPPORTED_CHAINS.includes(chainId);
+  }
+  /**
+   * Get supported chains
+   */
+  getSupportedChains() {
+    return [...this.SUPPORTED_CHAINS];
+  }
+  /**
+   * Get the current block number
+   */
+  async getCurrentBlockNumber(chainId) {
+    const url = this.buildRpcUrl(chainId);
+    const result = await this.rpcCall(url, "eth_blockNumber");
+    return parseInt(result, 16);
+  }
+  /**
+   * Fetch transactions using Alchemy's getAssetTransfers API
+   */
+  async fetchTransactions(address, chainId, options = {}) {
+    if (!this.supportsChain(chainId)) {
+      throw new Error(`Chain ${chainId} is not supported by Alchemy`);
+    }
+    const url = this.buildRpcUrl(chainId);
+    const limit = options.limit || 100;
+    const sort = options.sort || "desc";
+    const [outgoing, incoming] = await Promise.all([
+      this.fetchTransfers(url, address, "from", limit, sort),
+      this.fetchTransfers(url, address, "to", limit, sort)
+    ]);
+    const allTransfers = [...outgoing, ...incoming];
+    const uniqueTransfers = Array.from(
+      new Map(allTransfers.map((tx) => [tx.hash, tx])).values()
+    );
+    uniqueTransfers.sort((a, b) => {
+      if (sort === "desc") {
+        return b.timestamp - a.timestamp;
+      }
+      return a.timestamp - b.timestamp;
+    });
+    return uniqueTransfers.slice(0, limit);
+  }
+  /**
+   * Fetch transfers using Alchemy's getAssetTransfers
+   */
+  async fetchTransfers(url, address, direction, limit, order) {
+    const params = {
+      category: ["external", "erc20", "erc721", "erc1155", "internal"],
+      withMetadata: true,
+      maxCount: `0x${limit.toString(16)}`,
+      order
+    };
+    if (direction === "from") {
+      params.fromAddress = address;
+    } else {
+      params.toAddress = address;
+    }
+    const result = await this.retryRequest(
+      () => this.rpcCall(url, "alchemy_getAssetTransfers", [params])
+    );
+    const transfers = result.transfers || [];
+    return transfers.map((tx) => this.convertAlchemyToStandard(tx, address));
+  }
+  /**
+   * Fetch a single transaction by hash
+   */
+  async fetchTransaction(txHash, chainId) {
+    const url = this.buildRpcUrl(chainId);
+    const [tx, receipt] = await Promise.all([
+      this.rpcCall(url, "eth_getTransactionByHash", [txHash]),
+      this.rpcCall(url, "eth_getTransactionReceipt", [txHash])
+    ]);
+    if (!tx) {
+      return null;
+    }
+    const currentBlock = await this.getCurrentBlockNumber(chainId);
+    const blockNumber = parseInt(tx.blockNumber, 16);
+    const confirmations = currentBlock - blockNumber;
+    const block = await this.rpcCall(url, "eth_getBlockByNumber", [tx.blockNumber, false]);
+    const timestamp = parseInt(block.timestamp, 16) * 1e3;
+    return {
+      hash: tx.hash,
+      from: tx.from,
+      to: tx.to || "",
+      value: parseInt(tx.value, 16).toString(),
+      blockNumber,
+      timestamp,
+      nonce: parseInt(tx.nonce, 16),
+      gasPrice: parseInt(tx.gasPrice || tx.maxFeePerGas || "0", 16).toString(),
+      gasUsed: receipt ? parseInt(receipt.gasUsed, 16).toString() : void 0,
+      gasLimit: parseInt(tx.gas, 16).toString(),
+      status: receipt ? receipt.status === "0x1" ? "confirmed" : "failed" : "pending",
+      confirmations,
+      type: this.determineTransactionType(tx),
+      chainId,
+      symbol: "ETH"
+    };
+  }
+  /**
+   * Convert Alchemy transfer format to standard format
+   */
+  convertAlchemyToStandard(transfer, userAddress) {
+    var _a, _b, _c, _d, _e;
+    const isOutgoing = ((_a = transfer.from) == null ? void 0 : _a.toLowerCase()) === userAddress.toLowerCase();
+    let timestamp = Date.now();
+    if ((_b = transfer.metadata) == null ? void 0 : _b.blockTimestamp) {
+      timestamp = new Date(transfer.metadata.blockTimestamp).getTime();
+    }
+    let value = "0";
+    if (transfer.value) {
+      value = transfer.value.toString();
+    } else if ((_c = transfer.rawContract) == null ? void 0 : _c.value) {
+      value = parseInt(transfer.rawContract.value, 16).toString();
+    }
+    const blockNumber = transfer.blockNum ? parseInt(transfer.blockNum, 16) : 0;
+    let type = isOutgoing ? "send" : "receive";
+    if (transfer.category === "internal") {
+      type = "contract";
+    }
+    return {
+      hash: transfer.hash || transfer.uniqueId,
+      from: transfer.from || "",
+      to: transfer.to || "",
+      value,
+      blockNumber,
+      timestamp,
+      status: "confirmed",
+      // Alchemy only returns confirmed transfers
+      type,
+      chainId: 1,
+      // Will be set by the caller
+      symbol: transfer.asset || "ETH",
+      tokenAddress: (_d = transfer.rawContract) == null ? void 0 : _d.address,
+      tokenDecimals: (_e = transfer.rawContract) == null ? void 0 : _e.decimal
+    };
+  }
+}
+class EtherscanTransactionProvider extends AbstractTransactionProvider {
+  constructor(config) {
+    super(config, "Etherscan");
+    this.SUPPORTED_CHAINS = [1, 11155111, 137, 42161, 10, 8453, 56, 43114];
+    this.API_URLS = {
+      1: "https://api.etherscan.io/api",
+      11155111: "https://api-sepolia.etherscan.io/api",
+      137: "https://api.polygonscan.com/api",
+      42161: "https://api.arbiscan.io/api",
+      10: "https://api-optimistic.etherscan.io/api",
+      8453: "https://api.basescan.org/api",
+      56: "https://api.bscscan.com/api",
+      43114: "https://api.snowscan.xyz/api"
+    };
+    this.validateConfig();
+  }
+  /**
+   * Get the API URL for a specific chain
+   */
+  getApiUrl(chainId) {
+    const url = this.API_URLS[chainId];
+    if (!url) {
+      throw new Error(`Chain ${chainId} is not supported by Etherscan`);
+    }
+    return url;
+  }
+  /**
+   * Check if the provider supports a specific chain
+   */
+  supportsChain(chainId) {
+    return this.SUPPORTED_CHAINS.includes(chainId);
+  }
+  /**
+   * Get supported chains
+   */
+  getSupportedChains() {
+    return [...this.SUPPORTED_CHAINS];
+  }
+  /**
+   * Get the current block number
+   */
+  async getCurrentBlockNumber(chainId) {
+    const url = this.getApiUrl(chainId);
+    const params = new URLSearchParams({
+      module: "proxy",
+      action: "eth_blockNumber",
+      apikey: this.config.apiKey
+    });
+    const response = await this.fetchWithRetry(`${url}?${params}`);
+    const data = await response.json();
+    if (data.status === "1" && data.result) {
+      return parseInt(data.result, 16);
+    }
+    throw new Error(`Failed to get block number: ${data.message || "Unknown error"}`);
+  }
+  /**
+   * Fetch transactions using Etherscan's API
+   */
+  async fetchTransactions(address, chainId, options = {}) {
+    if (!this.supportsChain(chainId)) {
+      throw new Error(`Chain ${chainId} is not supported by Etherscan`);
+    }
+    const url = this.getApiUrl(chainId);
+    const limit = options.limit || 100;
+    const sort = options.sort || "desc";
+    const startBlock = options.startBlock || 0;
+    const endBlock = options.endBlock || 999999999;
+    const normalTxs = await this.fetchNormalTransactions(
+      url,
+      address,
+      startBlock,
+      endBlock,
+      sort
+    );
+    let tokenTxs = [];
+    if (options.includeTokenTransfers !== false) {
+      tokenTxs = await this.fetchTokenTransactions(
+        url,
+        address,
+        startBlock,
+        endBlock,
+        sort
+      );
+    }
+    let internalTxs = [];
+    if (options.includeInternalTransactions) {
+      internalTxs = await this.fetchInternalTransactions(
+        url,
+        address,
+        startBlock,
+        endBlock,
+        sort
+      );
+    }
+    const allTxs = [...normalTxs, ...tokenTxs, ...internalTxs];
+    const uniqueTxs = Array.from(
+      new Map(allTxs.map((tx) => [tx.hash, tx])).values()
+    );
+    uniqueTxs.sort((a, b) => {
+      if (sort === "desc") {
+        return b.timestamp - a.timestamp;
+      }
+      return a.timestamp - b.timestamp;
+    });
+    return uniqueTxs.slice(0, limit).map((tx) => ({ ...tx, chainId }));
+  }
+  /**
+   * Fetch normal transactions
+   */
+  async fetchNormalTransactions(baseUrl, address, startBlock, endBlock, sort) {
+    const params = new URLSearchParams({
+      module: "account",
+      action: "txlist",
+      address,
+      startblock: startBlock.toString(),
+      endblock: endBlock.toString(),
+      sort,
+      apikey: this.config.apiKey
+    });
+    const response = await this.fetchWithRetry(`${baseUrl}?${params}`);
+    const data = await response.json();
+    if (data.status === "1" && Array.isArray(data.result)) {
+      return data.result.map((tx) => this.convertEtherscanToStandard(tx, address));
+    }
+    if (data.status === "0" && data.message === "No transactions found") {
+      return [];
+    }
+    throw new Error(`Etherscan API error: ${data.message || "Unknown error"}`);
+  }
+  /**
+   * Fetch token transactions (ERC20, ERC721, etc.)
+   */
+  async fetchTokenTransactions(baseUrl, address, startBlock, endBlock, sort) {
+    const params = new URLSearchParams({
+      module: "account",
+      action: "tokentx",
+      address,
+      startblock: startBlock.toString(),
+      endblock: endBlock.toString(),
+      sort,
+      apikey: this.config.apiKey
+    });
+    const response = await this.fetchWithRetry(`${baseUrl}?${params}`);
+    const data = await response.json();
+    if (data.status === "1" && Array.isArray(data.result)) {
+      return data.result.map((tx) => this.convertTokenTxToStandard(tx, address));
+    }
+    return [];
+  }
+  /**
+   * Fetch internal transactions
+   */
+  async fetchInternalTransactions(baseUrl, address, startBlock, endBlock, sort) {
+    const params = new URLSearchParams({
+      module: "account",
+      action: "txlistinternal",
+      address,
+      startblock: startBlock.toString(),
+      endblock: endBlock.toString(),
+      sort,
+      apikey: this.config.apiKey
+    });
+    const response = await this.fetchWithRetry(`${baseUrl}?${params}`);
+    const data = await response.json();
+    if (data.status === "1" && Array.isArray(data.result)) {
+      return data.result.map((tx) => this.convertInternalTxToStandard(tx, address));
+    }
+    return [];
+  }
+  /**
+   * Fetch a single transaction by hash
+   */
+  async fetchTransaction(txHash, chainId) {
+    const url = this.getApiUrl(chainId);
+    const params = new URLSearchParams({
+      module: "proxy",
+      action: "eth_getTransactionByHash",
+      txhash: txHash,
+      apikey: this.config.apiKey
+    });
+    const response = await this.fetchWithRetry(`${url}?${params}`);
+    const data = await response.json();
+    if (data.result) {
+      const tx = data.result;
+      const receiptParams = new URLSearchParams({
+        module: "proxy",
+        action: "eth_getTransactionReceipt",
+        txhash: txHash,
+        apikey: this.config.apiKey
+      });
+      const receiptResponse = await this.fetchWithRetry(`${url}?${receiptParams}`);
+      const receiptData = await receiptResponse.json();
+      const receipt = receiptData.result;
+      return {
+        hash: tx.hash,
+        from: tx.from,
+        to: tx.to || "",
+        value: parseInt(tx.value, 16).toString(),
+        blockNumber: parseInt(tx.blockNumber, 16),
+        timestamp: Date.now(),
+        // Would need to fetch block for actual timestamp
+        nonce: parseInt(tx.nonce, 16),
+        gasPrice: parseInt(tx.gasPrice || tx.maxFeePerGas || "0", 16).toString(),
+        gasUsed: receipt ? parseInt(receipt.gasUsed, 16).toString() : void 0,
+        gasLimit: parseInt(tx.gas, 16).toString(),
+        status: receipt ? receipt.status === "0x1" ? "confirmed" : "failed" : "pending",
+        type: this.determineTransactionType(tx),
+        chainId,
+        symbol: "ETH"
+      };
+    }
+    return null;
+  }
+  /**
+   * Convert Etherscan format to standard format
+   */
+  convertEtherscanToStandard(tx, userAddress) {
+    const isOutgoing = tx.from.toLowerCase() === userAddress.toLowerCase();
+    return {
+      hash: tx.hash,
+      from: tx.from,
+      to: tx.to,
+      value: tx.value,
+      blockNumber: parseInt(tx.blockNumber),
+      timestamp: parseInt(tx.timeStamp) * 1e3,
+      // Etherscan returns Unix seconds
+      nonce: parseInt(tx.nonce),
+      gasPrice: tx.gasPrice,
+      gasUsed: tx.gasUsed,
+      gasLimit: tx.gas,
+      status: tx.isError === "0" ? "confirmed" : "failed",
+      confirmations: parseInt(tx.confirmations),
+      type: isOutgoing ? "send" : "receive",
+      chainId: 1,
+      // Will be set by caller
+      symbol: "ETH",
+      methodId: tx.methodId,
+      functionName: tx.functionName
+    };
+  }
+  /**
+   * Convert token transaction to standard format
+   */
+  convertTokenTxToStandard(tx, userAddress) {
+    const isOutgoing = tx.from.toLowerCase() === userAddress.toLowerCase();
+    return {
+      hash: tx.hash,
+      from: tx.from,
+      to: tx.to,
+      value: tx.value,
+      blockNumber: parseInt(tx.blockNumber),
+      timestamp: parseInt(tx.timeStamp) * 1e3,
+      nonce: parseInt(tx.nonce),
+      gasPrice: tx.gasPrice,
+      gasUsed: tx.gasUsed,
+      gasLimit: tx.gas,
+      status: "confirmed",
+      confirmations: parseInt(tx.confirmations),
+      type: isOutgoing ? "send" : "receive",
+      chainId: 1,
+      symbol: tx.tokenSymbol,
+      tokenAddress: tx.contractAddress,
+      tokenName: tx.tokenName,
+      tokenDecimals: parseInt(tx.tokenDecimal)
+    };
+  }
+  /**
+   * Convert internal transaction to standard format
+   */
+  convertInternalTxToStandard(tx, userAddress) {
+    tx.from.toLowerCase() === userAddress.toLowerCase();
+    return {
+      hash: tx.hash,
+      from: tx.from,
+      to: tx.to,
+      value: tx.value,
+      blockNumber: parseInt(tx.blockNumber),
+      timestamp: parseInt(tx.timeStamp) * 1e3,
+      status: tx.isError === "0" ? "confirmed" : "failed",
+      type: "contract",
+      chainId: 1,
+      symbol: "ETH",
+      gasLimit: tx.gas,
+      gasUsed: tx.gasUsed
+    };
+  }
+  /**
+   * Helper method for fetch with retry
+   */
+  async fetchWithRetry(url, retries = 3) {
+    return this.retryRequest(async () => {
+      await this.rateLimitDelay();
+      const controller = new AbortController();
+      const timeout = this.config.timeout || 3e4;
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      try {
+        const response = await fetch(url, {
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (!response.ok && response.status !== 400) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response;
+      } catch (error) {
+        clearTimeout(timeoutId);
+        if (error.name === "AbortError") {
+          throw new Error(`Request timeout after ${timeout}ms`);
+        }
+        throw error;
+      }
+    }, retries);
+  }
+}
+class InfuraTransactionProvider extends AbstractTransactionProvider {
+  constructor(config) {
+    super(config, "Infura");
+    this.SUPPORTED_CHAINS = [1, 11155111, 137, 42161, 10, 43114];
+    this.NETWORK_URLS = {
+      1: "https://mainnet.infura.io/v3/",
+      11155111: "https://sepolia.infura.io/v3/",
+      137: "https://polygon-mainnet.infura.io/v3/",
+      42161: "https://arbitrum-mainnet.infura.io/v3/",
+      10: "https://optimism-mainnet.infura.io/v3/",
+      43114: "https://avalanche-mainnet.infura.io/v3/"
+    };
+    this.TRANSFER_EVENT_SIGNATURE = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+    this.validateConfig();
+  }
+  /**
+   * Build the RPC URL for a specific chain
+   */
+  buildRpcUrl(chainId) {
+    const baseUrl = this.NETWORK_URLS[chainId];
+    if (!baseUrl) {
+      throw new Error(`Chain ${chainId} is not supported by Infura`);
+    }
+    return baseUrl + this.config.apiKey;
+  }
+  /**
+   * Check if the provider supports a specific chain
+   */
+  supportsChain(chainId) {
+    return this.SUPPORTED_CHAINS.includes(chainId);
+  }
+  /**
+   * Get supported chains
+   */
+  getSupportedChains() {
+    return [...this.SUPPORTED_CHAINS];
+  }
+  /**
+   * Get the current block number
+   */
+  async getCurrentBlockNumber(chainId) {
+    const url = this.buildRpcUrl(chainId);
+    const result = await this.rpcCall(url, "eth_blockNumber");
+    return parseInt(result, 16);
+  }
+  /**
+   * Fetch transactions using eth_getLogs
+   * This is a simplified approach that fetches transfer events
+   */
+  async fetchTransactions(address, chainId, options = {}) {
+    if (!this.supportsChain(chainId)) {
+      throw new Error(`Chain ${chainId} is not supported by Infura`);
+    }
+    const url = this.buildRpcUrl(chainId);
+    const currentBlock = await this.getCurrentBlockNumber(chainId);
+    const endBlock = options.endBlock || currentBlock;
+    const startBlock = options.startBlock || Math.max(0, endBlock - 1e4);
+    const limit = options.limit || 100;
+    const [ethTransactions, tokenTransfers] = await Promise.all([
+      this.fetchNativeTransactions(url, address, startBlock, endBlock, limit),
+      options.includeTokenTransfers !== false ? this.fetchTokenTransfers(url, address, startBlock, endBlock, limit) : Promise.resolve([])
+    ]);
+    const allTransactions = [...ethTransactions, ...tokenTransfers];
+    allTransactions.sort((a, b) => b.blockNumber - a.blockNumber);
+    const transactionsWithConfirmations = allTransactions.map((tx) => ({
+      ...tx,
+      confirmations: currentBlock - tx.blockNumber,
+      chainId
+    }));
+    return transactionsWithConfirmations.slice(0, limit);
+  }
+  /**
+   * Fetch native ETH transactions
+   * Note: This is limited as Infura doesn't have a direct transaction history API
+   * We use eth_getLogs to find transactions involving the address
+   */
+  async fetchNativeTransactions(url, address, fromBlock, toBlock, limit) {
+    const logs = await this.rpcCall(url, "eth_getLogs", [{
+      fromBlock: `0x${fromBlock.toString(16)}`,
+      toBlock: `0x${toBlock.toString(16)}`,
+      address: null,
+      // Get logs from all addresses
+      topics: [
+        null,
+        // Any event
+        `0x000000000000000000000000${address.slice(2).toLowerCase()}`,
+        // From address
+        `0x000000000000000000000000${address.slice(2).toLowerCase()}`
+        // To address
+      ]
+    }]);
+    const uniqueTxHashes = Array.from(new Set(logs.map((log) => log.transactionHash)));
+    const transactions = await Promise.all(
+      uniqueTxHashes.slice(0, limit).map((hash) => this.fetchTransactionByHash(url, hash))
+    );
+    return transactions.filter(Boolean);
+  }
+  /**
+   * Fetch ERC20 token transfers
+   */
+  async fetchTokenTransfers(url, address, fromBlock, toBlock, limit) {
+    const paddedAddress = `0x000000000000000000000000${address.slice(2).toLowerCase()}`;
+    const sentLogs = await this.rpcCall(url, "eth_getLogs", [{
+      fromBlock: `0x${fromBlock.toString(16)}`,
+      toBlock: `0x${toBlock.toString(16)}`,
+      topics: [
+        this.TRANSFER_EVENT_SIGNATURE,
+        paddedAddress,
+        // From address
+        null
+        // Any recipient
+      ]
+    }]);
+    const receivedLogs = await this.rpcCall(url, "eth_getLogs", [{
+      fromBlock: `0x${fromBlock.toString(16)}`,
+      toBlock: `0x${toBlock.toString(16)}`,
+      topics: [
+        this.TRANSFER_EVENT_SIGNATURE,
+        null,
+        // Any sender
+        paddedAddress
+        // To address
+      ]
+    }]);
+    const allLogs = [...sentLogs, ...receivedLogs];
+    const uniqueLogs = Array.from(
+      new Map(allLogs.map((log) => [log.transactionHash + log.logIndex, log])).values()
+    );
+    const transfers = await Promise.all(
+      uniqueLogs.slice(0, limit).map((log) => this.convertLogToTransaction(url, log, address))
+    );
+    return transfers.filter(Boolean);
+  }
+  /**
+   * Convert a log entry to a transaction
+   */
+  async convertLogToTransaction(url, log, userAddress) {
+    try {
+      const tx = await this.fetchTransactionByHash(url, log.transactionHash);
+      if (!tx) return null;
+      const value = log.data ? parseInt(log.data, 16).toString() : "0";
+      const fromAddress = `0x${log.topics[1].slice(26)}`;
+      const toAddress = `0x${log.topics[2].slice(26)}`;
+      const isOutgoing = fromAddress.toLowerCase() === userAddress.toLowerCase();
+      return {
+        ...tx,
+        value,
+        from: fromAddress,
+        to: toAddress,
+        type: isOutgoing ? "send" : "receive",
+        tokenAddress: log.address,
+        symbol: "TOKEN"
+        // Would need additional call to get token symbol
+      };
+    } catch (error) {
+      console.error("Error converting log to transaction:", error);
+      return null;
+    }
+  }
+  /**
+   * Fetch a transaction by hash and get its details
+   */
+  async fetchTransactionByHash(url, hash) {
+    try {
+      const [tx, receipt] = await Promise.all([
+        this.rpcCall(url, "eth_getTransactionByHash", [hash]),
+        this.rpcCall(url, "eth_getTransactionReceipt", [hash])
+      ]);
+      if (!tx) return null;
+      const block = await this.rpcCall(url, "eth_getBlockByNumber", [tx.blockNumber, false]);
+      const timestamp = parseInt(block.timestamp, 16) * 1e3;
+      return {
+        hash: tx.hash,
+        from: tx.from,
+        to: tx.to || "",
+        value: parseInt(tx.value, 16).toString(),
+        blockNumber: parseInt(tx.blockNumber, 16),
+        timestamp,
+        nonce: parseInt(tx.nonce, 16),
+        gasPrice: parseInt(tx.gasPrice || tx.maxFeePerGas || "0", 16).toString(),
+        gasUsed: receipt ? parseInt(receipt.gasUsed, 16).toString() : void 0,
+        gasLimit: parseInt(tx.gas, 16).toString(),
+        status: receipt ? receipt.status === "0x1" ? "confirmed" : "failed" : "pending",
+        type: this.determineTransactionType(tx),
+        chainId: parseInt(tx.chainId || "0x1", 16),
+        symbol: "ETH"
+      };
+    } catch (error) {
+      console.error("Error fetching transaction:", hash, error);
+      return null;
+    }
+  }
+  /**
+   * Fetch a single transaction by hash
+   */
+  async fetchTransaction(txHash, chainId) {
+    const url = this.buildRpcUrl(chainId);
+    const tx = await this.fetchTransactionByHash(url, txHash);
+    if (tx) {
+      const currentBlock = await this.getCurrentBlockNumber(chainId);
+      tx.confirmations = currentBlock - tx.blockNumber;
+      tx.chainId = chainId;
+    }
+    return tx;
+  }
+}
+class QuickNodeTransactionProvider extends AbstractTransactionProvider {
+  constructor(config) {
+    super(config, "QuickNode");
+    this.SUPPORTED_CHAINS = [1, 11155111, 137, 42161, 10, 56, 43114];
+    this.validateConfig();
+  }
+  /**
+   * Build the RPC URL for QuickNode
+   * QuickNode URLs are typically in format: https://xxx.quiknode.pro/yyy/
+   */
+  buildRpcUrl(chainId) {
+    if (!this.config.apiKey.includes("quiknode.pro")) {
+      throw new Error("QuickNode requires a valid QuickNode endpoint URL as the API key");
+    }
+    return this.config.apiKey;
+  }
+  /**
+   * Check if the provider supports a specific chain
+   */
+  supportsChain(chainId) {
+    return this.SUPPORTED_CHAINS.includes(chainId);
+  }
+  /**
+   * Get supported chains
+   */
+  getSupportedChains() {
+    return [...this.SUPPORTED_CHAINS];
+  }
+  /**
+   * Get the current block number
+   */
+  async getCurrentBlockNumber(chainId) {
+    const url = this.buildRpcUrl(chainId);
+    const result = await this.rpcCall(url, "eth_blockNumber");
+    return parseInt(result, 16);
+  }
+  /**
+   * Fetch transactions using QuickNode's qn_getWalletTokenTransactions
+   */
+  async fetchTransactions(address, chainId, options = {}) {
+    if (!this.supportsChain(chainId)) {
+      throw new Error(`Chain ${chainId} is not supported by QuickNode`);
+    }
+    const url = this.buildRpcUrl(chainId);
+    const limit = options.limit || 100;
+    try {
+      const transactions = await this.fetchWithQuickNodeAPI(url, address, limit);
+      if (transactions.length > 0) {
+        return transactions.map((tx) => ({ ...tx, chainId }));
+      }
+    } catch (error) {
+      console.warn("QuickNode enhanced API not available, falling back to standard methods", error);
+    }
+    return this.fetchWithStandardRPC(url, address, chainId, options);
+  }
+  /**
+   * Fetch transactions using QuickNode's enhanced API
+   */
+  async fetchWithQuickNodeAPI(url, address, limit) {
+    try {
+      const tokenTxResult = await this.rpcCall(url, "qn_getWalletTokenTransactions", [{
+        address,
+        page: 1,
+        perPage: limit
+      }]);
+      const transactions = [];
+      if (tokenTxResult && tokenTxResult.transfers) {
+        for (const transfer of tokenTxResult.transfers) {
+          transactions.push(this.convertQuickNodeTransfer(transfer, address));
+        }
+      }
+      const txListResult = await this.rpcCall(url, "qn_getTransactionsByAddress", [{
+        address,
+        page: 1,
+        perPage: limit
+      }]);
+      if (txListResult && txListResult.transactions) {
+        for (const tx of txListResult.transactions) {
+          transactions.push(await this.convertQuickNodeTransaction(tx, url));
+        }
+      }
+      return transactions;
+    } catch (error) {
+      throw error;
+    }
+  }
+  /**
+   * Fallback to standard RPC methods
+   */
+  async fetchWithStandardRPC(url, address, chainId, options) {
+    const currentBlock = await this.getCurrentBlockNumber(chainId);
+    const startBlock = options.startBlock || Math.max(0, currentBlock - 1e4);
+    const endBlock = options.endBlock || currentBlock;
+    const limit = options.limit || 100;
+    const logs = await this.fetchLogsForAddress(url, address, startBlock, endBlock);
+    const txHashes = [...new Set(logs.map((log) => log.transactionHash))];
+    const transactions = await Promise.all(
+      txHashes.slice(0, limit).map((hash) => this.fetchTransactionByHash(url, hash))
+    );
+    return transactions.filter(Boolean).map((tx) => ({
+      ...tx,
+      confirmations: currentBlock - tx.blockNumber,
+      chainId
+    }));
+  }
+  /**
+   * Fetch logs for an address
+   */
+  async fetchLogsForAddress(url, address, fromBlock, toBlock) {
+    const paddedAddress = `0x000000000000000000000000${address.slice(2).toLowerCase()}`;
+    const [sentLogs, receivedLogs] = await Promise.all([
+      this.rpcCall(url, "eth_getLogs", [{
+        fromBlock: `0x${fromBlock.toString(16)}`,
+        toBlock: `0x${toBlock.toString(16)}`,
+        topics: [
+          null,
+          paddedAddress,
+          // From address
+          null
+        ]
+      }]),
+      this.rpcCall(url, "eth_getLogs", [{
+        fromBlock: `0x${fromBlock.toString(16)}`,
+        toBlock: `0x${toBlock.toString(16)}`,
+        topics: [
+          null,
+          null,
+          paddedAddress
+          // To address
+        ]
+      }])
+    ]);
+    return [...sentLogs, ...receivedLogs];
+  }
+  /**
+   * Fetch a transaction by hash
+   */
+  async fetchTransactionByHash(url, hash) {
+    try {
+      const [tx, receipt] = await Promise.all([
+        this.rpcCall(url, "eth_getTransactionByHash", [hash]),
+        this.rpcCall(url, "eth_getTransactionReceipt", [hash])
+      ]);
+      if (!tx) return null;
+      const block = await this.rpcCall(url, "eth_getBlockByNumber", [tx.blockNumber, false]);
+      const timestamp = parseInt(block.timestamp, 16) * 1e3;
+      return {
+        hash: tx.hash,
+        from: tx.from,
+        to: tx.to || "",
+        value: parseInt(tx.value, 16).toString(),
+        blockNumber: parseInt(tx.blockNumber, 16),
+        timestamp,
+        nonce: parseInt(tx.nonce, 16),
+        gasPrice: parseInt(tx.gasPrice || tx.maxFeePerGas || "0", 16).toString(),
+        gasUsed: receipt ? parseInt(receipt.gasUsed, 16).toString() : void 0,
+        gasLimit: parseInt(tx.gas, 16).toString(),
+        status: receipt ? receipt.status === "0x1" ? "confirmed" : "failed" : "pending",
+        type: this.determineTransactionType(tx),
+        chainId: parseInt(tx.chainId || "0x1", 16),
+        symbol: "ETH"
+      };
+    } catch (error) {
+      console.error("Error fetching transaction:", hash, error);
+      return null;
+    }
+  }
+  /**
+   * Fetch a single transaction by hash
+   */
+  async fetchTransaction(txHash, chainId) {
+    const url = this.buildRpcUrl(chainId);
+    const tx = await this.fetchTransactionByHash(url, txHash);
+    if (tx) {
+      const currentBlock = await this.getCurrentBlockNumber(chainId);
+      tx.confirmations = currentBlock - tx.blockNumber;
+      tx.chainId = chainId;
+    }
+    return tx;
+  }
+  /**
+   * Convert QuickNode transfer format to standard
+   */
+  convertQuickNodeTransfer(transfer, userAddress) {
+    var _a;
+    const isOutgoing = ((_a = transfer.from) == null ? void 0 : _a.toLowerCase()) === userAddress.toLowerCase();
+    return {
+      hash: transfer.transactionHash,
+      from: transfer.from,
+      to: transfer.to,
+      value: transfer.value || "0",
+      blockNumber: transfer.blockNumber,
+      timestamp: transfer.timestamp || Date.now(),
+      type: isOutgoing ? "send" : "receive",
+      chainId: 1,
+      symbol: transfer.symbol || "ETH",
+      tokenAddress: transfer.contractAddress,
+      tokenName: transfer.name,
+      tokenDecimals: transfer.decimals,
+      status: "confirmed"
+    };
+  }
+  /**
+   * Convert QuickNode transaction format to standard
+   */
+  async convertQuickNodeTransaction(tx, url) {
+    const receipt = await this.rpcCall(url, "eth_getTransactionReceipt", [tx.hash]);
+    return {
+      hash: tx.hash,
+      from: tx.from,
+      to: tx.to || "",
+      value: tx.value || "0",
+      blockNumber: tx.blockNumber,
+      timestamp: tx.timestamp || Date.now(),
+      nonce: tx.nonce,
+      gasPrice: tx.gasPrice,
+      gasUsed: receipt ? receipt.gasUsed : void 0,
+      gasLimit: tx.gas,
+      status: receipt ? receipt.status === "0x1" ? "confirmed" : "failed" : "pending",
+      type: this.determineTransactionType(tx),
+      chainId: 1,
+      symbol: "ETH"
+    };
+  }
+}
+let _crypto;
+if (typeof window !== "undefined" && window.crypto) {
+  _crypto = window.crypto;
+} else if (typeof globalThis !== "undefined" && globalThis.crypto) {
+  _crypto = globalThis.crypto;
+} else {
+  try {
+    _crypto = require("crypto").webcrypto;
+  } catch {
+    throw new Error("No crypto support found");
+  }
+}
+async function generateSalt() {
+  const saltBuffer = _crypto.getRandomValues(new Uint8Array(64));
+  return bufferToBase64(saltBuffer);
+}
+function bufferToBase64(array) {
+  if (typeof btoa !== "undefined") {
+    let binary = "";
+    for (let i = 0; i < array.length; i++) binary += String.fromCharCode(array[i]);
+    return btoa(binary);
+  }
+  const { Buffer } = require("buffer");
+  return Buffer.from(array).toString("base64");
+}
+function base64ToUint8(base64) {
+  if (typeof atob !== "undefined") {
+    const binary = atob(base64);
+    const out = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+    return out;
+  }
+  const { Buffer } = require("buffer");
+  return new Uint8Array(Buffer.from(base64, "base64"));
+}
+function bufferForCrypto(base64) {
+  return base64ToUint8(base64).buffer;
+}
+async function deriveKeyFromPassword(password, existingSalt) {
+  const salt = existingSalt || await generateSalt();
+  const encoder = new TextEncoder();
+  const derivationKey = await _crypto.subtle.importKey(
+    "raw",
+    encoder.encode(password),
+    { name: "PBKDF2" },
+    false,
+    ["deriveKey"]
+  );
+  const key = await _crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: encoder.encode(salt),
+      iterations: 1e6,
+      hash: "SHA-256"
+    },
+    derivationKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+  return { key, salt };
+}
+function encodeJSON(obj) {
+  return JSON.stringify(obj, (_k, v) => typeof v === "bigint" ? v.toString() : v);
+}
+function isEncryptedData(data) {
+  return data != null && typeof data === "object" && typeof data.iv === "string" && typeof data.data === "string" && typeof data.salt === "string";
+}
+async function encryptData(data, passwordOrSaltedKey) {
+  if (data == null) throw new Error("Missing data to encrypt");
+  if (!passwordOrSaltedKey) throw new Error("Missing password or key");
+  const { key, salt } = typeof passwordOrSaltedKey === "string" ? await deriveKeyFromPassword(passwordOrSaltedKey) : passwordOrSaltedKey;
+  const encoder = new TextEncoder();
+  const iv = _crypto.getRandomValues(new Uint8Array(16));
+  const encoded = encoder.encode(encodeJSON(data));
+  const cipher = await _crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoded);
+  return {
+    data: bufferToBase64(new Uint8Array(cipher)),
+    iv: bufferToBase64(iv),
+    salt
+  };
+}
+async function decryptData(encryptedData, passwordOrSaltedKey) {
+  if (!passwordOrSaltedKey) throw new Error("Missing password or key");
+  const { data, iv, salt } = encryptedData;
+  const { key } = typeof passwordOrSaltedKey === "string" ? await deriveKeyFromPassword(passwordOrSaltedKey, salt) : passwordOrSaltedKey;
+  const plain = await _crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: bufferForCrypto(iv) },
+    key,
+    bufferForCrypto(data)
+  );
+  const txt = new TextDecoder().decode(plain);
+  return JSON.parse(txt);
+}
 export {
+  AbstractTransactionProvider,
+  AlchemyProvider,
+  AlchemyTransactionProvider,
   BrandingManager,
+  CoinGeckoHistoricalProvider,
   EmbeddedProvider,
   EmbeddedWallet,
+  EtherscanTransactionProvider,
   EventBridge,
+  HistoricalPriceService,
+  InfuraTransactionProvider,
   ModBuilder,
   ModTemplate,
+  OnChainDEXProvider,
+  ProviderManager,
+  QuickNodeTransactionProvider,
   RPCHandler,
   RPC_ERROR_CODES,
   SecureChannel,
@@ -2612,7 +5419,12 @@ export {
   createWhiteLabelWallet,
   createYAKKLRPCHandler,
   createYakklProvider,
+  decryptData,
+  deriveKeyFromPassword,
+  encryptData,
   generateModPackage,
+  generateSalt,
+  isEncryptedData,
   modTemplates,
   whitelabelTemplates
 };

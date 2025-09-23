@@ -16,4 +16,4 @@ auto-install-peers=true
 dedupe-peer-dependents=true
 
 # Better error messages
-use-node-version=18.20.4 
+use-node-version=20.19.5 

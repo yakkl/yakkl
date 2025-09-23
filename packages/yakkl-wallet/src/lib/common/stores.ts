@@ -41,7 +41,8 @@ import {
 
 // MIGRATION: Move to @yakkl/security
 // import { encryptData, decryptData, verifyEncryption } from '@yakkl/security/wallet/encryption-utils';
-import { encryptData, decryptData, verifyEncryption } from '$lib/common/encryption';
+import { encryptData, decryptData } from '@yakkl/sdk';
+import { verifyEncryption } from '$lib/common/verify-encryption';
 import { isEncryptedData } from '$lib/common/misc';
 import { type PricingStore } from '$lib/common/types';
 import { isEqual } from 'lodash-es';
@@ -119,7 +120,7 @@ export async function loadCheckCurrentlySelectedStore(): Promise<YakklCurrentlyS
 	}
 }
 
-export { verifyEncryption } from './encryption';
+export { verifyEncryption } from './verify-encryption';
 //
 // NOTE: getYakkl... or setYakkl... represents both a storage and store. If there is no Yakkl prefix like 'getMiscStore' then it is only in memory and not stored
 //

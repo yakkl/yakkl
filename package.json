@@ -62,5 +62,9 @@
     "googleapis": "^144.0.0",
     "jsonwebtoken": "^9.0.2"
   },
-  "packageManager": "pnpm@10.13.1"
+  "packageManager": "pnpm@10.13.1",
+  "volta": {
+    "node": "20.19.5",
+    "pnpm": "10.13.1"
+  }
 }
