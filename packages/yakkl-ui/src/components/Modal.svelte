@@ -24,11 +24,11 @@
   }: ModalProps = $props();
 
   const sizeClasses = {
-    sm: 'modal-box max-w-sm',
-    md: 'modal-box',
-    lg: 'modal-box max-w-4xl',
-    xl: 'modal-box max-w-6xl',
-    full: 'modal-box w-11/12 max-w-7xl'
+    sm: 'modal-box max-w-sm bg-surface-light dark:bg-surface-dark text-gray-900 dark:text-gray-100',
+    md: 'modal-box bg-surface-light dark:bg-surface-dark text-gray-900 dark:text-gray-100',
+    lg: 'modal-box max-w-4xl bg-surface-light dark:bg-surface-dark text-gray-900 dark:text-gray-100',
+    xl: 'modal-box max-w-6xl bg-surface-light dark:bg-surface-dark text-gray-900 dark:text-gray-100',
+    full: 'modal-box w-11/12 max-w-7xl bg-surface-light dark:bg-surface-dark text-gray-900 dark:text-gray-100'
   };
 
   function handleBackdropClick() {

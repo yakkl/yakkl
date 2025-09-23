@@ -126,7 +126,7 @@ export class WalletClient {
     }
 
     if (this.config.provider) {
-      return await this.config.provider.getBalance(address as `0x${string}`);
+      return String(await this.config.provider.getBalance(address as `0x${string}`));
     }
 
     if (typeof window !== 'undefined' && 'yakkl' in window) {
@@ -168,7 +168,7 @@ export class WalletClient {
         value: params.value || '0',
         data: (params.data || '0x') as `0x${string}`
       });
-      return response;
+      return typeof response === 'string' ? response : response.hash;
     }
 
     throw new Error('No provider available');

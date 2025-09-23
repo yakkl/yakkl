@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  
+
   interface Props {
-    type: 'hash' | 'from' | 'to' | 'nativeToken' | 'value' | 'gasPrice' | 'gasUnits' | 'gasCost' |
+    type: 'hash' | 'from' | 'to' | 'token' | 'value' | 'gasPrice' | 'gasUnits' | 'gasCost' |
           'blockNumber' | 'nonce' | 'confirmations' | 'timestamp' | 'status' | 'txType';
     placement?: 'top' | 'bottom' | 'left' | 'right' | 'auto';
   }
@@ -28,9 +28,9 @@
       title: 'Recipient Address',
       content: 'The wallet address receiving the funds or the smart contract being interacted with.'
     },
-    nativeToken: {
-      title: 'Native Token Amount',
-      content: 'The amount of the blockchain\'s native currency (ETH, MATIC, etc.) transferred in this transaction.'
+    token: {
+      title: 'Token Amount',
+      content: 'The amount of the token being transferred in this transaction.'
     },
     value: {
       title: 'Transaction Value',
@@ -189,13 +189,13 @@
   </svg>
 
   {#if showTooltip && tooltip}
-    <div 
+    <div
       bind:this={tooltipEl}
       class="absolute z-[9999] animate-in fade-in duration-200 pointer-events-none
-        {actualPlacement === 'top' ? 'bottom-full mb-2 left-1/2 transform -translate-x-1/2' : 
-         actualPlacement === 'bottom' ? 'top-full mt-2 left-1/2 transform -translate-x-1/2' : 
-         actualPlacement === 'left' ? 'right-full mr-2 top-1/2 transform -translate-y-1/2' : 
-         actualPlacement === 'right' ? 'left-full ml-2 top-1/2 transform -translate-y-1/2' : 
+        {actualPlacement === 'top' ? 'bottom-full mb-2 left-1/2 transform -translate-x-1/2' :
+         actualPlacement === 'bottom' ? 'top-full mt-2 left-1/2 transform -translate-x-1/2' :
+         actualPlacement === 'left' ? 'right-full mr-2 top-1/2 transform -translate-y-1/2' :
+         actualPlacement === 'right' ? 'left-full ml-2 top-1/2 transform -translate-y-1/2' :
          'top-full mt-2 left-1/2 transform -translate-x-1/2'}"
     >
       <div class="bg-gray-900 text-white text-xs rounded-lg shadow-lg p-3 w-64 max-w-xs">
@@ -203,9 +203,9 @@
         <div class="text-gray-300 leading-relaxed">{tooltip.content}</div>
         <!-- Arrow -->
         <div class="absolute rotate-45 w-2 h-2 bg-gray-900
-          {actualPlacement === 'top' ? 'bottom-0 translate-y-1/2 left-1/2 transform -translate-x-1/2' : 
-           actualPlacement === 'bottom' ? 'top-0 -translate-y-1/2 left-1/2 transform -translate-x-1/2' : 
-           actualPlacement === 'left' ? 'right-0 translate-x-1/2 top-1/2 transform -translate-y-1/2' : 
+          {actualPlacement === 'top' ? 'bottom-0 translate-y-1/2 left-1/2 transform -translate-x-1/2' :
+           actualPlacement === 'bottom' ? 'top-0 -translate-y-1/2 left-1/2 transform -translate-x-1/2' :
+           actualPlacement === 'left' ? 'right-0 translate-x-1/2 top-1/2 transform -translate-y-1/2' :
            actualPlacement === 'right' ? 'left-0 -translate-x-1/2 top-1/2 transform -translate-y-1/2' :
            'top-0 -translate-y-1/2 left-1/2 transform -translate-x-1/2'}"
         ></div>

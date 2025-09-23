@@ -33,16 +33,20 @@
 	import PincodeVerify from '$lib/components/PincodeVerify.svelte';
 	import ProtectedValue from '$lib/components/ProtectedValue.svelte';
   import { STORAGE_YAKKL_COMBINED_TOKENS, VERSION, type TokenData, type BigNumberish } from '$lib/common';
+  import type { TransactionDisplay, TransactionCache } from '$lib/types';
   import { uiJWTValidatorService } from '$lib/services/ui-jwt-validator.service';
   import { log } from '$lib/common/logger-wrapper';
   import { BigNumberishUtils } from '$lib/common/BigNumberishUtils';
   import { BigNumber } from '$lib/common/bignumber';
+  import { DecimalMath } from '$lib/common/DecimalMath';
   import { isNativeToken, getNativeTokenSymbol } from '$lib/utils/native-token.utils';
   import { getYakklCombinedTokens, getYakklCurrentlySelected } from '$lib/common/stores';
   import { loadYakklCache, updateYakklCache, clearYakklCache } from '$lib/stores/yakklCache.store';
   import { PriceManager } from '$lib/managers/PriceManager';
   import { setObjectInLocalStorage } from '@yakkl/browser-extension';
   import { WalletService } from '$lib/services/wallet.service';
+  import { transactionStore } from '$lib/stores/transaction.store';
+  import { walletCacheStore } from '$lib/stores/wallet-cache.store';
 
   // State
   let showSendModal = $state(false);
@@ -66,6 +70,8 @@
   let transactionListData = $state<any>(null);
   let navigationMode = $state<'orbital' | 'traditional'>('orbital');
   let yakklCombinedTokens = $state<TokenData[]>([]);  // Direct tokens from storage
+  let directTransactions = $state<TransactionDisplay[]>([]);  // Direct transactions from Alchemy
+  let loadingTransactions = $state(false);
 
   // Debug state for error tracking
   let hasError = $state(false);
@@ -74,7 +80,9 @@
 
   // Price manager instance and update interval
   let priceManager: PriceManager | null = null;
-  let priceUpdateInterval: ReturnType<typeof setInterval> | null = null;
+  // Rate limiting for transaction refreshes
+  let lastTransactionRefresh = 0;
+  const TRANSACTION_REFRESH_LIMIT = 30 * 60 * 1000; // 30 minutes (max 2 per hour)
 
   function handleError(error: any, context: string) {
     const errorMsg = `Error in ${context}: ${error?.message || error}`;
@@ -99,6 +107,67 @@
     }
   }
 
+  // Load transactions directly using preferred provider with rate limiting
+  async function loadTransactionsDirectly(address: string, chainId: number, forceRefresh = false) {
+    try {
+      // Check rate limit (max 2 per hour = 1 every 30 minutes)
+      const now = Date.now();
+      const timeSinceLastRefresh = now - lastTransactionRefresh;
+
+      if (!forceRefresh && timeSinceLastRefresh < TRANSACTION_REFRESH_LIMIT) {
+        log.info('[Home] Skipping transaction refresh - rate limited', {
+          timeSinceLastRefresh: Math.round(timeSinceLastRefresh / 1000) + 's',
+          nextAllowedIn: Math.round((TRANSACTION_REFRESH_LIMIT - timeSinceLastRefresh) / 1000) + 's'
+        });
+        return; // Skip if less than 30 minutes since last refresh
+      }
+
+      log.info('[Home] Loading transactions (normal-only) via TransactionManager/Etherscan');
+      loadingTransactions = true;
+      lastTransactionRefresh = now;
+
+      const walletService = WalletService.getInstance();
+      const transactions = await walletService.getTransactionsDirect(address, chainId);
+      
+      log.info('[Home] Transactions loaded:', transactions.length);
+      console.log('[Home] Transactions loaded:', transactions);
+
+      if (transactions && transactions.length > 0) {
+        // Use provided TransactionDisplay shape as-is
+        directTransactions = transactions as any;
+
+        // Also update the wallet cache store for other components
+        walletCacheStore.updateTransactions(
+          chainId,
+          address,
+          transactions as any,
+          false // Don't append, replace
+        );
+
+        console.log('[Home] Wallet cache updated with', transactions.length, 'transactions');
+        console.log('[Home] Direct transactions state updated:', directTransactions.length);
+
+        // Trigger transaction store refresh to pick up the new data
+        setTimeout(() => {
+          transactionStore.refresh(false);
+        }, 100); // Small delay to ensure cache is updated
+      } else {
+        console.log('[Home] No transactions found for address:', address);
+        directTransactions = [];
+      }
+    } catch (error: any) {
+      log.error('[Home] Failed to load transactions directly:', false, {
+        message: error?.message || 'Unknown error',
+        stack: error?.stack,
+        error: error
+      });
+      console.error('[Home] Transaction loading error details:', error);
+      directTransactions = [];
+    } finally {
+      loadingTransactions = false;
+    }
+  }
+
   // Simplified initialization using existing services
   const loadHomeData = async () => {
     try {
@@ -120,6 +189,12 @@
       log.info('[Home] Current account:', { address, chainId });
       hasInitialLoad = true;
 
+      // Load transactions ONCE on initial load (no auto-refresh due to cost)
+      // Pass true to force the initial load
+      loadTransactionsDirectly(address, chainId, true).catch(err => {
+        log.warn('[Home] Failed to load transactions (non-blocking):', false, err);
+      });
+
       // STEP 2: Get native balance directly from blockchain
       let nativeBalanceFormatted = '0';
       try {
@@ -131,6 +206,7 @@
 
       // STEP 3: Load tokens from storage
       let tokensFromStorage = await getYakklCombinedTokens() || [];
+      console.log('[Home] Tokens from storage:', tokensFromStorage);
 
       // STEP 4: Initialize PriceManager and fetch prices
       if (!priceManager) {
@@ -150,7 +226,8 @@
       }
 
       // STEP 5: Update tokens with fresh data
-      const nativeValue = parseFloat(nativeBalanceFormatted) * nativePrice;
+      // Use DecimalMath for precision-safe calculation to avoid floating point errors
+      const nativeValue = DecimalMath.of(nativeBalanceFormatted).mul(nativePrice).toNumber();
 
       // Find and update native token or add if missing
       const nativeIndex = tokensFromStorage.findIndex(t => t.isNative);
@@ -166,10 +243,11 @@
           value: nativeValue
         };
       } else {
+        // Add native token if it doesn't exist
         tokensFromStorage.unshift({
           address: '0x0000000000000000000000000000000000000000',
-          symbol: 'ETH',
-          name: 'Ethereum',
+          symbol: chain?.nativeCurrency?.symbol || 'ETH',
+          name: chain?.nativeCurrency?.name || 'Ethereum',
           decimals: 18,
           balance: parseFloat(nativeBalanceFormatted),
           price: {
@@ -181,13 +259,25 @@
           isNative: true,
           chainId,
           icon: '/images/eth.svg'
-        });
+        } as TokenData);
       }
 
-      // STEP 6: Update prices for non-native tokens
+      // STEP 6: Update prices and balances for non-native tokens
       yakklCombinedTokens = await Promise.all(tokensFromStorage.map(async (token) => {
         if (!token.isNative && token.symbol) {
           try {
+            // Fetch ERC-20 balance from blockchain if token has an address
+            let tokenBalance = '0';
+            if (token.address && token.address !== '0x0000000000000000000000000000000000000000') {
+              tokenBalance = await walletService.getERC20BalanceDirect(
+                token.address,
+                address,
+                chainId,
+                token.decimals || 18
+              );
+              log.info(`[Home] Fetched ${token.symbol} balance:`, tokenBalance);
+            }
+
             // Map token symbols to proper trading pairs
             let tradingPair = `${token.symbol}-USD`;
             if (token.symbol === 'WBTC') tradingPair = 'BTC-USD';
@@ -196,27 +286,34 @@
             const priceData = await priceManager.getMarketPrice(tradingPair);
             const price = priceData?.price || 0;
 
-            // Convert balance to number for calculation
-            const balance = typeof token.balance === 'number' ?
-              token.balance :
-              BigNumberishUtils.toNumberSafe(token.balance || 0);
-            const value = balance * price;
+            // Use DecimalMath for precise calculation
+            const value = DecimalMath.of(tokenBalance).mul(price).toNumber();
 
             return {
               ...token,
+              balance: parseFloat(tokenBalance), // Store as number for compatibility
               price: {
                 price,
                 provider: priceData?.provider || 'PriceManager',
                 lastUpdated: new Date()
               } as any,
-              value
+              value,
+              // Ensure icon field is populated from logoURI if not already set
+              icon: token.icon || token.logoURI || null
             };
           } catch (err) {
-            log.warn(`[Home] Failed to update ${token.symbol} price:`, false, err);
-            return token;
+            log.warn(`[Home] Failed to update ${token.symbol}:`, false, err);
+            return {
+              ...token,
+              icon: token.icon || token.logoURI || null
+            };
           }
         }
-        return token;
+        // For native token or tokens that are already processed, ensure icon is set
+        return {
+          ...token,
+          icon: token.icon || token.logoURI || null
+        };
       }));
 
       // STEP 7: Calculate portfolio total and update cache
@@ -226,6 +323,25 @@
       }, 0);
 
       log.info('[Home] Portfolio total:', grandTotal);
+      log.info('[Home] Token breakdown:', {
+        totalTokens: yakklCombinedTokens.length,
+        nativeTokens: yakklCombinedTokens.filter(t => t.isNative).length,
+        tokensWithBalance: yakklCombinedTokens.filter(t => {
+          const bal = typeof t.balance === 'number' ? t.balance : BigNumberishUtils.toNumberSafe(t.balance || 0);
+          return bal > 0;
+        }).length,
+        tokensWithValue: yakklCombinedTokens.filter(t => {
+          const val = typeof t.value === 'number' ? t.value : 0;
+          return val > 0;
+        }).length,
+        tokens: yakklCombinedTokens.map(t => ({
+          symbol: t.symbol,
+          balance: typeof t.balance === 'number' ? t.balance : BigNumberishUtils.toNumberSafe(t.balance || 0),
+          price: t.price?.price || 0,
+          value: t.value,
+          isNative: t.isNative
+        }))
+      });
 
       await updateYakklCache({
         id: `${address}_${chainId}`,
@@ -237,6 +353,7 @@
 
       // Persist tokens to storage
       await setObjectInLocalStorage(STORAGE_YAKKL_COMBINED_TOKENS, yakklCombinedTokens);
+
       log.info('[Home] Data loaded successfully');
 
       // Start JWT validation if authenticated
@@ -277,18 +394,11 @@
       log.warn('[Home] Failed to load YakklCache:', false, err);
     });
 
-    // Start data loading
+    // Start data loading (one time only, no interval)
     loadHomeData().then(() => {
       log.info('[Home] Initial data loaded successfully');
-
-      // Set up price update interval (every 30 seconds)
-      priceUpdateInterval = setInterval(() => {
-        loadHomeData().catch(err => {
-          log.warn('[Home] Price update failed:', false, err);
-        });
-      }, 30000); // 30 seconds
-
-      log.info('[Home] Price update interval started');
+      // NO AUTO-REFRESH - High cost for API calls
+      // Users can manually refresh when needed with rate limiting
     }).catch(err => {
       log.error('[Home] Initial data load failed:', false, err);
     });
@@ -319,12 +429,7 @@
         // Stop JWT validation service
         uiJWTValidatorService.stop();
 
-        // Clear price update interval
-        if (priceUpdateInterval) {
-          clearInterval(priceUpdateInterval);
-          priceUpdateInterval = null;
-          log.info('[Home] Price update interval stopped');
-        }
+        // No interval to clear anymore - removed auto-refresh
       } catch (error) {
         handleError(error, 'cleanup');
       }
@@ -371,6 +476,13 @@
           // This prevents double-loading on first mount
           loadHomeData().then(() => {
             log.info('[Home] Data reloaded for account/chain change');
+
+            // Also load transactions when account/chain changes (fire-and-forget)
+            if (account?.address && chain?.chainId) {
+              loadTransactionsDirectly(account.address, chain.chainId).catch(err => {
+                log.warn('[Home] Failed to load transactions after account/chain change:', false, err);
+              });
+            }
           }).catch(error => {
             log.error('[Home] Failed to reload data:', false, error);
           });
@@ -653,12 +765,10 @@
 
       if (!account || !chain || !nativePrice) return 0;
 
-      // Parse balance to number
-      const balance = parseFloat(account.balance || '0');
-      // TODO: Use DecimalMath for precision
-
-      // Calculate value in dollars
-      const valueInDollars = balance * nativePrice;
+      // Use DecimalMath for precision-safe calculation
+      const valueInDollars = DecimalMath.of(account.balance || '0')
+        .mul(nativePrice)
+        .toNumber();
 
       // Convert to cents for consistency with other values
       return Math.round(valueInDollars * 100);
@@ -764,8 +874,17 @@
     try {
       console.log('[(wallet)/home/+page.svelte] refreshAllData: Starting data refresh...', { forceRefresh });
 
-      // Re-run the initialization to refresh all data
-      // await initializeAsync();
+      // Reload main data
+      await loadHomeData();
+
+      // Also refresh transactions (fire-and-forget to avoid blocking)
+      const account = $currentAccount;
+      const chain = $currentChain;
+      if (account?.address && chain?.chainId) {
+        loadTransactionsDirectly(account.address, chain.chainId).catch(err => {
+          log.warn('[Home] Failed to refresh transactions during refreshAllData:', false, err);
+        });
+      }
 
       console.log('[(wallet)/home/+page.svelte] refreshAllData: Refresh completed');
 
@@ -1247,10 +1366,12 @@
   </div>
 
   <!-- Recent Activity -->
-  <!-- Transactions are cached by BlockchainExplorer -->
+  <!-- Pass transactions directly as props for immediate reactivity -->
   <RecentActivity
     className="yakkl-card relative z-10"
     showAll={true}
+    transactions={directTransactions}
+    loading={loadingTransactions}
     onRefresh={async () => refreshAllData(true)}
     onTransactionClick={handleTransactionClick}
   />

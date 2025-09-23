@@ -91,15 +91,23 @@ export interface TransactionDisplay {
   type: 'send' | 'receive' | 'swap' | 'contract';
   gas?: string;
   gasPrice?: string;
+  gasLimit?: string; // Added for gas limit
   gasUsed?: string;
+  effectiveGasPrice?: string; // Added for EIP-1559 transactions
   blockNumber?: string;
-  nonce?: string;
-  confirmations?: string;
+  nonce?: number | string; // Can be either number or string
+  confirmations?: number | string; // Can be either number or string
   functionName?: string;
   methodId?: string;
   txreceipt_status?: string;
   chainId?: number; // Added for multi-chain support
   symbol?: string; // Empty defaults to ETH
+  tokenAddress?: string; // For token transfers
+  contractAddress?: string; // For contract interactions
+  category?: string; // Transaction category
+  rawContract?: any; // Raw contract data
+  decimal?: number; // Token decimals
+  possibleSpam?: boolean; // Spam detection flag
 }
 
 export interface UserPlan {

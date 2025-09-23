@@ -107,6 +107,12 @@ Provide a brief introduction to the YAKKL Smart Wallet, its purpose, and its imp
   3. Load the extension into the browser.
   4. Configuration steps (if any).
 
+#### Load the Extension (Chrome)
+- Build the wallet: `pnpm --filter yakkl-wallet run build:chrome`
+- Open `chrome://extensions`, enable Developer Mode.
+- Click “Load unpacked” and select `packages/yakkl-wallet/build`.
+- To update after rebuilding, click the “Refresh” icon on the extension card.
+
 ### Smart Contracts Installation
 - **Prerequisites**: Mention the requirements for working with the smart contracts, such as Foundry, Node.js, etc.
 - **Installation Steps**:

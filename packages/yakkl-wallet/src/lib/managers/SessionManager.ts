@@ -538,11 +538,26 @@ export class SessionManager {
 
 		try {
 			if (browser_ext) {
+				// Check if extension context is still valid before attempting storage operations
+				if (browser_ext.runtime.lastError) {
+					// Context is invalid, skip the operation
+					return;
+				}
 				await browser_ext.storage.local.remove(['yakklSession']);
 			} else {
 				localStorage.removeItem('yakklSession');
 			}
 		} catch (error) {
+			// Check if this is a context invalidation error (expected during extension reloads)
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			if (errorMessage.includes('Extension context invalidated') ||
+				errorMessage.includes('Receiving end does not exist') ||
+				errorMessage.includes('Cannot access a chrome://')) {
+				// These are expected during extension reloads, don't log them
+				return;
+			}
+
+			// Only log unexpected errors
 			log.warn('Failed to clear session storage:', false, error);
 		}
 	}

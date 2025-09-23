@@ -189,10 +189,11 @@ function createTransactionStore() {
       // Load from the unified wallet cache
       // The wallet cache is synced with storage changes automatically
       const cache = await walletCacheStore.getCache();
-      
-      // Check if we have transactions in the wallet cache
-      const accountCache = cache?.chainAccountCache?.[chain.chainId]?.[address.toLowerCase()];
-      const walletCacheTransactions = accountCache?.transactions?.transactions || [];
+
+      // Check if we have transactions in the wallet cache - v2 uses flat structure
+      const cacheKey = `${chain.chainId}_${address.toLowerCase()}`;
+      const accountCache = cache?.accounts?.[cacheKey];
+      const walletCacheTransactions = accountCache?.transactions || [];
       
       log.info('TransactionStore: Found transactions in wallet cache:', false, walletCacheTransactions.length);
 

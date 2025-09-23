@@ -139,12 +139,15 @@ module.exports = {
 				use: [
 					{
 						loader: 'ts-loader',
-						options: {
-							configFile: path.resolve(__dirname, 'tsconfig.json'),
-							compilerOptions: {
-								module: 'esnext'
-							}
-						}
+                    options: {
+                        // Use a dedicated TS config for Webpack build (with path aliases)
+                        configFile: path.resolve(__dirname, 'webpack.tsconfig.json'),
+                        onlyCompileBundledFiles: true,
+                        transpileOnly: true,
+                        compilerOptions: {
+                            module: 'esnext'
+                        }
+                    }
 					}
 				]
 			}

@@ -1,26 +1,6 @@
 {
 	"extends": "./.svelte-kit/tsconfig.json",
-	"compilerOptions": {
-		"paths": {
-			"$lib": ["./src/lib"],
-			"$lib/*": ["./src/lib/*"],
-			"$base": ["./src"],
-			"$base/*": ["./src/*"],
-			"$static": ["./src/static"],
-			"$static/*": ["./src/static/*"],
-			"$components": ["./src/lib/components"],
-			"$components/*": ["./src/lib/components/*"],
-			"$routes": ["./src/routes"],
-			"$routes/*": ["./src/routes/*"],
-			"$managers": ["./src/lib/managers"],
-			"$managers/*": ["./src/lib/managers/*"],
-			"$plugins": ["./src/lib/plugins"],
-			"$plugins/*": ["./src/lib/plugins/*"],
-			"$contexts": ["./src/contexts"],
-			"$contexts/*": ["./src/contexts/*"],
-			"@yakkl/security-ui": ["../yakkl-security-ui/src/lib/index.ts"],
-			"@yakkl/security-ui/*": ["../yakkl-security-ui/src/lib/*"]
-		},
+  "compilerOptions": {
 		"verbatimModuleSyntax": true,
 		"allowSyntheticDefaultImports": true,
 		"allowJs": true,
@@ -40,8 +20,8 @@
 		// "strictPropertyInitialization": true,
 		"target": "ESNext",
 		"module": "ESNext",
-		"types": ["chrome", "svelte", "vite/client", "node", "@sveltejs/kit"]
-	},
+    "types": ["chrome", "svelte", "vite/client", "node", "@sveltejs/kit"]
+  },
 	"include": [
 		"./src",
 		"./src/**/*.d.ts",
