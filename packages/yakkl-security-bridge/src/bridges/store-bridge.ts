@@ -6,7 +6,7 @@
  * while the wallet maintains its own store implementations.
  */
 
-import type { Writable, Readable } from '@yakkl/reactive';
+import { writable, type Writable, type Readable } from '@yakkl/reactive';
 
 export interface StoreBridge {
   /**
@@ -86,8 +86,6 @@ export function createSyncedStore<T>(
   reactive: Writable<T>;
   sync: () => void;
 } {
-  // Import will be resolved at build time
-  const { writable } = await import('@yakkl/reactive');
   const reactiveStore = writable(initialValue);
   
   const sync = walletStore 

@@ -13,7 +13,7 @@
 		getMiscStore,
 		getYakklSettings
 	} from '$lib/common/stores';
-	import { encryptData, decryptData } from '$lib/common/encryption';
+	import { encryptData, decryptData } from '@yakkl/sdk';
 	import { deepCopy } from '$lib/utilities/utilities';
 	import {
 		isEncryptedData,

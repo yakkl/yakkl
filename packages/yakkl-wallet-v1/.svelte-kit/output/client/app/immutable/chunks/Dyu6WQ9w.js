@@ -1,2 +1,0 @@
-import{M as hydrating,z as hydrate_next,V as block,W as EFFECT_TRANSPARENT,L as branch,_ as pause_effect,A as hydrate_node}from"./BaS8d5lg.js";function component(node,get_component,render_fn){if(hydrating){hydrate_next()}var anchor=node;var component2;var effect;block(()=>{if(component2===(component2=get_component()))return;if(effect){pause_effect(effect);effect=null}if(component2){effect=branch(()=>render_fn(anchor,component2))}},EFFECT_TRANSPARENT);if(hydrating){anchor=hydrate_node}}export{component as c};
-//# sourceMappingURL=Dyu6WQ9w.js.map

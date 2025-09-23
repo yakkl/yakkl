@@ -2,8 +2,9 @@
 import { log } from '$lib/managers/Logger';
 // MIGRATION: Move to @yakkl/security
 // import { decryptData, deriveKeyFromPassword, encryptData } from '@yakkl/security/wallet/encryption-utils';
-// Note: digestMessage needs to be added to @yakkl/security
-import { decryptData, deriveKeyFromPassword, digestMessage, encryptData } from './encryption';
+// Note: digestMessage provided by @yakkl/security
+import { decryptData, deriveKeyFromPassword, encryptData } from '@yakkl/sdk';
+import { digestMessage } from '@yakkl/security';
 import type { EncryptedData } from '$lib/common/interfaces';
 import type { SaltedKey } from '$lib/common/evm';
 import { CURRENT_STORAGE_VERSION } from '$lib/common/constants';

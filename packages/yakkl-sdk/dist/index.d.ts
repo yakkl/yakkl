@@ -40,3 +40,6 @@ export { QuickNodeTransactionProvider } from './providers/quicknode/QuickNodeTra
 export type { TransactionData, TransactionProviderConfig, TransactionFetchOptions } from './providers/abstract/AbstractTransactionProvider';
 export type { EmbeddedWalletConfig, ModConfig, WhiteLabelConfig, BrandingConfig, IntegrationConfig, WalletInfo, YakklProviderConfig, EthereumRequest, BridgeMessage } from './types';
 export type { WalletEngine, Account, Transaction, Network, Mod, ModManifest } from '@yakkl/core';
+export { encryptData, decryptData, isEncryptedData } from './crypto/encryption';
+export { deriveKeyFromPassword, generateSalt } from './crypto/keyDerivation';
+export type { SaltedKey, EncryptedData } from './crypto/types';

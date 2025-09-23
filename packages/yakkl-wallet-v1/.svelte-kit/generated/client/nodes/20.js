@@ -1,1 +1,0 @@
-export { default as component } from "../../../../src/routes/(dapp)/dapp/popups/approve/+page.svelte";

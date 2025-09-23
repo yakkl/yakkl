@@ -10,7 +10,7 @@ import type { Runtime } from 'webextension-polyfill';
 import { handleBrowserAPIMessage } from './browser-api.handler';
 import { log } from '$lib/managers/Logger';
 import { safePortPostMessage } from '$lib/common/safePortMessaging';
-import { encryptData, decryptData } from '$lib/common/encryption';
+import { encryptData, decryptData } from '@yakkl/sdk';
 
 interface PortMessage {
   id: string;

@@ -4,7 +4,7 @@
  */
 
 import browser from 'webextension-polyfill';
-import { encryptData, decryptData } from '$lib/common/encryption';
+import { encryptData, decryptData } from '@yakkl/sdk';
 import { getMiscStore } from '$lib/common/stores';
 import { log } from '$lib/common/logger-wrapper';
 import type { EncryptedData, SaltedKey } from '$lib/common';

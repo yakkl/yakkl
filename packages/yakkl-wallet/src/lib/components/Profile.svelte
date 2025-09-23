@@ -9,7 +9,7 @@
 	import { getProfile } from '$lib/common/profile';
 	import { log } from '$lib/common/logger-wrapper';
 	import type { Profile, ProfileData } from '$lib/common/interfaces';
-	import { decryptData, encryptData } from '$lib/common/encryption';
+	import { decryptData, encryptData } from '@yakkl/sdk';
 	import { isEncryptedData } from '$lib/common/misc';
 	import { identicon } from '$lib/utilities';
 

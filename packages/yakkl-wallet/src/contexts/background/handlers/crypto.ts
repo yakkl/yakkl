@@ -1,7 +1,7 @@
 // crypto.ts - Background handlers for cryptographic operations
 
 import { ethers } from 'ethers-v6';
-import { encryptData, decryptData } from '$lib/common/encryption';
+import { encryptData, decryptData } from '@yakkl/sdk';
 import type { MessageHandlerFunc, MessageResponse } from './MessageHandler';
 import { getSafeUUID } from '$lib/common/uuid';
 import { dateString } from '$lib/common/datetime';

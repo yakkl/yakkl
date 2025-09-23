@@ -4,7 +4,7 @@ import { setProfileStorage, getYakklSettings, setYakklSettingsStorage } from '$l
 import { getProfile } from '$lib/common/profile';
 // MIGRATION: Move to @yakkl/security
 // import { encryptData, decryptData } from '@yakkl/security/wallet/encryption-utils';
-import { encryptData, decryptData } from '$lib/common/encryption';
+import { encryptData, decryptData } from '@yakkl/sdk';
 import { AccessSourceType, PlanType, PromoClassificationType } from '$lib/common/types';
 import { isEncryptedData } from '$lib/common/misc';
 import type { ProfileData } from '$lib/common/interfaces';
