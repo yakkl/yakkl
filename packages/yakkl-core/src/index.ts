@@ -185,7 +185,7 @@ export * from './constants';
 export * from './utils';
 export { createWallet } from './utils/factory';
 export { validateMod } from './utils/validation';
-export { Logger } from './utils/Logger';
+export { Logger, log } from './utils/Logger';
 
 // Providers
 export * from './providers';
@@ -198,6 +198,12 @@ export * from './di';
 
 // Services
 export * from './services';
+// Side-effect: register default key managers (EVM, etc.)
+import './services/keymanagers/register';
+export { KeyManagerRegistry, keyManagers } from './services/KeyManagerRegistry';
+export type { IKeyManager, ChainAccount, AccountCreateOptions, AccountImportOptions } from './interfaces/keys.interface';
+export { SignerRegistry, signers } from './services/SignerRegistry';
+export type { ISigner } from './interfaces/signer.interface';
 
 // Messaging
 export * from './messaging';

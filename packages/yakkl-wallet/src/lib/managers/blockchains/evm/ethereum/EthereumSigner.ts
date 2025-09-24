@@ -13,7 +13,7 @@ import {
 import { Signer } from '../../../Signer';
 import { BigNumber } from '$lib/common/bignumber';
 import type { Provider } from '../../../Provider';
-import { log } from '../../../Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 /**
  * EthereumSigner class extending the Signer class to provide specific implementations for Ethereum.

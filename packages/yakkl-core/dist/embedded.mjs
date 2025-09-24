@@ -1,4 +1,4 @@
-import { E, I, R, W } from "./IntegrationAPI-DTOxywBx.mjs";
+import { E, I, R, W } from "./IntegrationAPI-dTXFGWkx.mjs";
 export {
   E as EmbeddedAPI,
   I as IntegrationAPI,

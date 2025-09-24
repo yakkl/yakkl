@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 // MIGRATION: Move to @yakkl/security
 // import { decryptData, deriveKeyFromPassword, encryptData } from '@yakkl/security/wallet/encryption-utils';
 // Note: digestMessage provided by @yakkl/security

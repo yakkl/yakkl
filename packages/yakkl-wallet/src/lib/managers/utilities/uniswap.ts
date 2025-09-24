@@ -2,7 +2,7 @@ import { BigNumber, type BigNumberish } from '$lib/common/bignumber';
 import { YAKKL_FEE_BASIS_POINTS } from '$lib/common/constants';
 import type { SwapToken } from '$lib/common/interfaces';
 import { Token } from '@uniswap/sdk-core';
-import { log } from '../Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 export function getTickSpacing(fee: number): number {
 	switch (fee) {

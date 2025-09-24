@@ -24,7 +24,7 @@
   }
 })();
 
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import {
 	type EIP6963ProviderDetail,
 	type EIP6963Provider,
@@ -1212,7 +1212,7 @@ try {
 export { provider };
 
 // // inpage.ts - Complete implementation with robust connection handling
-// import { log } from "$lib/managers/Logger";
+// import { log } from "$lib/common/logger-wrapper";
 // import {
 //   type EIP6963ProviderDetail,
 //   type EIP6963Provider,

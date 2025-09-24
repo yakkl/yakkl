@@ -1,6 +1,6 @@
 // dapp.ts - Complete implementation with unified architecture support
 import { requestManager } from './eip-6963';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { verifyDomainConnected } from './verifyDomainConnectedBackground';
 // import browser from 'webextension-polyfill';
 import type { Runtime } from 'webextension-polyfill';

@@ -1,5 +1,5 @@
 import browser from 'webextension-polyfill';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { IdleManager } from '$lib/managers/IdleManager';
 
 export async function onAlarmListener(alarm: any) {

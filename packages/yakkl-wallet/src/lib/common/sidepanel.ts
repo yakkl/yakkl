@@ -1,4 +1,4 @@
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import type { ActiveTab } from '$lib/common/interfaces';
 import { browser_ext, browserSvelte } from '$lib/common/environment';
 

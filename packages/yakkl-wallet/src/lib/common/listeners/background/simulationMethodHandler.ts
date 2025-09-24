@@ -1,6 +1,6 @@
 // src/lib/extensions/chrome/handlers/simulationMethodHandler.ts
 
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { getYakklCurrentlySelected } from '$lib/common/currentlySelected';
 import { sendErrorResponse } from '$contexts/background/extensions/chrome/errorResponseHandler';
 import type { Runtime } from 'webextension-polyfill';

@@ -1,7 +1,7 @@
 import { STORAGE_YAKKL_PREFERENCES } from "./constants";
 import type { Preferences } from "./interfaces";
 import { getObjectFromLocalStorage } from "./storage";
-import { log } from "$lib/managers/Logger";
+import { log } from "$lib/common/logger-wrapper";
 
 export async function getPreferences(id?: string, persona?: string): Promise<Preferences | null> {
 	try {

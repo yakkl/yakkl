@@ -3,7 +3,7 @@
  * Validates incoming requests for proper authentication and authorization
  */
 
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { getObjectFromLocalStorage } from '$lib/common/backgroundSecuredStorage';
 import { STORAGE_YAKKL_SETTINGS, STORAGE_YAKKL_PROFILE } from '$lib/common/constants';
 import type { Profile, YakklSettings } from '$lib/common/interfaces';

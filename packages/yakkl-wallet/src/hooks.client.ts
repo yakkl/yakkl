@@ -2,7 +2,7 @@
 import { getYakklSettings, setContextTypeStore } from '$lib/common/stores';
 import { loadTokens } from '$lib/common/stores/tokens';
 import { ErrorHandler } from '$lib/managers/ErrorHandler';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { addUIListeners, removeUIListeners } from '$lib/common/listeners/ui/uiListeners';
 import { globalListenerManager } from '$lib/managers/GlobalListenerManager';
 import { uiListenerManager } from '$lib/common/listeners/ui/uiListeners';

@@ -1,4 +1,4 @@
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { KeyManager } from '$lib/managers/KeyManager';
 import WalletManager from '$lib/managers/WalletManager';
 import type { YakklCurrentlySelected, YakklResponse } from '$lib/common/interfaces';

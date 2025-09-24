@@ -14,7 +14,7 @@ import {
 	type YakklPrimaryAccount
 } from '.';
 import { BigNumber, type BigNumberish } from '$lib/common/bignumber';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 // export function toBigInt( value: BigNumberish, decimals: number = 18 ): bigint {
 //   return BigNumber.toBigInt( value, decimals ) ?? 0n;

@@ -1,5 +1,5 @@
 // $lib/common/environment.ts
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import type { Browser } from 'webextension-polyfill';
 import { getBrowserSync, getBrowserAsync, browserExtension } from './browser-polyfill-unified';
 

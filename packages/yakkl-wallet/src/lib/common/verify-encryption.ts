@@ -2,7 +2,7 @@
 import { getMiscStore } from '$lib/common/miscStore';
 import type { HasData } from '$lib/common/interfaces';
 import { isEncryptedData, encryptData } from '@yakkl/sdk';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 export async function verifyEncryption<T extends HasData<any>>(value: T | T[]): Promise<T | T[]> {
   try {
@@ -30,4 +30,3 @@ export async function verifyEncryption<T extends HasData<any>>(value: T | T[]): 
     throw error;
   }
 }
-

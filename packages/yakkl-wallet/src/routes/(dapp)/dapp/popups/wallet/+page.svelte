@@ -11,7 +11,7 @@
 	import { type YakklCurrentlySelected } from '$lib/common';
 	import { DEFAULT_TITLE, YAKKL_DAPP } from '$lib/common/constants';
 	import { onMount } from 'svelte';
-	import { log } from '$managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 	// import type { Runtime } from '$lib/types/browser-types';
 	import type { JsonRpcResponse, SessionInfo, BackgroundPendingRequest } from '$lib/common/interfaces';
 	import Confirmation from '$lib/components/Confirmation.svelte';

@@ -1,4 +1,4 @@
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 // Prefix for all EIP-related IDs
 const EIP_ID_PREFIX = 'eip6963';

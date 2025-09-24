@@ -3,10 +3,25 @@
  * Uses @yakkl/core Logger with API compatibility layer
  */
 
-import { Logger } from '@yakkl/core';
+import { Logger, WebExtensionStorageTransport, DexieTransport, WebSocketTransport } from '@yakkl/core';
+import Dexie from 'dexie';
 
 // Create a singleton logger instance - use numeric values directly to avoid enum conflicts
 const coreLogger = new Logger('YAKKL-Wallet', __DEV__ ? 0 : 3); // 0=DEBUG, 3=ERROR
+
+// Add WebExtension storage.local transport for persisted logs (bounded)
+try {
+  coreLogger.addTransport(new WebExtensionStorageTransport('yakklLogs', 500));
+} catch {
+  // ignore in non-extension contexts
+}
+
+// Add Dexie (IndexedDB) transport for richer local persistence if available
+try {
+  coreLogger.addTransport(new DexieTransport(Dexie as any, 'yakklLogsDB', 'logs', 1000));
+} catch {
+  // ignore if Dexie/IDB not available (e.g., content scripts or restricted)
+}
 
 // Helper function to create no-op
 const noop = () => {};
@@ -141,12 +156,33 @@ export const log = {
   },
   
   clearPersistedLogs: () => {
-    // TODO: Implement in @yakkl/core
+    return coreLogger.flush();
   },
-  
+
   getPersistedLogs: () => {
-    // TODO: Implement in @yakkl/core
-    return [];
+    return coreLogger.getLogs?.({ limit: 500 }) ?? Promise.resolve([]);
+  },
+
+  // Copy filtered logs (sanitized)
+  copyLogs: (options?: {
+    startTime?: Date | number;
+    endTime?: Date | number;
+    levelAtLeast?: number;
+    textIncludes?: string | RegExp;
+    limit?: number;
+    offset?: number;
+  }) => {
+    return coreLogger.copyLogs?.(options as any) ?? Promise.resolve('');
+  },
+
+  // Optional: connect to a WSS endpoint for real-time support
+  enableWSS: (url: string, headers?: Record<string, string>) => {
+    try {
+      coreLogger.addTransport(new WebSocketTransport({ url, headers }));
+      return true;
+    } catch {
+      return false;
+    }
   }
 } as const;
 

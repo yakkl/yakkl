@@ -3,9 +3,11 @@
  */
 
 import { EventEmitter } from 'eventemitter3';
+import { isAddress as evmIsAddress, getAddress as evmGetAddress } from 'ethers/lib/utils';
 import { ethers } from 'ethers';
-const { Wallet } = ethers;
-const { isAddress, getAddress } = ethers.utils;
+import { signers } from '../services/SignerRegistry';
+import { keyManagers } from '../services/KeyManagerRegistry';
+import { ChainType } from '../interfaces/provider.interface';
 import type { WalletEngine } from './WalletEngine';
 import type { Account, AccountType } from './types';
 
@@ -53,16 +55,17 @@ export class AccountManager extends EventEmitter<AccountManagerEvents> {
     this.ensureInitialized();
 
     try {
-      // Generate new wallet
-      const wallet = ethers.Wallet.createRandom();
+      // Create via chain-agnostic key manager
+      const km = keyManagers.get(ChainType.EVM);
+      const acct = await km.createRandomAccount({ chainType: ChainType.EVM });
       
       // Create account object
       const account: Account = {
         id: this.generateId(),
-        address: wallet.address,
+        address: acct.address,
         name: name || `Account ${this.accounts.size + 1}`,
         type: 'eoa',
-        publicKey: wallet.publicKey,
+        publicKey: acct.publicKey,
         derivationPath: undefined, // For random wallets
         ens: undefined,
         username: undefined,
@@ -80,7 +83,9 @@ export class AccountManager extends EventEmitter<AccountManagerEvents> {
       this.accounts.set(account.id, account);
       
       // Store encrypted private key
-      await this.storePrivateKey(account.id, wallet.privateKey);
+      if (acct.privateKey) {
+        await this.storePrivateKey(account.id, acct.privateKey);
+      }
       
       // Save to storage
       await this.saveAccounts();
@@ -106,12 +111,12 @@ export class AccountManager extends EventEmitter<AccountManagerEvents> {
     this.ensureInitialized();
 
     try {
-      // Create wallet from private key
-      const wallet = new ethers.Wallet(privateKey);
+      const km = keyManagers.get(ChainType.EVM);
+      const acct = await km.importFromPrivateKey(privateKey, { chainType: ChainType.EVM });
       
       // Check if account already exists
       const existing = Array.from(this.accounts.values())
-        .find(acc => acc.address.toLowerCase() === wallet.address.toLowerCase());
+        .find(acc => acc.address.toLowerCase() === acct.address.toLowerCase());
       
       if (existing) {
         throw new Error('Account already exists');
@@ -120,10 +125,10 @@ export class AccountManager extends EventEmitter<AccountManagerEvents> {
       // Create account object
       const account: Account = {
         id: this.generateId(),
-        address: wallet.address,
+        address: acct.address,
         name: name || `Imported Account`,
         type: 'eoa',
-        publicKey: wallet.publicKey,
+        publicKey: acct.publicKey,
         derivationPath: undefined,
         ens: undefined,
         username: undefined,
@@ -141,7 +146,9 @@ export class AccountManager extends EventEmitter<AccountManagerEvents> {
       this.accounts.set(account.id, account);
       
       // Store encrypted private key
-      await this.storePrivateKey(account.id, privateKey);
+      if (acct.privateKey) {
+        await this.storePrivateKey(account.id, acct.privateKey);
+      }
       
       // Save to storage
       await this.saveAccounts();
@@ -163,7 +170,7 @@ export class AccountManager extends EventEmitter<AccountManagerEvents> {
 
     try {
       // Validate address
-      if (!isAddress(address)) {
+      if (!evmIsAddress(address)) {
         throw new Error('Invalid address');
       }
 
@@ -178,7 +185,7 @@ export class AccountManager extends EventEmitter<AccountManagerEvents> {
       // Create account object
       const account: Account = {
         id: this.generateId(),
-        address: getAddress(address), // Checksum address
+        address: evmGetAddress(address), // Checksum address
         name: name || `Watch-Only Account`,
         type: 'watched',
         publicKey: '', // Not available for watch-only
@@ -350,8 +357,8 @@ export class AccountManager extends EventEmitter<AccountManagerEvents> {
    */
   async signMessage(accountId: string, message: string): Promise<string> {
     const privateKey = await this.getPrivateKey(accountId);
-    const wallet = new Wallet(privateKey);
-    return wallet.signMessage(message);
+    const signer = signers.get(ChainType.EVM);
+    return signer.signMessage(privateKey, message);
   }
 
   /**

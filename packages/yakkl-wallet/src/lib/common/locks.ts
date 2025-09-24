@@ -3,7 +3,7 @@ import { dateString } from './datetime';
 import type { YakklSettings, YakklCurrentlySelected } from './interfaces';
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from './storage';
 import { yakklCurrentlySelectedStore, yakklSettingsStore } from './stores';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { PlanType } from './types';
 import { browserJWT } from '@yakkl/security';
 

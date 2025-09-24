@@ -11,7 +11,7 @@ import {
   getObjectFromLocalStorageDirect as getStorageDirect
 } from '@yakkl/browser-extension';
 
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 // NOTE: This also contains storage related functions for background contexts such as getYakklAccounts, etc. which are stores in client contexts.
 
@@ -71,4 +71,3 @@ export const getObjectFromLocalStorageDirect = async <T>(key: string): Promise<T
     return null;
   }
 };
-

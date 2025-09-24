@@ -6,7 +6,7 @@
  */
 
 import type { Runtime } from 'webextension-polyfill';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { isChannelClosedError } from './messageChannelWrapper';
 
 // Track port states

@@ -128,6 +128,11 @@ export interface LogTransport {
   write(entry: LogEntry): void | Promise<void>;
   
   /**
+   * Optionally read log entries from this transport
+   */
+  read?(options?: LogReadOptions): Promise<LogEntry[]> | LogEntry[] | undefined;
+  
+  /**
    * Flush any buffered logs
    */
   flush?(): void | Promise<void>;
@@ -148,4 +153,16 @@ export interface LogEntry {
   error?: Error;
   timestamp: Date;
   context?: Record<string, any>;
+}
+
+/**
+ * Options for reading logs from transports
+ */
+export interface LogReadOptions {
+  startTime?: Date | number;
+  endTime?: Date | number;
+  levelAtLeast?: LogLevel;
+  textIncludes?: string | RegExp;
+  limit?: number;
+  offset?: number;
 }

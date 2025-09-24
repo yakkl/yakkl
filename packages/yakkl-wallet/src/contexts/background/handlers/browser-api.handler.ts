@@ -27,7 +27,7 @@ import {
   type ActionGetBadgeTextPayload,
   type ActionSetTitlePayload
 } from '$lib/types/browser-api-messages';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 export async function handleBrowserAPIMessage(
   message: BrowserAPIRequest

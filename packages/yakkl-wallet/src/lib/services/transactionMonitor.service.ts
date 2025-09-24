@@ -7,7 +7,7 @@ import { get } from 'svelte/store';
 import { currentAccount } from '$lib/stores/account.store';
 import { currentChain } from '$lib/stores/chain.store';
 import { transactionStore } from '$lib/stores/transaction.store';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { browser_ext } from '$lib/common/environment';
 // Check if we're in a browser environment
 const browser = typeof window !== 'undefined';

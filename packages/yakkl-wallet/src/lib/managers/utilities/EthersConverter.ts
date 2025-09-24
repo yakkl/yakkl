@@ -9,7 +9,7 @@ import type {
 	AccessList,
 	BytesLike
 } from '$lib/common';
-import { log } from '../Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 export class EthersConverter {
 	static toEthersHex(value: BigNumberish | null | undefined): string | null | undefined {

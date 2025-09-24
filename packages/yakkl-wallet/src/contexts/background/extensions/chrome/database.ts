@@ -1,6 +1,6 @@
 import type { YakklBlocked } from '$lib/common/interfaces';
 import { getObjectFromLocalStorage } from '$lib/common/storage';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import Dexie from 'dexie';
 
 // class YakklDatabase extends Dexie {

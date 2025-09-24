@@ -1,6 +1,6 @@
 // import type { Alarms } from 'webextension-polyfill';
 import { browser_ext } from './environment';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 // type AlarmsAlarm = Alarms.Alarm;
 

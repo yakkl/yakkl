@@ -10,7 +10,7 @@ import {
   removeObjectFromLocalStorage as removeStorage
 } from '@yakkl/browser-extension';
 
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 // Re-export functions with background context flag
 export const clearObjectsFromLocalStorage = async (): Promise<void> => {

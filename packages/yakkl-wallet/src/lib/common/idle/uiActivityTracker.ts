@@ -1,5 +1,5 @@
 import { browser_ext } from '$lib/common/environment';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 // Deprecated - use messagingService.startActivityTracking instead
 /**

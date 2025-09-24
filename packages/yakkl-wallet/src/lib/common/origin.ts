@@ -1,5 +1,5 @@
 // import type { RuntimePort } from "$lib/extensions/chrome/background";
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY = 1000; // 1 second

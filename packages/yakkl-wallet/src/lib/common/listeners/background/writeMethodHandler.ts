@@ -1,6 +1,6 @@
 // src/lib/extensions/chrome/handlers/writeMethodHandler.ts
 
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { sendErrorResponse } from '$contexts/background/extensions/chrome/errorResponseHandler';
 import { pendingRequests, type BackgroundPendingRequest } from '$contexts/background/extensions/chrome/background';
 import { showEIP6963Popup } from '$contexts/background/extensions/chrome/eip-6963';

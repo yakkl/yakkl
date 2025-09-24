@@ -2,7 +2,7 @@
 import { ListenerManager } from '$lib/managers/ListenerManager';
 import { browser_ext } from '$lib/common/environment';
 import { globalListenerManager } from '$lib/managers/GlobalListenerManager';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 // NOTE: Only for background
 

@@ -1,6 +1,6 @@
 import browser from 'webextension-polyfill';
 import type { SigningRequest } from '$lib/common/types/signing';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { sessionToken } from '$lib/common/auth/session';
 import { get } from 'svelte/store';
 import type { YakklResponse } from '$lib/common/interfaces';

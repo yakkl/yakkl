@@ -6,7 +6,7 @@ import type { Runtime } from 'webextension-polyfill';
 import { onEIP6963Listener } from './eip-6963';
 import { onDappListener } from './dapp';
 import { onPortInternalListener } from '$lib/common/listeners/ui/portListeners';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { YAKKL_DAPP } from '$lib/common/constants';
 
 // This is the single handler that routes to your existing handlers

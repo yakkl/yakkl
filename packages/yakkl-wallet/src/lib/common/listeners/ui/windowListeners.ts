@@ -1,6 +1,6 @@
 import { browser_ext, browserSvelte } from '../../environment';
 import { handleLockDown } from '$lib/common/handlers';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { uiListenerManager } from './uiListeners';
 
 export function handleOnRemoveWindow(windowId: number) {

@@ -2,7 +2,7 @@ import browser from 'webextension-polyfill';
 import type { Tabs } from 'webextension-polyfill';
 import { isBlacklisted } from '$contexts/background/extensions/chrome/database';
 import { portsExternal } from '$contexts/background/extensions/chrome/ports';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { activeTabBackgroundStore, activeTabUIStore } from '$lib/common/stores';
 import { get } from 'svelte/store';
 import { setObjectInLocalStorage } from '$lib/common/storage';

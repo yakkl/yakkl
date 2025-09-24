@@ -1,6 +1,6 @@
 import { DirectAlchemyProvider } from '$lib/sdk/providers/direct/DirectAlchemyProvider';
 import type { ProviderInterface } from '@yakkl/core';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import browser from 'webextension-polyfill';
 import { STORAGE_YAKKL_CURRENTLY_SELECTED } from '$lib/common/constants';
 import { getAlchemyApiKey as getConfiguredAlchemyKey } from '$lib/config/api-keys.config';

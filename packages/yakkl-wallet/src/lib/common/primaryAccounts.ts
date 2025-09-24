@@ -1,7 +1,7 @@
 import { STORAGE_YAKKL_PRIMARY_ACCOUNTS } from "./constants";
 import type { YakklPrimaryAccount } from "./interfaces";
 import { getObjectFromLocalStorage } from "./storage";
-import { log } from "$lib/managers/Logger";
+import { log } from "$lib/common/logger-wrapper";
 
 export async function getYakklPrimaryAccounts(
 	id?: string,

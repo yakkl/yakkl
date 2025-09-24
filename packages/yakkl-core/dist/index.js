@@ -1,8 +1,9 @@
 "use strict";
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-const IntegrationAPI = require("./IntegrationAPI-CHlH_Nzw.js");
-const DiscoveryProtocol = require("./DiscoveryProtocol-D-qfIqfp.js");
+const IntegrationAPI = require("./IntegrationAPI-DEGxZLmd.js");
+const DiscoveryProtocol = require("./DiscoveryProtocol-DWGl--tf.js");
 const eventemitter3 = require("eventemitter3");
+const ethers = require("ethers");
 var StorageType = /* @__PURE__ */ ((StorageType2) => {
   StorageType2["LOCAL"] = "local";
   StorageType2["SESSION"] = "session";
@@ -37,26 +38,6 @@ var StreamState = /* @__PURE__ */ ((StreamState2) => {
   StreamState2["ABORTED"] = "aborted";
   return StreamState2;
 })(StreamState || {});
-var LogLevel = /* @__PURE__ */ ((LogLevel2) => {
-  LogLevel2[LogLevel2["TRACE"] = 0] = "TRACE";
-  LogLevel2[LogLevel2["DEBUG"] = 1] = "DEBUG";
-  LogLevel2[LogLevel2["INFO"] = 2] = "INFO";
-  LogLevel2[LogLevel2["WARN"] = 3] = "WARN";
-  LogLevel2[LogLevel2["ERROR"] = 4] = "ERROR";
-  LogLevel2[LogLevel2["FATAL"] = 5] = "FATAL";
-  LogLevel2[LogLevel2["SILENT"] = 6] = "SILENT";
-  return LogLevel2;
-})(LogLevel || {});
-var ChainType = /* @__PURE__ */ ((ChainType2) => {
-  ChainType2["EVM"] = "evm";
-  ChainType2["BITCOIN"] = "bitcoin";
-  ChainType2["SOLANA"] = "solana";
-  ChainType2["COSMOS"] = "cosmos";
-  ChainType2["POLKADOT"] = "polkadot";
-  ChainType2["NEAR"] = "near";
-  ChainType2["TRON"] = "tron";
-  return ChainType2;
-})(ChainType || {});
 var SystemTheme = /* @__PURE__ */ ((SystemTheme2) => {
   SystemTheme2["DARK"] = "dark";
   SystemTheme2["LIGHT"] = "light";
@@ -4713,7 +4694,7 @@ const DEFAULT_CHAINS = [
   {
     chainId: 1,
     name: "Ethereum Mainnet",
-    type: ChainType.EVM,
+    type: IntegrationAPI.ChainType.EVM,
     nativeCurrency: {
       name: "Ether",
       symbol: "ETH",
@@ -4727,7 +4708,7 @@ const DEFAULT_CHAINS = [
   {
     chainId: 137,
     name: "Polygon",
-    type: ChainType.EVM,
+    type: IntegrationAPI.ChainType.EVM,
     nativeCurrency: {
       name: "MATIC",
       symbol: "MATIC",
@@ -4741,7 +4722,7 @@ const DEFAULT_CHAINS = [
   {
     chainId: 56,
     name: "BNB Smart Chain",
-    type: ChainType.EVM,
+    type: IntegrationAPI.ChainType.EVM,
     nativeCurrency: {
       name: "BNB",
       symbol: "BNB",
@@ -4755,7 +4736,7 @@ const DEFAULT_CHAINS = [
   {
     chainId: 43114,
     name: "Avalanche C-Chain",
-    type: ChainType.EVM,
+    type: IntegrationAPI.ChainType.EVM,
     nativeCurrency: {
       name: "AVAX",
       symbol: "AVAX",
@@ -4769,7 +4750,7 @@ const DEFAULT_CHAINS = [
   {
     chainId: 42161,
     name: "Arbitrum One",
-    type: ChainType.EVM,
+    type: IntegrationAPI.ChainType.EVM,
     nativeCurrency: {
       name: "Ether",
       symbol: "ETH",
@@ -4783,7 +4764,7 @@ const DEFAULT_CHAINS = [
   {
     chainId: 10,
     name: "Optimism",
-    type: ChainType.EVM,
+    type: IntegrationAPI.ChainType.EVM,
     nativeCurrency: {
       name: "Ether",
       symbol: "ETH",
@@ -4798,7 +4779,7 @@ const DEFAULT_CHAINS = [
   {
     chainId: 11155111,
     name: "Sepolia",
-    type: ChainType.EVM,
+    type: IntegrationAPI.ChainType.EVM,
     nativeCurrency: {
       name: "Sepolia Ether",
       symbol: "ETH",
@@ -4812,7 +4793,7 @@ const DEFAULT_CHAINS = [
   {
     chainId: 80001,
     name: "Mumbai",
-    type: ChainType.EVM,
+    type: IntegrationAPI.ChainType.EVM,
     nativeCurrency: {
       name: "MATIC",
       symbol: "MATIC",
@@ -4830,7 +4811,7 @@ function initializeDefaultChains() {
   });
 }
 function initializeDefaultProviders() {
-  providerFactory.registerProvider(ChainType.EVM, EVMProvider);
+  providerFactory.registerProvider(IntegrationAPI.ChainType.EVM, EVMProvider);
   initializeDefaultChains();
 }
 class EVMTransactionBuilder {
@@ -5473,6 +5454,358 @@ const globalServiceFactory = createServiceFactory({
   healthCheckInterval: 6e4
   // 1 minute
 });
+class EVMKeyManager {
+  async createRandomAccount(options) {
+    const wallet = ethers.ethers.Wallet.createRandom();
+    return {
+      address: wallet.address,
+      publicKey: wallet.publicKey,
+      privateKey: wallet.privateKey,
+      path: wallet.mnemonic?.path,
+      chainType: IntegrationAPI.ChainType.EVM
+    };
+  }
+  async importFromPrivateKey(privateKey, _options) {
+    const wallet = new ethers.ethers.Wallet(privateKey);
+    return {
+      address: wallet.address,
+      publicKey: wallet.publicKey,
+      privateKey: wallet.privateKey,
+      chainType: IntegrationAPI.ChainType.EVM
+    };
+  }
+  async importFromMnemonic(mnemonic, options) {
+    const path = options.path ?? ethers.ethers.utils.defaultPath;
+    const wallet = ethers.ethers.Wallet.fromMnemonic(mnemonic, path);
+    return {
+      address: wallet.address,
+      publicKey: wallet.publicKey,
+      privateKey: wallet.privateKey,
+      path,
+      chainType: IntegrationAPI.ChainType.EVM
+    };
+  }
+  async importFromSeed(_seed, _options) {
+    throw new Error("importFromSeed not implemented for EVM yet");
+  }
+  async deriveAccount(parent, index) {
+    if (!parent.privateKey && !parent.path) {
+      throw new Error("Cannot derive without mnemonic/path in this transitional implementation");
+    }
+    if (parent.privateKey) {
+      const wallet = new ethers.ethers.Wallet(parent.privateKey);
+      return {
+        address: wallet.address,
+        publicKey: wallet.publicKey,
+        privateKey: wallet.privateKey,
+        chainType: IntegrationAPI.ChainType.EVM,
+        meta: { note: "derivation not implemented; returned same key", index }
+      };
+    }
+    throw new Error("Derivation from mnemonic not implemented yet");
+  }
+}
+class EVMSigner {
+  chain() {
+    return IntegrationAPI.ChainType.EVM;
+  }
+  async signMessage(privateKeyHex, message) {
+    const pk = privateKeyHex.startsWith("0x") ? privateKeyHex : "0x" + privateKeyHex;
+    const wallet = new ethers.ethers.Wallet(pk);
+    return wallet.signMessage(message);
+  }
+}
+class BitcoinKeyManager {
+  async libs() {
+    const secp = await Promise.resolve().then(() => require("./index-DkgY3dSa.js"));
+    const { sha256 } = await Promise.resolve().then(() => require("./sha256-mjZTxsso.js"));
+    const { ripemd160 } = await Promise.resolve().then(() => require("./ripemd160-DjT31f2f.js"));
+    const { hexToBytes, bytesToHex } = await Promise.resolve().then(() => require("./utils-KUNibzZe.js")).then((n) => n.utils);
+    const bip39 = await Promise.resolve().then(() => require("./index-DlOg4ZL9.js"));
+    const bip32 = await Promise.resolve().then(() => require("./index-DqFWTIKN.js"));
+    const wl = await Promise.resolve().then(() => require("./english-uuelBFK0.js"));
+    const bs58check = await Promise.resolve().then(() => require("./index-D6srDcqG.js")).then((n) => n.index);
+    const bech32 = await Promise.resolve().then(() => require("./index-CVlMxR-Y.js")).then((n) => n.index);
+    return { secp, sha256, ripemd160, hexToBytes, bytesToHex, bip39, bip32, wl, bs58check, bech32 };
+  }
+  hash160(bytes, sha256, ripemd160) {
+    return ripemd160(sha256(bytes));
+  }
+  pubkeyCreate(secp, privKey, compressed = true) {
+    return secp.getPublicKey(privKey, compressed);
+  }
+  p2pkhAddress(pubkey, sha256, ripemd160, bs58check, version = 0) {
+    const h160 = this.hash160(pubkey, sha256, ripemd160);
+    const payload = new Uint8Array(h160.length + 1);
+    payload[0] = version;
+    payload.set(h160, 1);
+    const buf = Buffer.from(payload);
+    return bs58check.default.encode(buf);
+  }
+  p2wpkhAddress(pubkey, sha256, ripemd160, bech32, hrp = "bc") {
+    const h160 = this.hash160(pubkey, sha256, ripemd160);
+    const words = bech32.bech32.toWords(h160);
+    return bech32.bech32.encode(hrp, [0, ...words]);
+  }
+  p2trAddress(pubkey, bech32, hrp = "bc") {
+    const xonly = pubkey.length === 33 ? pubkey.slice(1) : pubkey;
+    const words = bech32.bech32m.toWords(xonly);
+    return bech32.bech32m.encode(hrp, [1, ...words]);
+  }
+  p2wshAddress(pubkey, sha256, ripemd160, bech32, hrp = "bc") {
+    const h160 = this.hash160(pubkey, sha256, ripemd160);
+    const script = new Uint8Array(1 + 1 + 1 + h160.length + 1 + 1);
+    script[0] = 118;
+    script[1] = 169;
+    script[2] = 20;
+    script.set(h160, 3);
+    script[3 + h160.length] = 136;
+    script[4 + h160.length] = 172;
+    const prog = sha256(script);
+    const words = bech32.bech32.toWords(prog);
+    return bech32.bech32.encode(hrp, [0, ...words]);
+  }
+  purposeFromPath(path) {
+    if (!path) return null;
+    const parts = path.split("/");
+    if (parts.length < 2) return null;
+    const seg = parts[1];
+    const hardened = seg.endsWith("'") ? seg.slice(0, -1) : seg;
+    const num = parseInt(hardened, 10);
+    return Number.isNaN(num) ? null : num;
+  }
+  async createRandomAccount(options) {
+    const { bip39, wl } = await this.libs();
+    const mnemonic = bip39.generateMnemonic(wl.wordlist, 128);
+    return this.importFromMnemonic(mnemonic, { chainType: options.chainType, path: options.path });
+  }
+  async importFromPrivateKey(privateKey) {
+    const { secp, sha256, ripemd160, hexToBytes } = await this.libs();
+    const pkHex = privateKey.startsWith("0x") ? privateKey.slice(2) : privateKey;
+    const pk = hexToBytes(pkHex);
+    const libs = await this.libs();
+    const pub = this.pubkeyCreate(secp, pk, true);
+    const p2pkh = this.p2pkhAddress(pub, sha256, ripemd160, libs.bs58check);
+    const p2wpkh = this.p2wpkhAddress(pub, sha256, ripemd160, libs.bech32);
+    const p2tr = this.p2trAddress(pub, libs.bech32);
+    const p2wsh = this.p2wshAddress(pub, sha256, ripemd160, libs.bech32);
+    const address = p2wpkh;
+    return {
+      address,
+      publicKey: "0x" + Buffer.from(pub).toString("hex"),
+      privateKey: "0x" + pkHex,
+      chainType: IntegrationAPI.ChainType.BITCOIN,
+      meta: { p2pkh, p2wpkh, p2wsh, p2tr }
+    };
+  }
+  async importFromMnemonic(mnemonic, options) {
+    const { bip39, bip32, sha256, ripemd160 } = await this.libs();
+    const seed = bip39.mnemonicToSeedSync(mnemonic);
+    const root = bip32.HDKey.fromMasterSeed(seed);
+    const path = options.path ?? `m/44'/0'/0'/0/0`;
+    const child = root.derive(path);
+    if (!child.privateKey) throw new Error("Failed to derive private key");
+    const pk = new Uint8Array(child.privateKey);
+    const { secp } = await this.libs();
+    const libs = await this.libs();
+    const pub = this.pubkeyCreate(secp, pk, true);
+    const p2pkh = this.p2pkhAddress(pub, sha256, ripemd160, libs.bs58check);
+    const p2wpkh = this.p2wpkhAddress(pub, sha256, ripemd160, libs.bech32);
+    const p2tr = this.p2trAddress(pub, libs.bech32);
+    const p2wsh = this.p2wshAddress(pub, sha256, ripemd160, libs.bech32);
+    const purpose = this.purposeFromPath(path);
+    const address = purpose === 44 ? p2pkh : purpose === 86 ? p2tr : p2wpkh;
+    return {
+      address,
+      publicKey: "0x" + Buffer.from(pub).toString("hex"),
+      privateKey: "0x" + Buffer.from(pk).toString("hex"),
+      chainType: IntegrationAPI.ChainType.BITCOIN,
+      path,
+      meta: { p2pkh, p2wpkh, p2wsh, p2tr }
+    };
+  }
+  async importFromSeed(seed, options) {
+    const { bip32, sha256, ripemd160 } = await this.libs();
+    const seedBuf = typeof seed === "string" ? Buffer.from(seed, "hex") : Buffer.from(seed);
+    const root = bip32.HDKey.fromMasterSeed(seedBuf);
+    const path = options.path ?? `m/44'/0'/0'/0/0`;
+    const child = root.derive(path);
+    if (!child.privateKey) throw new Error("Failed to derive private key");
+    const pk = new Uint8Array(child.privateKey);
+    const { secp } = await this.libs();
+    const libs = await this.libs();
+    const pub = this.pubkeyCreate(secp, pk, true);
+    const p2pkh = this.p2pkhAddress(pub, sha256, ripemd160, libs.bs58check);
+    const p2wpkh = this.p2wpkhAddress(pub, sha256, ripemd160, libs.bech32);
+    const p2tr = this.p2trAddress(pub, libs.bech32);
+    const p2wsh = this.p2wshAddress(pub, sha256, ripemd160, libs.bech32);
+    const purpose = this.purposeFromPath(path);
+    const address = purpose === 44 ? p2pkh : purpose === 86 ? p2tr : p2wpkh;
+    return {
+      address,
+      publicKey: "0x" + Buffer.from(pub).toString("hex"),
+      privateKey: "0x" + Buffer.from(pk).toString("hex"),
+      chainType: IntegrationAPI.ChainType.BITCOIN,
+      path,
+      meta: { p2pkh, p2wpkh, p2wsh, p2tr }
+    };
+  }
+  async deriveAccount(parent, index) {
+    if (!parent.path) {
+      const acct = { ...parent };
+      acct.meta = { ...acct.meta || {}, note: "Derivation requires seed/xprv", requestedIndex: index };
+      return acct;
+    }
+    const basePrefix = parent.path.replace(/\/(\d+)$|$/, "/");
+    const path = `${basePrefix}${index}`;
+    return { ...parent, path };
+  }
+}
+class SolanaKeyManager {
+  async libs() {
+    const ed = await Promise.resolve().then(() => require("./index-dBDscpS6.js"));
+    const bs58 = await Promise.resolve().then(() => require("./index-B2aIX08I.js")).then((n) => n.index);
+    const hmac = await Promise.resolve().then(() => require("./hmac-D6-yBQ0n.js"));
+    const { sha512 } = await Promise.resolve().then(() => require("./sha512-inLKQ0_y.js"));
+    const { hexToBytes, bytesToHex } = await Promise.resolve().then(() => require("./utils-KUNibzZe.js")).then((n) => n.utils);
+    return { ed, bs58, hmac, sha512, hexToBytes, bytesToHex };
+  }
+  // SLIP-0010 master key generation for ed25519
+  masterFromSeed(seed, hmac, sha512) {
+    const key = new TextEncoder().encode("ed25519 seed");
+    const I = hmac.hmac(sha512, key, seed);
+    const IL = I.slice(0, 32);
+    const IR = I.slice(32);
+    return { key: IL, chainCode: IR };
+  }
+  // SLIP-0010 CKD for hardened derivation only (ed25519 supports only hardened)
+  ckdPrivEd25519(parentKey, parentChainCode, index, hmac, sha512) {
+    const data = new Uint8Array(1 + parentKey.length + 4);
+    data.set([0], 0);
+    data.set(parentKey, 1);
+    data[data.length - 4] = index >>> 24 & 255;
+    data[data.length - 3] = index >>> 16 & 255;
+    data[data.length - 2] = index >>> 8 & 255;
+    data[data.length - 1] = index & 255;
+    const I = hmac.hmac(sha512, parentChainCode, data);
+    const IL = I.slice(0, 32);
+    const IR = I.slice(32);
+    return { key: IL, chainCode: IR };
+  }
+  parsePath(path) {
+    if (!path || !path.startsWith("m")) return [];
+    const parts = path.split("/").slice(1);
+    const out = [];
+    for (const p of parts) {
+      if (!p) continue;
+      const hardened = p.endsWith("'");
+      const num = parseInt(hardened ? p.slice(0, -1) : p, 10);
+      if (Number.isNaN(num)) throw new Error("Invalid path segment: " + p);
+      out.push((num | 2147483648) >>> 0);
+    }
+    return out;
+  }
+  async deriveEd25519FromSeed(seed, path) {
+    const { hmac, sha512 } = await this.libs();
+    let { key, chainCode } = this.masterFromSeed(seed, hmac, sha512);
+    for (const idx of this.parsePath(path)) {
+      ({ key, chainCode } = this.ckdPrivEd25519(key, chainCode, idx, hmac, sha512));
+    }
+    return key;
+  }
+  async createRandomAccount(_options) {
+    const { ed, bs58 } = await this.libs();
+    const priv = ed.utils.randomPrivateKey();
+    const pub = await ed.getPublicKeyAsync(priv);
+    const address = bs58.default.encode(Buffer.from(pub));
+    return {
+      address,
+      publicKey: bs58.default.encode(Buffer.from(pub)),
+      privateKey: "0x" + Buffer.from(priv).toString("hex"),
+      chainType: IntegrationAPI.ChainType.SOLANA
+    };
+  }
+  async importFromPrivateKey(privateKey) {
+    const { ed, bs58 } = await this.libs();
+    const pkHex = privateKey.startsWith("0x") ? privateKey.slice(2) : privateKey;
+    const priv = Buffer.from(pkHex, "hex");
+    const pub = await ed.getPublicKeyAsync(new Uint8Array(priv));
+    const address = bs58.default.encode(Buffer.from(pub));
+    return {
+      address,
+      publicKey: bs58.default.encode(Buffer.from(pub)),
+      privateKey: "0x" + Buffer.from(priv).toString("hex"),
+      chainType: IntegrationAPI.ChainType.SOLANA
+    };
+  }
+  async importFromMnemonic(mnemonic, options) {
+    const { ed, bs58 } = await this.libs();
+    const { mnemonicToSeedSync } = await Promise.resolve().then(() => require("./index-DlOg4ZL9.js"));
+    const seed = mnemonicToSeedSync(mnemonic);
+    const path = options.path ?? `m/44'/501'/0'/0'`;
+    const priv = await this.deriveEd25519FromSeed(new Uint8Array(seed), path);
+    const pub = await ed.getPublicKeyAsync(priv);
+    const address = bs58.default.encode(Buffer.from(pub));
+    return {
+      address,
+      publicKey: bs58.default.encode(Buffer.from(pub)),
+      privateKey: "0x" + Buffer.from(priv).toString("hex"),
+      chainType: IntegrationAPI.ChainType.SOLANA,
+      path
+    };
+  }
+  async importFromSeed(seed, options) {
+    const { ed, bs58 } = await this.libs();
+    const path = options.path ?? `m/44'/501'/0'/0'`;
+    const seedBytes = typeof seed === "string" ? new TextEncoder().encode(seed) : seed;
+    const priv = await this.deriveEd25519FromSeed(seedBytes, path);
+    const pub = await ed.getPublicKeyAsync(priv);
+    const address = bs58.default.encode(Buffer.from(pub));
+    return {
+      address,
+      publicKey: bs58.default.encode(Buffer.from(pub)),
+      privateKey: "0x" + Buffer.from(priv).toString("hex"),
+      chainType: IntegrationAPI.ChainType.SOLANA,
+      path
+    };
+  }
+  async deriveAccount(parent, index) {
+    return { ...parent, meta: { ...parent.meta || {}, requestedIndex: index } };
+  }
+}
+try {
+  IntegrationAPI.signers.register(IntegrationAPI.ChainType.EVM, new EVMSigner());
+} catch {
+}
+try {
+  IntegrationAPI.keyManagers.register(IntegrationAPI.ChainType.EVM, new EVMKeyManager());
+} catch {
+}
+try {
+  IntegrationAPI.keyManagers.register(IntegrationAPI.ChainType.BITCOIN, new BitcoinKeyManager());
+} catch {
+}
+try {
+  IntegrationAPI.keyManagers.register(IntegrationAPI.ChainType.SOLANA, new SolanaKeyManager());
+} catch {
+}
+(async () => {
+  try {
+    const mod2 = await Promise.resolve().then(() => require("./EVMKeyManager.native-4EJ5epxd.js"));
+    if (mod2 && mod2.NativeEVMKeyManager) {
+      const native = new mod2.NativeEVMKeyManager();
+      IntegrationAPI.keyManagers.register(IntegrationAPI.ChainType.EVM, native);
+    }
+  } catch {
+  }
+  try {
+    const smod = await Promise.resolve().then(() => require("./EVMSigner.native-CStfuHWw.js"));
+    if (smod && smod.NativeEVMSigner) {
+      IntegrationAPI.signers.register(IntegrationAPI.ChainType.EVM, new smod.NativeEVMSigner());
+    }
+  } catch {
+  }
+})();
 class MessageRouter {
   constructor() {
     this.routes = /* @__PURE__ */ new Map();
@@ -8594,16 +8927,32 @@ function createStateManager(plugins) {
   return new StateManager(plugins);
 }
 exports.AccountManager = IntegrationAPI.AccountManager;
+exports.ChainType = IntegrationAPI.ChainType;
 exports.EmbeddedAPI = IntegrationAPI.EmbeddedAPI;
 exports.IntegrationAPI = IntegrationAPI.IntegrationAPI;
+exports.KeyManagerRegistry = IntegrationAPI.KeyManagerRegistry;
 exports.NetworkManager = IntegrationAPI.NetworkManager;
 exports.RemoteAPI = IntegrationAPI.RemoteAPI;
+exports.SignerRegistry = IntegrationAPI.SignerRegistry;
 exports.TransactionManager = IntegrationAPI.TransactionManager;
 exports.WalletEngine = IntegrationAPI.WalletEngine;
+exports.keyManagers = IntegrationAPI.keyManagers;
+exports.signers = IntegrationAPI.signers;
+exports.ConsoleTransport = DiscoveryProtocol.ConsoleTransport;
+exports.D1Transport = DiscoveryProtocol.D1Transport;
+exports.DexieTransport = DiscoveryProtocol.DexieTransport;
 exports.DiscoveryProtocol = DiscoveryProtocol.DiscoveryProtocol;
+exports.HttpTransport = DiscoveryProtocol.HttpTransport;
+exports.LocalStorageTransport = DiscoveryProtocol.LocalStorageTransport;
+exports.LogLevel = DiscoveryProtocol.LogLevel;
 exports.Logger = DiscoveryProtocol.Logger;
+exports.MemoryTransport = DiscoveryProtocol.MemoryTransport;
 exports.ModLoader = DiscoveryProtocol.ModLoader;
 exports.ModRegistry = DiscoveryProtocol.ModRegistry;
+exports.PostgresTransport = DiscoveryProtocol.PostgresTransport;
+exports.WebExtensionStorageTransport = DiscoveryProtocol.WebExtensionStorageTransport;
+exports.WebSocketTransport = DiscoveryProtocol.WebSocketTransport;
+exports.log = DiscoveryProtocol.log;
 exports.AccountTypeCategory = AccountTypeCategory;
 exports.AccountTypeStatus = AccountTypeStatus;
 exports.BASIS_POINTS_DIVISOR = BASIS_POINTS_DIVISOR;
@@ -8616,7 +8965,6 @@ exports.BroadcastStateSync = BroadcastStateSync;
 exports.CACHE_TTL = CACHE_TTL;
 exports.CORE_VERSION = CORE_VERSION;
 exports.ChainId = ChainId;
-exports.ChainType = ChainType;
 exports.ChromeLocalStorageProviderFactory = ChromeLocalStorageProviderFactory;
 exports.ChromeStorageProvider = ChromeStorageProvider;
 exports.ChromeSyncStorageProviderFactory = ChromeSyncStorageProviderFactory;
@@ -8652,7 +9000,6 @@ exports.Injectable = Injectable;
 exports.InjectionTokens = InjectionTokens;
 exports.LocalStorageProvider = LocalStorageProvider;
 exports.LocalStorageProviderFactory = LocalStorageProviderFactory;
-exports.LogLevel = LogLevel;
 exports.MAX_PAGE_SIZE = MAX_PAGE_SIZE;
 exports.MAX_PASSWORD_LENGTH = MAX_PASSWORD_LENGTH;
 exports.MIME_TYPES = MIME_TYPES;
