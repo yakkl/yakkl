@@ -1,7 +1,8 @@
-import { W as WalletEngine } from "./IntegrationAPI-DTOxywBx.mjs";
-import { A, E, I, N, R, T } from "./IntegrationAPI-DTOxywBx.mjs";
-import { D, L, a, M } from "./DiscoveryProtocol-Bno4a3vM.mjs";
+import { W as WalletEngine, C as ChainType, s as signers, k as keyManagers } from "./IntegrationAPI-dTXFGWkx.mjs";
+import { A, E, I, K, N, R, S, T } from "./IntegrationAPI-dTXFGWkx.mjs";
+import { C, e, f, D, H, d, L, b, c, a, M, P, W, g, l } from "./DiscoveryProtocol-B9ADSwn1.mjs";
 import { EventEmitter } from "eventemitter3";
+import { ethers } from "ethers";
 var StorageType = /* @__PURE__ */ ((StorageType2) => {
   StorageType2["LOCAL"] = "local";
   StorageType2["SESSION"] = "session";
@@ -36,26 +37,6 @@ var StreamState = /* @__PURE__ */ ((StreamState2) => {
   StreamState2["ABORTED"] = "aborted";
   return StreamState2;
 })(StreamState || {});
-var LogLevel = /* @__PURE__ */ ((LogLevel2) => {
-  LogLevel2[LogLevel2["TRACE"] = 0] = "TRACE";
-  LogLevel2[LogLevel2["DEBUG"] = 1] = "DEBUG";
-  LogLevel2[LogLevel2["INFO"] = 2] = "INFO";
-  LogLevel2[LogLevel2["WARN"] = 3] = "WARN";
-  LogLevel2[LogLevel2["ERROR"] = 4] = "ERROR";
-  LogLevel2[LogLevel2["FATAL"] = 5] = "FATAL";
-  LogLevel2[LogLevel2["SILENT"] = 6] = "SILENT";
-  return LogLevel2;
-})(LogLevel || {});
-var ChainType = /* @__PURE__ */ ((ChainType2) => {
-  ChainType2["EVM"] = "evm";
-  ChainType2["BITCOIN"] = "bitcoin";
-  ChainType2["SOLANA"] = "solana";
-  ChainType2["COSMOS"] = "cosmos";
-  ChainType2["POLKADOT"] = "polkadot";
-  ChainType2["NEAR"] = "near";
-  ChainType2["TRON"] = "tron";
-  return ChainType2;
-})(ChainType || {});
 var SystemTheme = /* @__PURE__ */ ((SystemTheme2) => {
   SystemTheme2["DARK"] = "dark";
   SystemTheme2["LIGHT"] = "light";
@@ -273,12 +254,12 @@ class BigNumber {
   }
   compare(other, decimals = 18) {
     const a2 = this.toBigInt(decimals);
-    const b = BigNumber.from(other).toBigInt(decimals);
-    if (a2 === null || b === null) {
+    const b2 = BigNumber.from(other).toBigInt(decimals);
+    if (a2 === null || b2 === null) {
       throw new Error("Cannot compare null values");
     }
-    if (a2 < b) return -1;
-    if (a2 > b) return 1;
+    if (a2 < b2) return -1;
+    if (a2 > b2) return 1;
     return 0;
   }
   // Type guard to check if value is BigNumber
@@ -489,49 +470,49 @@ class BigNumber {
     return null;
   }
   // Static method to get the maximum of two BigNumberish values
-  static max(a2, b) {
+  static max(a2, b2) {
     const aBigInt = BigNumber.toBigInt(a2) ?? BigInt(0);
-    const bBigInt = BigNumber.toBigInt(b) ?? BigInt(0);
+    const bBigInt = BigNumber.toBigInt(b2) ?? BigInt(0);
     return new BigNumber(aBigInt > bBigInt ? aBigInt : bBigInt);
   }
   // Static method to get the minimum of two BigNumberish values
-  static min(a2, b) {
+  static min(a2, b2) {
     const aBigInt = BigNumber.toBigInt(a2) ?? BigInt(0);
-    const bBigInt = BigNumber.toBigInt(b) ?? BigInt(0);
+    const bBigInt = BigNumber.toBigInt(b2) ?? BigInt(0);
     return new BigNumber(aBigInt < bBigInt ? aBigInt : bBigInt);
   }
   // Static method to add two BigNumberish values
-  static add(a2, b) {
+  static add(a2, b2) {
     const aBigInt = BigNumber.toBigInt(a2) ?? BigInt(0);
-    const bBigInt = BigNumber.toBigInt(b) ?? BigInt(0);
+    const bBigInt = BigNumber.toBigInt(b2) ?? BigInt(0);
     return new BigNumber(aBigInt + bBigInt);
   }
   // Static method to subtract two BigNumberish values
-  static subtract(a2, b) {
+  static subtract(a2, b2) {
     const aBigInt = BigNumber.toBigInt(a2) ?? BigInt(0);
-    const bBigInt = BigNumber.toBigInt(b) ?? BigInt(0);
+    const bBigInt = BigNumber.toBigInt(b2) ?? BigInt(0);
     return new BigNumber(aBigInt - bBigInt);
   }
   // Alias for subtract
-  static sub(a2, b) {
-    return BigNumber.subtract(a2, b);
+  static sub(a2, b2) {
+    return BigNumber.subtract(a2, b2);
   }
   // Static method to divide two BigNumberish values
-  static div(a2, b) {
+  static div(a2, b2) {
     const aBigInt = BigNumber.toBigInt(a2) ?? BigInt(0);
-    const bBigInt = BigNumber.toBigInt(b) ?? BigInt(1);
+    const bBigInt = BigNumber.toBigInt(b2) ?? BigInt(1);
     return new BigNumber(aBigInt / bBigInt);
   }
   // Static method to multiply two BigNumberish values
-  static mul(a2, b) {
+  static mul(a2, b2) {
     const aBigInt = BigNumber.toBigInt(a2) ?? BigInt(0);
-    const bBigInt = BigNumber.toBigInt(b) ?? BigInt(0);
+    const bBigInt = BigNumber.toBigInt(b2) ?? BigInt(0);
     return new BigNumber(aBigInt * bBigInt);
   }
   // Static method to get the modulo of two BigNumberish values
-  static mod(a2, b) {
+  static mod(a2, b2) {
     const aBigInt = BigNumber.toBigInt(a2) ?? BigInt(0);
-    const bBigInt = BigNumber.toBigInt(b) ?? BigInt(1);
+    const bBigInt = BigNumber.toBigInt(b2) ?? BigInt(1);
     return new BigNumber(aBigInt % bBigInt);
   }
   // Static method to check if a value is zero
@@ -813,16 +794,16 @@ var EXP_LIMIT = 9e15, MAX_DIGITS = 1e9, NUMERALS = "0123456789abcdef", LN10 = "2
   // Whether to use cryptographically-secure random number generation, if available.
   crypto: false
   // true/false
-}, inexact, quadrant, external = true, decimalError = "[DecimalError] ", invalidArgument = decimalError + "Invalid argument: ", precisionLimitExceeded = decimalError + "Precision limit exceeded", cryptoUnavailable = decimalError + "crypto unavailable", tag = "[object Decimal]", mathfloor = Math.floor, mathpow = Math.pow, isBinary = /^0b([01]+(\.[01]*)?|\.[01]+)(p[+-]?\d+)?$/i, isHex = /^0x([0-9a-f]+(\.[0-9a-f]*)?|\.[0-9a-f]+)(p[+-]?\d+)?$/i, isOctal = /^0o([0-7]+(\.[0-7]*)?|\.[0-7]+)(p[+-]?\d+)?$/i, isDecimal = /^(\d+(\.\d*)?|\.\d+)(e[+-]?\d+)?$/i, BASE = 1e7, LOG_BASE = 7, MAX_SAFE_INTEGER = 9007199254740991, LN10_PRECISION = LN10.length - 1, PI_PRECISION = PI.length - 1, P = { toStringTag: tag };
-P.absoluteValue = P.abs = function() {
+}, inexact, quadrant, external = true, decimalError = "[DecimalError] ", invalidArgument = decimalError + "Invalid argument: ", precisionLimitExceeded = decimalError + "Precision limit exceeded", cryptoUnavailable = decimalError + "crypto unavailable", tag = "[object Decimal]", mathfloor = Math.floor, mathpow = Math.pow, isBinary = /^0b([01]+(\.[01]*)?|\.[01]+)(p[+-]?\d+)?$/i, isHex = /^0x([0-9a-f]+(\.[0-9a-f]*)?|\.[0-9a-f]+)(p[+-]?\d+)?$/i, isOctal = /^0o([0-7]+(\.[0-7]*)?|\.[0-7]+)(p[+-]?\d+)?$/i, isDecimal = /^(\d+(\.\d*)?|\.\d+)(e[+-]?\d+)?$/i, BASE = 1e7, LOG_BASE = 7, MAX_SAFE_INTEGER = 9007199254740991, LN10_PRECISION = LN10.length - 1, PI_PRECISION = PI.length - 1, P2 = { toStringTag: tag };
+P2.absoluteValue = P2.abs = function() {
   var x = new this.constructor(this);
   if (x.s < 0) x.s = 1;
   return finalise(x);
 };
-P.ceil = function() {
+P2.ceil = function() {
   return finalise(new this.constructor(this), this.e + 1, 2);
 };
-P.clampedTo = P.clamp = function(min2, max2) {
+P2.clampedTo = P2.clamp = function(min2, max2) {
   var k, x = this, Ctor = x.constructor;
   min2 = new Ctor(min2);
   max2 = new Ctor(max2);
@@ -831,7 +812,7 @@ P.clampedTo = P.clamp = function(min2, max2) {
   k = x.cmp(min2);
   return k < 0 ? min2 : x.cmp(max2) > 0 ? max2 : new Ctor(x);
 };
-P.comparedTo = P.cmp = function(y) {
+P2.comparedTo = P2.cmp = function(y) {
   var i, j, xdL, ydL, x = this, xd = x.d, yd = (y = new x.constructor(y)).d, xs = x.s, ys = y.s;
   if (!xd || !yd) {
     return !xs || !ys ? NaN : xs !== ys ? xs : xd === yd ? 0 : !xd ^ xs < 0 ? 1 : -1;
@@ -846,7 +827,7 @@ P.comparedTo = P.cmp = function(y) {
   }
   return xdL === ydL ? 0 : xdL > ydL ^ xs < 0 ? 1 : -1;
 };
-P.cosine = P.cos = function() {
+P2.cosine = P2.cos = function() {
   var pr, rm, x = this, Ctor = x.constructor;
   if (!x.d) return new Ctor(NaN);
   if (!x.d[0]) return new Ctor(1);
@@ -859,29 +840,29 @@ P.cosine = P.cos = function() {
   Ctor.rounding = rm;
   return finalise(quadrant == 2 || quadrant == 3 ? x.neg() : x, pr, rm, true);
 };
-P.cubeRoot = P.cbrt = function() {
-  var e, m, n, r, rep, s, sd, t, t3, t3plusx, x = this, Ctor = x.constructor;
+P2.cubeRoot = P2.cbrt = function() {
+  var e2, m, n, r, rep, s, sd, t, t3, t3plusx, x = this, Ctor = x.constructor;
   if (!x.isFinite() || x.isZero()) return new Ctor(x);
   external = false;
   s = x.s * mathpow(x.s * x, 1 / 3);
   if (!s || Math.abs(s) == 1 / 0) {
     n = digitsToString(x.d);
-    e = x.e;
-    if (s = (e - n.length + 1) % 3) n += s == 1 || s == -2 ? "0" : "00";
+    e2 = x.e;
+    if (s = (e2 - n.length + 1) % 3) n += s == 1 || s == -2 ? "0" : "00";
     s = mathpow(n, 1 / 3);
-    e = mathfloor((e + 1) / 3) - (e % 3 == (e < 0 ? -1 : 2));
+    e2 = mathfloor((e2 + 1) / 3) - (e2 % 3 == (e2 < 0 ? -1 : 2));
     if (s == 1 / 0) {
-      n = "5e" + e;
+      n = "5e" + e2;
     } else {
       n = s.toExponential();
-      n = n.slice(0, n.indexOf("e") + 1) + e;
+      n = n.slice(0, n.indexOf("e") + 1) + e2;
     }
     r = new Ctor(n);
     r.s = x.s;
   } else {
     r = new Ctor(s.toString());
   }
-  sd = (e = Ctor.precision) + 3;
+  sd = (e2 = Ctor.precision) + 3;
   for (; ; ) {
     t = r;
     t3 = t.times(t).times(t);
@@ -891,7 +872,7 @@ P.cubeRoot = P.cbrt = function() {
       n = n.slice(sd - 3, sd + 1);
       if (n == "9999" || !rep && n == "4999") {
         if (!rep) {
-          finalise(t, e + 1, 0);
+          finalise(t, e2 + 1, 0);
           if (t.times(t).times(t).eq(x)) {
             r = t;
             break;
@@ -901,7 +882,7 @@ P.cubeRoot = P.cbrt = function() {
         rep = 1;
       } else {
         if (!+n || !+n.slice(1) && n.charAt(0) == "5") {
-          finalise(r, e + 1, 1);
+          finalise(r, e2 + 1, 1);
           m = !r.times(r).times(r).eq(x);
         }
         break;
@@ -909,40 +890,40 @@ P.cubeRoot = P.cbrt = function() {
     }
   }
   external = true;
-  return finalise(r, e, Ctor.rounding, m);
+  return finalise(r, e2, Ctor.rounding, m);
 };
-P.decimalPlaces = P.dp = function() {
-  var w, d = this.d, n = NaN;
-  if (d) {
-    w = d.length - 1;
+P2.decimalPlaces = P2.dp = function() {
+  var w, d2 = this.d, n = NaN;
+  if (d2) {
+    w = d2.length - 1;
     n = (w - mathfloor(this.e / LOG_BASE)) * LOG_BASE;
-    w = d[w];
+    w = d2[w];
     if (w) for (; w % 10 == 0; w /= 10) n--;
     if (n < 0) n = 0;
   }
   return n;
 };
-P.dividedBy = P.div = function(y) {
+P2.dividedBy = P2.div = function(y) {
   return divide(this, new this.constructor(y));
 };
-P.dividedToIntegerBy = P.divToInt = function(y) {
+P2.dividedToIntegerBy = P2.divToInt = function(y) {
   var x = this, Ctor = x.constructor;
   return finalise(divide(x, new Ctor(y), 0, 1, 1), Ctor.precision, Ctor.rounding);
 };
-P.equals = P.eq = function(y) {
+P2.equals = P2.eq = function(y) {
   return this.cmp(y) === 0;
 };
-P.floor = function() {
+P2.floor = function() {
   return finalise(new this.constructor(this), this.e + 1, 3);
 };
-P.greaterThan = P.gt = function(y) {
+P2.greaterThan = P2.gt = function(y) {
   return this.cmp(y) > 0;
 };
-P.greaterThanOrEqualTo = P.gte = function(y) {
+P2.greaterThanOrEqualTo = P2.gte = function(y) {
   var k = this.cmp(y);
   return k == 1 || k === 0;
 };
-P.hyperbolicCosine = P.cosh = function() {
+P2.hyperbolicCosine = P2.cosh = function() {
   var k, n, pr, rm, len, x = this, Ctor = x.constructor, one = new Ctor(1);
   if (!x.isFinite()) return new Ctor(x.s ? 1 / 0 : NaN);
   if (x.isZero()) return one;
@@ -966,7 +947,7 @@ P.hyperbolicCosine = P.cosh = function() {
   }
   return finalise(x, Ctor.precision = pr, Ctor.rounding = rm, true);
 };
-P.hyperbolicSine = P.sinh = function() {
+P2.hyperbolicSine = P2.sinh = function() {
   var k, pr, rm, len, x = this, Ctor = x.constructor;
   if (!x.isFinite() || x.isZero()) return new Ctor(x);
   pr = Ctor.precision;
@@ -991,7 +972,7 @@ P.hyperbolicSine = P.sinh = function() {
   Ctor.rounding = rm;
   return finalise(x, pr, rm, true);
 };
-P.hyperbolicTangent = P.tanh = function() {
+P2.hyperbolicTangent = P2.tanh = function() {
   var pr, rm, x = this, Ctor = x.constructor;
   if (!x.isFinite()) return new Ctor(x.s);
   if (x.isZero()) return new Ctor(x);
@@ -1001,7 +982,7 @@ P.hyperbolicTangent = P.tanh = function() {
   Ctor.rounding = 1;
   return divide(x.sinh(), x.cosh(), Ctor.precision = pr, Ctor.rounding = rm);
 };
-P.inverseCosine = P.acos = function() {
+P2.inverseCosine = P2.acos = function() {
   var x = this, Ctor = x.constructor, k = x.abs().cmp(1), pr = Ctor.precision, rm = Ctor.rounding;
   if (k !== -1) {
     return k === 0 ? x.isNeg() ? getPi(Ctor, pr, rm) : new Ctor(0) : new Ctor(NaN);
@@ -1014,7 +995,7 @@ P.inverseCosine = P.acos = function() {
   Ctor.rounding = rm;
   return x.times(2);
 };
-P.inverseHyperbolicCosine = P.acosh = function() {
+P2.inverseHyperbolicCosine = P2.acosh = function() {
   var pr, rm, x = this, Ctor = x.constructor;
   if (x.lte(1)) return new Ctor(x.eq(1) ? 0 : NaN);
   if (!x.isFinite()) return new Ctor(x);
@@ -1029,7 +1010,7 @@ P.inverseHyperbolicCosine = P.acosh = function() {
   Ctor.rounding = rm;
   return x.ln();
 };
-P.inverseHyperbolicSine = P.asinh = function() {
+P2.inverseHyperbolicSine = P2.asinh = function() {
   var pr, rm, x = this, Ctor = x.constructor;
   if (!x.isFinite() || x.isZero()) return new Ctor(x);
   pr = Ctor.precision;
@@ -1043,7 +1024,7 @@ P.inverseHyperbolicSine = P.asinh = function() {
   Ctor.rounding = rm;
   return x.ln();
 };
-P.inverseHyperbolicTangent = P.atanh = function() {
+P2.inverseHyperbolicTangent = P2.atanh = function() {
   var pr, rm, wpr, xsd, x = this, Ctor = x.constructor;
   if (!x.isFinite()) return new Ctor(NaN);
   if (x.e >= 0) return new Ctor(x.abs().eq(1) ? x.s / 0 : x.isZero() ? x : NaN);
@@ -1060,7 +1041,7 @@ P.inverseHyperbolicTangent = P.atanh = function() {
   Ctor.rounding = rm;
   return x.times(0.5);
 };
-P.inverseSine = P.asin = function() {
+P2.inverseSine = P2.asin = function() {
   var halfPi, k, pr, rm, x = this, Ctor = x.constructor;
   if (x.isZero()) return new Ctor(x);
   k = x.abs().cmp(1);
@@ -1081,7 +1062,7 @@ P.inverseSine = P.asin = function() {
   Ctor.rounding = rm;
   return x.times(2);
 };
-P.inverseTangent = P.atan = function() {
+P2.inverseTangent = P2.atan = function() {
   var i, j, k, n, px, t, r, wpr, x2, x = this, Ctor = x.constructor, pr = Ctor.precision, rm = Ctor.rounding;
   if (!x.isFinite()) {
     if (!x.s) return new Ctor(NaN);
@@ -1118,50 +1099,50 @@ P.inverseTangent = P.atan = function() {
   external = true;
   return finalise(r, Ctor.precision = pr, Ctor.rounding = rm, true);
 };
-P.isFinite = function() {
+P2.isFinite = function() {
   return !!this.d;
 };
-P.isInteger = P.isInt = function() {
+P2.isInteger = P2.isInt = function() {
   return !!this.d && mathfloor(this.e / LOG_BASE) > this.d.length - 2;
 };
-P.isNaN = function() {
+P2.isNaN = function() {
   return !this.s;
 };
-P.isNegative = P.isNeg = function() {
+P2.isNegative = P2.isNeg = function() {
   return this.s < 0;
 };
-P.isPositive = P.isPos = function() {
+P2.isPositive = P2.isPos = function() {
   return this.s > 0;
 };
-P.isZero = function() {
+P2.isZero = function() {
   return !!this.d && this.d[0] === 0;
 };
-P.lessThan = P.lt = function(y) {
+P2.lessThan = P2.lt = function(y) {
   return this.cmp(y) < 0;
 };
-P.lessThanOrEqualTo = P.lte = function(y) {
+P2.lessThanOrEqualTo = P2.lte = function(y) {
   return this.cmp(y) < 1;
 };
-P.logarithm = P.log = function(base) {
-  var isBase10, d, denominator, k, inf, num, sd, r, arg = this, Ctor = arg.constructor, pr = Ctor.precision, rm = Ctor.rounding, guard = 5;
+P2.logarithm = P2.log = function(base) {
+  var isBase10, d2, denominator, k, inf, num, sd, r, arg = this, Ctor = arg.constructor, pr = Ctor.precision, rm = Ctor.rounding, guard = 5;
   if (base == null) {
     base = new Ctor(10);
     isBase10 = true;
   } else {
     base = new Ctor(base);
-    d = base.d;
-    if (base.s < 0 || !d || !d[0] || base.eq(1)) return new Ctor(NaN);
+    d2 = base.d;
+    if (base.s < 0 || !d2 || !d2[0] || base.eq(1)) return new Ctor(NaN);
     isBase10 = base.eq(10);
   }
-  d = arg.d;
-  if (arg.s < 0 || !d || !d[0] || arg.eq(1)) {
-    return new Ctor(d && !d[0] ? -1 / 0 : arg.s != 1 ? NaN : d ? 0 : 1 / 0);
+  d2 = arg.d;
+  if (arg.s < 0 || !d2 || !d2[0] || arg.eq(1)) {
+    return new Ctor(d2 && !d2[0] ? -1 / 0 : arg.s != 1 ? NaN : d2 ? 0 : 1 / 0);
   }
   if (isBase10) {
-    if (d.length > 1) {
+    if (d2.length > 1) {
       inf = true;
     } else {
-      for (k = d[0]; k % 10 === 0; ) k /= 10;
+      for (k = d2[0]; k % 10 === 0; ) k /= 10;
       inf = k !== 1;
     }
   }
@@ -1187,8 +1168,8 @@ P.logarithm = P.log = function(base) {
   external = true;
   return finalise(r, pr, rm);
 };
-P.minus = P.sub = function(y) {
-  var d, e, i, j, k, len, pr, rm, xd, xe, xLTy, yd, x = this, Ctor = x.constructor;
+P2.minus = P2.sub = function(y) {
+  var d2, e2, i, j, k, len, pr, rm, xd, xe, xLTy, yd, x = this, Ctor = x.constructor;
   y = new Ctor(y);
   if (!x.d || !y.d) {
     if (!x.s || !y.s) y = new Ctor(NaN);
@@ -1210,29 +1191,29 @@ P.minus = P.sub = function(y) {
     else return new Ctor(rm === 3 ? -0 : 0);
     return external ? finalise(y, pr, rm) : y;
   }
-  e = mathfloor(y.e / LOG_BASE);
+  e2 = mathfloor(y.e / LOG_BASE);
   xe = mathfloor(x.e / LOG_BASE);
   xd = xd.slice();
-  k = xe - e;
+  k = xe - e2;
   if (k) {
     xLTy = k < 0;
     if (xLTy) {
-      d = xd;
+      d2 = xd;
       k = -k;
       len = yd.length;
     } else {
-      d = yd;
-      e = xe;
+      d2 = yd;
+      e2 = xe;
       len = xd.length;
     }
     i = Math.max(Math.ceil(pr / LOG_BASE), len) + 2;
     if (k > i) {
       k = i;
-      d.length = 1;
+      d2.length = 1;
     }
-    d.reverse();
-    for (i = k; i--; ) d.push(0);
-    d.reverse();
+    d2.reverse();
+    for (i = k; i--; ) d2.push(0);
+    d2.reverse();
   } else {
     i = xd.length;
     len = yd.length;
@@ -1247,9 +1228,9 @@ P.minus = P.sub = function(y) {
     k = 0;
   }
   if (xLTy) {
-    d = xd;
+    d2 = xd;
     xd = yd;
-    yd = d;
+    yd = d2;
     y.s = -y.s;
   }
   len = xd.length;
@@ -1263,13 +1244,13 @@ P.minus = P.sub = function(y) {
     xd[i] -= yd[i];
   }
   for (; xd[--len] === 0; ) xd.pop();
-  for (; xd[0] === 0; xd.shift()) --e;
+  for (; xd[0] === 0; xd.shift()) --e2;
   if (!xd[0]) return new Ctor(rm === 3 ? -0 : 0);
   y.d = xd;
-  y.e = getBase10Exponent(xd, e);
+  y.e = getBase10Exponent(xd, e2);
   return external ? finalise(y, pr, rm) : y;
 };
-P.modulo = P.mod = function(y) {
+P2.modulo = P2.mod = function(y) {
   var q, x = this, Ctor = x.constructor;
   y = new Ctor(y);
   if (!x.d || !y.s || y.d && !y.d[0]) return new Ctor(NaN);
@@ -1287,19 +1268,19 @@ P.modulo = P.mod = function(y) {
   external = true;
   return x.minus(q);
 };
-P.naturalExponential = P.exp = function() {
+P2.naturalExponential = P2.exp = function() {
   return naturalExponential(this);
 };
-P.naturalLogarithm = P.ln = function() {
+P2.naturalLogarithm = P2.ln = function() {
   return naturalLogarithm(this);
 };
-P.negated = P.neg = function() {
+P2.negated = P2.neg = function() {
   var x = new this.constructor(this);
   x.s = -x.s;
   return finalise(x);
 };
-P.plus = P.add = function(y) {
-  var carry, d, e, i, k, len, pr, rm, xd, yd, x = this, Ctor = x.constructor;
+P2.plus = P2.add = function(y) {
+  var carry, d2, e2, i, k, len, pr, rm, xd, yd, x = this, Ctor = x.constructor;
   y = new Ctor(y);
   if (!x.d || !y.d) {
     if (!x.s || !y.s) y = new Ctor(NaN);
@@ -1319,36 +1300,36 @@ P.plus = P.add = function(y) {
     return external ? finalise(y, pr, rm) : y;
   }
   k = mathfloor(x.e / LOG_BASE);
-  e = mathfloor(y.e / LOG_BASE);
+  e2 = mathfloor(y.e / LOG_BASE);
   xd = xd.slice();
-  i = k - e;
+  i = k - e2;
   if (i) {
     if (i < 0) {
-      d = xd;
+      d2 = xd;
       i = -i;
       len = yd.length;
     } else {
-      d = yd;
-      e = k;
+      d2 = yd;
+      e2 = k;
       len = xd.length;
     }
     k = Math.ceil(pr / LOG_BASE);
     len = k > len ? k + 1 : len + 1;
     if (i > len) {
       i = len;
-      d.length = 1;
+      d2.length = 1;
     }
-    d.reverse();
-    for (; i--; ) d.push(0);
-    d.reverse();
+    d2.reverse();
+    for (; i--; ) d2.push(0);
+    d2.reverse();
   }
   len = xd.length;
   i = yd.length;
   if (len - i < 0) {
     i = len;
-    d = yd;
+    d2 = yd;
     yd = xd;
-    xd = d;
+    xd = d2;
   }
   for (carry = 0; i; ) {
     carry = (xd[--i] = xd[i] + yd[i] + carry) / BASE | 0;
@@ -1356,14 +1337,14 @@ P.plus = P.add = function(y) {
   }
   if (carry) {
     xd.unshift(carry);
-    ++e;
+    ++e2;
   }
   for (len = xd.length; xd[--len] == 0; ) xd.pop();
   y.d = xd;
-  y.e = getBase10Exponent(xd, e);
+  y.e = getBase10Exponent(xd, e2);
   return external ? finalise(y, pr, rm) : y;
 };
-P.precision = P.sd = function(z) {
+P2.precision = P2.sd = function(z) {
   var k, x = this;
   if (z !== void 0 && z !== !!z && z !== 1 && z !== 0) throw Error(invalidArgument + z);
   if (x.d) {
@@ -1374,11 +1355,11 @@ P.precision = P.sd = function(z) {
   }
   return k;
 };
-P.round = function() {
+P2.round = function() {
   var x = this, Ctor = x.constructor;
   return finalise(new Ctor(x), x.e + 1, Ctor.rounding);
 };
-P.sine = P.sin = function() {
+P2.sine = P2.sin = function() {
   var pr, rm, x = this, Ctor = x.constructor;
   if (!x.isFinite()) return new Ctor(NaN);
   if (x.isZero()) return new Ctor(x);
@@ -1391,29 +1372,29 @@ P.sine = P.sin = function() {
   Ctor.rounding = rm;
   return finalise(quadrant > 2 ? x.neg() : x, pr, rm, true);
 };
-P.squareRoot = P.sqrt = function() {
-  var m, n, sd, r, rep, t, x = this, d = x.d, e = x.e, s = x.s, Ctor = x.constructor;
-  if (s !== 1 || !d || !d[0]) {
-    return new Ctor(!s || s < 0 && (!d || d[0]) ? NaN : d ? x : 1 / 0);
+P2.squareRoot = P2.sqrt = function() {
+  var m, n, sd, r, rep, t, x = this, d2 = x.d, e2 = x.e, s = x.s, Ctor = x.constructor;
+  if (s !== 1 || !d2 || !d2[0]) {
+    return new Ctor(!s || s < 0 && (!d2 || d2[0]) ? NaN : d2 ? x : 1 / 0);
   }
   external = false;
   s = Math.sqrt(+x);
   if (s == 0 || s == 1 / 0) {
-    n = digitsToString(d);
-    if ((n.length + e) % 2 == 0) n += "0";
+    n = digitsToString(d2);
+    if ((n.length + e2) % 2 == 0) n += "0";
     s = Math.sqrt(n);
-    e = mathfloor((e + 1) / 2) - (e < 0 || e % 2);
+    e2 = mathfloor((e2 + 1) / 2) - (e2 < 0 || e2 % 2);
     if (s == 1 / 0) {
-      n = "5e" + e;
+      n = "5e" + e2;
     } else {
       n = s.toExponential();
-      n = n.slice(0, n.indexOf("e") + 1) + e;
+      n = n.slice(0, n.indexOf("e") + 1) + e2;
     }
     r = new Ctor(n);
   } else {
     r = new Ctor(s.toString());
   }
-  sd = (e = Ctor.precision) + 3;
+  sd = (e2 = Ctor.precision) + 3;
   for (; ; ) {
     t = r;
     r = t.plus(divide(x, t, sd + 2, 1)).times(0.5);
@@ -1421,7 +1402,7 @@ P.squareRoot = P.sqrt = function() {
       n = n.slice(sd - 3, sd + 1);
       if (n == "9999" || !rep && n == "4999") {
         if (!rep) {
-          finalise(t, e + 1, 0);
+          finalise(t, e2 + 1, 0);
           if (t.times(t).eq(x)) {
             r = t;
             break;
@@ -1431,7 +1412,7 @@ P.squareRoot = P.sqrt = function() {
         rep = 1;
       } else {
         if (!+n || !+n.slice(1) && n.charAt(0) == "5") {
-          finalise(r, e + 1, 1);
+          finalise(r, e2 + 1, 1);
           m = !r.times(r).eq(x);
         }
         break;
@@ -1439,9 +1420,9 @@ P.squareRoot = P.sqrt = function() {
     }
   }
   external = true;
-  return finalise(r, e, Ctor.rounding, m);
+  return finalise(r, e2, Ctor.rounding, m);
 };
-P.tangent = P.tan = function() {
+P2.tangent = P2.tan = function() {
   var pr, rm, x = this, Ctor = x.constructor;
   if (!x.isFinite()) return new Ctor(NaN);
   if (x.isZero()) return new Ctor(x);
@@ -1456,13 +1437,13 @@ P.tangent = P.tan = function() {
   Ctor.rounding = rm;
   return finalise(quadrant == 2 || quadrant == 4 ? x.neg() : x, pr, rm, true);
 };
-P.times = P.mul = function(y) {
-  var carry, e, i, k, r, rL, t, xdL, ydL, x = this, Ctor = x.constructor, xd = x.d, yd = (y = new Ctor(y)).d;
+P2.times = P2.mul = function(y) {
+  var carry, e2, i, k, r, rL, t, xdL, ydL, x = this, Ctor = x.constructor, xd = x.d, yd = (y = new Ctor(y)).d;
   y.s *= x.s;
   if (!xd || !xd[0] || !yd || !yd[0]) {
     return new Ctor(!y.s || xd && !xd[0] && !yd || yd && !yd[0] && !xd ? NaN : !xd || !yd ? y.s / 0 : y.s * 0);
   }
-  e = mathfloor(x.e / LOG_BASE) + mathfloor(y.e / LOG_BASE);
+  e2 = mathfloor(x.e / LOG_BASE) + mathfloor(y.e / LOG_BASE);
   xdL = xd.length;
   ydL = yd.length;
   if (xdL < ydL) {
@@ -1486,16 +1467,16 @@ P.times = P.mul = function(y) {
     r[k] = (r[k] + carry) % BASE | 0;
   }
   for (; !r[--rL]; ) r.pop();
-  if (carry) ++e;
+  if (carry) ++e2;
   else r.shift();
   y.d = r;
-  y.e = getBase10Exponent(r, e);
+  y.e = getBase10Exponent(r, e2);
   return external ? finalise(y, Ctor.precision, Ctor.rounding) : y;
 };
-P.toBinary = function(sd, rm) {
+P2.toBinary = function(sd, rm) {
   return toStringBinary(this, 2, sd, rm);
 };
-P.toDecimalPlaces = P.toDP = function(dp, rm) {
+P2.toDecimalPlaces = P2.toDP = function(dp, rm) {
   var x = this, Ctor = x.constructor;
   x = new Ctor(x);
   if (dp === void 0) return x;
@@ -1504,7 +1485,7 @@ P.toDecimalPlaces = P.toDP = function(dp, rm) {
   else checkInt32(rm, 0, 8);
   return finalise(x, dp + x.e + 1, rm);
 };
-P.toExponential = function(dp, rm) {
+P2.toExponential = function(dp, rm) {
   var str, x = this, Ctor = x.constructor;
   if (dp === void 0) {
     str = finiteToString(x, true);
@@ -1517,7 +1498,7 @@ P.toExponential = function(dp, rm) {
   }
   return x.isNeg() && !x.isZero() ? "-" + str : str;
 };
-P.toFixed = function(dp, rm) {
+P2.toFixed = function(dp, rm) {
   var str, y, x = this, Ctor = x.constructor;
   if (dp === void 0) {
     str = finiteToString(x);
@@ -1530,52 +1511,52 @@ P.toFixed = function(dp, rm) {
   }
   return x.isNeg() && !x.isZero() ? "-" + str : str;
 };
-P.toFraction = function(maxD) {
-  var d, d0, d1, d2, e, k, n, n0, n1, pr, q, r, x = this, xd = x.d, Ctor = x.constructor;
+P2.toFraction = function(maxD) {
+  var d2, d0, d1, d22, e2, k, n, n0, n1, pr, q, r, x = this, xd = x.d, Ctor = x.constructor;
   if (!xd) return new Ctor(x);
   n1 = d0 = new Ctor(1);
   d1 = n0 = new Ctor(0);
-  d = new Ctor(d1);
-  e = d.e = getPrecision(xd) - x.e - 1;
-  k = e % LOG_BASE;
-  d.d[0] = mathpow(10, k < 0 ? LOG_BASE + k : k);
+  d2 = new Ctor(d1);
+  e2 = d2.e = getPrecision(xd) - x.e - 1;
+  k = e2 % LOG_BASE;
+  d2.d[0] = mathpow(10, k < 0 ? LOG_BASE + k : k);
   if (maxD == null) {
-    maxD = e > 0 ? d : n1;
+    maxD = e2 > 0 ? d2 : n1;
   } else {
     n = new Ctor(maxD);
     if (!n.isInt() || n.lt(n1)) throw Error(invalidArgument + n);
-    maxD = n.gt(d) ? e > 0 ? d : n1 : n;
+    maxD = n.gt(d2) ? e2 > 0 ? d2 : n1 : n;
   }
   external = false;
   n = new Ctor(digitsToString(xd));
   pr = Ctor.precision;
-  Ctor.precision = e = xd.length * LOG_BASE * 2;
+  Ctor.precision = e2 = xd.length * LOG_BASE * 2;
   for (; ; ) {
-    q = divide(n, d, 0, 1, 1);
-    d2 = d0.plus(q.times(d1));
-    if (d2.cmp(maxD) == 1) break;
+    q = divide(n, d2, 0, 1, 1);
+    d22 = d0.plus(q.times(d1));
+    if (d22.cmp(maxD) == 1) break;
     d0 = d1;
-    d1 = d2;
-    d2 = n1;
-    n1 = n0.plus(q.times(d2));
-    n0 = d2;
-    d2 = d;
-    d = n.minus(q.times(d2));
-    n = d2;
+    d1 = d22;
+    d22 = n1;
+    n1 = n0.plus(q.times(d22));
+    n0 = d22;
+    d22 = d2;
+    d2 = n.minus(q.times(d22));
+    n = d22;
   }
-  d2 = divide(maxD.minus(d0), d1, 0, 1, 1);
-  n0 = n0.plus(d2.times(n1));
-  d0 = d0.plus(d2.times(d1));
+  d22 = divide(maxD.minus(d0), d1, 0, 1, 1);
+  n0 = n0.plus(d22.times(n1));
+  d0 = d0.plus(d22.times(d1));
   n0.s = n1.s = x.s;
-  r = divide(n1, d1, e, 1).minus(x).abs().cmp(divide(n0, d0, e, 1).minus(x).abs()) < 1 ? [n1, d1] : [n0, d0];
+  r = divide(n1, d1, e2, 1).minus(x).abs().cmp(divide(n0, d0, e2, 1).minus(x).abs()) < 1 ? [n1, d1] : [n0, d0];
   Ctor.precision = pr;
   external = true;
   return r;
 };
-P.toHexadecimal = P.toHex = function(sd, rm) {
+P2.toHexadecimal = P2.toHex = function(sd, rm) {
   return toStringBinary(this, 16, sd, rm);
 };
-P.toNearest = function(y, rm) {
+P2.toNearest = function(y, rm) {
   var x = this, Ctor = x.constructor;
   x = new Ctor(x);
   if (y == null) {
@@ -1606,46 +1587,46 @@ P.toNearest = function(y, rm) {
   }
   return x;
 };
-P.toNumber = function() {
+P2.toNumber = function() {
   return +this;
 };
-P.toOctal = function(sd, rm) {
+P2.toOctal = function(sd, rm) {
   return toStringBinary(this, 8, sd, rm);
 };
-P.toPower = P.pow = function(y) {
-  var e, k, pr, r, rm, s, x = this, Ctor = x.constructor, yn = +(y = new Ctor(y));
+P2.toPower = P2.pow = function(y) {
+  var e2, k, pr, r, rm, s, x = this, Ctor = x.constructor, yn = +(y = new Ctor(y));
   if (!x.d || !y.d || !x.d[0] || !y.d[0]) return new Ctor(mathpow(+x, yn));
   x = new Ctor(x);
   if (x.eq(1)) return x;
   pr = Ctor.precision;
   rm = Ctor.rounding;
   if (y.eq(1)) return finalise(x, pr, rm);
-  e = mathfloor(y.e / LOG_BASE);
-  if (e >= y.d.length - 1 && (k = yn < 0 ? -yn : yn) <= MAX_SAFE_INTEGER) {
+  e2 = mathfloor(y.e / LOG_BASE);
+  if (e2 >= y.d.length - 1 && (k = yn < 0 ? -yn : yn) <= MAX_SAFE_INTEGER) {
     r = intPow(Ctor, x, k, pr);
     return y.s < 0 ? new Ctor(1).div(r) : finalise(r, pr, rm);
   }
   s = x.s;
   if (s < 0) {
-    if (e < y.d.length - 1) return new Ctor(NaN);
-    if ((y.d[e] & 1) == 0) s = 1;
+    if (e2 < y.d.length - 1) return new Ctor(NaN);
+    if ((y.d[e2] & 1) == 0) s = 1;
     if (x.e == 0 && x.d[0] == 1 && x.d.length == 1) {
       x.s = s;
       return x;
     }
   }
   k = mathpow(+x, yn);
-  e = k == 0 || !isFinite(k) ? mathfloor(yn * (Math.log("0." + digitsToString(x.d)) / Math.LN10 + x.e + 1)) : new Ctor(k + "").e;
-  if (e > Ctor.maxE + 1 || e < Ctor.minE - 1) return new Ctor(e > 0 ? s / 0 : 0);
+  e2 = k == 0 || !isFinite(k) ? mathfloor(yn * (Math.log("0." + digitsToString(x.d)) / Math.LN10 + x.e + 1)) : new Ctor(k + "").e;
+  if (e2 > Ctor.maxE + 1 || e2 < Ctor.minE - 1) return new Ctor(e2 > 0 ? s / 0 : 0);
   external = false;
   Ctor.rounding = x.s = 1;
-  k = Math.min(12, (e + "").length);
+  k = Math.min(12, (e2 + "").length);
   r = naturalExponential(y.times(naturalLogarithm(x, pr + k)), pr);
   if (r.d) {
     r = finalise(r, pr + 5, 1);
     if (checkRoundingDigits(r.d, pr, rm)) {
-      e = pr + 10;
-      r = finalise(naturalExponential(y.times(naturalLogarithm(x, e + k)), e), e + 5, 1);
+      e2 = pr + 10;
+      r = finalise(naturalExponential(y.times(naturalLogarithm(x, e2 + k)), e2), e2 + 5, 1);
       if (+digitsToString(r.d).slice(pr + 1, pr + 15) + 1 == 1e14) {
         r = finalise(r, pr + 1, 0);
       }
@@ -1656,7 +1637,7 @@ P.toPower = P.pow = function(y) {
   Ctor.rounding = rm;
   return finalise(r, pr, rm);
 };
-P.toPrecision = function(sd, rm) {
+P2.toPrecision = function(sd, rm) {
   var str, x = this, Ctor = x.constructor;
   if (sd === void 0) {
     str = finiteToString(x, x.e <= Ctor.toExpNeg || x.e >= Ctor.toExpPos);
@@ -1669,7 +1650,7 @@ P.toPrecision = function(sd, rm) {
   }
   return x.isNeg() && !x.isZero() ? "-" + str : str;
 };
-P.toSignificantDigits = P.toSD = function(sd, rm) {
+P2.toSignificantDigits = P2.toSD = function(sd, rm) {
   var x = this, Ctor = x.constructor;
   if (sd === void 0) {
     sd = Ctor.precision;
@@ -1681,28 +1662,28 @@ P.toSignificantDigits = P.toSD = function(sd, rm) {
   }
   return finalise(new Ctor(x), sd, rm);
 };
-P.toString = function() {
+P2.toString = function() {
   var x = this, Ctor = x.constructor, str = finiteToString(x, x.e <= Ctor.toExpNeg || x.e >= Ctor.toExpPos);
   return x.isNeg() && !x.isZero() ? "-" + str : str;
 };
-P.truncated = P.trunc = function() {
+P2.truncated = P2.trunc = function() {
   return finalise(new this.constructor(this), this.e + 1, 1);
 };
-P.valueOf = P.toJSON = function() {
+P2.valueOf = P2.toJSON = function() {
   var x = this, Ctor = x.constructor, str = finiteToString(x, x.e <= Ctor.toExpNeg || x.e >= Ctor.toExpPos);
   return x.isNeg() ? "-" + str : str;
 };
-function digitsToString(d) {
-  var i, k, ws, indexOfLastWord = d.length - 1, str = "", w = d[0];
+function digitsToString(d2) {
+  var i, k, ws, indexOfLastWord = d2.length - 1, str = "", w = d2[0];
   if (indexOfLastWord > 0) {
     str += w;
     for (i = 1; i < indexOfLastWord; i++) {
-      ws = d[i] + "";
+      ws = d2[i] + "";
       k = LOG_BASE - ws.length;
       if (k) str += getZeroString(k);
       str += ws;
     }
-    w = d[i];
+    w = d2[i];
     ws = w + "";
     k = LOG_BASE - ws.length;
     if (k) str += getZeroString(k);
@@ -1717,9 +1698,9 @@ function checkInt32(i, min2, max2) {
     throw Error(invalidArgument + i);
   }
 }
-function checkRoundingDigits(d, i, rm, repeating) {
+function checkRoundingDigits(d2, i, rm, repeating) {
   var di, k, r, rd;
-  for (k = d[0]; k >= 10; k /= 10) --i;
+  for (k = d2[0]; k >= 10; k /= 10) --i;
   if (--i < 0) {
     i += LOG_BASE;
     di = 0;
@@ -1728,14 +1709,14 @@ function checkRoundingDigits(d, i, rm, repeating) {
     i %= LOG_BASE;
   }
   k = mathpow(10, LOG_BASE - i);
-  rd = d[di] % k | 0;
+  rd = d2[di] % k | 0;
   if (repeating == null) {
     if (i < 3) {
       if (i == 0) rd = rd / 100 | 0;
       else if (i == 1) rd = rd / 10 | 0;
       r = rm < 4 && rd == 99999 || rm > 3 && rd == 49999 || rd == 5e4 || rd == 0;
     } else {
-      r = (rm < 4 && rd + 1 == k || rm > 3 && rd + 1 == k / 2) && (d[di + 1] / k / 100 | 0) == mathpow(10, i - 2) - 1 || (rd == k / 2 || rd == 0) && (d[di + 1] / k / 100 | 0) == 0;
+      r = (rm < 4 && rd + 1 == k || rm > 3 && rd + 1 == k / 2) && (d2[di + 1] / k / 100 | 0) == mathpow(10, i - 2) - 1 || (rd == k / 2 || rd == 0) && (d2[di + 1] / k / 100 | 0) == 0;
     }
   } else {
     if (i < 4) {
@@ -1744,7 +1725,7 @@ function checkRoundingDigits(d, i, rm, repeating) {
       else if (i == 2) rd = rd / 10 | 0;
       r = (repeating || rm < 4) && rd == 9999 || !repeating && rm > 3 && rd == 4999;
     } else {
-      r = ((repeating || rm < 4) && rd + 1 == k || !repeating && rm > 3 && rd + 1 == k / 2) && (d[di + 1] / k / 1e3 | 0) == mathpow(10, i - 3) - 1;
+      r = ((repeating || rm < 4) && rd + 1 == k || !repeating && rm > 3 && rd + 1 == k / 2) && (d2[di + 1] / k / 1e3 | 0) == mathpow(10, i - 3) - 1;
     }
   }
   return r;
@@ -1795,31 +1776,31 @@ var divide = /* @__PURE__ */ function() {
     if (carry) x.unshift(carry);
     return x;
   }
-  function compare(a2, b, aL, bL) {
+  function compare(a2, b2, aL, bL) {
     var i, r;
     if (aL != bL) {
       r = aL > bL ? 1 : -1;
     } else {
       for (i = r = 0; i < aL; i++) {
-        if (a2[i] != b[i]) {
-          r = a2[i] > b[i] ? 1 : -1;
+        if (a2[i] != b2[i]) {
+          r = a2[i] > b2[i] ? 1 : -1;
           break;
         }
       }
     }
     return r;
   }
-  function subtract(a2, b, aL, base) {
+  function subtract(a2, b2, aL, base) {
     var i = 0;
     for (; aL--; ) {
       a2[aL] -= i;
-      i = a2[aL] < b[aL] ? 1 : 0;
-      a2[aL] = i * base + a2[aL] - b[aL];
+      i = a2[aL] < b2[aL] ? 1 : 0;
+      a2[aL] = i * base + a2[aL] - b2[aL];
     }
     for (; !a2[0] && a2.length > 1; ) a2.shift();
   }
   return function(x, y, pr, rm, dp, base) {
-    var cmp, e, i, k, logBase, more, prod, prodL, q, qd, rem, remL, rem0, sd, t, xi, xL, yd0, yL, yz, Ctor = x.constructor, sign2 = x.s == y.s ? 1 : -1, xd = x.d, yd = y.d;
+    var cmp, e2, i, k, logBase, more, prod, prodL, q, qd, rem, remL, rem0, sd, t, xi, xL, yd0, yL, yz, Ctor = x.constructor, sign2 = x.s == y.s ? 1 : -1, xd = x.d, yd = y.d;
     if (!xd || !xd[0] || !yd || !yd[0]) {
       return new Ctor(
         // Return NaN if either NaN, or both Infinity or 0.
@@ -1831,18 +1812,18 @@ var divide = /* @__PURE__ */ function() {
     }
     if (base) {
       logBase = 1;
-      e = x.e - y.e;
+      e2 = x.e - y.e;
     } else {
       base = BASE;
       logBase = LOG_BASE;
-      e = mathfloor(x.e / logBase) - mathfloor(y.e / logBase);
+      e2 = mathfloor(x.e / logBase) - mathfloor(y.e / logBase);
     }
     yL = yd.length;
     xL = xd.length;
     q = new Ctor(sign2);
     qd = q.d = [];
     for (i = 0; yd[i] == (xd[i] || 0); i++) ;
-    if (yd[i] > (xd[i] || 0)) e--;
+    if (yd[i] > (xd[i] || 0)) e2--;
     if (pr == null) {
       sd = pr = Ctor.precision;
       rm = Ctor.rounding;
@@ -1933,11 +1914,11 @@ var divide = /* @__PURE__ */ function() {
       if (!qd[0]) qd.shift();
     }
     if (logBase == 1) {
-      q.e = e;
+      q.e = e2;
       inexact = more;
     } else {
       for (i = 1, k = qd[0]; k >= 10; k /= 10) i++;
-      q.e = i + e * logBase - 1;
+      q.e = i + e2 * logBase - 1;
       finalise(q, dp ? pr + q.e + 1 : pr, rm, more);
     }
     return q;
@@ -2033,7 +2014,7 @@ function finalise(x, sd, rm, isTruncated) {
 }
 function finiteToString(x, isExp, sd) {
   if (!x.isFinite()) return nonFiniteToString(x);
-  var k, e = x.e, str = digitsToString(x.d), len = str.length;
+  var k, e2 = x.e, str = digitsToString(x.d), len = str.length;
   if (isExp) {
     if (sd && (k = sd - len) > 0) {
       str = str.charAt(0) + "." + str.slice(1) + getZeroString(k);
@@ -2041,25 +2022,25 @@ function finiteToString(x, isExp, sd) {
       str = str.charAt(0) + "." + str.slice(1);
     }
     str = str + (x.e < 0 ? "e" : "e+") + x.e;
-  } else if (e < 0) {
-    str = "0." + getZeroString(-e - 1) + str;
+  } else if (e2 < 0) {
+    str = "0." + getZeroString(-e2 - 1) + str;
     if (sd && (k = sd - len) > 0) str += getZeroString(k);
-  } else if (e >= len) {
-    str += getZeroString(e + 1 - len);
-    if (sd && (k = sd - e - 1) > 0) str = str + "." + getZeroString(k);
+  } else if (e2 >= len) {
+    str += getZeroString(e2 + 1 - len);
+    if (sd && (k = sd - e2 - 1) > 0) str = str + "." + getZeroString(k);
   } else {
-    if ((k = e + 1) < len) str = str.slice(0, k) + "." + str.slice(k);
+    if ((k = e2 + 1) < len) str = str.slice(0, k) + "." + str.slice(k);
     if (sd && (k = sd - len) > 0) {
-      if (e + 1 === len) str += ".";
+      if (e2 + 1 === len) str += ".";
       str += getZeroString(k);
     }
   }
   return str;
 }
-function getBase10Exponent(digits, e) {
+function getBase10Exponent(digits, e2) {
   var w = digits[0];
-  for (e *= LOG_BASE; w >= 10; w /= 10) e++;
-  return e;
+  for (e2 *= LOG_BASE; w >= 10; w /= 10) e2++;
+  return e2;
 }
 function getLn10(Ctor, sd, pr) {
   if (sd > LN10_PRECISION) {
@@ -2170,7 +2151,7 @@ function naturalExponential(x, sd) {
   }
 }
 function naturalLogarithm(y, sd) {
-  var c, c0, denominator, e, numerator, rep, sum2, t, wpr, x1, x2, n = 1, guard = 10, x = y, xd = x.d, Ctor = x.constructor, rm = Ctor.rounding, pr = Ctor.precision;
+  var c2, c0, denominator, e2, numerator, rep, sum2, t, wpr, x1, x2, n = 1, guard = 10, x = y, xd = x.d, Ctor = x.constructor, rm = Ctor.rounding, pr = Ctor.precision;
   if (x.s < 0 || !xd || !xd[0] || !x.e && xd[0] == 1 && xd.length == 1) {
     return new Ctor(xd && !xd[0] ? -1 / 0 : x.s != 1 ? NaN : xd ? 0 : x);
   }
@@ -2181,25 +2162,25 @@ function naturalLogarithm(y, sd) {
     wpr = sd;
   }
   Ctor.precision = wpr += guard;
-  c = digitsToString(xd);
-  c0 = c.charAt(0);
-  if (Math.abs(e = x.e) < 15e14) {
-    while (c0 < 7 && c0 != 1 || c0 == 1 && c.charAt(1) > 3) {
+  c2 = digitsToString(xd);
+  c0 = c2.charAt(0);
+  if (Math.abs(e2 = x.e) < 15e14) {
+    while (c0 < 7 && c0 != 1 || c0 == 1 && c2.charAt(1) > 3) {
       x = x.times(y);
-      c = digitsToString(x.d);
-      c0 = c.charAt(0);
+      c2 = digitsToString(x.d);
+      c0 = c2.charAt(0);
       n++;
     }
-    e = x.e;
+    e2 = x.e;
     if (c0 > 1) {
-      x = new Ctor("0." + c);
-      e++;
+      x = new Ctor("0." + c2);
+      e2++;
     } else {
-      x = new Ctor(c0 + "." + c.slice(1));
+      x = new Ctor(c0 + "." + c2.slice(1));
     }
   } else {
-    t = getLn10(Ctor, wpr + 2, pr).times(e + "");
-    x = naturalLogarithm(new Ctor(c0 + "." + c.slice(1)), wpr - guard).plus(t);
+    t = getLn10(Ctor, wpr + 2, pr).times(e2 + "");
+    x = naturalLogarithm(new Ctor(c0 + "." + c2.slice(1)), wpr - guard).plus(t);
     Ctor.precision = pr;
     return sd == null ? finalise(x, pr, rm, external = true) : x;
   }
@@ -2212,7 +2193,7 @@ function naturalLogarithm(y, sd) {
     t = sum2.plus(divide(numerator, new Ctor(denominator), wpr, 1));
     if (digitsToString(t.d).slice(0, wpr) === digitsToString(sum2.d).slice(0, wpr)) {
       sum2 = sum2.times(2);
-      if (e !== 0) sum2 = sum2.plus(getLn10(Ctor, wpr + 2, pr).times(e + ""));
+      if (e2 !== 0) sum2 = sum2.plus(getLn10(Ctor, wpr + 2, pr).times(e2 + ""));
       sum2 = divide(sum2, new Ctor(n), wpr, 1);
       if (sd == null) {
         if (checkRoundingDigits(sum2.d, wpr - guard, rm, rep)) {
@@ -2236,24 +2217,24 @@ function nonFiniteToString(x) {
   return String(x.s * x.s / 0);
 }
 function parseDecimal(x, str) {
-  var e, i, len;
-  if ((e = str.indexOf(".")) > -1) str = str.replace(".", "");
+  var e2, i, len;
+  if ((e2 = str.indexOf(".")) > -1) str = str.replace(".", "");
   if ((i = str.search(/e/i)) > 0) {
-    if (e < 0) e = i;
-    e += +str.slice(i + 1);
+    if (e2 < 0) e2 = i;
+    e2 += +str.slice(i + 1);
     str = str.substring(0, i);
-  } else if (e < 0) {
-    e = str.length;
+  } else if (e2 < 0) {
+    e2 = str.length;
   }
   for (i = 0; str.charCodeAt(i) === 48; i++) ;
   for (len = str.length; str.charCodeAt(len - 1) === 48; --len) ;
   str = str.slice(i, len);
   if (str) {
     len -= i;
-    x.e = e = e - i - 1;
+    x.e = e2 = e2 - i - 1;
     x.d = [];
-    i = (e + 1) % LOG_BASE;
-    if (e < 0) i += LOG_BASE;
+    i = (e2 + 1) % LOG_BASE;
+    if (e2 < 0) i += LOG_BASE;
     if (i < len) {
       if (i) x.d.push(+str.slice(0, i));
       for (len -= LOG_BASE; i < len; ) x.d.push(+str.slice(i, i += LOG_BASE));
@@ -2367,9 +2348,9 @@ function taylorSeries(Ctor, n, x, y, isHyperbolic) {
   t.d.length = k + 1;
   return t;
 }
-function tinyPow(b, e) {
-  var n = b;
-  while (--e) n *= b;
+function tinyPow(b2, e2) {
+  var n = b2;
+  while (--e2) n *= b2;
   return n;
 }
 function toLessThanHalfPi(Ctor, x) {
@@ -2393,7 +2374,7 @@ function toLessThanHalfPi(Ctor, x) {
   return x.minus(pi).abs();
 }
 function toStringBinary(x, baseOut, sd, rm) {
-  var base, e, i, k, len, roundUp, str, xd, y, Ctor = x.constructor, isExp = sd !== void 0;
+  var base, e2, i, k, len, roundUp, str, xd, y, Ctor = x.constructor, isExp = sd !== void 0;
   if (isExp) {
     checkInt32(sd, 1, MAX_DIGITS);
     if (rm === void 0) rm = Ctor.rounding;
@@ -2425,20 +2406,20 @@ function toStringBinary(x, baseOut, sd, rm) {
       y.e = y.d.length;
     }
     xd = convertBase(str, 10, base);
-    e = len = xd.length;
+    e2 = len = xd.length;
     for (; xd[--len] == 0; ) xd.pop();
     if (!xd[0]) {
       str = isExp ? "0p+0" : "0";
     } else {
       if (i < 0) {
-        e--;
+        e2--;
       } else {
         x = new Ctor(x);
         x.d = xd;
-        x.e = e;
+        x.e = e2;
         x = divide(x, y, sd, rm, 0, base);
         xd = x.d;
-        e = x.e;
+        e2 = x.e;
         roundUp = inexact;
       }
       i = xd[sd];
@@ -2450,7 +2431,7 @@ function toStringBinary(x, baseOut, sd, rm) {
         for (; ++xd[--sd] > base - 1; ) {
           xd[sd] = 0;
           if (!sd) {
-            ++e;
+            ++e2;
             xd.unshift(1);
           }
         }
@@ -2469,13 +2450,13 @@ function toStringBinary(x, baseOut, sd, rm) {
             str = str.charAt(0) + "." + str.slice(1);
           }
         }
-        str = str + (e < 0 ? "p" : "p+") + e;
-      } else if (e < 0) {
-        for (; ++e; ) str = "0" + str;
+        str = str + (e2 < 0 ? "p" : "p+") + e2;
+      } else if (e2 < 0) {
+        for (; ++e2; ) str = "0" + str;
         str = "0." + str;
       } else {
-        if (++e > len) for (e -= len; e--; ) str += "0";
-        else if (e < len) str = str.slice(0, e) + "." + str.slice(e);
+        if (++e2 > len) for (e2 -= len; e2--; ) str += "0";
+        else if (e2 < len) str = str.slice(0, e2) + "." + str.slice(e2);
       }
     }
     str = (baseOut == 16 ? "0x" : baseOut == 2 ? "0b" : baseOut == 8 ? "0o" : "") + str;
@@ -2608,7 +2589,7 @@ function cosh(x) {
 function clone(obj) {
   var i, p, ps;
   function Decimal2(v) {
-    var e, i2, t, x = this;
+    var e2, i2, t, x = this;
     if (!(x instanceof Decimal2)) return new Decimal2(v);
     x.constructor = Decimal2;
     if (isDecimalInstance(v)) {
@@ -2645,20 +2626,20 @@ function clone(obj) {
         x.s = 1;
       }
       if (v === ~~v && v < 1e7) {
-        for (e = 0, i2 = v; i2 >= 10; i2 /= 10) e++;
+        for (e2 = 0, i2 = v; i2 >= 10; i2 /= 10) e2++;
         if (external) {
-          if (e > Decimal2.maxE) {
+          if (e2 > Decimal2.maxE) {
             x.e = NaN;
             x.d = null;
-          } else if (e < Decimal2.minE) {
+          } else if (e2 < Decimal2.minE) {
             x.e = 0;
             x.d = [0];
           } else {
-            x.e = e;
+            x.e = e2;
             x.d = [v];
           }
         } else {
-          x.e = e;
+          x.e = e2;
           x.d = [v];
         }
         return;
@@ -2692,7 +2673,7 @@ function clone(obj) {
     }
     throw Error(invalidArgument + v);
   }
-  Decimal2.prototype = P;
+  Decimal2.prototype = P2;
   Decimal2.ROUND_UP = 0;
   Decimal2.ROUND_DOWN = 1;
   Decimal2.ROUND_CEIL = 2;
@@ -2812,28 +2793,28 @@ function pow(x, y) {
   return new this(x).pow(y);
 }
 function random(sd) {
-  var d, e, k, n, i = 0, r = new this(1), rd = [];
+  var d2, e2, k, n, i = 0, r = new this(1), rd = [];
   if (sd === void 0) sd = this.precision;
   else checkInt32(sd, 1, MAX_DIGITS);
   k = Math.ceil(sd / LOG_BASE);
   if (!this.crypto) {
     for (; i < k; ) rd[i++] = Math.random() * 1e7 | 0;
   } else if (crypto.getRandomValues) {
-    d = crypto.getRandomValues(new Uint32Array(k));
+    d2 = crypto.getRandomValues(new Uint32Array(k));
     for (; i < k; ) {
-      n = d[i];
+      n = d2[i];
       if (n >= 429e7) {
-        d[i] = crypto.getRandomValues(new Uint32Array(1))[0];
+        d2[i] = crypto.getRandomValues(new Uint32Array(1))[0];
       } else {
         rd[i++] = n % 1e7;
       }
     }
   } else if (crypto.randomBytes) {
-    d = crypto.randomBytes(k *= 4);
+    d2 = crypto.randomBytes(k *= 4);
     for (; i < k; ) {
-      n = d[i] + (d[i + 1] << 8) + (d[i + 2] << 16) + ((d[i + 3] & 127) << 24);
+      n = d2[i] + (d2[i + 1] << 8) + (d2[i + 2] << 16) + ((d2[i + 3] & 127) << 24);
       if (n >= 214e7) {
-        crypto.randomBytes(4).copy(d, i);
+        crypto.randomBytes(4).copy(d2, i);
       } else {
         rd.push(n % 1e7);
         i += 4;
@@ -2851,15 +2832,15 @@ function random(sd) {
   }
   for (; rd[i] === 0; i--) rd.pop();
   if (i < 0) {
-    e = 0;
+    e2 = 0;
     rd = [0];
   } else {
-    e = -1;
-    for (; rd[0] === 0; e -= LOG_BASE) rd.shift();
+    e2 = -1;
+    for (; rd[0] === 0; e2 -= LOG_BASE) rd.shift();
     for (k = 1, n = rd[0]; n >= 10; n /= 10) k++;
-    if (k < LOG_BASE) e -= LOG_BASE - k;
+    if (k < LOG_BASE) e2 -= LOG_BASE - k;
   }
-  r.e = e;
+  r.e = e2;
   r.d = rd;
   return r;
 }
@@ -2898,9 +2879,9 @@ function tanh(x) {
 function trunc(x) {
   return finalise(x = new this(x), x.e + 1, 1);
 }
-P[Symbol.for("nodejs.util.inspect.custom")] = P.toString;
-P[Symbol.toStringTag] = "Decimal";
-var Decimal = P.constructor = clone(DEFAULTS);
+P2[Symbol.for("nodejs.util.inspect.custom")] = P2.toString;
+P2[Symbol.toStringTag] = "Decimal";
+var Decimal = P2.constructor = clone(DEFAULTS);
 LN10 = new Decimal(LN10);
 PI = new Decimal(PI);
 var BigNumberishUtils;
@@ -2964,28 +2945,28 @@ var BigNumberishUtils;
     }
   }
   BigNumberishUtils2.toNumberSafe = toNumberSafe;
-  function add2(a2, b) {
-    return toBigInt(a2) + toBigInt(b);
+  function add2(a2, b2) {
+    return toBigInt(a2) + toBigInt(b2);
   }
   BigNumberishUtils2.add = add2;
-  function subtract(a2, b) {
-    return toBigInt(a2) - toBigInt(b);
+  function subtract(a2, b2) {
+    return toBigInt(a2) - toBigInt(b2);
   }
   BigNumberishUtils2.subtract = subtract;
-  function multiply(a2, b) {
-    return toBigInt(a2) * toBigInt(b);
+  function multiply(a2, b2) {
+    return toBigInt(a2) * toBigInt(b2);
   }
   BigNumberishUtils2.multiply = multiply;
-  function divide2(a2, b) {
-    const bBigInt = toBigInt(b);
+  function divide2(a2, b2) {
+    const bBigInt = toBigInt(b2);
     if (bBigInt === 0n) {
       throw new Error("Division by zero");
     }
     return toBigInt(a2) / bBigInt;
   }
   BigNumberishUtils2.divide = divide2;
-  function mod2(a2, b) {
-    const bBigInt = toBigInt(b);
+  function mod2(a2, b2) {
+    const bBigInt = toBigInt(b2);
     if (bBigInt === 0n) {
       throw new Error("Modulo by zero");
     }
@@ -3001,15 +2982,15 @@ var BigNumberishUtils;
     return bigIntValue < 0n ? -bigIntValue : bigIntValue;
   }
   BigNumberishUtils2.abs = abs2;
-  function min2(a2, b) {
+  function min2(a2, b2) {
     const aBigInt = toBigInt(a2);
-    const bBigInt = toBigInt(b);
+    const bBigInt = toBigInt(b2);
     return aBigInt < bBigInt ? aBigInt : bBigInt;
   }
   BigNumberishUtils2.min = min2;
-  function max2(a2, b) {
+  function max2(a2, b2) {
     const aBigInt = toBigInt(a2);
-    const bBigInt = toBigInt(b);
+    const bBigInt = toBigInt(b2);
     return aBigInt > bBigInt ? aBigInt : bBigInt;
   }
   BigNumberishUtils2.max = max2;
@@ -3037,51 +3018,51 @@ var BigNumberishUtils;
     }
   }
   BigNumberishUtils2.isPositive = isPositive;
-  function compare(a2, b) {
+  function compare(a2, b2) {
     const aBigInt = toBigInt(a2);
-    const bBigInt = toBigInt(b);
+    const bBigInt = toBigInt(b2);
     if (aBigInt < bBigInt) return -1;
     if (aBigInt > bBigInt) return 1;
     return 0;
   }
   BigNumberishUtils2.compare = compare;
-  function compareSafe(a2, b) {
+  function compareSafe(a2, b2) {
     try {
       if (a2 === void 0 || a2 === null) {
-        if (b === void 0 || b === null) return 0;
+        if (b2 === void 0 || b2 === null) return 0;
         return -1;
       }
-      if (b === void 0 || b === null) {
+      if (b2 === void 0 || b2 === null) {
         return 1;
       }
-      return compare(a2, b);
+      return compare(a2, b2);
     } catch {
       return 0;
     }
   }
   BigNumberishUtils2.compareSafe = compareSafe;
-  function equals(a2, b) {
+  function equals(a2, b2) {
     try {
-      return toBigInt(a2) === toBigInt(b);
+      return toBigInt(a2) === toBigInt(b2);
     } catch {
       return false;
     }
   }
   BigNumberishUtils2.equals = equals;
-  function lt(a2, b) {
-    return toBigInt(a2) < toBigInt(b);
+  function lt(a2, b2) {
+    return toBigInt(a2) < toBigInt(b2);
   }
   BigNumberishUtils2.lt = lt;
-  function lte(a2, b) {
-    return toBigInt(a2) <= toBigInt(b);
+  function lte(a2, b2) {
+    return toBigInt(a2) <= toBigInt(b2);
   }
   BigNumberishUtils2.lte = lte;
-  function gt(a2, b) {
-    return toBigInt(a2) > toBigInt(b);
+  function gt(a2, b2) {
+    return toBigInt(a2) > toBigInt(b2);
   }
   BigNumberishUtils2.gt = gt;
-  function gte(a2, b) {
-    return toBigInt(a2) >= toBigInt(b);
+  function gte(a2, b2) {
+    return toBigInt(a2) >= toBigInt(b2);
   }
   BigNumberishUtils2.gte = gte;
   function format(value, decimals = 18) {
@@ -3161,9 +3142,9 @@ function getSafeUUID() {
   if (typeof crypto?.randomUUID === "function") {
     return crypto.randomUUID();
   }
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c2) => {
     const r = Math.random() * 16 | 0;
-    const v = c === "x" ? r : r & 3 | 8;
+    const v = c2 === "x" ? r : r & 3 | 8;
     return v.toString(16);
   });
 }
@@ -3479,15 +3460,15 @@ function formatTimestamp(timestamp, {
       return placeholder;
     }
     return new Intl.DateTimeFormat(locale, options).format(date);
-  } catch (e) {
-    console.error("Error formatting timestamp:", e);
+  } catch (e2) {
+    console.error("Error formatting timestamp:", e2);
     return placeholder;
   }
 }
 function getRelativeTime(date, locale = "en-US") {
   const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
-  const d = typeof date === "object" ? date : new Date(date);
-  const diff = (d.getTime() - Date.now()) / 1e3;
+  const d2 = typeof date === "object" ? date : new Date(date);
+  const diff = (d2.getTime() - Date.now()) / 1e3;
   const units = [
     { unit: "year", seconds: 31536e3 },
     { unit: "month", seconds: 2592e3 },
@@ -3506,30 +3487,30 @@ function getRelativeTime(date, locale = "en-US") {
   return rtf.format(0, "second");
 }
 function isToday(date) {
-  const d = typeof date === "object" ? date : new Date(date);
+  const d2 = typeof date === "object" ? date : new Date(date);
   const today = /* @__PURE__ */ new Date();
-  return d.toDateString() === today.toDateString();
+  return d2.toDateString() === today.toDateString();
 }
 function isYesterday(date) {
-  const d = typeof date === "object" ? date : new Date(date);
+  const d2 = typeof date === "object" ? date : new Date(date);
   const yesterday = /* @__PURE__ */ new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  return d.toDateString() === yesterday.toDateString();
+  return d2.toDateString() === yesterday.toDateString();
 }
 function addDays(date, days) {
-  const d = typeof date === "object" ? new Date(date) : new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
+  const d2 = typeof date === "object" ? new Date(date) : new Date(date);
+  d2.setDate(d2.getDate() + days);
+  return d2;
 }
 function startOfDay(date) {
-  const d = typeof date === "object" ? new Date(date) : new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  const d2 = typeof date === "object" ? new Date(date) : new Date(date);
+  d2.setHours(0, 0, 0, 0);
+  return d2;
 }
 function endOfDay(date) {
-  const d = typeof date === "object" ? new Date(date) : new Date(date);
-  d.setHours(23, 59, 59, 999);
-  return d;
+  const d2 = typeof date === "object" ? new Date(date) : new Date(date);
+  d2.setHours(23, 59, 59, 999);
+  return d2;
 }
 class RateLimiter {
   constructor(config2) {
@@ -5472,6 +5453,358 @@ const globalServiceFactory = createServiceFactory({
   healthCheckInterval: 6e4
   // 1 minute
 });
+class EVMKeyManager {
+  async createRandomAccount(options) {
+    const wallet = ethers.Wallet.createRandom();
+    return {
+      address: wallet.address,
+      publicKey: wallet.publicKey,
+      privateKey: wallet.privateKey,
+      path: wallet.mnemonic?.path,
+      chainType: ChainType.EVM
+    };
+  }
+  async importFromPrivateKey(privateKey, _options) {
+    const wallet = new ethers.Wallet(privateKey);
+    return {
+      address: wallet.address,
+      publicKey: wallet.publicKey,
+      privateKey: wallet.privateKey,
+      chainType: ChainType.EVM
+    };
+  }
+  async importFromMnemonic(mnemonic, options) {
+    const path = options.path ?? ethers.utils.defaultPath;
+    const wallet = ethers.Wallet.fromMnemonic(mnemonic, path);
+    return {
+      address: wallet.address,
+      publicKey: wallet.publicKey,
+      privateKey: wallet.privateKey,
+      path,
+      chainType: ChainType.EVM
+    };
+  }
+  async importFromSeed(_seed, _options) {
+    throw new Error("importFromSeed not implemented for EVM yet");
+  }
+  async deriveAccount(parent, index) {
+    if (!parent.privateKey && !parent.path) {
+      throw new Error("Cannot derive without mnemonic/path in this transitional implementation");
+    }
+    if (parent.privateKey) {
+      const wallet = new ethers.Wallet(parent.privateKey);
+      return {
+        address: wallet.address,
+        publicKey: wallet.publicKey,
+        privateKey: wallet.privateKey,
+        chainType: ChainType.EVM,
+        meta: { note: "derivation not implemented; returned same key", index }
+      };
+    }
+    throw new Error("Derivation from mnemonic not implemented yet");
+  }
+}
+class EVMSigner {
+  chain() {
+    return ChainType.EVM;
+  }
+  async signMessage(privateKeyHex, message) {
+    const pk = privateKeyHex.startsWith("0x") ? privateKeyHex : "0x" + privateKeyHex;
+    const wallet = new ethers.Wallet(pk);
+    return wallet.signMessage(message);
+  }
+}
+class BitcoinKeyManager {
+  async libs() {
+    const secp = await import("./index-DJp6qroY.mjs");
+    const { sha256 } = await import("./sha256-CgIlTzr1.mjs");
+    const { ripemd160 } = await import("./ripemd160-C1bGX7cg.mjs");
+    const { hexToBytes, bytesToHex } = await import("./utils-DOvC7oEF.mjs").then((n) => n.d);
+    const bip39 = await import("./index-dq9b1K3y.mjs");
+    const bip32 = await import("./index-DEGopolQ.mjs");
+    const wl = await import("./english-DgimtB_l.mjs");
+    const bs58check = await import("./index-BVOXA25c.mjs").then((n) => n.i);
+    const bech32 = await import("./index-CBo8TOrS.mjs").then((n) => n.i);
+    return { secp, sha256, ripemd160, hexToBytes, bytesToHex, bip39, bip32, wl, bs58check, bech32 };
+  }
+  hash160(bytes, sha256, ripemd160) {
+    return ripemd160(sha256(bytes));
+  }
+  pubkeyCreate(secp, privKey, compressed = true) {
+    return secp.getPublicKey(privKey, compressed);
+  }
+  p2pkhAddress(pubkey, sha256, ripemd160, bs58check, version = 0) {
+    const h160 = this.hash160(pubkey, sha256, ripemd160);
+    const payload = new Uint8Array(h160.length + 1);
+    payload[0] = version;
+    payload.set(h160, 1);
+    const buf = Buffer.from(payload);
+    return bs58check.default.encode(buf);
+  }
+  p2wpkhAddress(pubkey, sha256, ripemd160, bech32, hrp = "bc") {
+    const h160 = this.hash160(pubkey, sha256, ripemd160);
+    const words = bech32.bech32.toWords(h160);
+    return bech32.bech32.encode(hrp, [0, ...words]);
+  }
+  p2trAddress(pubkey, bech32, hrp = "bc") {
+    const xonly = pubkey.length === 33 ? pubkey.slice(1) : pubkey;
+    const words = bech32.bech32m.toWords(xonly);
+    return bech32.bech32m.encode(hrp, [1, ...words]);
+  }
+  p2wshAddress(pubkey, sha256, ripemd160, bech32, hrp = "bc") {
+    const h160 = this.hash160(pubkey, sha256, ripemd160);
+    const script = new Uint8Array(1 + 1 + 1 + h160.length + 1 + 1);
+    script[0] = 118;
+    script[1] = 169;
+    script[2] = 20;
+    script.set(h160, 3);
+    script[3 + h160.length] = 136;
+    script[4 + h160.length] = 172;
+    const prog = sha256(script);
+    const words = bech32.bech32.toWords(prog);
+    return bech32.bech32.encode(hrp, [0, ...words]);
+  }
+  purposeFromPath(path) {
+    if (!path) return null;
+    const parts = path.split("/");
+    if (parts.length < 2) return null;
+    const seg = parts[1];
+    const hardened = seg.endsWith("'") ? seg.slice(0, -1) : seg;
+    const num = parseInt(hardened, 10);
+    return Number.isNaN(num) ? null : num;
+  }
+  async createRandomAccount(options) {
+    const { bip39, wl } = await this.libs();
+    const mnemonic = bip39.generateMnemonic(wl.wordlist, 128);
+    return this.importFromMnemonic(mnemonic, { chainType: options.chainType, path: options.path });
+  }
+  async importFromPrivateKey(privateKey) {
+    const { secp, sha256, ripemd160, hexToBytes } = await this.libs();
+    const pkHex = privateKey.startsWith("0x") ? privateKey.slice(2) : privateKey;
+    const pk = hexToBytes(pkHex);
+    const libs = await this.libs();
+    const pub = this.pubkeyCreate(secp, pk, true);
+    const p2pkh = this.p2pkhAddress(pub, sha256, ripemd160, libs.bs58check);
+    const p2wpkh = this.p2wpkhAddress(pub, sha256, ripemd160, libs.bech32);
+    const p2tr = this.p2trAddress(pub, libs.bech32);
+    const p2wsh = this.p2wshAddress(pub, sha256, ripemd160, libs.bech32);
+    const address = p2wpkh;
+    return {
+      address,
+      publicKey: "0x" + Buffer.from(pub).toString("hex"),
+      privateKey: "0x" + pkHex,
+      chainType: ChainType.BITCOIN,
+      meta: { p2pkh, p2wpkh, p2wsh, p2tr }
+    };
+  }
+  async importFromMnemonic(mnemonic, options) {
+    const { bip39, bip32, sha256, ripemd160 } = await this.libs();
+    const seed = bip39.mnemonicToSeedSync(mnemonic);
+    const root = bip32.HDKey.fromMasterSeed(seed);
+    const path = options.path ?? `m/44'/0'/0'/0/0`;
+    const child = root.derive(path);
+    if (!child.privateKey) throw new Error("Failed to derive private key");
+    const pk = new Uint8Array(child.privateKey);
+    const { secp } = await this.libs();
+    const libs = await this.libs();
+    const pub = this.pubkeyCreate(secp, pk, true);
+    const p2pkh = this.p2pkhAddress(pub, sha256, ripemd160, libs.bs58check);
+    const p2wpkh = this.p2wpkhAddress(pub, sha256, ripemd160, libs.bech32);
+    const p2tr = this.p2trAddress(pub, libs.bech32);
+    const p2wsh = this.p2wshAddress(pub, sha256, ripemd160, libs.bech32);
+    const purpose = this.purposeFromPath(path);
+    const address = purpose === 44 ? p2pkh : purpose === 86 ? p2tr : p2wpkh;
+    return {
+      address,
+      publicKey: "0x" + Buffer.from(pub).toString("hex"),
+      privateKey: "0x" + Buffer.from(pk).toString("hex"),
+      chainType: ChainType.BITCOIN,
+      path,
+      meta: { p2pkh, p2wpkh, p2wsh, p2tr }
+    };
+  }
+  async importFromSeed(seed, options) {
+    const { bip32, sha256, ripemd160 } = await this.libs();
+    const seedBuf = typeof seed === "string" ? Buffer.from(seed, "hex") : Buffer.from(seed);
+    const root = bip32.HDKey.fromMasterSeed(seedBuf);
+    const path = options.path ?? `m/44'/0'/0'/0/0`;
+    const child = root.derive(path);
+    if (!child.privateKey) throw new Error("Failed to derive private key");
+    const pk = new Uint8Array(child.privateKey);
+    const { secp } = await this.libs();
+    const libs = await this.libs();
+    const pub = this.pubkeyCreate(secp, pk, true);
+    const p2pkh = this.p2pkhAddress(pub, sha256, ripemd160, libs.bs58check);
+    const p2wpkh = this.p2wpkhAddress(pub, sha256, ripemd160, libs.bech32);
+    const p2tr = this.p2trAddress(pub, libs.bech32);
+    const p2wsh = this.p2wshAddress(pub, sha256, ripemd160, libs.bech32);
+    const purpose = this.purposeFromPath(path);
+    const address = purpose === 44 ? p2pkh : purpose === 86 ? p2tr : p2wpkh;
+    return {
+      address,
+      publicKey: "0x" + Buffer.from(pub).toString("hex"),
+      privateKey: "0x" + Buffer.from(pk).toString("hex"),
+      chainType: ChainType.BITCOIN,
+      path,
+      meta: { p2pkh, p2wpkh, p2wsh, p2tr }
+    };
+  }
+  async deriveAccount(parent, index) {
+    if (!parent.path) {
+      const acct = { ...parent };
+      acct.meta = { ...acct.meta || {}, note: "Derivation requires seed/xprv", requestedIndex: index };
+      return acct;
+    }
+    const basePrefix = parent.path.replace(/\/(\d+)$|$/, "/");
+    const path = `${basePrefix}${index}`;
+    return { ...parent, path };
+  }
+}
+class SolanaKeyManager {
+  async libs() {
+    const ed = await import("./index-DQSoc9RK.mjs");
+    const bs58 = await import("./index-CskaLFDH.mjs").then((n) => n.i);
+    const hmac = await import("./hmac-B7yQtEqo.mjs");
+    const { sha512 } = await import("./sha512-D7dPJr57.mjs");
+    const { hexToBytes, bytesToHex } = await import("./utils-DOvC7oEF.mjs").then((n) => n.d);
+    return { ed, bs58, hmac, sha512, hexToBytes, bytesToHex };
+  }
+  // SLIP-0010 master key generation for ed25519
+  masterFromSeed(seed, hmac, sha512) {
+    const key = new TextEncoder().encode("ed25519 seed");
+    const I2 = hmac.hmac(sha512, key, seed);
+    const IL = I2.slice(0, 32);
+    const IR = I2.slice(32);
+    return { key: IL, chainCode: IR };
+  }
+  // SLIP-0010 CKD for hardened derivation only (ed25519 supports only hardened)
+  ckdPrivEd25519(parentKey, parentChainCode, index, hmac, sha512) {
+    const data = new Uint8Array(1 + parentKey.length + 4);
+    data.set([0], 0);
+    data.set(parentKey, 1);
+    data[data.length - 4] = index >>> 24 & 255;
+    data[data.length - 3] = index >>> 16 & 255;
+    data[data.length - 2] = index >>> 8 & 255;
+    data[data.length - 1] = index & 255;
+    const I2 = hmac.hmac(sha512, parentChainCode, data);
+    const IL = I2.slice(0, 32);
+    const IR = I2.slice(32);
+    return { key: IL, chainCode: IR };
+  }
+  parsePath(path) {
+    if (!path || !path.startsWith("m")) return [];
+    const parts = path.split("/").slice(1);
+    const out = [];
+    for (const p of parts) {
+      if (!p) continue;
+      const hardened = p.endsWith("'");
+      const num = parseInt(hardened ? p.slice(0, -1) : p, 10);
+      if (Number.isNaN(num)) throw new Error("Invalid path segment: " + p);
+      out.push((num | 2147483648) >>> 0);
+    }
+    return out;
+  }
+  async deriveEd25519FromSeed(seed, path) {
+    const { hmac, sha512 } = await this.libs();
+    let { key, chainCode } = this.masterFromSeed(seed, hmac, sha512);
+    for (const idx of this.parsePath(path)) {
+      ({ key, chainCode } = this.ckdPrivEd25519(key, chainCode, idx, hmac, sha512));
+    }
+    return key;
+  }
+  async createRandomAccount(_options) {
+    const { ed, bs58 } = await this.libs();
+    const priv = ed.utils.randomPrivateKey();
+    const pub = await ed.getPublicKeyAsync(priv);
+    const address = bs58.default.encode(Buffer.from(pub));
+    return {
+      address,
+      publicKey: bs58.default.encode(Buffer.from(pub)),
+      privateKey: "0x" + Buffer.from(priv).toString("hex"),
+      chainType: ChainType.SOLANA
+    };
+  }
+  async importFromPrivateKey(privateKey) {
+    const { ed, bs58 } = await this.libs();
+    const pkHex = privateKey.startsWith("0x") ? privateKey.slice(2) : privateKey;
+    const priv = Buffer.from(pkHex, "hex");
+    const pub = await ed.getPublicKeyAsync(new Uint8Array(priv));
+    const address = bs58.default.encode(Buffer.from(pub));
+    return {
+      address,
+      publicKey: bs58.default.encode(Buffer.from(pub)),
+      privateKey: "0x" + Buffer.from(priv).toString("hex"),
+      chainType: ChainType.SOLANA
+    };
+  }
+  async importFromMnemonic(mnemonic, options) {
+    const { ed, bs58 } = await this.libs();
+    const { mnemonicToSeedSync } = await import("./index-dq9b1K3y.mjs");
+    const seed = mnemonicToSeedSync(mnemonic);
+    const path = options.path ?? `m/44'/501'/0'/0'`;
+    const priv = await this.deriveEd25519FromSeed(new Uint8Array(seed), path);
+    const pub = await ed.getPublicKeyAsync(priv);
+    const address = bs58.default.encode(Buffer.from(pub));
+    return {
+      address,
+      publicKey: bs58.default.encode(Buffer.from(pub)),
+      privateKey: "0x" + Buffer.from(priv).toString("hex"),
+      chainType: ChainType.SOLANA,
+      path
+    };
+  }
+  async importFromSeed(seed, options) {
+    const { ed, bs58 } = await this.libs();
+    const path = options.path ?? `m/44'/501'/0'/0'`;
+    const seedBytes = typeof seed === "string" ? new TextEncoder().encode(seed) : seed;
+    const priv = await this.deriveEd25519FromSeed(seedBytes, path);
+    const pub = await ed.getPublicKeyAsync(priv);
+    const address = bs58.default.encode(Buffer.from(pub));
+    return {
+      address,
+      publicKey: bs58.default.encode(Buffer.from(pub)),
+      privateKey: "0x" + Buffer.from(priv).toString("hex"),
+      chainType: ChainType.SOLANA,
+      path
+    };
+  }
+  async deriveAccount(parent, index) {
+    return { ...parent, meta: { ...parent.meta || {}, requestedIndex: index } };
+  }
+}
+try {
+  signers.register(ChainType.EVM, new EVMSigner());
+} catch {
+}
+try {
+  keyManagers.register(ChainType.EVM, new EVMKeyManager());
+} catch {
+}
+try {
+  keyManagers.register(ChainType.BITCOIN, new BitcoinKeyManager());
+} catch {
+}
+try {
+  keyManagers.register(ChainType.SOLANA, new SolanaKeyManager());
+} catch {
+}
+(async () => {
+  try {
+    const mod2 = await import("./EVMKeyManager.native-Tjt3eUH8.mjs");
+    if (mod2 && mod2.NativeEVMKeyManager) {
+      const native = new mod2.NativeEVMKeyManager();
+      keyManagers.register(ChainType.EVM, native);
+    }
+  } catch {
+  }
+  try {
+    const smod = await import("./EVMSigner.native-joJhp8wY.mjs");
+    if (smod && smod.NativeEVMSigner) {
+      signers.register(ChainType.EVM, new smod.NativeEVMSigner());
+    }
+  } catch {
+  }
+})();
 class MessageRouter {
   constructor() {
     this.routes = /* @__PURE__ */ new Map();
@@ -5879,7 +6212,7 @@ class MessageBus extends EventEmitter {
       const validation = this.validator.validate(message);
       if (!validation.valid) {
         this.metrics.messagesDropped++;
-        throw new Error(`Message validation failed: ${validation.errors?.map((e) => e.message).join(", ")}`);
+        throw new Error(`Message validation failed: ${validation.errors?.map((e2) => e2.message).join(", ")}`);
       }
     }
     try {
@@ -6843,7 +7176,7 @@ class EncryptedStorageWrapper {
     if (!this.encryptionKey) {
       throw new Error("No encryption key set");
     }
-    const combined = Uint8Array.from(atob(encryptedValue), (c) => c.charCodeAt(0));
+    const combined = Uint8Array.from(atob(encryptedValue), (c2) => c2.charCodeAt(0));
     const iv = combined.slice(0, 12);
     const encrypted = combined.slice(12);
     const decrypted = await crypto.subtle.decrypt(
@@ -7028,7 +7361,7 @@ class VersionedStorageWrapper {
         versions.push(versionData);
       }
     }
-    return versions.sort((a2, b) => b.timestamp - a2.timestamp);
+    return versions.sort((a2, b2) => b2.timestamp - a2.timestamp);
   }
   async getVersion(key, version) {
     const versionKey = this.getVersionKey(key, version);
@@ -7190,7 +7523,7 @@ class StorageMigrator {
     this.historyKey = "__migration_history__";
     this.storage = storage;
     const sorted = migrations.sort(
-      (a2, b) => this.compareVersions(a2.version, b.version)
+      (a2, b2) => this.compareVersions(a2.version, b2.version)
     );
     for (const migration of sorted) {
       this.migrations.set(migration.version, migration);
@@ -7200,7 +7533,7 @@ class StorageMigrator {
   registerMigration(migration) {
     this.migrations.set(migration.version, migration);
     this.migrationOrder = Array.from(this.migrations.keys()).sort(
-      (a2, b) => this.compareVersions(a2, b)
+      (a2, b2) => this.compareVersions(a2, b2)
     );
   }
   async getCurrentVersion() {
@@ -7315,9 +7648,9 @@ class StorageMigrator {
     }
     return this.migrationOrder[this.migrationOrder.length - 1];
   }
-  compareVersions(a2, b) {
+  compareVersions(a2, b2) {
     const aParts = a2.split(".").map(Number);
-    const bParts = b.split(".").map(Number);
+    const bParts = b2.split(".").map(Number);
     for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
       const aPart = aParts[i] || 0;
       const bPart = bParts[i] || 0;
@@ -7595,8 +7928,8 @@ class Observable {
   /**
    * Check equality (can be overridden)
    */
-  equals(a2, b) {
-    return Object.is(a2, b);
+  equals(a2, b2) {
+    return Object.is(a2, b2);
   }
   /**
    * Check if destroyed
@@ -7629,7 +7962,7 @@ class Observable {
 class ComputedObservable extends Observable {
   constructor(dependencies, compute, initial) {
     const deps = Array.isArray(dependencies) ? dependencies : [dependencies];
-    const initialValue = initial !== void 0 ? initial : compute(...deps.map((d) => d.get()));
+    const initialValue = initial !== void 0 ? initial : compute(...deps.map((d2) => d2.get()));
     super(initialValue);
     this.unsubscribers = [];
     this.dependencies = deps;
@@ -7651,7 +7984,7 @@ class ComputedObservable extends Observable {
    * Recompute value when dependencies change
    */
   recompute() {
-    const values = this.dependencies.map((d) => d.get());
+    const values = this.dependencies.map((d2) => d2.get());
     const newValue = this.compute(...values);
     super.set(newValue);
   }
@@ -8612,8 +8945,10 @@ export {
   ChromeStorageProvider,
   ChromeSyncStorageProviderFactory,
   ComputedObservable,
+  C as ConsoleTransport,
   Container,
   CurrencyCode,
+  e as D1Transport,
   DAY,
   DEFAULT_BACKOFF_MULTIPLIER,
   DEFAULT_BASE_DELAY,
@@ -8625,6 +8960,7 @@ export {
   DEFAULT_RPC_TIMEOUT,
   DecimalMath,
   DerivedState,
+  f as DexieTransport,
   D as DiscoveryProtocol,
   ETH_BASE_EOA_GAS_UNITS,
   ETH_BASE_FORCANCEL_GAS_UNITS,
@@ -8638,16 +8974,19 @@ export {
   GAS_PER_BLOB,
   HOUR,
   HistoryObservable,
+  H as HttpTransport,
   IndexedDBProvider,
   IndexedDBProviderFactory,
   Inject,
   Injectable,
   InjectionTokens,
   I as IntegrationAPI,
+  K as KeyManagerRegistry,
   LocalStorageProvider,
   LocalStorageProviderFactory,
-  LogLevel,
-  L as Logger,
+  d as LocalStorageTransport,
+  L as LogLevel,
+  b as Logger,
   MAX_PAGE_SIZE,
   MAX_PASSWORD_LENGTH,
   MIME_TYPES,
@@ -8655,6 +8994,7 @@ export {
   MIN_PASSWORD_LENGTH,
   MemoryStorageProvider,
   MemoryStorageProviderFactory,
+  c as MemoryTransport,
   MessageBus,
   MessageRouter,
   MessageType,
@@ -8667,6 +9007,7 @@ export {
   PATTERNS,
   PBKDF2_ITERATIONS,
   PersistedState,
+  P as PostgresTransport,
   ProviderError,
   ProviderFactory,
   RPCErrorCode,
@@ -8685,6 +9026,7 @@ export {
   Service,
   ServiceFactory,
   ServiceLocator,
+  S as SignerRegistry,
   SortDirection,
   State,
   StateManager,
@@ -8705,6 +9047,8 @@ export {
   WEEK,
   WETH_ADDRESS_MAINNET,
   WalletEngine,
+  W as WebExtensionStorageTransport,
+  g as WebSocketTransport,
   WritableState,
   ZERO_ADDRESS,
   addDays,
@@ -8753,7 +9097,9 @@ export {
   isValidEmail,
   isValidTransactionHash,
   isYesterday,
+  keyManagers,
   localPersisted,
+  l as log,
   loggingMiddleware,
   persisted,
   post,
@@ -8762,6 +9108,7 @@ export {
   resetStateManager,
   safeConvertToBigInt,
   sessionPersisted,
+  signers,
   startOfDay,
   synchronized,
   validateMod,

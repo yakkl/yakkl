@@ -1,4 +1,4 @@
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 /**
  * Safely checks whether the current context is inside an iframe.

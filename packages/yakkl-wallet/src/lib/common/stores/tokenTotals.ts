@@ -1,6 +1,6 @@
 import { derived, type Readable } from 'svelte/store';
 import { yakklCombinedTokenStore } from '$lib/common/stores';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { DEBUG_ALL_LOGS } from '../constants';
 import { computeTokenValue } from '$lib/common/computeTokenValue'; // Utility function to ensure accurate calculations
 import { BigNumberishUtils } from '../BigNumberishUtils';

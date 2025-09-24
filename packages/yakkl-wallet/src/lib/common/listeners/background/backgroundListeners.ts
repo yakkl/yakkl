@@ -14,7 +14,7 @@ import {
 	onWindowsFocusChangedListener
 } from './tabListeners';
 import { globalListenerManager } from '$lib/managers/GlobalListenerManager';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { openWindows } from '$contexts/background/extensions/chrome/ui';
 import { onUnifiedMessageListener } from './unifiedMessageListener';
 import { isYakklPage } from '$lib/common/isYakklPage';

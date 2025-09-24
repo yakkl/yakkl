@@ -18,7 +18,7 @@ import { estimateGas, getBlock } from '$contexts/background/extensions/chrome/le
 import { supportedChainId } from '$lib/common/utils';
 import { onPortInternalListener } from '$lib/common/listeners/ui/portListeners';
 import { onEthereumListener } from '$lib/common/listeners/background/backgroundListeners';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { addDAppActivity } from '../../activities/dapp-activity';
 import type { DAppActivity } from '../../activities/dapp-activity';
 import { portManager } from '$lib/managers/PortManager';

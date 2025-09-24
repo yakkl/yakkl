@@ -7,7 +7,7 @@ import { makeError } from '$lib/common/errors';
 import { addHexPrefix, hexlify, isBytesLike, stripHexPrefix } from '$lib/common/misc';
 import type { BytesLike } from '$lib/common/types';
 import { BigNumber, type BigNumberish, type Numeric } from '$lib/common/bignumber';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 // TODO: Some of the things in this file are not used in the project. Remove them if they are not needed or out of date.
 

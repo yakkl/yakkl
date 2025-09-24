@@ -11,7 +11,7 @@ import {
   yakklPricingStore
 } from '$lib/common/stores';
 import { isEqual } from 'lodash-es';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { computeTokenValue } from './computeTokenValue';
 import { balanceCacheManager } from '$lib/managers/BalanceCacheManager';
 

@@ -26,7 +26,7 @@ import {
   onWindowsFocusChangedListener
 } from '$lib/common/listeners/background/tabListeners';
 import { globalListenerManager } from '$lib/managers/GlobalListenerManager';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { onAlarmListener } from '$lib/common/listeners/background/alarmListeners';
 
 import browser from 'webextension-polyfill';

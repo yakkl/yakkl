@@ -1,14 +1,15 @@
 /**
  * Background Browser API Port Handler
- * 
+ *
  * Handles secure port connections for browser API requests
  * with access to encryption/decryption via in-memory digest
  */
 
-import browser from 'webextension-polyfill';
+// import browser from 'webextension-polyfill';
 import type { Runtime } from 'webextension-polyfill';
 import { handleBrowserAPIMessage } from './browser-api.handler';
-import { log } from '$lib/managers/Logger';
+// import { log } from '@yakkl/core';
+import { log } from '$lib/common/logger-wrapper';
 import { safePortPostMessage } from '$lib/common/safePortMessaging';
 import { encryptData, decryptData } from '@yakkl/sdk';
 
@@ -46,36 +47,36 @@ export function handleBrowserAPIPortConnection(port: Runtime.Port) {
   if (port.name !== 'YAKKL_BROWSER_API') {
     return;
   }
-  
+
   const portId = `port_${Date.now()}_${Math.random().toString(36).substring(7)}`;
   activePorts.set(portId, port);
-  
+
   log.info('[BrowserAPIPort] New port connection established:', false, { portId, sender: port.sender });
-  
+
   // Handle messages from this port
   port.onMessage.addListener(async (message: PortMessage) => {
     if (!message.id || !message.request) {
       log.warn('[BrowserAPIPort] Invalid message format:', false, message);
       return;
     }
-    
+
     try {
       let result: any;
-      
+
       // Handle special encryption/decryption requests
       switch (message.request.type) {
         case 'YAKKL_DECRYPT':
           result = await handleDecrypt(message.request.payload);
           break;
-          
+
         case 'YAKKL_ENCRYPT':
           result = await handleEncrypt(message.request.payload);
           break;
-          
+
         case 'YAKKL_VERIFY_DIGEST':
           result = await handleVerifyDigest();
           break;
-          
+
         default:
           // Handle standard browser API requests
           result = await handleBrowserAPIMessage({
@@ -86,7 +87,7 @@ export function handleBrowserAPIPortConnection(port: Runtime.Port) {
           });
           break;
       }
-      
+
       // Send response back through port safely
       safePortPostMessage(port, {
         id: message.id,
@@ -97,16 +98,16 @@ export function handleBrowserAPIPortConnection(port: Runtime.Port) {
       } as PortMessage, {
         context: 'BrowserAPIPort-success',
         onError: (error) => {
-          log.warn('[BrowserAPIPort] Failed to send success response:', false, { 
-            messageId: message.id, 
-            error: error instanceof Error ? error.message : error 
+          log.warn('[BrowserAPIPort] Failed to send success response:', false, {
+            messageId: message.id,
+            error: error instanceof Error ? error.message : error
           });
         }
       });
-      
+
     } catch (error) {
       log.error('[BrowserAPIPort] Error handling message:', false, error);
-      
+
       // Send error response safely
       safePortPostMessage(port, {
         id: message.id,
@@ -121,8 +122,8 @@ export function handleBrowserAPIPortConnection(port: Runtime.Port) {
       } as PortMessage, {
         context: 'BrowserAPIPort-error',
         onError: (sendError) => {
-          log.warn('[BrowserAPIPort] Failed to send error response:', false, { 
-            messageId: message.id, 
+          log.warn('[BrowserAPIPort] Failed to send error response:', false, {
+            messageId: message.id,
             originalError: error instanceof Error ? error.message : error,
             sendError: sendError instanceof Error ? sendError.message : sendError
           });
@@ -130,7 +131,7 @@ export function handleBrowserAPIPortConnection(port: Runtime.Port) {
       });
     }
   });
-  
+
   // Handle port disconnection
   port.onDisconnect.addListener(() => {
     log.info('[BrowserAPIPort] Port disconnected:', false, { portId });
@@ -143,21 +144,21 @@ export function handleBrowserAPIPortConnection(port: Runtime.Port) {
  */
 async function handleDecrypt(payload: any): Promise<any> {
   const { encryptedData } = payload;
-  
+
   if (!globalThis.__yakklDigest) {
     throw new Error('No digest available for decryption');
   }
-  
+
   if (!encryptedData) {
     throw new Error('No encrypted data provided');
   }
-  
+
   try {
     const decrypted = await decryptData(encryptedData, globalThis.__yakklDigest);
-    
+
     log.debug('[BrowserAPIPort] Data decrypted successfully');
     return decrypted;
-    
+
   } catch (error) {
     log.error('[BrowserAPIPort] Decryption failed:', false, error);
     throw new Error('Failed to decrypt data');
@@ -169,21 +170,21 @@ async function handleDecrypt(payload: any): Promise<any> {
  */
 async function handleEncrypt(payload: any): Promise<any> {
   const { data } = payload;
-  
+
   if (!globalThis.__yakklDigest) {
     throw new Error('No digest available for encryption');
   }
-  
+
   if (!data) {
     throw new Error('No data provided for encryption');
   }
-  
+
   try {
     const encrypted = await encryptData(data, globalThis.__yakklDigest);
-    
+
     log.debug('[BrowserAPIPort] Data encrypted successfully');
     return encrypted; // Returns EncryptedData object with data, iv, salt
-    
+
   } catch (error) {
     log.error('[BrowserAPIPort] Encryption failed:', false, error);
     throw new Error('Failed to encrypt data');

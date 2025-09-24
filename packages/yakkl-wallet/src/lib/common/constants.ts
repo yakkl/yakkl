@@ -1,9 +1,9 @@
 /**
  * Constants - Re-exports from @yakkl/core plus wallet-specific constants
- * 
+ *
  * MIGRATION NOTE: Generic constants have been moved to @yakkl/core
  * This file now re-exports from @yakkl/core and adds wallet-specific constants
- * 
+ *
  * IMPORTANT NOTE: Edit 'constants.mustache' since it is the template for 'constants.ts'
  */
 
@@ -177,6 +177,7 @@ export const PATH_ACCOUNT_MAINTENANCE = "/accounts/ethereum/maintenance";
 export const PATH_LEGAL = "/legal";
 export const PATH_LEGAL_TOS = '/legal/tos';
 export const PATH_LEGAL_PRIVACY = '/legal/privacy';
+export const PATH_LEGAL_SUBSCRIPTION = '/legal/subscription';
 export const PATH_PROFILE = "/components/profile";
 export const PATH_ACTIVITIES = "/activities";
 export const PATH_CRYPTO = "/crypto";

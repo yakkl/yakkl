@@ -1,5 +1,5 @@
 import { requestManager } from './requestManager';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 // import { getYakklConnectedDomains } from "$lib/common/stores";
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from '$lib/common/storage';
 import { STORAGE_YAKKL_CONNECTED_DOMAINS, STORAGE_YAKKL_ACCOUNTS } from '$lib/common/constants';

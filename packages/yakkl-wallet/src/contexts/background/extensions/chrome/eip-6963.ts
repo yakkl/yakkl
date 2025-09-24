@@ -1,4 +1,4 @@
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import type { Runtime } from 'webextension-polyfill';
 import { ProviderRpcError } from '$lib/common';
 import browser from 'webextension-polyfill';

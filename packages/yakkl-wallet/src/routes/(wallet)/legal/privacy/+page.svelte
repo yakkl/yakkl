@@ -55,8 +55,7 @@
       <div class="flex justify-center">
         <button
           onclick={() => goto(PATH_HOME)}
-          class="yakkl-btn-primary"
-        >
+          class="yakkl-btn-primary">
           Close
         </button>
       </div>

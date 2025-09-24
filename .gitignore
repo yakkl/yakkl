@@ -126,6 +126,7 @@ packages/yakkl-wallet/src/lib/**/*.tmp
 !**/.env.example
 
 # Restricted files
+**/*.log
 
 # Lock files
 # pnpm-lock.yaml

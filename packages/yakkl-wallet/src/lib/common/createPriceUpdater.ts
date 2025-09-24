@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store';
 import type { TokenData } from './interfaces';
 import type { PriceManager } from '$lib/managers/PriceManager';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { BigNumberishUtils } from './BigNumberishUtils';
 import { DecimalMath } from './DecimalMath';
 

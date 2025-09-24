@@ -2,7 +2,7 @@ import { STORAGE_YAKKL_CURRENTLY_SELECTED } from "./constants";
 import type { YakklCurrentlySelected } from "./interfaces";
 import { getObjectFromLocalStorage } from "./storage";
 import { detectBrowserContext } from "./browserContext";
-import { log } from "$lib/managers/Logger";
+import { log } from "$lib/common/logger-wrapper";
 import { yakklCurrentlySelected } from "../models/dataModels";
 
 

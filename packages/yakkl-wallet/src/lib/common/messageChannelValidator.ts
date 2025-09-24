@@ -1,5 +1,5 @@
 // messageChannelValidator.ts - Validates message channels before sending responses
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import browser from 'webextension-polyfill';
 
 export type SafeMessageHandler = (

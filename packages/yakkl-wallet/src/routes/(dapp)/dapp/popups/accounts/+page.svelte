@@ -21,7 +21,7 @@
 		type YakklCurrentlySelected
 	} from '$lib/common';
 	import { dateString } from '$lib/common/datetime';
-	import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 	import Confirmation from '$lib/components/Confirmation.svelte';
 	import type { BackgroundPendingRequest } from '$lib/common/interfaces';
 	import Warning from '$lib/components/Warning.svelte';

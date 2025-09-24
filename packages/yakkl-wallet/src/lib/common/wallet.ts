@@ -3,7 +3,7 @@ import type { Provider } from '$lib/managers/Provider';
 import type { Wallet } from '$lib/managers/Wallet';
 import { blockchainServiceManager } from '$lib/sdk/BlockchainServiceManager';
 import { TokenService } from '$lib/managers/blockchains/evm/TokenService';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 export async function getInstances(chainId: number = 1): Promise<
 	[Wallet | null, Provider | null, Blockchain | null, TokenService<any> | null]

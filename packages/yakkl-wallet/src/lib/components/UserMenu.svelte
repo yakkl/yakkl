@@ -4,7 +4,7 @@
   import { getProfile } from '$lib/common/profile';
   import { getGravatarUrl } from '$lib/utils/gravatar';
   import { onMount } from 'svelte';
-  import { PATH_LEGAL_PRIVACY, PATH_LEGAL_TOS, type ProfileData } from '$lib/common';
+  import { PATH_LEGAL_PRIVACY, PATH_LEGAL_TOS, PATH_LEGAL_SUBSCRIPTION, type ProfileData } from '$lib/common';
   import { goto } from '$app/navigation';
   import Menu from './menu/Menu.svelte';
   import AccountHeader from './menu/AccountHeader.svelte';
@@ -219,6 +219,12 @@ const menuItems = $derived.by((): MenuItem[] => {
               label: 'Privacy Policy',
               icon: { svg: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>' },
               action: () => { menuOpen = false; goto(PATH_LEGAL_PRIVACY); }
+            },
+            {
+              type: 'item',
+              label: 'Subscription Policy',
+              icon: { svg: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>' },
+              action: () => { menuOpen = false; goto(PATH_LEGAL_SUBSCRIPTION); }
             },
             {
               type: 'item',

@@ -1,4 +1,4 @@
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 // messageAnalyzer.ts - A utility to help understand message patterns
 export class MessageAnalyzer {

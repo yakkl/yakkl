@@ -19,7 +19,7 @@ import {
 import { browser_ext } from './environment';
 import { ethers as ethersv6 } from 'ethers-v6';
 import { get } from 'svelte/store';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { setYakklAccountsStorage } from './accounts';
 // import type { Runtime } from 'webextension-polyfill';
 

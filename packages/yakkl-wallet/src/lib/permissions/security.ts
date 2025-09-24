@@ -3,7 +3,7 @@
 
 import { SecurityLevel } from './types';
 import { ExtensionStorage } from '@yakkl/browser-extension';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 const SECURITY_LEVEL_KEY = 'walletSecurityLevel';
 const storage = new ExtensionStorage({ area: 'local' });

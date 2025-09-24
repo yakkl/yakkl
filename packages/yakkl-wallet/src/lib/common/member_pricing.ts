@@ -3,7 +3,7 @@ import {
 	FOUNDING_MEMBER_DEADLINE,
 	YAKKL_PRO_ANNUAL_FEE
 } from './constants';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 /**
  * Returns the price for the current date based on EARLY_ADOPTER_USER_DEADLINES.

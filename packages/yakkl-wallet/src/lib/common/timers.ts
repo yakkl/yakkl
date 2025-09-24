@@ -1,5 +1,5 @@
 import { TimerManager } from '$lib/managers/TimerManager';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 export async function stopTimers() {
 	console.log('[stopTimers] Starting timer stop process...');

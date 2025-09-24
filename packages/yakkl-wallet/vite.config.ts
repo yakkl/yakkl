@@ -11,6 +11,7 @@ import { getYakklAliases } from './vite.alias.config';
 
 const htmlTosContent = fs.readFileSync(path.resolve('static/snippet-tos.html'), 'utf-8');
 const htmlPrivacyContent = fs.readFileSync(path.resolve('static/snippet-privacy.html'), 'utf-8');
+const htmlSubscriptionPolicyContent = fs.readFileSync(path.resolve('static/snippet-subscription-policy.html'), 'utf-8');
 
 // Ensure NODE_ENV is set
 if (!process.env.NODE_ENV) {
@@ -29,6 +30,7 @@ export default defineConfig(({ mode }) => {
 			replace({
 				___HTML_SNIPPET_TOS___: htmlTosContent,
 				___HTML_SNIPPET_PRIVACY___: htmlPrivacyContent,
+				___HTML_SNIPPET_SUBSCRIPTION_POLICY___: htmlSubscriptionPolicyContent,
 				preventAssignment: true
 			}),
 			mockBrowserPolyfill() as any,
@@ -58,7 +60,7 @@ export default defineConfig(({ mode }) => {
 		resolve: {
 			dedupe: ['dexie'],
 			alias: {
-				process: 'process/browser',
+				'vite-plugin-node-polyfills/shims/process': path.resolve(__dirname, 'process-shim.js'),
 				$base: path.resolve('./src'),
 				$static: path.resolve('./src/static'),
 				$lib: path.resolve('./src/lib'),

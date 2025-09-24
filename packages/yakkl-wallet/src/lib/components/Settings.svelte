@@ -5,7 +5,7 @@
 	import Modal from '@yakkl/ui/src/components/Modal.svelte';
 	import { getYakklSettings, setYakklSettings, setProfileStorage } from '$lib/common/stores';
 	import { getProfile } from '$lib/common/profile';
-	import { log } from '$lib/managers/Logger';
+    import { log } from '$lib/common/logger-wrapper';
 	import type { YakklSettings, Profile } from '$lib/common/interfaces';
 	import { SystemTheme, PlanType } from '$lib/common/types';
 	import SoundSettings from './SoundSettings.svelte';
@@ -481,6 +481,17 @@
 				<div>
 					<h3 class="text-lg font-medium text-base-content mb-4">Notifications</h3>
 					<SoundSettings className="mt-4" />
+				</div>
+
+				<!-- Support & Diagnostics -->
+				<div>
+					<h3 class="text-lg font-medium text-base-content mb-4">Support & Diagnostics</h3>
+					<div class="flex items-center justify-between bg-base-200 p-3 rounded">
+						<div>
+							<p class="text-sm">Open Support Logs for troubleshooting (sanitized).</p>
+						</div>
+						<a href="/support/logs" class="btn btn-outline btn-sm">Open Support Logs</a>
+					</div>
 				</div>
 
 				<!-- Trial Settings (if applicable) -->

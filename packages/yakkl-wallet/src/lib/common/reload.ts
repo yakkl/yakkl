@@ -1,5 +1,5 @@
 import { browserSvelte, browser_ext } from './environment';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { openWindows } from '$contexts/background/extensions/chrome/ui';
 
 export function getPopupDimensions() {

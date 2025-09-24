@@ -2,14 +2,16 @@
 import type { Runtime } from 'webextension-polyfill';
 import type { AccessList, Log, Transaction } from '$lib/common/evm';
 import {
-	type AccessSourceType,
-	type AccountTypeCategory,
+	// value (enums)
+	AccessSourceType,
+	AccountTypeCategory,
+	NetworkType,
+	PlanType,
+	PromoClassificationType,
+	RegisteredType,
+	SystemTheme,
+	// types
 	type BytesLike,
-	type NetworkType,
-	type PlanType,
-	type PromoClassificationType,
-	type RegisteredType,
-	type SystemTheme,
 	type URL,
 	type TransactionReceipt,
 	type TransactionRequest
@@ -19,6 +21,7 @@ import type { Token } from '$lib/managers/Token';
 // import type { Runtime } from 'webextension-polyfill';
 import type { BigNumber } from './bignumber';
 import type { VaultReference } from '$lib/interfaces/vault.interface';
+import type { EncryptedData } from '@yakkl/sdk';
 
 // Session Info is used to check if the session is valid and if the port is open - mainly used for the dapp popups
 export interface SessionInfo {
@@ -146,11 +149,11 @@ export type BackgroundPendingRequest = {
   data: PendingRequestData;
 };
 
-export interface EncryptedData {
-	data: string;
-	iv: string;
-	salt?: string;
-}
+// export interface EncryptedData {
+// 	data: string;
+// 	iv: string;
+// 	salt: string;
+// }
 
 export interface User {
 	id: string;
@@ -888,7 +891,7 @@ export interface Preferences {
 	persona?: string; // The persona that is associated with the account
 	idleDelayInterval: number; // System default of 1 minute - this is in seconds
 	showTestNetworks?: boolean;
-	dark: SystemTheme; //'dark' | 'light' | 'system';
+	dark: typeof SystemTheme; //'dark' | 'light' | 'system';
 	chart?: string;
 	screenWidth: number; // These two change. They are here for temporary but we're already using settings for the popup
 	screenHeight: number;
@@ -989,7 +992,7 @@ export interface Shortcuts {
 	id?: string;
 	persona?: string; // The persona that is associated with the account
 	quantity?: BigNumberish; // Account value
-	accountType: AccountTypeCategory; // primary, imported, sub
+	accountType: typeof AccountTypeCategory; // primary, imported, sub
 	accountName: string;
 	smartContract: boolean;
 	address: string;
@@ -1053,7 +1056,7 @@ export interface YakklAccount {
 	smartContract: boolean; // SmartContracts do not have private keys and the price per gas unit is usually 45,000 instead of 21,000
 	address: string; // Must be unique
 	alias: string;
-	accountType: AccountTypeCategory; //'imported' | 'sub' | 'primary' | 'NA';
+	accountType: typeof   AccountTypeCategory; //'imported' | 'sub' | 'primary' | 'NA';
 	name: string;
 	description: string; // Can use this to describe an account associated with an NFT or RWA (Real World Asset) or class
 	primaryAccount: YakklPrimaryAccount | null; // If the account is a primary account then this is empty

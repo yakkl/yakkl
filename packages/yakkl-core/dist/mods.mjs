@@ -1,4 +1,4 @@
-import { D, a, M } from "./DiscoveryProtocol-Bno4a3vM.mjs";
+import { D, a, M } from "./DiscoveryProtocol-B9ADSwn1.mjs";
 export {
   D as DiscoveryProtocol,
   a as ModLoader,

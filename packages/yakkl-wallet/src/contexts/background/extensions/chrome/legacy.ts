@@ -1,4 +1,4 @@
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { Alchemy, Network, type TransactionRequest, type BlockTag, BigNumber as AlchemyBigNumber } from 'alchemy-sdk';
 import { getKeyManager } from '$lib/managers/KeyManager';
 import { RPCAlchemy } from '$lib/managers/providers/network/alchemy/RPCAlchemy';

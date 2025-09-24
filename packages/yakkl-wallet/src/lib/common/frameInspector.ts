@@ -1,6 +1,6 @@
 // FrameInspector.ts
 
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 
 export type FrameAccessibility =
 	| 'accessible'

@@ -1,7 +1,7 @@
 import { STORAGE_YAKKL_ACCOUNTS } from "./constants";
 import type { YakklAccount } from "./interfaces";
 import { getObjectFromLocalStorage, setObjectInLocalStorage } from "./storage";
-import { log } from "$lib/managers/Logger";
+import { log } from "$lib/common/logger-wrapper";
 import { verifyEncryption, yakklAccountsStore } from "./stores";
 
 export async function getYakklAccounts(id?: string, persona?: string): Promise<YakklAccount[]> {

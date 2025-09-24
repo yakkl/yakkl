@@ -1,6 +1,6 @@
 import { writable, get } from 'svelte/store';
 import { yakklCombinedTokenStore, setYakklCombinedTokenStorage, getYakklTokenCache, setYakklTokenCacheStorage } from '$lib/common/stores';
-import { log } from '$lib/managers/Logger';
+import { log } from '$lib/common/logger-wrapper';
 import { PriceManager } from '$lib/managers/PriceManager';
 import { createPriceUpdater } from './createPriceUpdater';
 import { TimerManager } from '$lib/managers/TimerManager';
